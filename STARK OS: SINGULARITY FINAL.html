@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STARK OS: MATRIX SINGULARITY</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --cyan: #00f0ff; 
+            --cyan-low: rgba(0, 240, 255, 0.0);
+            --red: #ff003c; 
+            --bg: #00040a; 
+            --font: 'Rajdhani', sans-serif;
+        }
+
+        * { box-sizing: border-box; cursor: crosshair; }
+        
+        body { 
+            margin: 0; 
+            background: var(--bg); 
+            color: var(--cyan); 
+            font-family: var(--font); 
+            overflow: hidden; 
+            height: 100vh;
+        }
+
+        /* Matrix Background Canvas */
+        #matrix {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0; /* Behind the HUD */
+            opacity: 0.4; /* Softened so HUD is readable */
+        }
+
+        /* Scanlines and Overlays */
+        .scanlines { position: fixed; inset: 0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.0) 50%); background-size: 100% 4px; pointer-events: none; z-index: 101; }
+        #frost { position: fixed; inset: 0; background: radial-gradient(circle, transparent 50%, rgba(255,255,255,0.0) 100%); opacity: 0; pointer-events: none; z-index: 100; transition: 1.5s; }
+
+        #hud-master {
+            position: relative; 
+            width: 100vw; 
+            height: 100vh;
+            display: flex; 
+            flex-direction: column;
+            perspective: 1200px; 
+            transform-style: preserve-3d;
+            z-index: 10; /* Above Matrix */
+        }
+
+        header {
+            height: 60px; padding: 0 40px; display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid var(--cyan-low); background: rgba(0,0,0,0.7); backdrop-filter: blur(5px);
+        }
+
+        .viewport {
+            flex: 1; display: grid; grid-template-columns: 350px 1fr 350px;
+            padding: 20px; gap: 40px; transition: transform 0.1s ease-out;
+        }
+
+        .side-panel {
+            background: rgba(0, 10, 20, 0.0); border: 1px solid var(--cyan-low);
+            backdrop-filter: blur(10px); padding: 25px; position: relative;
+            display: flex; flex-direction: column; gap: 20px;
+        }
+
+        /* Zero-G Physics */
+        .zero-g .side-panel { animation: float 10s infinite ease-in-out; border-style: dashed; }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-30px) rotate(1deg); } }
+
+        /* Nanite Hex Repair Overlay */
+        .nanite-overlay {
+            position: absolute; inset: 0; pointer-events: none; opacity: 0;
+            background-image: url("data:image/svg+xml,%3Csvg width='30' height='30' viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M15 0l15 8v14l-15 8-15-8V8z' fill='%2300f0ff' fill-opacity='0.1'/%3E%3C/svg%3E");
+            transition: 0.5s;
+        }
+        .repairing .nanite-overlay { opacity: 1; animation: blink 0.5s infinite; }
+        @keyframes blink { 50% { opacity: 0.3; } }
+
+        .center-stage { position: relative; display: flex; justify-content: center; align-items: center; }
+        .helmet-3d {
+            width: 140px; height: 180px; border: 2px solid var(--cyan);
+            border-radius: 50% 50% 35% 35%; position: relative;
+            transform-style: preserve-3d; box-shadow: 0 0 40px var(--cyan-low);
+            transition: transform 0.2s cubic-bezier(0.1, 0.5, 0.1, 1);
+            background: rgba(0, 240, 255, 0.05);
+        }
+        .eye { position: absolute; top: 55px; width: 30px; height: 6px; background: #fff; box-shadow: 0 0 20px var(--cyan); border-radius: 2px; }
+
+        .btn-stark {
+            background: rgba(0,0,0,0.0); border: 1px solid var(--cyan); color: var(--cyan);
+            padding: 10px; font-family: 'Orbitron'; font-size: 10px; cursor: pointer; transition: 0.3s;
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        .btn-stark:hover { background: var(--cyan); color: #000; box-shadow: 0 0 15px var(--cyan); }
+
+        footer {
+            height: 100px; padding: 0 40px; border-top: 1px solid var(--cyan-low);
+            display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: center;
+            background: rgba(0,0,0,0.0);
+        }
+
+        .bar-bg { height: 4px; background: rgba(0,240,255,0.1); margin-top: 8px; }
+        .bar-fill { height: 100%; background: var(--cyan); transition: width 0.4s; }
+    </style>
+</head>
+<body onload="bootOS()">
+
+<canvas id="matrix"></canvas>
+<div class="scanlines"></div>
+<div id="frost"></div>
+
+<div id="hud-master">
+    <header>
+        <div style="font-family:'Orbitron'; font-weight:700; letter-spacing:5px;">STARK OS <span style="opacity:0.4;">ASHRAF</span></div>
+        <div id="mode-text">SYSTEMS: STANDBY</div>
+        <div id="clock">00:00:00</div>
+    </header>
+
+    <main class="viewport" id="v-port">
+        <section class="side-panel" id="lp">
+            <div class="nanite-overlay"></div>
+            <div>
+                <div style="font-size:10px; opacity:0.6; letter-spacing:2px;">ARC REACTOR CORE</div>
+                <div style="font-size:28px;" id="pwr-val">99.8%</div>
+                <div class="bar-bg"><div class="bar-fill" id="pwr-bar" style="width:99%;"></div></div>
+            </div>
+            <div>
+                <div style="font-size:10px; opacity:0.6; letter-spacing:2px;">O2 SATURATION</div>
+                <div style="font-size:28px;" id="o2-val">100%</div>
+                <div class="bar-bg"><div class="bar-fill" id="o2-bar" style="width:100%;"></div></div>
+            </div>
+            <button class="btn-stark" style="margin-top:auto;" onclick="toggleZeroG()">Toggle Zero-G</button>
+        </section>
+
+        <section class="center-stage">
+            <div class="helmet-3d" id="helmet">
+                <div class="eye" style="left:20px; transform: rotate(-5deg);"></div>
+                <div class="eye" style="right:20px; transform: rotate(5deg);"></div>
+            </div>
+            <svg style="position:absolute; width:100%; height:100%; opacity:0.2; pointer-events:none;">
+                <circle cx="50%" cy="50%" r="220" fill="none" stroke="var(--cyan)" stroke-width="1" stroke-dasharray="15 15" />
+                <path d="M 150 300 Q 80 500 150 700" fill="none" stroke="var(--cyan)" stroke-width="2" />
+                <path d="M 850 300 Q 920 500 850 700" fill="none" stroke="var(--cyan)" stroke-width="2" />
+            </svg>
+        </section>
+
+        <section class="side-panel" id="rp">
+            <div class="nanite-overlay"></div>
+            <div style="font-size:10px; opacity:0.6; letter-spacing:2px;">COMMS / LOGS</div>
+            <div id="console" style="font-size:11px; font-family:monospace; height:200px; overflow:hidden; line-height:1.6;"></div>
+            <div style="margin-top:auto; display:flex; flex-direction:column; gap:10px;">
+                <button class="btn-stark" onclick="runRepair()">Initiate Nanites</button>
+                <button class="btn-stark" style="border-color:var(--red); color:var(--red);" onclick="combatMode()">Weapons Hot</button>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div>
+            <div style="font-size:10px; opacity:0.6;">ALTITUDE (MSL)</div>
+            <div style="font-size:24px; font-weight:700;" id="alt-txt">0 FT</div>
+        </div>
+        <div style="text-align:center;">
+            <div style="font-size:10px; opacity:0.6;">NEURAL INTERFACE</div>
+            <div style="font-size:20px; color:#fff;">SYNCHRONIZED</div>
+        </div>
+        <div style="text-align:right;">
+            <div style="font-size:10px; opacity:0.6;">LOCATION DATA</div>
+            <div style="font-size:18px;">HYDERABAD_IN_SEC_4</div>
+        </div>
+    </footer>
+</div>
+
+<script>
+    // --- Matrix Animation ---
+    const canvas = document.getElementById('matrix');
+    const ctx = canvas.getContext('2d');
+    
+    let columns, drops;
+    const fontSize = 16;
+    const characters = '0123456789ABCDEF@#$%&*{}+=<>?/|';
+
+    function initMatrix() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        columns = Math.floor(canvas.width / fontSize);
+        drops = new Array(columns).fill(0);
+    }
+
+    function drawMatrix() {
+        ctx.fillStyle = 'rgba(0, 4, 10, 0.1)'; // Matches --bg
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.font = fontSize + 'px monospace';
+
+        for (let i = 0; i < drops.length; i++) {
+            const text = characters.charAt(Math.floor(Math.random() * characters.length));
+            // Alternate between Cyan and a lighter tint
+            ctx.fillStyle = (i % 3 === 0) ? '#00f0ff' : '#005566'; 
+            ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+            if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                drops[i] = 0;
+            }
+            drops[i]++;
+        }
+    }
+
+    // --- Stark OS Logic ---
+    const vPort = document.getElementById('v-port');
+    const helmet = document.getElementById('helmet');
+    const consoleDiv = document.getElementById('console');
+
+    function log(m) {
+        const d = document.createElement('div');
+        d.textContent = `> ${m}`;
+        consoleDiv.prepend(d);
+    }
+
+    function bootOS() {
+        initMatrix();
+        setInterval(drawMatrix, 50);
+        log("SINGULARITY OS v1.0 ONLINE.");
+        log("MATRIX SUBSTRATE DETECTED.");
+        log("WELCOME HOME, MR. STARK.");
+        
+        setInterval(() => {
+            document.getElementById('clock').innerText = new Date().toLocaleTimeString();
+            const p = (98.5 + Math.random()*1.5).toFixed(1);
+            document.getElementById('pwr-val').innerText = p + "%";
+            document.getElementById('pwr-bar').style.width = p + "%";
+        }, 1500);
+    }
+
+    window.addEventListener('resize', initMatrix);
+
+    document.addEventListener('mousemove', (e) => {
+        const x = (window.innerWidth / 2 - e.pageX) / 45;
+        const y = (window.innerHeight / 2 - e.pageY) / 45;
+
+        vPort.style.transform = `rotateY(${x}deg) rotateX(${-y}deg)`;
+        helmet.style.transform = `rotateY(${-x*1.8}deg) rotateX(${y*1.8}deg)`;
+
+        const alt = Math.floor(((window.innerHeight - e.pageY) / window.innerHeight) * 85000);
+        document.getElementById('alt-txt').innerText = alt.toLocaleString() + " FT";
+        
+        const frost = document.getElementById('frost');
+        const o2Bar = document.getElementById('o2-bar');
+        if(alt > 50000) {
+            frost.style.opacity = (alt - 50000) / 35000;
+            let o2 = Math.max(0, 100 - (alt - 50000) / 320);
+            document.getElementById('o2-val').innerText = Math.floor(o2) + "%";
+            o2Bar.style.width = o2 + "%";
+        } else {
+            frost.style.opacity = 0;
+            document.getElementById('o2-val').innerText = "100%";
+            o2Bar.style.width = "100%";
+        }
+    });
+
+    function toggleZeroG() {
+        document.getElementById('hud-master').classList.toggle('zero-g');
+        log("ZERO-G SIMULATION ACTIVE.");
+    }
+
+    function runRepair() {
+        document.querySelectorAll('.side-panel').forEach(p => p.classList.add('repairing'));
+        log("REPAIRING ARMOR PLATING...");
+        setTimeout(() => {
+            document.querySelectorAll('.side-panel').forEach(p => p.classList.remove('repairing'));
+            log("STRUCTURAL INTEGRITY 100%.");
+        }, 3000);
+    }
+
+    function combatMode() {
+        document.getElementById('mode-text').style.color = 'var(--red)';
+        document.getElementById('mode-text').innerText = 'WEAPONS HOT';
+        log("COMBAT PROTOCOL ENGAGED.");
+    }
+</script>
+</body>
+</html>
