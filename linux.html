@@ -403,6 +403,25 @@
 
             switch(cmd) {
 
+                    case "shred":
+        const targetFile = args[1];
+        if (!targetFile) {
+            addLog("USAGE: shred [filename]", "var(--glow-gold)");
+        } else {
+            const { error } = await supabaseClient
+                .from('virtual_fs')
+                .delete()
+                .eq('name', targetFile);
+            
+            if (error) addLog("SHRED_FAILED: " + error.message, "var(--glow-red)");
+            else addLog(`FILE_${targetFile}_ERASED_FROM_CLOUD`, "var(--glow-green)");
+        }
+        break;
+
+                    case "ls_cloud":
+        listCloudFiles();
+        break;
+
                     case "save":
         // Usage: save [filename] [content]
         const fName = args[1];
@@ -538,12 +557,12 @@
             addLog("INITIATING_UPLINK_HANDSHAKE...", "var(--glow-gold)");
 
             try {
-                // Querying the virtual_fs table
-                const { data, error } = await supabaseClient
-                    .from('virtual_fs')
-                    .select('content')
-                    .eq('id', idInput)
-                    .single();
+               // Change this line in your readFileFromCloud function:
+const { data, error } = await supabaseClient
+    .from('virtual_fs')
+    .select('content')
+    .eq('name', fileName) // Only search by name first to test
+    .single();
 
                 if (error) throw error;
 
@@ -626,6 +645,11 @@ async function saveFileToCloud(fileName, fileContent) {
     }
 }
 
+        if (error) {
+    console.error("FULL_DB_ERROR:", error); // Check F12 Console for details
+    addLog("UPLOAD_FAILED: " + error.message, "var(--glow-red)");
+}
+
 async function readFileFromCloud(fileName) {
     addLog(`FETCHING: ${fileName}...`, "var(--glow-gold)");
 
@@ -641,6 +665,30 @@ async function readFileFromCloud(fileName) {
     } else {
         addLog(`--- CONTENT: ${fileName} ---`, "var(--glow-purple)");
         addLog(data.content, "#fff");
+    }
+}
+
+        async function listCloudFiles() {
+    addLog("QUERYING_REMOTE_STORAGE...", "var(--glow-gold)");
+
+    const { data, error } = await supabaseClient
+        .from('virtual_fs')
+        .select('name, type')
+        .order('name', { ascending: true });
+
+    if (error) {
+        addLog("CLOUD_QUERY_FAILED: " + error.message, "var(--glow-red)");
+        return;
+    }
+
+    if (data.length === 0) {
+        addLog("REMOTE_STORAGE_EMPTY", "var(--glow-blue)");
+    } else {
+        addLog("--- REMOTE_FILES ---", "var(--glow-purple)");
+        const fileList = data.map(f => 
+            f.type === 'dir' ? `<span style="color:var(--glow-gold)">${f.name}/</span>` : f.name
+        ).join("  ");
+        addLog(fileList, "#fff");
     }
 }
         
