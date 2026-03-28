@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Omni-Deck v80.8 | Secure Access</title>
+    <style>
+        :root {
+            --glow-blue: #00f0ff; --glow-green: #00ff88; --glow-gold: #ffcc00;
+            --glow-red: #ff4444; --glow-purple: #bc13fe; --glass: rgba(0, 5, 12, 0.95);
+            --text-glow: 0 0 8px rgba(0, 240, 255, 0.6);
+        }
+        * { box-sizing: border-box; }
+        body { 
+            margin: 0; background: #000; color: var(--glow-blue); 
+            font-family: 'Consolas', 'Courier New', monospace; 
+            overflow: hidden; -webkit-font-smoothing: antialiased; 
+            transition: opacity 0.5s ease;
+        }
+        
+        /* GHOST MODE / CLOAK STYLING */
+        .cloaked { 
+            opacity: 0.12 !important; 
+            filter: blur(8px) grayscale(100%); 
+            pointer-events: none; 
+        }
+
+        /* AUTH MODAL STYLING */
+        #auth-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(15px);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+        .auth-container {
+            background: rgba(0, 15, 25, 0.8);
+            border: 1px solid var(--glow-green);
+            padding: 40px; border-radius: 4px;
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.2);
+            text-align: center; width: 380px;
+        }
+        .matrix-text { color: var(--glow-green); letter-spacing: 3px; margin-bottom: 25px; font-size: 1.1rem; }
+        .auth-input {
+            width: 100%; padding: 12px; margin: 10px 0;
+            background: rgba(0, 240, 255, 0.05); border: 1px solid #333;
+            color: #fff; border-radius: 2px; outline: none; font-family: inherit;
+        }
+        .auth-input:focus { border-color: var(--glow-blue); }
+        .btn-glow {
+            background: var(--glow-green); color: black; border: none;
+            padding: 12px 20px; cursor: pointer; font-weight: bold;
+            width: 100%; margin-top: 15px; font-family: inherit;
+        }
+        .btn-outline {
+            background: transparent; color: var(--glow-green);
+            border: 1px solid var(--glow-green); padding: 8px;
+            width: 100%; margin-top: 10px; cursor: pointer; font-family: inherit;
+        }
+        .error-text { color: var(--glow-red); font-size: 0.75rem; margin-top: 15px; min-height: 1em; }
+
+        /* UI PANELS */
+        body::after {
+            content: " "; display: block; position: fixed; inset: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            z-index: 2000; background-size: 100% 3px, 3px 100%; pointer-events: none;
+        }
+
+        #matrix { position: fixed; inset: 0; z-index: -1; filter: brightness(0.6); }
+        .side-panel {
+            position: fixed; background: var(--glass); border: 1px solid rgba(0, 240, 255, 0.4);
+            padding: 12px; border-radius: 4px; backdrop-filter: blur(10px); z-index: 100;
+        }
+        #navPanel { top: 70px; left: 20px; width: 240px; border-left: 5px solid var(--glow-blue); }
+        #dataStream { bottom: 50px; left: 20px; width: 240px; height: 250px; overflow-y: auto; border-left: 5px solid var(--glow-red); scrollbar-width: none; }
+        #sysWidget { bottom: 310px; right: 25px; width: 200px; border-right: 5px solid var(--glow-gold); font-size: 0.7rem; text-align: right; }
+
+        #shieldBar {
+            position: fixed; top: 0; left: 0; width: 100%; height: 50px;
+            border-bottom: 2px solid var(--glow-blue); display: flex; align-items: center; 
+            justify-content: space-between; padding: 0 30px; font-size: 0.85rem; background: #000;
+            z-index: 1000; font-weight: 900;
+        }
+
+        .logout-btn {
+            background: rgba(255, 68, 68, 0.1); border: 1px solid var(--glow-red);
+            color: var(--glow-red); padding: 4px 10px; cursor: pointer; font-size: 0.7rem; transition: 0.3s;
+        }
+        .logout-btn:hover { background: var(--glow-red); color: #000; }
+
+        .dash-container {
+            position: fixed; bottom: 50px; right: 25px; width: 600px;
+            background: var(--glass); border: 1px solid var(--glow-blue);
+            padding: 18px; border-radius: 4px; z-index: 100;
+        }
+
+        .stats-grid { display: grid; grid-template-columns: 1fr 1.4fr; gap: 15px; margin-bottom: 15px; }
+        .stat-card { background: rgba(0,10,18,0.9); border: 1px solid rgba(0,240,255,0.2); padding: 12px; }
+        #syncBar { height: 100%; background: var(--glow-purple); width: 0%; transition: width 0.3s ease; }
+        #dpi_monitor { height: 90px; font-size: 0.75rem; color: #fff; overflow-y: auto; border-left: 2px solid var(--glow-blue); padding-left: 12px; scrollbar-width: none; }
+        #terminalLog { height: 180px; overflow-y: auto; font-size: 0.9rem; scrollbar-width: none; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 12px; }
+        #terminalInput { background: transparent; border: none; color: #fff; width: 60%; outline: none; font-family: inherit; font-size: 1.1rem; }
+
+        #ticker-wrapper {
+            position: fixed; bottom: 0; left: 0; width: 100%; height: 34px;
+            background: rgba(0, 5, 10, 0.95); border-top: 2px solid var(--glow-blue);
+            display: none; align-items: center; z-index: 1000; overflow: hidden;
+        }
+        .ticker-label { background: var(--glow-blue); color: #000; padding: 0 15px; font-weight: 900; height: 100%; display: flex; align-items: center; font-size: 11px; }
+        .ticker-content { white-space: nowrap; animation: ticker-move 60s linear infinite; color: var(--glow-green); font-size: 13px; }
+        @keyframes ticker-move { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+        .news-item { margin-right: 60px; text-decoration: none; color: var(--glow-blue); font-weight: bold; }
+
+        .arc-pulse { animation: arc-glow 3s infinite ease-in-out; }
+        @keyframes arc-glow { 0%, 100% { box-shadow: 0 0 15px rgba(0, 240, 255, 0.2); } 50% { box-shadow: 0 0 30px rgba(0, 240, 255, 0.5); } }
+        .stress-active { animation: shake 0.1s infinite; filter: saturate(4) hue-rotate(-50deg); }
+        @keyframes shake { 0% { transform: translate(1px, 1px); } 50% { transform: translate(-2px, -1px); } 100% { transform: translate(1px, 2px); } }
+    </style>
+</head>
+<body id="mainBody">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <div id="auth-overlay">
+        <div class="auth-container">
+            <h2 class="matrix-text">CORE_LINK REQUIRED</h2>
+            <input type="email" id="email" class="auth-input" placeholder="ACCESS_ID (EMAIL)">
+            <input type="password" id="password" class="auth-input" placeholder="SECURITY_KEY">
+            <button onclick="handleSignIn()" class="btn-glow">INITIALIZE UPLINK</button>
+            <button onclick="handleSignUp()" class="btn-outline">REGISTER NEW GHOST</button>
+            <p id="auth-error" class="error-text"></p>
+        </div>
+    </div>
+
+    <canvas id="matrix"></canvas>
+
+    <div id="shieldBar">
+        <div style="display:flex; align-items:center;">
+            <span id="clock" style="color:var(--glow-gold); width: 100px;">00:00:00</span>
+            <button class="logout-btn" onclick="handleLogout()">Terminal Exit</button>
+        </div>
+        <span id="deckTitle" style="letter-spacing:10px;">◈ GHOST_TAC_v80.8 ◈</span>
+        <div style="width: 150px; text-align: right;">
+            <span id="downHUD" style="color:var(--glow-blue)">SYS: OK</span> &nbsp; 
+            <span id="upHUD" style="color:var(--glow-purple)">14ms</span>
+        </div>
+    </div>
+
+    <div id="navPanel" class="side-panel arc-pulse">
+        <h5 style="color:var(--glow-gold); margin:0 0 10px 0; text-transform:uppercase; font-size:0.75rem;">Command Index</h5>
+        <div style="font-size:0.65rem; line-height:1.5; color:#fff;">
+            <b style="color:var(--glow-blue)">[NAV]</b> ls, cd, clear<br>
+            <b style="color:var(--glow-red)">[FILE]</b> cat, rm, mkdir, site<br>
+            <b style="color:var(--glow-purple)">[SYS]</b> ghost, stress, sync, logout
+        </div>
+        <hr style="border:0; border-top:1px solid rgba(0,240,255,0.2); margin:10px 0;">
+        <button onclick="refreshAllSystems()" style="width:100%; background:rgba(0,240,255,0.1); border:1px solid var(--glow-blue); color:var(--glow-blue); cursor:pointer; font-family:inherit; font-size:10px; padding:5px;">[ REFRESH SYNC ]</button>
+    </div>
+
+    <div id="sysWidget" class="side-panel">
+        <div style="color:var(--glow-gold); margin-bottom:5px; font-weight:bold;">SYSTEM_LOAD</div>
+        <div id="cpuReadout">CPU: -- [....]</div>
+        <div id="memReadout">MEM: -- [....]</div>
+        <div id="tempReadout" style="color:var(--glow-blue); margin-top:3px;">TEMP: 42°C [SAFE]</div>
+    </div>
+
+    <div id="dataStream" class="side-panel">
+        <h5 style="color:var(--glow-red); margin:0 0 10px 0; text-transform:uppercase; font-size:0.75rem;">Threat Feed</h5>
+        <div id="ticker-log" style="font-size: 0.65rem; color: #fff; line-height: 1.4;"></div>
+    </div>
+
+    <div id="systemPanel" class="dash-container arc-pulse">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span style="font-size:0.65rem; color:var(--glow-blue); font-weight:bold;">NEURAL SYNC</span>
+                <div style="font-size:1.8rem; font-weight:900;"><span id="syncVal">0</span>%</div>
+                <div style="width:100%; height:8px; background:#051015; margin-top:10px; border:1px solid rgba(255,255,255,0.1);">
+                    <div id="syncBar"></div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <span style="font-size:0.65rem; color:var(--glow-blue); font-weight:bold;">DPI SNIFFER</span>
+                <div id="dpi_monitor"></div>
+            </div>
+        </div>
+        <div id="terminalLog"></div>
+        <div style="display:flex; align-items:center; border-top:1px solid rgba(255,255,255,0.2); padding-top:12px;">
+            <span id="promptLabel" style="color:var(--glow-green); margin-right:10px; font-weight:900;">GHOST:~$</span>
+            <input type="text" id="terminalInput" spellcheck="false" autocomplete="off">
+        </div>
+    </div> 
+
+    <div id="ticker-wrapper">
+        <div class="ticker-label">LIVE_INTELLIGENCE</div>
+        <div class="ticker-content" id="footer-ticker-content"></div>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        const SB_URL = 'https://xgfazfmigrwrmkntdjfp.supabase.co';
+        const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhnZmF6Zm1pZ3J3cm1rbnRkamZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NTQyMzQsImV4cCI6MjA5MDIzMDIzNH0.SHS6aIqbQi5ihow-GrLyWCr9hUJdZipqhZXAaH0F9jo';
+        const _supabase = supabase.createClient(SB_URL, SB_KEY);
+
+        // --- AUTH LOGIC ---
+        async function handleSignIn() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const { error } = await _supabase.auth.signInWithPassword({ email, password });
+            if (error) document.getElementById('auth-error').innerText = error.message;
+        }
+
+        async function handleSignUp() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const { error } = await _supabase.auth.signUp({ email, password });
+            if (error) document.getElementById('auth-error').innerText = error.message;
+            else alert("Verify your email to continue.");
+        }
+
+        async function handleLogout() {
+            await _supabase.auth.signOut();
+        }
+
+        // Listen for Auth Changes (This handles UI toggling automatically)
+        _supabase.auth.onAuthStateChange((event, session) => {
+            const overlay = document.getElementById('auth-overlay');
+            const footer = document.getElementById('ticker-wrapper');
+            if (event === 'SIGNED_IN') {
+                overlay.style.opacity = '0';
+                setTimeout(() => overlay.style.display = 'none', 500);
+                footer.style.display = 'flex';
+                addLog(`UPLINK ESTABLISHED: WELCOME ${session.user.email}`, "var(--glow-green)");
+                loadUserData();
+            } else if (event === 'SIGNED_OUT') {
+                overlay.style.display = 'flex';
+                setTimeout(() => overlay.style.opacity = '1', 10);
+                footer.style.display = 'none';
+            }
+        });
+
+        // --- DATABASE LOGIC ---
+        async function loadUserData() {
+            const { data, error } = await _supabase.from('user_network_stats').select('*').limit(5);
+            if (data) console.log("Cloud Data Synced:", data);
+        }
+
+        // --- MATRIX ENGINE ---
+        const canvas = document.getElementById('matrix'), ctx = canvas.getContext('2d');
+        let matrixColor = "#00f0ff", gravity = 0.8, drops = [], columns, fontSize = 18, isStress = false;
+        const chars = "0101010101ABCDEFHIJKLMNOPQRSTUVWXYZ0123456789$+-*/=%\"'#&_(),.;:?!\\|{}<>[]^~";
+
+        function initMatrix() {
+            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+            columns = Math.floor(canvas.width / fontSize);
+            drops = Array(columns).fill(1).map(() => Math.random() * -100);
+        }
+
+        function drawMatrix() {
+            ctx.fillStyle = isStress ? "rgba(40, 0, 0, 0.2)" : "rgba(0, 0, 0, 0.08)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.font = `bold ${fontSize}px monospace`;
+            for (let i = 0; i < drops.length; i++) {
+                const text = chars.charAt(Math.floor(Math.random() * chars.length));
+                ctx.fillStyle = isStress ? "#ff0000" : (Math.random() > 0.98 ? "#fff" : matrixColor);
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i] += gravity;
+            }
+        }
+
+        // --- DASHBOARD LOGIC ---
+        let neuralSync = 0;
+        function addLog(msg, color = "var(--glow-blue)") {
+            const logContainer = document.getElementById('terminalLog');
+            const d = document.createElement('div');
+            d.className = "log-entry"; d.style.color = color; d.innerHTML = `> ${msg}`;
+            logContainer.appendChild(d);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        async function updateThreatFeed() {
+            const ticker = document.getElementById('ticker-log');
+            const footer = document.getElementById('footer-ticker-content');
+            try {
+                const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=https://thehackernews.com/rss.xml&t=${Date.now()}`);
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    ticker.innerHTML = ""; let footerHTML = "";
+                    data.items.slice(0, 5).forEach(item => {
+                        ticker.innerHTML += `<div style="margin-bottom:8px; border-bottom:1px solid rgba(255,0,0,0.2); padding-bottom:4px;">
+                            <span style="color:var(--glow-red)">[INTEL]</span><br>${item.title.toUpperCase()}</div>`;
+                        footerHTML += `<span class="news-item">${item.title.toUpperCase()}</span>`;
+                    });
+                    footer.innerHTML = footerHTML + footerHTML;
+                }
+            } catch (e) { ticker.innerHTML = "UPLINK ERROR"; }
+        }
+
+        function refreshAllSystems() {
+            neuralSync = 100;
+            updateThreatFeed();
+            addLog("FULL SYSTEM SYNC COMPLETE", "var(--glow-green)");
+        }
+
+        // --- INITIALIZATION ---
+        window.onload = () => {
+            initMatrix();
+            setInterval(drawMatrix, 50);
+            setInterval(() => {
+                document.getElementById('clock').innerText = new Date().toLocaleTimeString();
+                neuralSync = Math.max(0, neuralSync - 0.5);
+                document.getElementById('syncBar').style.width = neuralSync + "%";
+                document.getElementById('syncVal').innerText = Math.floor(neuralSync);
+            }, 1000);
+            updateThreatFeed();
+        };
+        window.onresize = initMatrix;
+
+        // Terminal Command Listener
+        document.getElementById('terminalInput').addEventListener('keydown', (e) => {
+            if (e.key === "Enter") {
+                const cmd = e.target.value.toLowerCase();
+                addLog(`$ ${cmd}`, "#fff");
+                e.target.value = "";
+                if (cmd === "sync") refreshAllSystems();
+                if (cmd === "clear") document.getElementById('terminalLog').innerHTML = "";
+                if (cmd === "logout") handleLogout();
+                neuralSync = Math.min(100, neuralSync + 10);
+            }
+        });
+    </script>
+</body>
+</html>
