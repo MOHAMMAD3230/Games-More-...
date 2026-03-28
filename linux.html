@@ -650,47 +650,27 @@ async function saveFileToCloud(fileName, fileContent) {
     addLog("UPLOAD_FAILED: " + error.message, "var(--glow-red)");
 }
 
-async function readFileFromCloud(fileName) {
-    addLog(`FETCHING: ${fileName}...`, "var(--glow-gold)");
 
-    const { data, error } = await supabaseClient
-        .from('virtual_fs')
-        .select('content')
-        .eq('name', fileName)
-        .eq('type', 'file')
-        .single();
 
-    if (error || !data) {
-        addLog("ERR: FILE_NOT_FOUND_IN_CLOUD", "var(--glow-red)");
-    } else {
-        addLog(`--- CONTENT: ${fileName} ---`, "var(--glow-purple)");
-        addLog(data.content, "#fff");
-    }
-}
+    // Use .maybeSingle() instead of .single() to prevent crash on empty results
+        const { data, error } = await supabaseClient
+            .from('virtual_fs')
+            .select('content')
+            .eq('id', idInput.trim()) // .trim() handles accidental spaces
+            .maybeSingle();
 
-        async function listCloudFiles() {
-    addLog("QUERYING_REMOTE_STORAGE...", "var(--glow-gold)");
+        if (error) {
+            console.error("DPL_ERR:", error.message);
+            throw new Error("DB_ACCESS_ERROR");
+        }
 
-    const { data, error } = await supabaseClient
-        .from('virtual_fs')
-        .select('name, type')
-        .order('name', { ascending: true });
-
-    if (error) {
-        addLog("CLOUD_QUERY_FAILED: " + error.message, "var(--glow-red)");
-        return;
-    }
-
-    if (data.length === 0) {
-        addLog("REMOTE_STORAGE_EMPTY", "var(--glow-blue)");
-    } else {
-        addLog("--- REMOTE_FILES ---", "var(--glow-purple)");
-        const fileList = data.map(f => 
-            f.type === 'dir' ? `<span style="color:var(--glow-gold)">${f.name}/</span>` : f.name
-        ).join("  ");
-        addLog(fileList, "#fff");
-    }
-}
+        if (data && data.content === passInput.trim()) {
+            // SUCCESS LOGIC HERE
+            addLog("UPLINK_ESTABLISHED...", "var(--glow-green)");
+            document.getElementById('loginOverlay').style.transform = "translateY(-100%)";
+        } else {
+            throw new Error("INVALID_KEY");
+        }
         
     </script>
 
