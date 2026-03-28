@@ -122,6 +122,7 @@
 <body id="mainBody">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
 
     <div id="auth-overlay">
         <div class="auth-container">
@@ -130,8 +131,11 @@
             <input type="password" id="password" class="auth-input" placeholder="SECURITY_KEY">
             <button onclick="handleSignIn()" class="btn-glow">INITIALIZE UPLINK</button>
             <button onclick="handleSignUp()" class="btn-outline">REGISTER NEW GHOST</button>
+            <button onclick="authenticateGhost()" class="login-btn">INITIALIZE UPLINK</button>
             <p id="auth-error" class="error-text"></p>
         </div>
+        
+        
     </div>
 
     <canvas id="matrix"></canvas>
@@ -332,23 +336,28 @@
         });
     </script>
     <script>
-        async function authenticateGhost() {
-    const inputID = document.querySelector('input[type="text"]').value;
-    
-    // Query Supabase for that specific ID
+       async function authenticateGhost() {
+    const inputUUID = document.querySelector('input[placeholder="UUID_IDENTIFIER"]').value || '7614e80a-b241-4b7b-9e7c-1f078348b3a4';
+    const inputPass = document.querySelector('input[type="password"]').value;
+    const errorMsg = document.querySelector('.error-msg'); // Ensure you have this class in your HTML
+
+    // 1. Fetch the user from Supabase
     const { data, error } = await supabase
         .from('virtual_fs')
         .select('*')
-        .eq('id', inputID)
+        .eq('id', inputUUID)
         .single();
 
-    if (data && !error) {
-        addLog("ACCESS_GRANTED: GHOST_NODE_RECOGNIZED", "var(--glow-green)");
+    // 2. Compare the input to the 'content' column
+    if (data && data.content === inputPass) {
+        addLog("UPLINK_ESTABLISHED: WELCOME ASHRAF", "var(--glow-green)");
         document.getElementById('loginOverlay').style.transform = "translateY(-100%)";
+        errorMsg.style.display = "none";
     } else {
-        addLog("ACCESS_DENIED: UNKNOWN_UPLINK", "var(--glow-red)");
-        // Show the 'Invalid login credentials' text in red
-        document.querySelector('.error-msg').style.display = "block";
+        // 3. Trigger the failure UI
+        errorMsg.style.display = "block";
+        errorMsg.innerText = "INVALID_GHOST_CREDENTIALS";
+        triggerStress(); // Optional: Makes the screen shake
     }
 }
     </script>
