@@ -402,25 +402,6 @@
             heatUp();
 
             switch(cmd) {
-
-                    case "write":
-    case "save":
-        const fName = args[1];
-        const fContent = args.slice(2).join(" "); // Joins all words after the filename
-        if (!fName || !fContent) {
-            addLog("USAGE: write [filename] [content]", "var(--glow-gold)");
-        } else {
-            writeToCloud(fName, fContent);
-        }
-        break;
-                    case "read":
-    case "cat":
-        if (args[1]) {
-            readFileFromCloud(args[1]);
-        } else {
-            addLog("USAGE: read [filename]", "var(--glow-gold)");
-        }
-        break;
                     case "exit":
     case "logout":
         localStorage.removeItem('omni_deck_uuid');
@@ -513,109 +494,89 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script>
-      // --- OMNI-DECK CORE ENGINE v80.8 ---
-const SUPABASE_URL = 'https://xgfazfmigrwrmkntdjfp.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhnZmF6Zm1pZ3J3cm1rbnRkamZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NTQyMzQsImV4cCI6MjA5MDIzMDIzNH0.SHS6aIqbQi5ihow-GrLyWCr9hUJdZipqhZXAaH0F9jo';
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // 1. CONFIGURATION
+        const SUPABASE_URL = 'https://xgfazfmigrwrmkntdjfp.supabase.co'; 
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhnZmF6Zm1pZ3J3cm1rbnRkamZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NTQyMzQsImV4cCI6MjA5MDIzMDIzNH0.SHS6aIqbQi5ihow-GrLyWCr9hUJdZipqhZXAaH0F9jo'; // Use your full key here
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// --- AUTHENTICATION ---
-async function authenticateGhost() {
-    const idInput = document.getElementById('ghostID').value.trim();
-    const passInput = document.getElementById('ghostPass').value.trim();
-    const errorDisplay = document.getElementById('errorCode');
+        // ... Keep all your Matrix and UI functions (drawMatrix, addLog, etc.) ...
 
-    if (!idInput || !passInput) return;
+        // 2. THE AUTHENTICATION BRAIN
+        async function authenticateGhost() {
+            const idInput = document.getElementById('ghostID').value.trim();
+            const passInput = document.getElementById('ghostPass').value.trim();
+            const errorDisplay = document.getElementById('errorCode');
 
-    try {
-        const { data, error } = await supabaseClient
-            .from('virtual_fs')
-            .select('content')
-            .eq('id', idInput)
-            .maybeSingle();
+            if (!idInput || !passInput) {
+                errorDisplay.innerText = "MISSING_UPLINK_DATA";
+                errorDisplay.style.display = "block";
+                return;
+            }
 
-        if (data && data.content === passInput) {
-            localStorage.setItem('omni_deck_uuid', idInput);
-            document.getElementById('loginOverlay').style.transform = "translateY(-100%)";
-            addLog("UPLINK_ESTABLISHED", "var(--glow-green)");
-            neuralSync = 100;
-        } else {
-            errorDisplay.style.display = "block";
+            addLog("INITIATING_UPLINK_HANDSHAKE...", "var(--glow-gold)");
+
+            try {
+                // Querying the virtual_fs table
+                const { data, error } = await supabaseClient
+                    .from('virtual_fs')
+                    .select('content')
+                    .eq('id', idInput)
+                    .single();
+
+                if (error) throw error;
+
+                if (data && data.content === passInput) {
+                    addLog("UPLINK_ESTABLISHED. WELCOME, OPERATOR.", "var(--glow-green)");
+                    document.getElementById('loginOverlay').style.transform = "translateY(-100%)";
+                    errorDisplay.style.display = "none";
+                } else {
+                    throw new Error("INVALID_KEY");
+                }
+            } catch (err) {
+                console.error("AUTH_ERR:", err.message);
+                errorDisplay.innerText = "INVALID_GHOST_CREDENTIALS";
+                errorDisplay.style.display = "block";
+                addLog("ACCESS_DENIED: AUTH_FAILURE", "var(--glow-red)");
+                document.getElementById('ghostPass').value = "";
+            }
         }
-    } catch (err) {
-        console.error("AUTH_ERR:", err);
-    }
-}
 
-// --- CLOUD READ ---
-async function readFileFromCloud(fileName) {
-    addLog(`OPENING_STREAM: ${fileName}...`, "var(--glow-gold)");
-    
-    // Fixed syntax: using quotes around the filename for the .or filter
-    const { data, error } = await supabaseClient
-        .from('virtual_fs')
-        .select('content, name')
-        .or(`name.eq."${fileName}",name.eq."${fileName}/"`)
-        .maybeSingle();
+        // 3. REGISTRATION LOGIC
+        async function registerNewGhost() {
+            const newID = crypto.randomUUID();
+            const newPass = prompt("ENTER NEW SECURITY_KEY:");
+            if (!newPass) return;
 
-    if (error || !data) {
-        addLog("ERR: FILE_NOT_FOUND", "var(--glow-red)");
-    } else {
-        addLog(`--- START_STREAM [${data.name}] ---`, "var(--glow-purple)");
-        addLog(data.content || "EMPTY_NODE", "#fff");
-        addLog(`--- END_STREAM ---`, "var(--glow-purple)");
-    }
-}
+            addLog("GENERATING_NEW_GHOST_UPLINK...", "var(--glow-gold)");
 
-// --- CLOUD WRITE ---
-async function writeToCloud(fileName, fileContent) {
-    addLog(`WRITING_TO_DATABASE: ${fileName}...`, "var(--glow-gold)");
-    const { error } = await supabaseClient
-        .from('virtual_fs')
-        .insert([{ 
-            name: fileName, 
-            content: fileContent, 
-            type: 'file', 
-            parent: currentDir 
-        }]);
+            const { error } = await supabaseClient
+                .from('virtual_fs')
+                .insert([{ 
+                    id: newID, 
+                    name: 'new_ghost', 
+                    type: 'user_node', 
+                    parent: 'root', 
+                    content: newPass 
+                }]);
 
-    if (error) addLog("WRITE_FAILED: " + error.message, "var(--glow-red)");
-    else addLog(`SUCCESS: ${fileName} SYNCED`, "var(--glow-green)");
-}
-
-// --- TERMINAL COMMAND LISTENER ---
-document.getElementById('terminalInput').addEventListener('keydown', (e) => {
-    if (e.key === "Enter") {
-        const raw = e.target.value.trim();
-        if (!raw) return;
-        const args = raw.split(/\s+/);
-        const cmd = args[0].toLowerCase();
-        e.target.value = "";
-        addLog(`$ ${raw}`, "#fff");
-
-        switch(cmd) {
-            case "read": 
-            case "cat": if(args[1]) readFileFromCloud(args[1]); break;
-            
-            case "write":
-            case "save": 
-                const content = args.slice(2).join(" ");
-                if(args[1] && content) writeToCloud(args[1], content);
-                else addLog("USAGE: write [name] [content]", "var(--glow-gold)");
-                break;
-
-            case "ls":
-                const list = virtualFS.filter(f => f.parent === currentDir).map(f => f.name).join("  ");
-                addLog(list || "[EMPTY]");
-                break;
-                
-            case "clear": document.getElementById('terminalLog').innerHTML = ""; break;
-            case "help": addLog("NAV: ls, read, write, clear, ghost, stress", "var(--glow-gold)"); break;
-            case "ghost": document.getElementById('mainBody').classList.toggle('cloaked'); break;
-            case "stress": triggerStress(); break;
-            default: addLog(`Command '${cmd}' not recognized.`);
+            if (error) {
+                addLog("REGISTRATION_FAILED: " + error.message, "var(--glow-red)");
+                alert("Error: " + error.message);
+            } else {
+                addLog("NEW_GHOST_COMMITTED TO DATABASE", "var(--glow-green)");
+                alert("GHOST_REGISTERED\n\nUUID: " + newID + "\nKEY: " + newPass);
+            }
         }
-    }
-});
+
+        // 4. ENTER KEY LISTENER
+        document.addEventListener('keydown', (e) => {
+            const overlay = document.getElementById('loginOverlay');
+            if (e.key === "Enter" && overlay.style.transform !== "translateY(-100%)") {
+                authenticateGhost();
+            }
+        });
+
+        // ... Keep your window.onload and other terminal logic ...
     </script>
 
 </body>
