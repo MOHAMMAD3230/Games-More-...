@@ -1,2 +1,2 @@
 ## 🚀 Performance
-View our latest [Performance Briefing](./PERFORMANCE.md) based on Google PageSpeed Insights.
+View our latest [Performance Briefing](./DOCS.md) based on Google PageSpeed Insights.
