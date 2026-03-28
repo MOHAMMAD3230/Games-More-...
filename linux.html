@@ -451,12 +451,6 @@
                     const file = virtualFS.find(f => f.name === args[1] && f.type === "file" && f.parent === currentDir);
                     if (file) addLog(file.content || "[EMPTY FILE]", "var(--glow-purple)");
                     break;
-                    case "exit":
-    case "logout":
-        localStorage.removeItem('omni_deck_uuid');
-        addLog("SESSION_PURGED. REBOOTING...", "var(--glow-red)");
-        setTimeout(() => location.reload(), 1500);
-        break;
                 case "site":
                     let url = args.includes("--url") ? args[args.indexOf("--url") + 1] : args[1];
                     if (url) { if (!url.startsWith('http')) url = 'https://' + url; window.open(url, '_blank'); }
@@ -475,10 +469,17 @@
         setInterval(drawMatrix, 50);
         setInterval(updateThermal, 1500);
         updateThreatFeed();
+        setInterval(updateThreatFeed, 600000);
         
-        // Check for existing session
-        checkExistingSession(); 
+        setInterval(() => {
+            const mon = document.getElementById('dpi_monitor');
+            if(!mon) return;
+            mon.innerHTML += `<div><span style="color:var(--glow-green)">[TCP]</span> 192.168.1.${Math.floor(Math.random()*255)}:80</div>`;
+            mon.scrollTop = mon.scrollHeight;
+            if(mon.children.length > 6) mon.removeChild(mon.firstChild);
+        }, 2000);
         
+        window.addEventListener('resize', initMatrix);
         addLog("DECK SECURED. WELCOME, ASHRAF_ALI.", "var(--glow-green)");
     };
 </script>
@@ -518,15 +519,10 @@
                 if (error) throw error;
 
                 if (data && data.content === passInput) {
-            // SUCCESS: Establish Link
-            addLog("UPLINK_ESTABLISHED. WELCOME, OPERATOR.", "var(--glow-green)");
-            
-            // SAVE SESSION: Store the UUID for future visits
-            localStorage.setItem('omni_deck_uuid', idInput);
-            
-            document.getElementById('loginOverlay').style.transform = "translateY(-100%)";
-            errorDisplay.style.display = "none";
-        } else {
+                    addLog("UPLINK_ESTABLISHED. WELCOME, OPERATOR.", "var(--glow-green)");
+                    document.getElementById('loginOverlay').style.transform = "translateY(-100%)";
+                    errorDisplay.style.display = "none";
+                } else {
                     throw new Error("INVALID_KEY");
                 }
             } catch (err) {
@@ -574,24 +570,6 @@
         });
 
         // ... Keep your window.onload and other terminal logic ...
-
-        async function checkExistingSession() {
-    const savedUUID = localStorage.getItem('omni_deck_uuid');
-    
-    if (savedUUID) {
-        addLog("RECOGNIZED_GHOST_SIGNATURE: " + savedUUID.substring(0, 8) + "...", "var(--glow-purple)");
-        
-        // Auto-fill the ID field for the user
-        document.getElementById('ghostID').value = savedUUID;
-        
-        // Optional: Trigger a "Scanning..." animation before sliding up
-        setTimeout(() => {
-            addLog("AUTO_UPLINK_INITIATED...", "var(--glow-gold)");
-            // We still require the user to hit the button or Enter for security, 
-            // OR you can call authenticateGhost() here if you want it fully hands-free.
-        }, 1000);
-    }
-}
     </script>
 
 </body>
