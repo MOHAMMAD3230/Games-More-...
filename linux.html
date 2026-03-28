@@ -402,6 +402,14 @@
             heatUp();
 
             switch(cmd) {
+                    case "read":
+    case "cat":
+        if (args[1]) {
+            readFileFromCloud(args[1]);
+        } else {
+            addLog("USAGE: read [filename]", "var(--glow-gold)");
+        }
+        break;
                     case "exit":
     case "logout":
         localStorage.removeItem('omni_deck_uuid');
@@ -577,6 +585,32 @@
         });
 
         // ... Keep your window.onload and other terminal logic ...
+
+
+        async function readFileFromCloud(fileName) {
+    addLog(`OPENING_SECURE_STREAM: ${fileName}...`, "var(--glow-gold)");
+
+    const { data, error } = await supabaseClient
+        .from('virtual_fs')
+        .select('content')
+        .eq('name', fileName)
+        .limit(1)
+        .maybeSingle();
+
+    if (error || !data) {
+        addLog("ERR: FILE_NOT_FOUND_OR_ENCRYPTED", "var(--glow-red)");
+    } else {
+        addLog(`--- START_DATA_STREAM ---`, "var(--glow-purple)");
+        addLog(data.content, "#fff"); // This prints the file content to the HUD
+        addLog(`--- END_DATA_STREAM ---`, "var(--glow-purple)");
+        
+        // Minor Sync Boost for reading data
+        if (typeof neuralSync !== 'undefined') {
+            neuralSync = Math.min(100, neuralSync + 1);
+            saveSyncProgress();
+        }
+    }
+}
     </script>
 
 </body>
