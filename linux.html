@@ -513,86 +513,18 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script>
-       // --- 1. CORE CONFIGURATION & STATE ---
+      // --- OMNI-DECK CORE ENGINE v80.8 ---
 const SUPABASE_URL = 'https://xgfazfmigrwrmkntdjfp.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhnZmF6Zm1pZ3J3cm1rbnRkamZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NTQyMzQsImV4cCI6MjA5MDIzMDIzNH0.SHS6aIqbQi5ihow-GrLyWCr9hUJdZipqhZXAaH0F9jo';
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const canvas = document.getElementById('matrix'), ctx = canvas.getContext('2d');
-let matrixColor = "#00f0ff", gravity = 0.8, neuralSync = 0, isStress = false;
-let drops = [], columns, fontSize = 18;
-const chars = "0101010101ABCDEFHIJKLMNOPQRSTUVWXYZ0123456789$+-*/=%\"'#&_(),.;:?!\\|{}<>[]^~";
-let currentDir = "root";
-let currentTemp = 42;
-
-let virtualFS = [
-    { name: "bin", type: "dir", parent: "root" },
-    { name: "logs", type: "dir", parent: "root" },
-    { name: "root.key", content: "ASHRAF-99-ALPHA", type: "file", parent: "root" }
-];
-
-// --- 2. MATRIX & UI ENGINE ---
-function initMatrix() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    columns = Math.floor(canvas.width / fontSize);
-    drops = Array(columns).fill(1).map(() => Math.random() * -100);
-}
-
-function drawMatrix() {
-    ctx.fillStyle = isStress ? "rgba(40, 0, 0, 0.2)" : "rgba(0, 0, 0, 0.08)";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.font = `bold ${isStress ? 22 : fontSize}px monospace`;
-    for (let i = 0; i < drops.length; i++) {
-        const text = chars.charAt(Math.floor(Math.random() * chars.length));
-        ctx.fillStyle = isStress ? "#ff0000" : (Math.random() > 0.98 ? "#fff" : matrixColor);
-        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
-        drops[i] += gravity;
-    }
-    // Update HUD Stats
-    neuralSync = Math.max(0, neuralSync - 0.05);
-    document.getElementById('syncBar').style.width = neuralSync + "%";
-    document.getElementById('syncVal').innerText = Math.floor(neuralSync);
-    document.getElementById('clock').innerText = new Date().toLocaleTimeString();
-    document.getElementById('cpuReadout').innerText = `CPU: ${isStress ? (5.0 + Math.random()).toFixed(1) : (0.9 + Math.random()).toFixed(1)}GHz`;
-    document.getElementById('memReadout').innerText = `MEM: ${Math.floor(Math.random() * 20 + 30)}%`;
-}
-
-function addLog(msg, color = "var(--glow-blue)") {
-    const logContainer = document.getElementById('terminalLog');
-    if (!logContainer) return;
-    const d = document.createElement('div');
-    d.className = "log-entry"; d.style.color = color; d.innerHTML = `> ${msg}`;
-    logContainer.appendChild(d);
-    logContainer.scrollTop = logContainer.scrollHeight;
-    setTimeout(() => { d.classList.add('log-fade'); setTimeout(() => d.remove(), 1000); }, 60000);
-}
-
-function updateThermal() {
-    const tempElement = document.getElementById('tempReadout');
-    if (currentTemp > 42) currentTemp -= 0.5;
-    const displayTemp = (currentTemp + (Math.random() * 0.8)).toFixed(1);
-    let status = "[SAFE]", color = "var(--glow-blue)";
-    if (displayTemp > 75) { status = "[CRITICAL]"; color = "var(--glow-red)"; }
-    else if (displayTemp > 60) { status = "[WARNING]"; color = "var(--glow-gold)"; }
-    tempElement.innerText = `TEMP: ${displayTemp}°C ${status}`;
-    tempElement.style.color = color;
-}
-
-// --- 3. SUPABASE CLOUD OPERATIONS ---
+// --- AUTHENTICATION ---
 async function authenticateGhost() {
     const idInput = document.getElementById('ghostID').value.trim();
     const passInput = document.getElementById('ghostPass').value.trim();
     const errorDisplay = document.getElementById('errorCode');
 
-    if (!idInput || !passInput) {
-        errorDisplay.innerText = "MISSING_UPLINK_DATA";
-        errorDisplay.style.display = "block";
-        return;
-    }
-
-    addLog("INITIATING_UPLINK_HANDSHAKE...", "var(--glow-gold)");
+    if (!idInput || !passInput) return;
 
     try {
         const { data, error } = await supabaseClient
@@ -601,25 +533,24 @@ async function authenticateGhost() {
             .eq('id', idInput)
             .maybeSingle();
 
-        if (error) throw error;
-
         if (data && data.content === passInput) {
-            addLog("UPLINK_ESTABLISHED. WELCOME, OPERATOR.", "var(--glow-green)");
             localStorage.setItem('omni_deck_uuid', idInput);
             document.getElementById('loginOverlay').style.transform = "translateY(-100%)";
-            errorDisplay.style.display = "none";
+            addLog("UPLINK_ESTABLISHED", "var(--glow-green)");
             neuralSync = 100;
         } else {
-            throw new Error("INVALID_KEY");
+            errorDisplay.style.display = "block";
         }
     } catch (err) {
-        errorDisplay.style.display = "block";
-        addLog("ACCESS_DENIED: AUTH_FAILURE", "var(--glow-red)");
+        console.error("AUTH_ERR:", err);
     }
 }
 
+// --- CLOUD READ ---
 async function readFileFromCloud(fileName) {
-    addLog(`OPENING_SECURE_STREAM: ${fileName}...`, "var(--glow-gold)");
+    addLog(`OPENING_STREAM: ${fileName}...`, "var(--glow-gold)");
+    
+    // Fixed syntax: using quotes around the filename for the .or filter
     const { data, error } = await supabaseClient
         .from('virtual_fs')
         .select('content, name')
@@ -627,82 +558,17 @@ async function readFileFromCloud(fileName) {
         .maybeSingle();
 
     if (error || !data) {
-        addLog("ERR: FILE_NOT_FOUND_IN_CLOUD", "var(--glow-red)");
+        addLog("ERR: FILE_NOT_FOUND", "var(--glow-red)");
     } else {
-        addLog(`--- START_DATA_STREAM [${data.name}] ---`, "var(--glow-purple)");
-        addLog(data.content || "EMPTY_FILE_NODE", "#fff");
-        addLog(`--- END_DATA_STREAM ---`, "var(--glow-purple)");
+        addLog(`--- START_STREAM [${data.name}] ---`, "var(--glow-purple)");
+        addLog(data.content || "EMPTY_NODE", "#fff");
+        addLog(`--- END_STREAM ---`, "var(--glow-purple)");
     }
 }
 
-async function registerNewGhost() {
-    const newID = crypto.randomUUID();
-    const newPass = prompt("ENTER NEW SECURITY_KEY:");
-    if (!newPass) return;
-    const { error } = await supabaseClient.from('virtual_fs').insert([{ id: newID, name: 'new_ghost', type: 'user_node', parent: 'root', content: newPass }]);
-    if (error) addLog("REGISTRATION_FAILED: " + error.message, "var(--glow-red)");
-    else alert("GHOST_REGISTERED\n\nUUID: " + newID + "\nKEY: " + newPass);
-}
-
-// --- 4. TERMINAL LOGIC ---
-document.getElementById('terminalInput').addEventListener('keydown', (e) => {
-    if (e.key === "Enter") {
-        const raw = e.target.value.trim();
-        if (!raw) return;
-        const args = raw.split(/\s+/);
-        const cmd = args[0].toLowerCase();
-        e.target.value = "";
-        addLog(`$ ${raw}`, "#fff");
-        neuralSync = Math.min(100, neuralSync + 10);
-
-        switch(cmd) {
-            case "help": addLog("NAV: ls, cd, clear | FILE: read, site | TAC: osint, trace | SYS: ghost, sync", "var(--glow-gold)"); break;
-            case "read":
-            case "cat": 
-                if (args[1]) readFileFromCloud(args[1]); 
-                else addLog("USAGE: read [filename]"); 
-                break;
-            case "ls":
-                const list = virtualFS.filter(f => f.parent === currentDir).map(f => f.type === "dir" ? `<span style="color:var(--glow-gold)">${f.name}/</span>` : f.name).join("  ");
-                addLog(list || "[EMPTY]");
-                break;
-            case "site":
-                let url = args[1];
-                if (url) { if (!url.startsWith('http')) url = 'https://' + url; window.open(url, '_blank'); }
-                break;
-            case "clear": document.getElementById('terminalLog').innerHTML = ""; break;
-            case "sync": refreshAllSystems(); break;
-            case "ghost": document.getElementById('mainBody').classList.toggle('cloaked'); break;
-            case "stress": triggerStress(); break;
-            case "exit": 
-                localStorage.removeItem('omni_deck_uuid');
-                location.reload(); 
-                break;
-            default: addLog(`Command '${cmd}' not recognized.`);
-        }
-    }
-});
-
-// --- 5. INITIALIZATION ---
-window.onload = () => {
-    initMatrix();
-    setInterval(drawMatrix, 50);
-    setInterval(updateThermal, 1500);
-    setInterval(() => {
-        const mon = document.getElementById('dpi_monitor');
-        if(!mon) return;
-        mon.innerHTML += `<div><span style="color:var(--glow-green)">[TCP]</span> 192.168.1.${Math.floor(Math.random()*255)}:80</div>`;
-        mon.scrollTop = mon.scrollHeight;
-        if(mon.children.length > 5) mon.removeChild(mon.firstChild);
-    }, 2000);
-    window.addEventListener('resize', initMatrix);
-    addLog("DECK SECURED. WELCOME, ASHRAF_ALI.", "var(--glow-green)");
-};
-
-        async function writeToCloud(fileName, fileContent) {
-    addLog(`INITIALIZING_WRITE: ${fileName}...`, "var(--glow-gold)");
-
-    // We let Supabase generate the ID automatically so we can have many files
+// --- CLOUD WRITE ---
+async function writeToCloud(fileName, fileContent) {
+    addLog(`WRITING_TO_DATABASE: ${fileName}...`, "var(--glow-gold)");
     const { error } = await supabaseClient
         .from('virtual_fs')
         .insert([{ 
@@ -712,16 +578,44 @@ window.onload = () => {
             parent: currentDir 
         }]);
 
-    if (error) {
-        addLog("WRITE_ERROR: " + error.message, "var(--glow-red)");
-        console.error(error);
-    } else {
-        addLog(`SUCCESS: ${fileName} COMMITTED TO CLOUD`, "var(--glow-green)");
-        
-        // Visual feedback: Boost neural sync for successful operations
-        neuralSync = Math.min(100, neuralSync + 5);
-    }
+    if (error) addLog("WRITE_FAILED: " + error.message, "var(--glow-red)");
+    else addLog(`SUCCESS: ${fileName} SYNCED`, "var(--glow-green)");
 }
+
+// --- TERMINAL COMMAND LISTENER ---
+document.getElementById('terminalInput').addEventListener('keydown', (e) => {
+    if (e.key === "Enter") {
+        const raw = e.target.value.trim();
+        if (!raw) return;
+        const args = raw.split(/\s+/);
+        const cmd = args[0].toLowerCase();
+        e.target.value = "";
+        addLog(`$ ${raw}`, "#fff");
+
+        switch(cmd) {
+            case "read": 
+            case "cat": if(args[1]) readFileFromCloud(args[1]); break;
+            
+            case "write":
+            case "save": 
+                const content = args.slice(2).join(" ");
+                if(args[1] && content) writeToCloud(args[1], content);
+                else addLog("USAGE: write [name] [content]", "var(--glow-gold)");
+                break;
+
+            case "ls":
+                const list = virtualFS.filter(f => f.parent === currentDir).map(f => f.name).join("  ");
+                addLog(list || "[EMPTY]");
+                break;
+                
+            case "clear": document.getElementById('terminalLog').innerHTML = ""; break;
+            case "help": addLog("NAV: ls, read, write, clear, ghost, stress", "var(--glow-gold)"); break;
+            case "ghost": document.getElementById('mainBody').classList.toggle('cloaked'); break;
+            case "stress": triggerStress(); break;
+            default: addLog(`Command '${cmd}' not recognized.`);
+        }
+    }
+});
     </script>
 
 </body>
