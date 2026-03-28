@@ -402,6 +402,28 @@
             heatUp();
 
             switch(cmd) {
+
+                    case "save":
+        // Usage: save [filename] [content]
+        const fName = args[1];
+        const fContent = args.slice(2).join(" ");
+        if (!fName || !fContent) {
+            addLog("USAGE: save [name] [data_string]", "var(--glow-gold)");
+        } else {
+            saveFileToCloud(fName, fContent);
+        }
+        break;
+
+    case "read":
+        // Usage: read [filename]
+        if (args[1]) {
+            readFileFromCloud(args[1]);
+        } else {
+            addLog("USAGE: read [filename]", "var(--glow-gold)");
+        }
+        break;
+
+                    
                     case "exit":
     case "logout":
         localStorage.removeItem('omni_deck_uuid');
@@ -577,6 +599,51 @@
         });
 
         // ... Keep your window.onload and other terminal logic ...
+
+// --- MODULE: CLOUD_FILE_SYSTEM ---
+
+async function saveFileToCloud(fileName, fileContent) {
+    const activeID = localStorage.getItem('omni_deck_uuid');
+    if (!activeID) return addLog("ERR: NO_ACTIVE_SESSION", "var(--glow-red)");
+
+    addLog(`UPLOADING: ${fileName}...`, "var(--glow-gold)");
+
+    const { error } = await supabaseClient
+        .from('virtual_fs')
+        .insert([{ 
+            name: fileName, 
+            content: fileContent, 
+            type: 'file', 
+            parent: currentDir // Saves it in your current 'cd' location
+        }]);
+
+    if (error) {
+        addLog("UPLOAD_FAILED: " + error.message, "var(--glow-red)");
+    } else {
+        addLog("FILE_COMMITTED_TO_DATABASE", "var(--glow-green)");
+        neuralSync = Math.min(100, neuralSync + 5);
+        saveSyncProgress();
+    }
+}
+
+async function readFileFromCloud(fileName) {
+    addLog(`FETCHING: ${fileName}...`, "var(--glow-gold)");
+
+    const { data, error } = await supabaseClient
+        .from('virtual_fs')
+        .select('content')
+        .eq('name', fileName)
+        .eq('type', 'file')
+        .single();
+
+    if (error || !data) {
+        addLog("ERR: FILE_NOT_FOUND_IN_CLOUD", "var(--glow-red)");
+    } else {
+        addLog(`--- CONTENT: ${fileName} ---`, "var(--glow-purple)");
+        addLog(data.content, "#fff");
+    }
+}
+        
     </script>
 
 </body>
