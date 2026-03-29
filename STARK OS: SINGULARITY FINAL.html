@@ -8,7 +8,7 @@
     <style>
         :root {
             --cyan: #00f0ff; 
-            --cyan-low: rgba(0, 240, 255, 0.0);
+            --cyan-low: rgba(0, 240, 255, 0.0); 
             --red: #ff003c; 
             --bg: #00040a; 
             --font: 'Rajdhani', sans-serif;
@@ -25,19 +25,27 @@
             height: 100vh;
         }
 
-        /* Matrix Background Canvas */
         #matrix {
             position: fixed;
             top: 0; left: 0;
             width: 100%;
             height: 100%;
-            z-index: 0; /* Behind the HUD */
-            opacity: 0.4; /* Softened so HUD is readable */
+            z-index: 0;
+            opacity: 0.4;
         }
 
-        /* Scanlines and Overlays */
-        .scanlines { position: fixed; inset: 0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.0) 50%); background-size: 100% 4px; pointer-events: none; z-index: 101; }
-        #frost { position: fixed; inset: 0; background: radial-gradient(circle, transparent 50%, rgba(255,255,255,0.0) 100%); opacity: 0; pointer-events: none; z-index: 100; transition: 1.5s; }
+        .scanlines { 
+            position: fixed; inset: 0; 
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.0) 50%); 
+            background-size: 100% 4px; 
+            pointer-events: none; z-index: 101; 
+        }
+        
+        #frost { 
+            position: fixed; inset: 0; 
+            background: radial-gradient(circle, transparent 50%, rgba(255,255,255,0.0) 100%); 
+            opacity: 0; pointer-events: none; z-index: 100; transition: 1.5s; 
+        }
 
         #hud-master {
             position: relative; 
@@ -47,7 +55,7 @@
             flex-direction: column;
             perspective: 1200px; 
             transform-style: preserve-3d;
-            z-index: 10; /* Above Matrix */
+            z-index: 10;
         }
 
         header {
@@ -66,11 +74,9 @@
             display: flex; flex-direction: column; gap: 20px;
         }
 
-        /* Zero-G Physics */
         .zero-g .side-panel { animation: float 10s infinite ease-in-out; border-style: dashed; }
         @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-30px) rotate(1deg); } }
 
-        /* Nanite Hex Repair Overlay */
         .nanite-overlay {
             position: absolute; inset: 0; pointer-events: none; opacity: 0;
             background-image: url("data:image/svg+xml,%3Csvg width='30' height='30' viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M15 0l15 8v14l-15 8-15-8V8z' fill='%2300f0ff' fill-opacity='0.1'/%3E%3C/svg%3E");
@@ -95,6 +101,7 @@
             text-transform: uppercase; letter-spacing: 1px;
         }
         .btn-stark:hover { background: var(--cyan); color: #000; box-shadow: 0 0 15px var(--cyan); }
+        .btn-stark.active-state { background: var(--cyan); color: #000; box-shadow: 0 0 15px var(--cyan); }
 
         footer {
             height: 100px; padding: 0 40px; border-top: 1px solid var(--cyan-low);
@@ -104,6 +111,129 @@
 
         .bar-bg { height: 4px; background: rgba(0,240,255,0.1); margin-top: 8px; }
         .bar-fill { height: 100%; background: var(--cyan); transition: width 0.4s; }
+
+        /* ===== CAMERA FEED ===== */
+        .cam-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4/3;
+            background: rgba(0,0,0,0.8);
+            border: 1px solid rgba(0,240,255,0.3);
+            border-radius: 4px;
+            overflow: hidden;
+            display: none;
+        }
+        .cam-container.live { display: block; }
+        .cam-container video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+            opacity: 0.9;
+        }
+        .cam-hud-top {
+            position: absolute; top: 0; left: 0; right: 0;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 4px 8px;
+            background: linear-gradient(180deg, rgba(0,0,0,0.7), transparent);
+            font-size: 9px; font-family: 'Orbitron'; letter-spacing: 1px;
+        }
+        .cam-hud-bottom {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 4px 8px;
+            background: linear-gradient(0deg, rgba(0,0,0,0.7), transparent);
+            font-size: 8px; font-family: monospace;
+        }
+        .cam-rec { display: flex; align-items: center; gap: 4px; }
+        .cam-rec-dot {
+            width: 6px; height: 6px; border-radius: 50%; background: var(--red);
+            animation: rec-blink 1s infinite;
+        }
+        @keyframes rec-blink { 0%,100% { opacity: 1; } 50% { opacity: 0.1; } }
+        .cam-crosshair {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px; height: 40px; pointer-events: none;
+        }
+        .cam-crosshair::before, .cam-crosshair::after {
+            content: ''; position: absolute; background: rgba(0,240,255,0.4);
+        }
+        .cam-crosshair::before { top: 50%; left: 0; right: 0; height: 1px; transform: translateY(-50%); }
+        .cam-crosshair::after { left: 50%; top: 0; bottom: 0; width: 1px; transform: translateX(-50%); }
+        .cam-corner {
+            position: absolute; width: 12px; height: 12px;
+            border-color: var(--cyan); border-style: solid; border-width: 0;
+        }
+        .cam-corner.tl { top: 6px; left: 6px; border-top-width: 1px; border-left-width: 1px; }
+        .cam-corner.tr { top: 6px; right: 6px; border-top-width: 1px; border-right-width: 1px; }
+        .cam-corner.bl { bottom: 6px; left: 6px; border-bottom-width: 1px; border-left-width: 1px; }
+        .cam-corner.br { bottom: 6px; right: 6px; border-bottom-width: 1px; border-right-width: 1px; }
+        .cam-scanline {
+            position: absolute; left: 0; right: 0; height: 2px;
+            background: rgba(0,240,255,0.15);
+            animation: cam-scan 3s linear infinite;
+            pointer-events: none;
+        }
+        @keyframes cam-scan { 0% { top: 0; } 100% { top: 100%; } }
+
+        .cam-off-text {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Orbitron'; font-size: 10px; letter-spacing: 2px;
+            color: rgba(255,255,255,0.3); text-align: center;
+        }
+
+        /* ===== SOUND TOGGLE ===== */
+        .snd-toggle {
+            position: fixed; top: 15px; right: 15px; z-index: 200;
+            background: rgba(0,0,0,0.5); border: 1px solid var(--cyan-low);
+            color: var(--cyan); font-family: 'Orbitron'; font-size: 10px;
+            padding: 6px 10px; cursor: pointer; border-radius: 4px;
+            letter-spacing: 1px; transition: 0.3s; backdrop-filter: blur(5px);
+        }
+        .snd-toggle:hover { border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,0.3); }
+        .snd-toggle.muted { color: var(--red); border-color: rgba(255,0,60,0.3); }
+
+        /* ===== RADAR WIDGET ===== */
+        .radar-widget {
+            width: 100%; aspect-ratio: 1;
+            border: 1px solid rgba(0,240,255,0.2);
+            border-radius: 50%; position: relative;
+            overflow: hidden; background: rgba(0,5,15,0.5);
+        }
+        .radar-sweep {
+            position: absolute; top: 50%; left: 50%;
+            width: 50%; height: 2px;
+            background: linear-gradient(90deg, var(--cyan), transparent);
+            transform-origin: left center;
+            animation: radar-spin 3s linear infinite;
+        }
+        @keyframes radar-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .radar-ring {
+            position: absolute; border: 1px solid rgba(0,240,255,0.1);
+            border-radius: 50%; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .radar-dot {
+            position: absolute; width: 4px; height: 4px;
+            background: var(--red); border-radius: 50%;
+            box-shadow: 0 0 6px var(--red);
+            animation: radar-dot-pulse 2s infinite;
+        }
+        @keyframes radar-dot-pulse { 0%,100% { opacity: 0.4; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
+        .radar-center {
+            position: absolute; top: 50%; left: 50%;
+            width: 6px; height: 6px; background: var(--cyan);
+            border-radius: 50%; transform: translate(-50%, -50%);
+            box-shadow: 0 0 8px var(--cyan);
+        }
+
+        /* ===== PROXIMITY BAR ===== */
+        .prox-bar-container { margin-top: 4px; }
+        .prox-label { font-size: 9px; opacity: 0.6; letter-spacing: 1px; display: flex; justify-content: space-between; }
+        .prox-track { height: 3px; background: rgba(0,240,255,0.1); border-radius: 2px; margin-top: 4px; overflow: hidden; }
+        .prox-fill { height: 100%; background: var(--cyan); transition: width 0.8s ease; border-radius: 2px; }
     </style>
 </head>
 <body onload="bootOS()">
@@ -111,6 +241,8 @@
 <canvas id="matrix"></canvas>
 <div class="scanlines"></div>
 <div id="frost"></div>
+
+<button class="snd-toggle" id="sndToggle" onclick="toggleMasterSound()">SND: ON</button>
 
 <div id="hud-master">
     <header>
@@ -132,6 +264,21 @@
                 <div style="font-size:28px;" id="o2-val">100%</div>
                 <div class="bar-bg"><div class="bar-fill" id="o2-bar" style="width:100%;"></div></div>
             </div>
+
+            <div>
+                <div style="font-size:10px; opacity:0.6; letter-spacing:2px;">PROXIMITY RADAR</div>
+                <div class="radar-widget" id="radarWidget">
+                    <div class="radar-ring" style="width:70%; height:70%;"></div>
+                    <div class="radar-ring" style="width:40%; height:40%;"></div>
+                    <div class="radar-sweep"></div>
+                    <div class="radar-center"></div>
+                </div>
+                <div class="prox-bar-container">
+                    <div class="prox-label"><span>NEAREST THREAT</span><span id="proxDist" style="color:var(--cyan);">---m</span></div>
+                    <div class="prox-track"><div class="prox-fill" id="proxFill" style="width:10%;"></div></div>
+                </div>
+            </div>
+
             <button class="btn-stark" style="margin-top:auto;" onclick="toggleZeroG()">Toggle Zero-G</button>
         </section>
 
@@ -150,8 +297,31 @@
         <section class="side-panel" id="rp">
             <div class="nanite-overlay"></div>
             <div style="font-size:10px; opacity:0.6; letter-spacing:2px;">COMMS / LOGS</div>
-            <div id="console" style="font-size:11px; font-family:monospace; height:200px; overflow:hidden; line-height:1.6;"></div>
+            <div id="console" style="font-size:11px; font-family:monospace; height:120px; overflow:hidden; line-height:1.6;"></div>
+
+            <div style="font-size:10px; opacity:0.6; letter-spacing:2px;">VISUAL FEED</div>
+            <div class="cam-container" id="camContainer">
+                <video id="camVideo" autoplay playsinline muted></video>
+                <div class="cam-hud-top">
+                    <div style="color:var(--cyan);">CAM-01</div>
+                    <div class="cam-rec"><div class="cam-rec-dot"></div><span style="color:var(--red);">REC</span></div>
+                    <div id="camTime" style="color:rgba(255,255,255,0.6);">00:00:00</div>
+                </div>
+                <div class="cam-hud-bottom">
+                    <span style="color:rgba(255,255,255,0.5);">1080P / 30FPS</span>
+                    <span id="camLatency" style="color:var(--cyan);">12ms</span>
+                </div>
+                <div class="cam-crosshair"></div>
+                <div class="cam-corner tl"></div>
+                <div class="cam-corner tr"></div>
+                <div class="cam-corner bl"></div>
+                <div class="cam-corner br"></div>
+                <div class="cam-scanline"></div>
+            </div>
+            <div id="camOffMsg" style="font-size:10px; color:rgba(255,255,255,0.2); text-align:center; font-family:'Orbitron'; letter-spacing:1px;">FEED OFFLINE</div>
+
             <div style="margin-top:auto; display:flex; flex-direction:column; gap:10px;">
+                <button class="btn-stark" id="camBtn" onclick="toggleCamera()">Enable Camera</button>
                 <button class="btn-stark" onclick="runRepair()">Initiate Nanites</button>
                 <button class="btn-stark" style="border-color:var(--red); color:var(--red);" onclick="combatMode()">Weapons Hot</button>
             </div>
@@ -165,7 +335,7 @@
         </div>
         <div style="text-align:center;">
             <div style="font-size:10px; opacity:0.6;">NEURAL INTERFACE</div>
-            <div style="font-size:20px; color:#fff;">SYNCHRONIZED</div>
+            <div style="font-size:20px; color:#fff;" id="neuralStatus">SYNCHRONIZED</div>
         </div>
         <div style="text-align:right;">
             <div style="font-size:10px; opacity:0.6;">LOCATION DATA</div>
@@ -175,13 +345,211 @@
 </div>
 
 <script>
-    // --- Matrix Animation ---
-    const canvas = document.getElementById('matrix');
-    const ctx = canvas.getContext('2d');
-    
-    let columns, drops;
-    const fontSize = 16;
-    const characters = '0123456789ABCDEF@#$%&*{}+=<>?/|';
+    // ===== AUDIO ENGINE (Web Audio API — no external files) =====
+    var audioCtx = null;
+    var masterMuted = false;
+    var ambientDrone = null;
+
+    function initAudio() {
+        if (audioCtx) return;
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    function playTone(freq, duration, type, volume) {
+        if (masterMuted || !audioCtx) return;
+        try {
+            var osc = audioCtx.createOscillator();
+            var gain = audioCtx.createGain();
+            osc.type = type || 'sine';
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(volume || 0.08, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        } catch(e) {}
+    }
+
+    function playBootSequence() {
+        initAudio();
+        playTone(800, 0.1, 'square', 0.06);
+        setTimeout(function() { playTone(1000, 0.1, 'square', 0.06); }, 150);
+        setTimeout(function() { playTone(1200, 0.15, 'square', 0.08); }, 300);
+        setTimeout(function() { playTone(600, 0.3, 'sine', 0.05); }, 500);
+    }
+
+    function playClick() {
+        playTone(1800, 0.04, 'square', 0.04);
+    }
+
+    function playAlert() {
+        playTone(440, 0.15, 'sawtooth', 0.07);
+        setTimeout(function() { playTone(440, 0.15, 'sawtooth', 0.07); }, 200);
+    }
+
+    function playSuccess() {
+        playTone(523, 0.1, 'sine', 0.06);
+        setTimeout(function() { playTone(659, 0.1, 'sine', 0.06); }, 100);
+        setTimeout(function() { playTone(784, 0.2, 'sine', 0.08); }, 200);
+    }
+
+    function playShutdown() {
+        playTone(600, 0.15, 'sine', 0.05);
+        setTimeout(function() { playTone(400, 0.15, 'sine', 0.05); }, 150);
+        setTimeout(function() { playTone(200, 0.4, 'sine', 0.04); }, 300);
+    }
+
+    function startAmbientDrone() {
+        if (!audioCtx || ambientDrone) return;
+        try {
+            var osc1 = audioCtx.createOscillator();
+            var osc2 = audioCtx.createOscillator();
+            var gain = audioCtx.createGain();
+            var filter = audioCtx.createBiquadFilter();
+            osc1.type = 'sine';
+            osc1.frequency.setValueAtTime(55, audioCtx.currentTime);
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(82.5, audioCtx.currentTime);
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(200, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.015, audioCtx.currentTime + 3);
+            osc1.connect(filter);
+            osc2.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc1.start();
+            osc2.start();
+            ambientDrone = { osc1: osc1, osc2: osc2, gain: gain };
+        } catch(e) {}
+    }
+
+    function stopAmbientDrone() {
+        if (!ambientDrone) return;
+        try {
+            ambientDrone.gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1);
+            var ref = ambientDrone;
+            setTimeout(function() {
+                try { ref.osc1.stop(); ref.osc2.stop(); } catch(e) {}
+            }, 1200);
+            ambientDrone = null;
+        } catch(e) {}
+    }
+
+    function toggleMasterSound() {
+        masterMuted = !masterMuted;
+        var btn = document.getElementById('sndToggle');
+        if (masterMuted) {
+            btn.innerText = 'SND: OFF';
+            btn.classList.add('muted');
+            stopAmbientDrone();
+        } else {
+            btn.innerText = 'SND: ON';
+            btn.classList.remove('muted');
+            initAudio();
+            startAmbientDrone();
+            playClick();
+        }
+    }
+
+    // ===== CAMERA FEED =====
+    var camStream = null;
+    var camActive = false;
+    var camStartTime = null;
+
+    function toggleCamera() {
+        var btn = document.getElementById('camBtn');
+        var container = document.getElementById('camContainer');
+        var offMsg = document.getElementById('camOffMsg');
+
+        if (camActive) {
+            if (camStream) {
+                camStream.getTracks().forEach(function(t) { t.stop(); });
+                camStream = null;
+            }
+            document.getElementById('camVideo').srcObject = null;
+            container.classList.remove('live');
+            offMsg.style.display = 'block';
+            btn.innerText = 'Enable Camera';
+            btn.classList.remove('active-state');
+            camActive = false;
+            camStartTime = null;
+            playClick();
+            log("CAMERA FEED: DISCONNECTED.");
+        } else {
+            log("REQUESTING CAMERA ACCESS...");
+            navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720, facingMode: 'user' }, audio: false })
+                .then(function(stream) {
+                    camStream = stream;
+                    document.getElementById('camVideo').srcObject = stream;
+                    container.classList.add('live');
+                    offMsg.style.display = 'none';
+                    btn.innerText = 'Disable Camera';
+                    btn.classList.add('active-state');
+                    camActive = true;
+                    camStartTime = Date.now();
+                    playSuccess();
+                    log("CAMERA FEED: ONLINE.");
+                })
+                .catch(function(err) {
+                    log("CAMERA ERROR: " + err.message);
+                    playAlert();
+                });
+        }
+    }
+
+    function updateCamHUD() {
+        if (!camActive) return;
+        var now = new Date();
+        document.getElementById('camTime').innerText = now.toLocaleTimeString('en-GB');
+        var lat = (8 + Math.random() * 8).toFixed(0);
+        document.getElementById('camLatency').innerText = lat + 'ms';
+
+        if (camStartTime) {
+            var diff = Math.floor((Date.now() - camStartTime) / 1000);
+            var h = String(Math.floor(diff / 3600)).padStart(2, '0');
+            var m = String(Math.floor((diff % 3600) / 60)).padStart(2, '0');
+            var s = String(diff % 60).padStart(2, '0');
+        }
+    }
+
+    // ===== RADAR DOTS =====
+    function spawnRadarDot() {
+        var widget = document.getElementById('radarWidget');
+        if (!widget) return;
+        var dot = document.createElement('div');
+        dot.className = 'radar-dot';
+        var angle = Math.random() * Math.PI * 2;
+        var dist = 25 + Math.random() * 35;
+        var cx = 50 + Math.cos(angle) * dist;
+        var cy = 50 + Math.sin(angle) * dist;
+        dot.style.left = cx + '%';
+        dot.style.top = cy + '%';
+        widget.appendChild(dot);
+        setTimeout(function() { if (dot.parentNode) dot.parentNode.removeChild(dot); }, 4000 + Math.random() * 3000);
+    }
+
+    function updateProximity() {
+        var dist = (200 + Math.random() * 2800).toFixed(0);
+        document.getElementById('proxDist').innerText = dist + 'm';
+        var pct = Math.max(5, Math.min(100, 100 - (dist / 30)));
+        document.getElementById('proxFill').style.width = pct + '%';
+        if (pct > 75) {
+            document.getElementById('proxFill').style.background = 'var(--red)';
+            document.getElementById('proxDist').style.color = 'var(--red)';
+        } else {
+            document.getElementById('proxFill').style.background = 'var(--cyan)';
+            document.getElementById('proxDist').style.color = 'var(--cyan)';
+        }
+    }
+
+    // ===== MATRIX ANIMATION =====
+    var canvas = document.getElementById('matrix');
+    var ctx = canvas.getContext('2d');
+    var columns, drops;
+    var fontSize = 16;
+    var characters = '0123456789ABCDEF@#$%&*{}+=<>?/|';
 
     function initMatrix() {
         canvas.width = window.innerWidth;
@@ -191,94 +559,127 @@
     }
 
     function drawMatrix() {
-        ctx.fillStyle = 'rgba(0, 4, 10, 0.1)'; // Matches --bg
+        ctx.fillStyle = 'rgba(0, 4, 10, 0.1)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
         ctx.font = fontSize + 'px monospace';
-
-        for (let i = 0; i < drops.length; i++) {
-            const text = characters.charAt(Math.floor(Math.random() * characters.length));
-            // Alternate between Cyan and a lighter tint
-            ctx.fillStyle = (i % 3 === 0) ? '#00f0ff' : '#005566'; 
+        for (var i = 0; i < drops.length; i++) {
+            var text = characters.charAt(Math.floor(Math.random() * characters.length));
+            ctx.fillStyle = (i % 3 === 0) ? '#00f0ff' : '#005566';
             ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-
-            if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
-                drops[i] = 0;
-            }
+            if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
             drops[i]++;
         }
     }
 
-    // --- Stark OS Logic ---
-    const vPort = document.getElementById('v-port');
-    const helmet = document.getElementById('helmet');
-    const consoleDiv = document.getElementById('console');
+    // ===== STARK OS CORE =====
+    var vPort = document.getElementById('v-port');
+    var helmet = document.getElementById('helmet');
+    var consoleDiv = document.getElementById('console');
+    var isCombat = false;
 
     function log(m) {
-        const d = document.createElement('div');
-        d.textContent = `> ${m}`;
+        var d = document.createElement('div');
+        d.textContent = '> ' + m;
         consoleDiv.prepend(d);
+        if (consoleDiv.childNodes.length > 20) consoleDiv.removeChild(consoleDiv.lastElementChild);
     }
 
     function bootOS() {
         initMatrix();
         setInterval(drawMatrix, 50);
+
+        playBootSequence();
+        setTimeout(startAmbientDrone, 1500);
+
         log("SINGULARITY OS v1.0 ONLINE.");
         log("MATRIX SUBSTRATE DETECTED.");
         log("WELCOME HOME, MR. STARK.");
-        
-        setInterval(() => {
+        log("AUDIO SUBSYSTEM: INITIALIZED.");
+        log("CAMERA SUBSYSTEM: STANDBY.");
+
+        setInterval(function() {
             document.getElementById('clock').innerText = new Date().toLocaleTimeString();
-            const p = (98.5 + Math.random()*1.5).toFixed(1);
-            document.getElementById('pwr-val').innerText = p + "%";
-            document.getElementById('pwr-bar').style.width = p + "%";
+            var p = (98.5 + Math.random() * 1.5).toFixed(1);
+            document.getElementById('pwr-val').innerText = p + '%';
+            document.getElementById('pwr-bar').style.width = p + '%';
         }, 1500);
+
+        setInterval(updateCamHUD, 1000);
+        setInterval(spawnRadarDot, 2500);
+        setInterval(updateProximity, 2000);
+
+        for (var r = 0; r < 3; r++) setTimeout(spawnRadarDot, r * 800);
     }
 
     window.addEventListener('resize', initMatrix);
 
-    document.addEventListener('mousemove', (e) => {
-        const x = (window.innerWidth / 2 - e.pageX) / 45;
-        const y = (window.innerHeight / 2 - e.pageY) / 45;
+    document.addEventListener('mousemove', function(e) {
+        var x = (window.innerWidth / 2 - e.pageX) / 45;
+        var y = (window.innerHeight / 2 - e.pageY) / 45;
 
-        vPort.style.transform = `rotateY(${x}deg) rotateX(${-y}deg)`;
-        helmet.style.transform = `rotateY(${-x*1.8}deg) rotateX(${y*1.8}deg)`;
+        vPort.style.transform = 'rotateY(' + x + 'deg) rotateX(' + (-y) + 'deg)';
+        helmet.style.transform = 'rotateY(' + (-x * 1.8) + 'deg) rotateX(' + (y * 1.8) + 'deg)';
 
-        const alt = Math.floor(((window.innerHeight - e.pageY) / window.innerHeight) * 85000);
-        document.getElementById('alt-txt').innerText = alt.toLocaleString() + " FT";
-        
-        const frost = document.getElementById('frost');
-        const o2Bar = document.getElementById('o2-bar');
-        if(alt > 50000) {
+        var alt = Math.floor(((window.innerHeight - e.pageY) / window.innerHeight) * 85000);
+        document.getElementById('alt-txt').innerText = alt.toLocaleString() + ' FT';
+
+        var frost = document.getElementById('frost');
+        var o2Bar = document.getElementById('o2-bar');
+        if (alt > 50000) {
             frost.style.opacity = (alt - 50000) / 35000;
-            let o2 = Math.max(0, 100 - (alt - 50000) / 320);
-            document.getElementById('o2-val').innerText = Math.floor(o2) + "%";
-            o2Bar.style.width = o2 + "%";
+            var o2 = Math.max(0, 100 - (alt - 50000) / 320);
+            document.getElementById('o2-val').innerText = Math.floor(o2) + '%';
+            o2Bar.style.width = o2 + '%';
         } else {
             frost.style.opacity = 0;
-            document.getElementById('o2-val').innerText = "100%";
-            o2Bar.style.width = "100%";
+            document.getElementById('o2-val').innerText = '100%';
+            o2Bar.style.width = '100%';
         }
     });
 
     function toggleZeroG() {
         document.getElementById('hud-master').classList.toggle('zero-g');
         log("ZERO-G SIMULATION ACTIVE.");
+        playClick();
     }
 
     function runRepair() {
-        document.querySelectorAll('.side-panel').forEach(p => p.classList.add('repairing'));
+        document.querySelectorAll('.side-panel').forEach(function(p) { p.classList.add('repairing'); });
         log("REPAIRING ARMOR PLATING...");
-        setTimeout(() => {
-            document.querySelectorAll('.side-panel').forEach(p => p.classList.remove('repairing'));
+        playTone(300, 0.8, 'sawtooth', 0.04);
+        setTimeout(function() {
+            document.querySelectorAll('.side-panel').forEach(function(p) { p.classList.remove('repairing'); });
             log("STRUCTURAL INTEGRITY 100%.");
+            playSuccess();
         }, 3000);
     }
 
     function combatMode() {
-        document.getElementById('mode-text').style.color = 'var(--red)';
-        document.getElementById('mode-text').innerText = 'WEAPONS HOT';
-        log("COMBAT PROTOCOL ENGAGED.");
+        var modeText = document.getElementById('mode-text');
+        var neuralStatus = document.getElementById('neuralStatus');
+        if (!isCombat) {
+            isCombat = true;
+            modeText.style.color = 'var(--red)';
+            modeText.innerText = 'WEAPONS HOT';
+            neuralStatus.style.color = 'var(--red)';
+            neuralStatus.innerText = 'COMBAT LINK';
+            log("COMBAT PROTOCOL ENGAGED.");
+            playAlert();
+            if (ambientDrone) {
+                try { ambientDrone.osc1.frequency.linearRampToValueAtTime(110, audioCtx.currentTime + 1); } catch(e) {}
+            }
+        } else {
+            isCombat = false;
+            modeText.style.color = 'var(--cyan)';
+            modeText.innerText = 'SYSTEMS: STANDBY';
+            neuralStatus.style.color = '#fff';
+            neuralStatus.innerText = 'SYNCHRONIZED';
+            log("COMBAT PROTOCOL DISENGAGED.");
+            playClick();
+            if (ambientDrone) {
+                try { ambientDrone.osc1.frequency.linearRampToValueAtTime(55, audioCtx.currentTime + 1); } catch(e) {}
+            }
+        }
     }
 </script>
 </body>
