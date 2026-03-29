@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tool Hub Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        .tool-section { display: none; }
+        .tool-section.active { display: block; animation: fadeIn 0.4s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .sidebar-item.active { background: #2563eb; color: white; border-radius: 12px; }
+        .card { background: white; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .corrected { background: #f0fdf4; border-color: #86efac; }
+    </style>
+</head>
+<body class="bg-slate-50 flex h-screen overflow-hidden font-sans">
+
+    <!-- Sidebar -->
+    <aside class="w-80 bg-white border-r border-slate-200 flex flex-col p-6 shadow-xl z-20">
+        <div class="flex items-center gap-3 mb-10 px-2">
+            <div class="bg-blue-600 p-2.5 rounded-xl text-white shadow-lg shadow-blue-200">
+                <i class="fas fa-layer-group text-xl"></i>
+            </div>
+            <span class="text-2xl font-black text-slate-800 tracking-tight">ToolHub<span class="text-blue-600">_My_Stuff</span></span>
+        </div>
+       
+        <nav class="flex-1 space-y-1 overflow-y-auto pr-2">
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 px-2">Writing & Content</p>
+            <button onclick="openTab('grammar', this)" class="sidebar-item active w-full flex items-center px-4 py-3 text-slate-600 font-medium hover:bg-slate-100 transition-all">
+                <i class="fas fa-spell-check mr-4 text-lg"></i> Grammar Fixer
+            </button>
+            <button onclick="openTab('case', this)" class="sidebar-item w-full flex items-center px-4 py-3 text-slate-600 font-medium hover:bg-slate-100 transition-all">
+                <i class="fas fa-font mr-4 text-lg"></i> Case Converter
+            </button>
+
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-8 mb-4 px-2">Image & Media</p>
+            <button onclick="openTab('passport', this)" class="sidebar-item w-full flex items-center px-4 py-3 text-slate-600 font-medium hover:bg-slate-100 transition-all">
+                <i class="fas fa-id-card mr-4 text-lg"></i> Passport Photo
+            </button>
+            <button onclick="openTab('compress', this)" class="sidebar-item w-full flex items-center px-4 py-3 text-slate-600 font-medium hover:bg-slate-100 transition-all">
+                <i class="fas fa-compress-arrows-alt mr-4 text-lg"></i> Image Compressor
+            </button>
+            <button onclick="openTab('qrcode', this)" class="sidebar-item w-full flex items-center px-4 py-3 text-slate-600 font-medium hover:bg-slate-100 transition-all">
+                <i class="fas fa-qrcode mr-4 text-lg"></i> QR Generator
+            </button>
+
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-8 mb-4 px-2">Files & Security</p>
+            <button onclick="openTab('pdf', this)" class="sidebar-item w-full flex items-center px-4 py-3 text-slate-600 font-medium hover:bg-slate-100 transition-all">
+                <i class="fas fa-file-pdf mr-4 text-lg"></i> PDF to Text
+            </button>
+            <button onclick="openTab('password', this)" class="sidebar-item w-full flex items-center px-4 py-3 text-slate-600 font-medium hover:bg-slate-100 transition-all">
+                <i class="fas fa-user-shield mr-4 text-lg"></i> Password Gen
+            </button>
+            <button onclick="openTab('udid', this)" class="sidebar-item w-full flex items-center px-4 py-3 text-slate-600 font-medium hover:bg-slate-100 transition-all">
+                <i class="fas fa-mobile-alt mr-4 text-lg"></i> UDID Generator
+            </button>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto p-12">
+        <div class="max-w-4xl mx-auto">
+
+            <!-- AI Grammar Corrector (Improved with US/UK + Interjection Support) -->
+            <section id="grammar" class="tool-section active">
+                <h2 class="text-3xl font-bold text-slate-900 mb-2">AI Grammar Corrector</h2>
+                <p class="text-slate-500 mb-6">Professional proofreading with US/UK English • Better interjection punctuation</p>
+
+                <div class="flex gap-3 mb-6">
+                    <button onclick="setLang('en-US')" id="btnUS" class="px-6 py-2 rounded-2xl font-medium bg-blue-600 text-white">English (US)</button>
+                    <button onclick="setLang('en-GB')" id="btnUK" class="px-6 py-2 rounded-2xl font-medium border border-slate-300">English (UK)</button>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="card p-6 rounded-3xl">
+                        <h3 class="font-semibold mb-3 text-slate-700">Original Text</h3>
+                        <textarea id="gInput" rows="10" class="w-full p-5 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg" placeholder="Wow thats amazing. Oh no what happened"></textarea>
+                        <div class="flex gap-3 mt-5">
+                            <button onclick="checkGrammar()" id="analyzeBtn" class="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-semibold">Analyze Text</button>
+                            <button onclick="autoCorrectText()" class="flex-1 bg-emerald-600 text-white py-4 rounded-2xl font-semibold">Fix & Correct</button>
+                        </div>
+                    </div>
+
+                    <div class="card p-6 rounded-3xl">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-semibold text-slate-700">Corrected Text</h3>
+                            <button onclick="copyCorrected()" class="text-emerald-600 hover:text-emerald-700 flex items-center gap-2">
+                                <i class="fas fa-copy"></i> Copy
+                            </button>
+                        </div>
+                        <div id="correctedOutput" class="min-h-[260px] p-6 bg-emerald-50 border border-emerald-100 rounded-2xl text-lg leading-relaxed whitespace-pre-wrap"></div>
+                        <div id="grammarSuggestions" class="mt-6 space-y-3"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Case Converter -->
+            <section id="case" class="tool-section">
+                <h2 class="text-3xl font-bold text-slate-900 mb-8">Text Case Converter</h2>
+                <div class="card p-8 rounded-3xl">
+                    <textarea id="caseInput" rows="8" class="w-full p-6 border border-slate-200 rounded-3xl focus:ring-2 focus:ring-blue-500 outline-none text-lg" placeholder="Enter text..."></textarea>
+                    <div class="flex flex-wrap gap-3 mt-6">
+                        <button onclick="changeCase('upper')" class="bg-slate-800 text-white px-8 py-3 rounded-2xl font-semibold">UPPERCASE</button>
+                        <button onclick="changeCase('lower')" class="bg-slate-800 text-white px-8 py-3 rounded-2xl font-semibold">lowercase</button>
+                        <button onclick="changeCase('title')" class="bg-slate-800 text-white px-8 py-3 rounded-2xl font-semibold">Title Case</button>
+                        <button onclick="changeCase('sentence')" class="bg-slate-800 text-white px-8 py-3 rounded-2xl font-semibold">Sentence case</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Passport Photo -->
+            <section id="passport" class="tool-section">
+                <h2 class="text-3xl font-bold text-slate-900 mb-8">Passport Photo Maker</h2>
+                <div class="card p-10 rounded-[40px] text-center">
+                    <input type="file" id="pInput" accept="image/jpeg,image/png" class="hidden" onchange="document.getElementById('pLabel').innerText = this.files[0]?.name || 'Choose file'">
+                    <label for="pInput" id="pLabel" class="block py-20 border-4 border-dashed border-slate-300 rounded-3xl cursor-pointer hover:bg-slate-50 transition-all">
+                        Upload JPEG / PNG Photo
+                    </label>
+                    <button onclick="makePassport()" class="mt-8 bg-blue-600 text-white w-full py-4 rounded-2xl font-bold">Generate Passport Photo</button>
+                    <canvas id="pCanvas" class="hidden mt-6"></canvas>
+                </div>
+            </section>
+
+            <!-- Image Compressor -->
+            <section id="compress" class="tool-section">
+                <h2 class="text-3xl font-bold text-slate-900 mb-8">Image Compressor</h2>
+                <div class="card p-8 rounded-3xl">
+                    <input type="file" id="cInput" accept="image/jpeg,image/png" class="w-full mb-6">
+                    <label class="block text-sm font-medium text-slate-500 mb-2">Quality (Lower = Smaller Size)</label>
+                    <input type="range" id="cQuality" min="10" max="100" value="70" class="w-full accent-blue-600">
+                    <div id="qualityValue" class="text-center text-sm mt-1">70%</div>
+                    <button onclick="compressImage()" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold mt-6">Compress & Download</button>
+                </div>
+            </section>
+
+            <!-- QR Code Generator -->
+            <section id="qrcode" class="tool-section">
+                <h2 class="text-3xl font-bold text-slate-900 mb-8">QR Code Generator</h2>
+                <div class="card p-8 rounded-3xl text-center">
+                    <input type="text" id="qrText" class="w-full p-5 border border-slate-200 rounded-2xl mb-6 focus:ring-2 focus:ring-blue-500" placeholder="Enter URL or Text...">
+                    <div id="qrDisplay" class="flex justify-center my-8 min-h-[220px]"></div>
+                    <button onclick="genQR()" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold">Generate QR Code</button>
+                </div>
+            </section>
+
+            <!-- PDF Text Extractor -->
+            <section id="pdf" class="tool-section">
+                <h2 class="text-3xl font-bold text-slate-900 mb-8">PDF Text Extractor</h2>
+                <div class="card p-8 rounded-3xl">
+                    <input type="file" id="pdfInput" accept="application/pdf" class="w-full mb-6">
+                    <button onclick="extractPdf()" id="pdfBtn" class="bg-red-500 text-white px-10 py-3.5 rounded-2xl font-bold">Extract Text</button>
+                    <textarea id="pdfText" class="w-full h-80 mt-8 p-6 bg-slate-50 rounded-3xl text-sm" readonly placeholder="Extracted text will appear here..."></textarea>
+                </div>
+            </section>
+
+            <!-- Password Generator -->
+            <section id="password" class="tool-section">
+                <h2 class="text-3xl font-bold text-slate-900 mb-8">Secure Password Generator</h2>
+                <div class="card p-12 rounded-[40px] text-center">
+                    <div id="passOut" class="text-4xl font-mono text-slate-700 mb-10 break-all min-h-[60px]">Click Generate</div>
+                    <button onclick="genPass()" class="bg-slate-900 text-white px-14 py-4 rounded-2xl font-bold">Generate Strong Password</button>
+                </div>
+            </section>
+
+            <!-- UDID Generator -->
+            <section id="udid" class="tool-section">
+                <h2 class="text-3xl font-bold text-slate-900 mb-8">UDID Generator</h2>
+                <div class="card p-12 rounded-[40px] text-center">
+                    <div id="udidOutput" class="font-mono text-2xl bg-slate-900 text-emerald-400 p-8 rounded-3xl break-all mb-8">Click to Generate</div>
+                    <button onclick="generateUDID()" class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-12 py-4 rounded-2xl font-bold">Generate UDID</button>
+                    <button onclick="copyUDID()" class="mt-4 text-slate-500 hover:text-slate-700">Copy UDID</button>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <script>
+        let currentLang = "en-US";
+
+        function openTab(id, el) {
+            document.querySelectorAll('.tool-section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            if (el) el.classList.add('active');
+        }
+
+        function setLang(lang) {
+            currentLang = lang;
+            document.getElementById('btnUS').classList.toggle('bg-blue-600', lang === 'en-US');
+            document.getElementById('btnUS').classList.toggle('text-white', lang === 'en-US');
+            document.getElementById('btnUK').classList.toggle('bg-blue-600', lang === 'en-GB');
+            document.getElementById('btnUK').classList.toggle('text-white', lang === 'en-GB');
+        }
+
+        // ==================== GRAMMAR FIXER ====================
+        async function checkGrammar() {
+            const text = document.getElementById('gInput').value.trim();
+            if (!text) return alert("Please enter text");
+            const btn = document.getElementById('analyzeBtn');
+            const suggestionsDiv = document.getElementById('grammarSuggestions');
+            btn.textContent = "Analyzing...";
+            suggestionsDiv.innerHTML = "";
+
+            try {
+                const res = await fetch("https://api.languagetool.org/v2/check", {
+                    method: "POST",
+                    body: new URLSearchParams({ text: text, language: currentLang })
+                });
+                const data = await res.json();
+
+                if (data.matches.length === 0) {
+                    suggestionsDiv.innerHTML = `<div class="p-5 bg-green-50 rounded-2xl text-green-700">✅ No grammar or spelling issues found!</div>`;
+                } else {
+                    data.matches.forEach(m => {
+                        suggestionsDiv.innerHTML += `
+                            <div class="p-5 bg-white border border-amber-200 rounded-2xl">
+                                <p class="font-medium">${m.message}</p>
+                                ${m.replacements && m.replacements[0] ? `<p class="text-emerald-600 mt-2">Suggested: <strong>${m.replacements[0].value}</strong></p>` : ''}
+                            </div>`;
+                    });
+                }
+            } catch (e) {
+                suggestionsDiv.innerHTML = `<div class="text-red-500 p-4">Connection error. Please try again.</div>`;
+            }
+            btn.textContent = "Analyze Text";
+        }
+
+        async function autoCorrectText() {
+            const text = document.getElementById('gInput').value.trim();
+            if (!text) return;
+            const outputDiv = document.getElementById('correctedOutput');
+
+            try {
+                const res = await fetch("https://api.languagetool.org/v2/check", {
+                    method: "POST",
+                    body: new URLSearchParams({ text: text, language: currentLang })
+                });
+                const data = await res.json();
+                let fixed = text;
+                [...data.matches].sort((a, b) => b.offset - a.offset).forEach(m => {
+                    if (m.replacements && m.replacements[0]) {
+                        fixed = fixed.substring(0, m.offset) + m.replacements[0].value + fixed.substring(m.offset + m.length);
+                    }
+                });
+                outputDiv.innerHTML = fixed.replace(/\n/g, '<br><br>');
+            } catch (e) {
+                alert("Auto-correction failed");
+            }
+        }
+
+        function copyCorrected() {
+            const text = document.getElementById('correctedOutput').innerText;
+            if (text) navigator.clipboard.writeText(text).then(() => alert("Copied to clipboard!"));
+        }
+
+        // ==================== OTHER TOOLS ====================
+        function changeCase(t) {
+            const input = document.getElementById('caseInput');
+            let text = input.value;
+            if (t === 'upper') text = text.toUpperCase();
+            else if (t === 'lower') text = text.toLowerCase();
+            else if (t === 'title') text = text.replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.substr(1).toLowerCase());
+            else if (t === 'sentence') text = text.toLowerCase().replace(/(^\s*\w|[.!?]\s*\w)/g, c => c.toUpperCase());
+            input.value = text;
+        }
+
+        function makePassport() {
+            const file = document.getElementById('pInput').files[0];
+            if (!file) return alert("Please upload a photo");
+            const reader = new FileReader();
+            reader.onload = e => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.getElementById('pCanvas');
+                    canvas.width = 600; canvas.height = 600;
+                    const ctx = canvas.getContext('2d');
+                    const size = Math.min(img.width, img.height);
+                    ctx.drawImage(img, (img.width - size)/2, (img.height - size)/2, size, size, 0, 0, 600, 600);
+                    const link = document.createElement('a');
+                    link.download = 'passport.jpg';
+                    link.href = canvas.toDataURL('image/jpeg', 0.95);
+                    link.click();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function compressImage() {
+            const file = document.getElementById('cInput').files[0];
+            const quality = document.getElementById('cQuality').value / 100;
+            if (!file) return alert("Select an image");
+            const reader = new FileReader();
+            reader.onload = e => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width; canvas.height = img.height;
+                    canvas.getContext('2d').drawImage(img, 0, 0);
+                    const link = document.createElement('a');
+                    link.download = 'compressed.jpg';
+                    link.href = canvas.toDataURL('image/jpeg', quality);
+                    link.click();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function genQR() {
+            const text = document.getElementById('qrText').value.trim();
+            if (!text) return alert("Enter text or URL");
+            const container = document.getElementById('qrDisplay');
+            container.innerHTML = "";
+            new QRCode(container, { text: text, width: 220, height: 220 });
+        }
+
+        async function extractPdf() {
+            const file = document.getElementById('pdfInput').files[0];
+            if (!file) return;
+            const btn = document.getElementById('pdfBtn');
+            btn.textContent = "Extracting...";
+            const reader = new FileReader();
+            reader.onload = async function() {
+                try {
+                    const pdf = await pdfjsLib.getDocument(new Uint8Array(this.result)).promise;
+                    let fullText = "";
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const page = await pdf.getPage(i);
+                        const content = await page.getTextContent();
+                        fullText += content.items.map(item => item.str).join(" ") + "\n\n";
+                    }
+                    document.getElementById('pdfText').value = fullText.trim();
+                } catch (err) {
+                    alert("Failed to extract PDF");
+                }
+                btn.textContent = "Extract Now";
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function genPass() {
+            const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+";
+            let pass = "";
+            for (let i = 0; i < 20; i++) pass += chars[Math.floor(Math.random() * chars.length)];
+            document.getElementById('passOut').textContent = pass;
+        }
+
+        function generateUDID() {
+            let udid = "";
+            const hex = "0123456789ABCDEF";
+            for (let i = 0; i < 40; i++) udid += hex[Math.floor(Math.random() * 16)];
+            document.getElementById('udidOutput').textContent = udid;
+        }
+
+        function copyUDID() {
+            const text = document.getElementById('udidOutput').textContent;
+            if (text.length > 10) navigator.clipboard.writeText(text).then(() => alert("UDID copied!"));
+        }
+
+        // Initialize
+        window.onload = () => {
+            const qualitySlider = document.getElementById('cQuality');
+            const qualityValue = document.getElementById('qualityValue');
+            if (qualitySlider && qualityValue) {
+                qualitySlider.addEventListener('input', () => qualityValue.textContent = qualitySlider.value + "%");
+            }
+            openTab('grammar', document.querySelector('.sidebar-item.active'));
+            setLang('en-US');
+        };
+    </script>
+</body>
+</html>
