@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Omni-Deck | The Ali Engine v292.7 [UPLINK ENABLED]</title>
+  <style>
+    :root {
+      --brass: #b5a642; --copper: #b87333; --iron: #333;
+      --parchment: #e6e0c5; --terminal: #00ff41; --aether: #00d4ff;
+      --danger: #ff4100; --success: #00ff41; --coal: #1a1a1a;
+    }
+
+    body {
+      margin: 0; background: #1a0d04 url('https://www.transparenttextures.com/patterns/dark-leather.png');
+      color: #eadbb1; font-family: 'Courier New', monospace; overflow-x: hidden;
+    }
+
+    .steam-panel {
+      max-width: 1000px; margin: 40px auto; background: #2b1608;
+      border: 10px double var(--brass); border-radius: 5px;
+      position: relative; box-shadow: 0 20px 60px #000; padding-bottom: 30px;
+    }
+
+    /* --- Coal Hopper --- */
+    .coal-hopper {
+      position: absolute; left: 25px; top: 100px; width: 30px; height: 180px;
+      background: #111; border: 3px solid var(--iron); border-radius: 3px;
+      box-shadow: inset 0 0 10px #000; z-index: 5;
+    }
+    .coal-level {
+      position: absolute; bottom: 0; width: 100%; height: 100%;
+      background: linear-gradient(to top, var(--coal), #333);
+      transition: height 0.3s ease-out;
+    }
+    .hopper-label {
+      position: absolute; left: 0; top: -20px; width: 100%; text-align: center;
+      font-size: 9px; color: var(--brass); font-weight: bold;
+    }
+
+    /* --- Fan & CRT --- */
+    .fan-assembly {
+      position: absolute; bottom: 20px; right: 20px; width: 80px; height: 80px;
+      background: #111; border: 4px solid var(--iron); border-radius: 50%; overflow: hidden;
+    }
+    #fan-svg { width: 100%; height: 100%; fill: #222; transform-origin: center; }
+
+    .crt-monitor {
+      width: 120px; height: 120px; background: #010; border: 6px solid var(--iron); border-radius: 50%;
+      position: absolute; bottom: 180px; right: 40px; box-shadow: inset 0 0 20px #0f0; overflow: hidden;
+    }
+    #waveCanvas { width: 100%; height: 100%; }
+
+    /* --- Instruments Bay --- */
+    .instrument-bay {
+      display: flex; justify-content: center; align-items: center; gap: 40px;
+      padding: 40px 30px; background: #1a0d04; border-bottom: 3px solid var(--brass);
+    }
+    .round-meter {
+      width: 150px; height: 150px; background: var(--parchment);
+      border: 8px solid var(--brass); border-radius: 50%; position: relative;
+    }
+    .hand { position: absolute; bottom: 50%; left: 50%; transform-origin: bottom; }
+    .p-needle { width: 3px; height: 60px; background: #800; transform: rotate(-120deg); transition: 0.4s; }
+
+    .tube-housing { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .vacuum-tube { width: 40px; height: 85px; background: rgba(200, 255, 255, 0.05); border: 2px solid rgba(255,255,255,0.2); border-radius: 20px 20px 5px 5px; position: relative; }
+    .glow-core { position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 80%; height: 85%; background: var(--aether); opacity: 0.2; transition: 0.3s; }
+    .active-link .glow-core { opacity: 1 !important; box-shadow: 0 0 40px var(--aether); }
+
+    /* --- Network Telemetry Section --- */
+    .telemetry-section {
+      background: #251206; padding: 20px; margin: 20px 80px; 
+      border: 3px inset #3d1c02; border-radius: 10px;
+    }
+    .telemetry-header { display: flex; justify-content: space-between; margin-bottom: 10px; color: var(--brass); font-size: 12px;}
+    .gauges-container { display: flex; justify-content: space-around; flex-wrap: wrap; gap: 10px; }
+    .tele-gauge { width: 120px; text-align: center; }
+    .tele-gauge svg { width: 120px; height: 120px; }
+    .scale-labels { font-size: 10px; fill: #fff; }
+    
+    .indicator-inner { animation: blink 1s infinite, brightness-blink 1s infinite; transition: fill 0.3s; }
+    @keyframes blink { 0%, 50%, 100% { opacity: 1; } 25%, 75% { opacity: 0; } }
+    @keyframes brightness-blink { 0%, 50%, 100% { filter: brightness(1); } 25%, 75% { filter: brightness(2); } }
+
+    #results { background: #000; color: var(--terminal); border: 4px solid #3d1c02; height: 160px; margin: 20px 160px 20px 80px; padding: 15px; overflow-y: auto; font-size: 11px; z-index: 2; border-radius: 4px; }
+    canvas#smokeCanvas { position: absolute; pointer-events: none; z-index: 2; top: 0; left: 0; }
+    
+    .main-btn { padding: 10px 20px; background: var(--brass); border: none; font-weight: bold; cursor: pointer; transition: 0.2s; color: #1a0d04; border-radius: 3px; }
+    .main-btn:active { transform: translateY(2px); }
+    .main-btn:disabled { background: #444; color: #666; cursor: not-allowed; }
+    
+    .t-key { width: 60px; height: 35px; background: var(--copper); border: 3px solid #5e311a; border-radius: 5px; cursor: pointer; display: none; margin: 10px auto; box-shadow: 0 4px 0 #3d1c02; }
+    .t-key:active { transform: translateY(2px); box-shadow: 0 2px 0 #3d1c02; }
+    
+    .plaque { width: 200px; margin: 10px auto 0; background: linear-gradient(145deg, #d4af37, #8a6d3b); border: 2px solid #5e311a; padding: 6px; text-align: center; cursor: pointer; font-weight: bold; color: #3d1c02; border-radius: 2px; }
+
+    @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } }
+  </style>
+</head>
+<body onresize="resize()">
+
+<div class="steam-panel" id="deck">
+  <canvas id="smokeCanvas"></canvas>
+
+  <div class="coal-hopper">
+    <div class="hopper-label">COAL</div>
+    <div class="coal-level" id="fuelBar"></div>
+  </div>
+
+  <div class="instrument-bay">
+    <div class="round-meter">
+      <div class="hand" id="h-hour" style="width:4px; height:35px; background:#333; margin-left:-2px;"></div>
+      <div class="hand" id="h-min" style="width:3px; height:50px; background:#555; margin-left:-1.5px;"></div>
+      <div class="hand" id="h-sec" style="width:1.5px; height:60px; background:#800; margin-left:-0.75px; transition:none;"></div>
+      <div style="position:absolute; width:100%; text-align:center; top:110px; font-size:10px; color:#5e311a; font-weight:bold;">CHRONOS</div>
+    </div>
+    
+    <div class="tube-housing">
+      <div class="vacuum-tube" id="vTube"><div class="glow-core" id="glowCore"></div></div>
+      <input type="range" id="vSlider" min="0" max="1" step="0.01" value="0.2" oninput="adjustVoltage(this.value)">
+    </div>
+    
+    <div class="round-meter">
+      <div class="hand p-needle" id="p-needle" style="margin-left:-1.5px;"></div>
+      <div style="position:absolute; width:100%; text-align:center; top:110px; font-size:10px; color:#5e311a; font-weight:bold;">AETHER PSI</div>
+    </div>
+  </div>
+
+  <div class="telemetry-section">
+    <div class="telemetry-header">
+      <span>NETWORK TELEMETRY STATUS</span>
+      <span id="liveClock">00:00:00</span>
+    </div>
+    <div class="gauges-container">
+      <div class="tele-gauge">
+        <svg viewBox="0 0 200 200">
+          <circle cx="100" cy="100" r="90" fill="#4b2e1f" stroke="#654321" stroke-width="4"/>
+          <circle cx="100" cy="100" r="80" fill="#111"/>
+          <g id="ticks1"></g>
+          <line id="needle1" x1="100" y1="100" x2="100" y2="20" stroke="#D2691E" stroke-width="4" stroke-linecap="round" transform="rotate(-150 100 100)" />
+          <text x="100" y="140" font-size="12" fill="#fff" text-anchor="middle">NET SPEED</text>
+        </svg>
+        <div id="indicator1"><svg width="20" height="20"><circle stroke="#D2691E" stroke-width="2" fill="none" cx="10" cy="10" r="8"></circle><circle class="indicator-inner" cx="10" cy="10" r="4" fill="red"></circle></svg></div>
+      </div>
+
+      <div class="tele-gauge">
+        <svg viewBox="0 0 200 200">
+          <circle cx="100" cy="100" r="90" fill="#4b2e1f" stroke="#654321" stroke-width="4"/>
+          <circle cx="100" cy="100" r="80" fill="#111"/>
+          <g id="ticks2"></g>
+          <line id="needle2" x1="100" y1="100" x2="100" y2="20" stroke="#D2691E" stroke-width="4" stroke-linecap="round" transform="rotate(-150 100 100)" />
+          <text x="100" y="140" font-size="12" fill="#fff" text-anchor="middle">DOWNLOAD</text>
+        </svg>
+        <div id="indicator2"><svg width="20" height="20"><circle stroke="#D2691E" stroke-width="2" fill="none" cx="10" cy="10" r="8"></circle><circle class="indicator-inner" cx="10" cy="10" r="4" fill="green"></circle></svg></div>
+      </div>
+
+      <div class="tele-gauge">
+        <svg viewBox="0 0 200 200">
+          <circle cx="100" cy="100" r="90" fill="#4b2e1f" stroke="#654321" stroke-width="4"/>
+          <circle cx="100" cy="100" r="80" fill="#111"/>
+          <g id="ticks3"></g>
+          <line id="needle3" x1="100" y1="100" x2="100" y2="20" stroke="#D2691E" stroke-width="4" stroke-linecap="round" transform="rotate(-150 100 100)" />
+          <text x="100" y="140" font-size="12" fill="#fff" text-anchor="middle">UPLOAD</text>
+        </svg>
+        <div id="indicator3"><svg width="20" height="20"><circle stroke="#D2691E" stroke-width="2" fill="none" cx="10" cy="10" r="8"></circle><circle class="indicator-inner" cx="10" cy="10" r="4" fill="orange"></circle></svg></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="crt-monitor" id="monitor"><canvas id="waveCanvas"></canvas></div>
+
+  <div class="fan-assembly">
+    <svg id="fan-svg" viewBox="0 0 100 100">
+      <path d="M50 50 L50 5 A20 20 0 0 1 70 25 Z M50 50 L95 50 A20 20 0 0 1 75 70 Z M50 50 L50 95 A20 20 0 0 1 30 75 Z M50 50 L5 50 A20 20 0 0 1 25 30 Z" fill="#222"/>
+      <circle cx="50" cy="50" r="8" fill="#444" />
+    </svg>
+  </div>
+
+  <div id="results">RESERVES MONITORED. READY FOR UPLINK.</div>
+
+  <div style="text-align: center;">
+    <input type="text" id="query" style="padding:10px; width:40%; background:#000; border:2px solid var(--brass); color:var(--brass); outline:none;" placeholder="MODULATE FREQUENCY..." />
+    <button id="mainBtn" class="main-btn" onclick="handleEngine()">ENGAGE BOILER</button>
+    <div id="t-key" class="t-key" title="NETWORK FLUSH & TRANSMIT" onclick="tapKey()"></div>
+    <div class="plaque" onclick="inspectPlaque()" id="plaqueText">ASHRAF ALI</div>
+  </div>
+</div>
+
+<script>
+  const audio = new (window.AudioContext || window.webkitAudioContext)();
+  const sCanvas = document.getElementById('smokeCanvas');
+  const sCtx = sCanvas.getContext('2d');
+  const wCanvas = document.getElementById('waveCanvas');
+  const wCtx = wCanvas.getContext('2d');
+  
+  let parts = []; let psi = 0; let active = false; let errorState = false;
+  let waveOffset = 0; let fanRot = 0; let fuel = 100;
+
+  /* --- NETWORK FLUSH LOGIC --- */
+  function flushGauges() {
+    // Force needles to 0 during uplink
+    animateNeedle('needle1', 0);
+    animateNeedle('needle2', 0);
+    animateNeedle('needle3', 0);
+    // Set indicators to 'Aether Blue' for transmission
+    setIndicator('indicator1', 'var(--aether)', true);
+    setIndicator('indicator2', 'var(--aether)', true);
+    setIndicator('indicator3', 'var(--aether)', true);
+  }
+
+  function createTicks(groupId, startAngle, endAngle, numTicks=10) {
+    const group = document.getElementById(groupId);
+    for(let i=0; i<=numTicks; i++) {
+      const angleDeg = startAngle + (i / numTicks) * (endAngle - startAngle);
+      const angleRad = angleDeg * Math.PI / 180;
+      const x1 = 100 + 80 * Math.cos(angleRad); const y1 = 100 + 80 * Math.sin(angleRad);
+      const x2 = 100 + 72 * Math.cos(angleRad); const y2 = 100 + 72 * Math.sin(angleRad);
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', x1); line.setAttribute('y1', y1); line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+      line.setAttribute('stroke', '#fff'); line.setAttribute('stroke-width', '1');
+      group.appendChild(line);
+    }
+  }
+
+  function animateNeedle(needleId, targetValue, max=100) {
+    const needle = document.getElementById(needleId);
+    const endAngle = (targetValue / max) * 300 - 150;
+    needle.style.transition = active ? "transform 0.5s ease-in" : "transform 1.5s ease-out";
+    needle.setAttribute('transform', `rotate(${endAngle} 100 100)`);
+  }
+
+  function setIndicator(indicatorId, color, shouldBlink=false) {
+    const indicatorContainer = document.getElementById(indicatorId);
+    const innerCircle = indicatorContainer.querySelector('.indicator-inner');
+    innerCircle.setAttribute('fill', color);
+    innerCircle.style.animation = shouldBlink ? 'blink 1s infinite, brightness-blink 1s infinite' : 'none';
+  }
+
+  function simulateNetworkData() {
+    if (active) return; // Don't simulate while flushing/transmitting
+    const netSpeed = Math.random() * 100;
+    const dlSpeed = Math.random() * 100;
+    const ulSpeed = Math.random() * 100;
+    animateNeedle('needle1', netSpeed);
+    animateNeedle('needle2', dlSpeed);
+    animateNeedle('needle3', ulSpeed);
+    setIndicator('indicator1', 'red', false);
+    setIndicator('indicator2', dlSpeed > 30 ? 'green' : 'yellow', true);
+    setIndicator('indicator3', '#FFA500', true);
+  }
+
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('liveClock').textContent = now.toTimeString().split(' ')[0];
+  }
+
+  function adjustVoltage(val) {
+    const core = document.getElementById('glowCore');
+    if (!active) { 
+        core.style.opacity = val; 
+        core.style.boxShadow = `0 0 ${val * 40}px var(--aether)`; 
+    }
+  }
+
+  function snd(f, d, v=0.05, type='sine') {
+    const o = audio.createOscillator(); const g = audio.createGain();
+    o.type = type; o.frequency.value = f; g.gain.setValueAtTime(v, audio.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.01, audio.currentTime + d);
+    o.connect(g); g.connect(audio.destination); o.start(); o.stop(audio.currentTime + d);
+  }
+
+  function steamHiss(duration = 1.2, volume = 0.1) {
+    const buffer = audio.createBuffer(1, audio.sampleRate * duration, audio.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < buffer.length; i++) data[i] = Math.random() * 2 - 1;
+    const source = audio.createBufferSource(); source.buffer = buffer;
+    const g = audio.createGain(); g.gain.setValueAtTime(volume, audio.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.01, audio.currentTime + duration);
+    source.connect(g); g.connect(audio.destination); source.start();
+  }
+
+  function drawWave() {
+    wCtx.clearRect(0, 0, wCanvas.width, wCanvas.height);
+    wCtx.beginPath(); wCtx.strokeStyle = errorState ? '#f00' : (active ? '#00d4ff' : '#0f0'); 
+    wCtx.lineWidth = 2;
+    let amp = 10 + (psi / 4) + (active ? 40 : 0);
+    let freq = 0.05 + (active ? 0.3 : 0);
+    for (let x = 0; x < wCanvas.width; x++) {
+      let y = errorState ? (wCanvas.height/2 + (Math.sin(x*freq+waveOffset)>0?amp:-amp)) : (wCanvas.height/2 + Math.sin(x*freq+waveOffset)*amp);
+      x === 0 ? wCtx.moveTo(x, y) : wCtx.lineTo(x, y);
+    }
+    wCtx.stroke(); waveOffset += 0.15 + (psi / 200) + (errorState ? 0.5 : 0);
+    requestAnimationFrame(drawWave);
+  }
+
+  function engineLoop() {
+    sCtx.clearRect(0, 0, sCanvas.width, sCanvas.height);
+    if (psi > 0 || active) {
+      if(Math.random() < (active ? 0.8 : 0.3)) parts.push({ x: 50, y: 50, vx: (Math.random()-0.5)*4, vy: -3, s: 2, a: 1 });
+    }
+    let fanSpeed = 2 + (psi / 10) + (active ? 30 : 0);
+    fanRot += fanSpeed;
+    document.getElementById('fan-svg').style.transform = `rotate(${fanRot}deg)`;
+    document.getElementById('fuelBar').style.height = fuel + "%";
+
+    for (let i = parts.length - 1; i >= 0; i--) {
+      let p = parts[i]; p.x += p.vx; p.y += p.vy; p.s += 0.4; p.a -= 0.02;
+      sCtx.globalAlpha = Math.max(0, p.a); sCtx.fillStyle = active ? "#fff" : "#bbb";
+      sCtx.beginPath(); sCtx.arc(p.x, p.y, p.s, 0, Math.PI*2); sCtx.fill();
+      if (p.a <= 0) parts.splice(i, 1);
+    }
+    requestAnimationFrame(engineLoop);
+  }
+
+  function handleEngine() {
+    const btn = document.getElementById('mainBtn');
+    if (fuel <= 0) return;
+    if (btn.textContent === "ENGAGE BOILER") { btn.textContent = "SHOVEL COAL"; } 
+    else {
+      fuel -= 15; psi += 25; 
+      snd(60 + (psi * 0.4), 0.4, 0.1, 'sawtooth');
+      document.getElementById('p-needle').style.transform = `rotate(${-120 + (psi*2.4)}deg)`;
+      if (fuel <= 0) { fuel = 0; btn.disabled = true; document.getElementById('plaqueText').textContent = "OPEN COAL CHUTE"; }
+      if (psi >= 125) { document.getElementById('deck').style.animation = "shake 0.2s infinite"; steamHiss(0.2, 0.04); }
+      if (psi >= 100 && !active) { document.getElementById('t-key').style.display = 'block'; }
+    }
+  }
+
+  async function runUplink() {
+    active = true; errorState = false;
+    document.getElementById('vTube').classList.add('active-link');
+    flushGauges(); // EXECUTING THE NETWORK FLUSH
+    steamHiss(2.0, 0.2);
+    
+    try {
+      document.getElementById('results').textContent = "DATA FLUSHED. TRANSMITTING AETHER PULSE...";
+      const res = await fetch('https://ouadtdnyyaxprbdeotvl.supabase.co/functions/v1/usda-proxy', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ query: document.getElementById('query').value })
+      });
+      const data = await res.json();
+      document.getElementById('results').textContent = JSON.stringify(data, null, 2);
+    } catch (e) {
+      errorState = true;
+      document.getElementById('results').textContent = "UPLINK FAILED: ENGINE OVERHEAT.";
+    } finally {
+      setTimeout(() => {
+        active = false; psi = 0; errorState = false;
+        document.getElementById('deck').style.animation = "none";
+        document.getElementById('vTube').classList.remove('active-link');
+        document.getElementById('p-needle').style.transform = `rotate(-120deg)`;
+        document.getElementById('mainBtn').textContent = "ENGAGE BOILER";
+        steamHiss(1.5, 0.1); // Venting final steam
+      }, 4000);
+    }
+  }
+
+  function tapKey() { 
+    snd(1200, 0.1, 0.3, 'square'); 
+    document.getElementById('t-key').style.display = 'none'; 
+    runUplink(); 
+  }
+
+  function inspectPlaque() {
+    const p = document.getElementById('plaqueText');
+    if (p.textContent === "OPEN COAL CHUTE") {
+      snd(100, 0.5, 0.2, 'square'); fuel = 100; p.textContent = "ASHRAF ALI";
+      document.getElementById('mainBtn').disabled = false;
+      document.getElementById('mainBtn').textContent = "ENGAGE BOILER";
+    } else {
+      snd(400, 0.1, 0.1);
+      p.textContent = (p.textContent === "ASHRAF ALI") ? "OMNI-CHASSIS" : "ASHRAF ALI";
+    }
+  }
+
+  function resize() { 
+    const d = document.getElementById('deck'); 
+    sCanvas.width = d.offsetWidth; sCanvas.height = d.offsetHeight; 
+    wCanvas.width = 120; wCanvas.height = 120;
+  }
+  
+  function updateChronos() {
+    const now = new Date();
+    document.getElementById('h-sec').style.transform = `rotate(${(now.getSeconds()*6) + (now.getMilliseconds()*0.006)}deg)`;
+    document.getElementById('h-min').style.transform = `rotate(${(now.getMinutes()*6) + (now.getSeconds()*0.1)}deg)`;
+    document.getElementById('h-hour').style.transform = `rotate(${(now.getHours()%12*30) + (now.getMinutes()*0.5)}deg)`;
+    requestAnimationFrame(updateChronos);
+  }
+
+  window.onload = () => { 
+    resize(); 
+    createTicks('ticks1', -150, 150); createTicks('ticks2', -150, 150); createTicks('ticks3', -150, 150);
+    engineLoop(); drawWave(); updateChronos(); adjustVoltage(0.2); 
+    setInterval(updateClock, 1000);
+    setInterval(simulateNetworkData, 2000);
+  };
+</script>
+</body>
+</html>
