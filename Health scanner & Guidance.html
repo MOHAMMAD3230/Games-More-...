@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+   <link rel="icon" href="https://mohammad3230.github.io/Games-More-.../favicon.png" type="image/png" sizes="32x32" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ultimate Sci-Fi Health Scanner & Guidance</title>
+<style>
+body {
+  margin: 0;
+  font-family: 'Courier New', monospace;
+  background: #1a0d04 url('https://www.transparenttextures.com/patterns/dark-leather.png');
+  color: #eadbb1;
+  transition: background 0.5s, color 0.5s;
+}
+body.dark-mode {
+  background: #0a0a0a;
+  color: #d0d0d0;
+}
+body.dark-mode .input-group,
+body.dark-mode #tipsSection,
+body.dark-mode #healthReport,
+body.dark-mode #goalsGuidance {
+  background: #111;
+  border-color: #666;
+}
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4 {
+  color: #ccc;
+}
+body.dark-mode .gauge {
+  background: #111;
+  border-color: #666;
+}
+body.dark-mode .progress {
+  background: #111;
+}
+button {
+  background: #b5a642;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin: 4px;
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  color: #fff;
+}
+button:hover {
+  background: #987c2f;
+}
+h2 {
+  text-align: center;
+  margin-top: 10px;
+  color: #ffe4b5;
+}
+h3 {
+  text-align: center;
+  margin-top: 10px;
+  color: #ffe4b5;
+}
+h4 {
+  margin-top: 10px;
+  color: #ffe4b5;
+}
+.input-group {
+  max-width: 400px;
+  margin: 10px auto;
+  padding: 10px;
+  background: #222;
+  border-radius: 8px;
+  border: 2px solid #b5a642;
+  transition: background 0.5s, border-color 0.5s;
+}
+label {
+  display: inline-block;
+  width: 130px;
+  color: #fff;
+}
+input[type=number], select, input[type=text] {
+  width: calc(100% - 140px);
+  padding: 6px;
+  margin-top: 4px;
+  border-radius: 4px;
+  border: 1px solid #555;
+  background: #333;
+  color: #fff;
+  box-sizing: border-box;
+}
+#calorieResult {
+  font-weight: bold;
+  margin-top: 10px;
+  text-align: center;
+}
+.instrument-bay {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin: 20px 0;
+  flex-wrap: wrap;
+}
+.gauge {
+  width: 150px;
+  height: 60px;
+  background: #222;
+  border: 2px solid #b5a642;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.2em;
+  padding: 10px;
+  box-shadow: 0 0 10px #000;
+  text-align: center;
+  transition: background 0.5s, border-color 0.5s;
+}
+#progressContainer {
+  max-width: 600px;
+  margin: 20px auto;
+}
+.progress {
+  background: #222;
+  height: 20px;
+  width: 100%;
+  border-radius: 10px;
+  margin: 8px 0;
+  overflow: hidden;
+  transition: background 0.5s;
+}
+.progress-fill {
+  height: 100%;
+  background: lime;
+  width: 0%;
+  transition: width 0.5s;
+}
+#tipsSection {
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 10px;
+  background: #222;
+  border-radius: 8px;
+  border: 2px solid #b5a642;
+  color: #fff;
+  transition: background 0.5s, border-color 0.5s;
+}
+#tipsList {
+  list-style: disc inside;
+  margin-left: 20px;
+}
+#healthReport {
+  background: #222;
+  padding: 10px;
+  border-radius: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  transition: background 0.5s;
+}
+#reportButtons {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+#goalsGuidance {
+  white-space: pre-wrap;
+  margin-top: 10px;
+  padding: 10px;
+  background: #111;
+  border-radius: 8px;
+  border: 1px solid #555;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+  color: #fff;
+  transition: background 0.5s;
+}
+/* Calorie Dashboard Modal */
+#calorieDashboard {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.9);
+  z-index: 9999;
+  overflow: auto;
+  padding: 40px;
+}
+#calorieDashboardContent {
+  max-width: 800px;
+  margin: auto;
+  background: #222;
+  padding: 20px;
+  border-radius: 8px;
+  border: 2px solid #b5a642;
+  color: #fff;
+}
+#closeCalorieDashboard {
+  display: block;
+  margin: 10px auto 0 auto;
+  background: #b5a642;
+}
+/* Food search section */
+#foodSearchSection {
+  max-width: 500px;
+  margin: 20px auto;
+  padding: 10px;
+  background: #222;
+  border-radius: 8px;
+  border: 2px solid #b5a642;
+  transition: background 0.5s, border-color 0.5s;
+}
+#foodResults > div {
+  border: 1px solid #555;
+  padding: 5px;
+  margin: 5px 0;
+  border-radius: 4px;
+}
+/* Gauge blink animation */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+/* Report wrapper transition */
+.report-wrapper {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 10px;
+  background: #222;
+  border-radius: 8px;
+  border: 2px solid #b5a642;
+  color: #fff;
+  transition: background 0.5s, border-color 0.5s;
+}
+</style>
+</head>
+<body>
+
+<!-- Top Buttons -->
+<div id="topButtons" style="text-align:center; margin-top:10px;">
+  <button id="themeToggle">Toggle Dark Mode</button>
+  <button id="showCalorieDashboard">Calorie Dashboard</button>
+</div>
+
+<h2>Ultimate Sci-Fi Health Scanner & Guidance</h2>
+
+<!-- Main Input Section -->
+<div class="input-group" id="mainInputs">
+  <label>Gender:</label>
+  <select id="gender">
+    <option value="male">Male</option>
+    <option value="female">Female</option>
+  </select>
+  <br />
+  <label>Age:</label>
+  <input type="number" id="age" placeholder="e.g., 30" min="0" />
+  <br />
+  <label>Weight (kg):</label>
+  <input type="number" id="weight" placeholder="e.g., 70" min="0" />
+  <br />
+  <label>Height (cm):</label>
+  <input type="number" id="height" placeholder="e.g., 170" min="0" />
+  <br />
+  <label>Diet Preference:</label>
+  <select id="dietPreference">
+    <option value="balanced">Balanced</option>
+    <option value="vegetarian">Vegetarian</option>
+    <option value="vegan">Vegan</option>
+    <option value="high-protein">High-Protein</option>
+    <option value="low-carb">Low-Carb</option>
+  </select>
+  <br />
+  <label>Country:</label>
+  <select id="country">
+    <option value="USA">USA</option>
+    <option value="UK">UK</option>
+    <option value="Canada">Canada</option>
+    <option value="Australia">Australia</option>
+    <option value="India">India</option>
+    <option value="Other">Other</option>
+  </select>
+  <br />
+  <div style="text-align:center; margin-top:10px;">
+    <button id="runScan">Run Health Scan</button>
+    <button id="resetBtn">Reset</button>
+  </div>
+</div>
+
+<!-- Calorie Calculator -->
+<div style="text-align:center; margin:20px 0;">
+  <h3>Calorie Needs Calculator</h3>
+  <div class="input-group" id="calcInputs" style="max-width: 500px;">
+    <label>Gender:</label>
+    <select id="calcGender">
+      <option value="male">Male</option>
+      <option value="female">Female</option>
+    </select>
+    <br />
+    <label>Age:</label>
+    <input type="number" id="calcAge" placeholder="Age" min="0" />
+    <br />
+    <label>Weight (kg):</label>
+    <input type="number" id="calcWeight" placeholder="Weight" min="0" />
+    <br />
+    <label>Height (cm):</label>
+    <input type="number" id="calcHeight" placeholder="Height" min="0" />
+    <br />
+    <label>Activity Level:</label>
+    <select id="activityLevel">
+      <option value="1.2">Sedentary</option>
+      <option value="1.375">Lightly active</option>
+      <option value="1.55">Moderately active</option>
+      <option value="1.725">Very active</option>
+      <option value="1.9">Extra active</option>
+    </select>
+    <br />
+    <button id="calculateCalories">Calculate Calories</button>
+  </div>
+  <div style="margin-top:10px; font-weight:bold;" id="calorieResult"></div>
+</div>
+
+<!-- Food Nutrition Search -->
+<div id="foodSearchSection">
+  <h3>Nutrition Lookup</h3>
+  <div style="display:flex; gap:8px;">
+    <input type="text" id="nutritionSearchBox" placeholder="Enter food name..." style="flex:1;" />
+    <button id="searchFood">Search</button>
+  </div>
+  <div id="foodResults" style="margin-top:10px;"></div>
+</div>
+
+<!-- Instrument Bay Gauges -->
+<div class="instrument-bay">
+  <div id="gaugeBMI" class="gauge">BMI</div>
+  <div id="gaugeActivity" class="gauge">Activity</div>
+  <div id="gaugeCalories" class="gauge">Calories</div>
+</div>
+
+<!-- Progress Bars -->
+<div id="progressContainer">
+  <div>
+    <div style="margin-bottom:4px;">Heart Rate</div>
+    <div class="progress"><div class="progress-fill" id="heartRateBar"></div></div>
+  </div>
+  <div>
+    <div style="margin-bottom:4px;">Blood Pressure</div>
+    <div class="progress"><div class="progress-fill" id="bpBar"></div></div>
+  </div>
+  <div>
+    <div style="margin-bottom:4px;">Oxygen Level</div>
+    <div class="progress"><div class="progress-fill" id="oxygenBar"></div></div>
+  </div>
+</div>
+
+<!-- Tips & Guidance -->
+<div id="tipsSection">
+  <h3>Health Tips & Recommendations</h3>
+  <ul id="tipsList"></ul>
+</div>
+
+<!-- Health Report -->
+<div class="report-wrapper">
+  <h3 style="text-align:center;">Health Report</h3>
+  <pre id="healthReport"></pre>
+  <div id="reportButtons">
+    <button id="saveReport">Save Report & Share</button>
+    <button id="emailReport">Email Report</button>
+    <button id="factoryReset">Factory Reset</button>
+  </div>
+</div>
+
+<!-- Goals & Guidance -->
+<div class="report-wrapper">
+  <h3 style="text-align:center;">Goals & Guidance</h3>
+  <div id="goalsGuidance"></div>
+</div>
+
+<!-- Calorie Dashboard Modal -->
+<div id="calorieDashboard">
+  <div id="calorieDashboardContent">
+    <h2 style="text-align:center;">Calorie Needs Dashboard</h2>
+    <p style="text-align:center;">Here you can see detailed calorie requirements and plans.</p>
+    <div style="margin-top:20px;">
+      <h3>Daily Calorie Requirements</h3>
+      <ul>
+        <li><b>Sedentary:</b> Maintain weight with 2000 kcal/day.</li>
+        <li><b>Lightly active:</b> 2200-2400 kcal/day for maintenance.</li>
+        <li><b>Moderately active:</b> 2400-2800 kcal/day.</li>
+        <li><b>Very active:</b> 2800-3200 kcal/day.</li>
+        <li><b>Extra active:</b> 3200+ kcal/day.</li>
+      </ul>
+    </div>
+    <div style="margin-top:20px;">
+      <h3>Sample Meal Plans</h3>
+      <h4>Weight Loss (Deficit 500 kcal)</h4>
+      <p>Consume about 1500-1800 kcal/day with balanced nutrients:</p>
+      <ul>
+        <li>Breakfast: Oatmeal with fruits</li>
+        <li>Lunch: Grilled chicken salad</li>
+        <li>Dinner: Steamed vegetables and fish</li>
+        <li>Snacks: Nuts and yogurt</li>
+      </ul>
+      <h4>Muscle Gain (Surplus 500 kcal)</h4>
+      <p>Consume about 2500-3000 kcal/day with high protein intake:</p>
+      <ul>
+        <li>Breakfast: Eggs, oats, and banana</li>
+        <li>Lunch: Chicken breast with rice and vegetables</li>
+        <li>Dinner: Beef stir-fry with noodles</li>
+        <li>Snacks: Protein shake, nuts, and cheese</li>
+      </ul>
+    </div>
+    <button id="closeCalorieDashboard">Close Dashboard</button>
+  </div>
+</div>
+
+<script>
+  // Store original display values so dashboard toggle can restore them
+  const savedDisplays = new Map();
+  function cacheDisplayValues() {
+    document.querySelectorAll('body > *:not(#calorieDashboard)').forEach(el => {
+      if (!savedDisplays.has(el)) {
+        savedDisplays.set(el, el.style.display || '');
+      }
+    });
+  }
+
+  // Toggle dark mode
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    document.body.classList.toggle('dark-mode');
+  });
+
+  // Show calorie dashboard — properly hide/restore all siblings
+  document.getElementById('showCalorieDashboard').addEventListener('click', () => {
+    cacheDisplayValues();
+    document.querySelectorAll('body > *:not(#calorieDashboard)').forEach(el => {
+      el.style.display = 'none';
+    });
+    document.getElementById('calorieDashboard').style.display = 'flex';
+  });
+
+  // Close calorie dashboard — restore original display values
+  document.getElementById('closeCalorieDashboard').addEventListener('click', () => {
+    document.getElementById('calorieDashboard').style.display = 'none';
+    savedDisplays.forEach((val, el) => { el.style.display = val; });
+  });
+
+  // Full reset helper
+  function fullReset() {
+    // Only reset inputs inside .input-group containers
+    document.querySelectorAll('.input-group input, .input-group select').forEach(el => el.value = '');
+    document.getElementById('calorieResult').innerText = '';
+    document.getElementById('healthReport').innerText = '';
+    document.getElementById('tipsList').innerHTML = '';
+    document.getElementById('goalsGuidance').innerText = '';
+    document.getElementById('foodResults').innerHTML = '';
+    document.getElementById('nutritionSearchBox').value = '';
+
+    // Remove injected share button if present
+    const shareBtn = document.getElementById('shareBtn');
+    if (shareBtn) shareBtn.remove();
+
+    // Reset gauges to initial labels
+    document.getElementById('gaugeBMI').textContent = 'BMI';
+    document.getElementById('gaugeActivity').textContent = 'Activity';
+    document.getElementById('gaugeCalories').textContent = 'Calories';
+
+    [document.getElementById('gaugeBMI'),
+     document.getElementById('gaugeActivity'),
+     document.getElementById('gaugeCalories')].forEach(g => {
+      g.style.boxShadow = '0 0 10px #000';
+      g.style.animation = 'none';
+    });
+
+    // Reset progress bars
+    ['heartRateBar', 'bpBar', 'oxygenBar'].forEach(id => {
+      document.getElementById(id).style.width = '0%';
+    });
+  }
+
+  document.getElementById('resetBtn').addEventListener('click', fullReset);
+  document.getElementById('factoryReset').addEventListener('click', fullReset);
+
+  // Run health scan
+  document.getElementById('runScan').addEventListener('click', () => {
+    runHealthScan();
+  });
+
+  function runHealthScan() {
+    const weight = parseFloat(document.getElementById('weight').value);
+    const height = parseFloat(document.getElementById('height').value);
+    const age = parseInt(document.getElementById('age').value);
+    const gender = document.getElementById('gender').value;
+    const country = document.getElementById('country').value;
+    const dietPreference = document.getElementById('dietPreference').value;
+
+    if (isNaN(weight) || isNaN(height) || isNaN(age) || weight <= 0 || height <= 0 || age < 0) {
+      alert('Enter valid weight, height, and age.');
+      return;
+    }
+
+    const bmi = +(weight / ((height / 100) ** 2)).toFixed(1);
+    const category = getBmiCategory(bmi);
+    const activity = Math.random() * 100;
+    const calories = Math.floor(1800 + Math.random() * 1200);
+
+    // Animate gauges — reset labels first so split(':') works correctly
+    document.getElementById('gaugeBMI').textContent = 'BMI';
+    document.getElementById('gaugeActivity').textContent = 'Activity';
+    document.getElementById('gaugeCalories').textContent = 'Calories';
+
+    animateGauge(document.getElementById('gaugeBMI'), bmi, 50);
+    animateGauge(document.getElementById('gaugeActivity'), activity, 100);
+    animateGauge(document.getElementById('gaugeCalories'), calories, 3000);
+
+    // Progress bars — normalize to sensible percentage ranges
+    // Heart rate: 60-100 bpm normal → map to 0-100%
+    const heartRate = 60 + Math.random() * 40;
+    animateProgressBar(document.getElementById('heartRateBar'), ((heartRate - 40) / 80) * 100);
+    // Blood pressure systolic: 90-140 normal → map to 0-100%
+    const bp = 90 + Math.random() * 50;
+    animateProgressBar(document.getElementById('bpBar'), ((bp - 80) / 80) * 100);
+    // Oxygen: 95-100% → already a percentage
+    const oxygen = 95 + Math.random() * 5;
+    animateProgressBar(document.getElementById('oxygenBar'), oxygen);
+
+    // Generate report
+    document.getElementById('healthReport').innerText = '';
+    const helpfulInfo = `
+- Your estimated daily calorie needs depend on age, activity level, and goals.
+- To lose weight, aim for a calorie deficit.
+- To gain weight, consume surplus calories with nutritious foods.
+- Maintaining balanced calories supports your health.
+`;
+    document.getElementById('healthReport').innerText += `
+--- Nutrition & Calorie Guidance ---
+ ${helpfulInfo}
+`;
+    generateTips(category, gender);
+    const advice = generateAdvice(weight, height, bmi, category);
+    document.getElementById('healthReport').innerText += advice;
+    generateGoalsAndGuidance(category, gender);
+
+    // Auto-fill calorie calculator fields from main inputs and calculate
+    document.getElementById('calcGender').value = gender;
+    document.getElementById('calcAge').value = age;
+    document.getElementById('calcWeight').value = weight;
+    document.getElementById('calcHeight').value = height;
+    performCalorieCalculation();
+  }
+
+  function getBmiCategory(bmi) {
+    if (bmi < 16.5) return 'Severely Underweight';
+    if (bmi < 18.5) return 'Underweight';
+    if (bmi < 25) return 'Normal weight';
+    if (bmi < 30) return 'Overweight';
+    if (bmi < 35) return 'Obesity Class I';
+    if (bmi < 40) return 'Obesity Class II';
+    return 'Obesity Class III';
+  }
+
+  function animateGauge(gauge, value, max) {
+    let current = 0;
+    const steps = 20;
+    const inc = value / steps;
+    let count = 0;
+    const label = gauge.textContent.split(':')[0].trim(); // always grab the clean label
+
+    gauge.style.boxShadow = '';
+    gauge.style.animation = 'none';
+
+    const interval = setInterval(() => {
+      if (count >= steps) {
+        clearInterval(interval);
+        gauge.textContent = label + ': ' + value.toFixed(1);
+        if (value > max * 0.75) {
+          gauge.style.boxShadow = '0 0 40px red, inset 0 0 20px #000';
+          gauge.style.animation = 'blink 1s infinite';
+        } else if (value > max * 0.5) {
+          gauge.style.boxShadow = '0 0 40px orange, inset 0 0 20px #000';
+          gauge.style.animation = 'blink 1s infinite';
+        } else {
+          gauge.style.boxShadow = '0 0 40px lime, inset 0 0 20px #000';
+          gauge.style.animation = 'none';
+        }
+        return;
+      }
+      current += inc;
+      gauge.textContent = label + ': ' + current.toFixed(1);
+      count++;
+    }, 50);
+  }
+
+  function animateProgressBar(bar, value) {
+    bar.style.width = '0%';
+    setTimeout(() => {
+      bar.style.width = Math.min(Math.max(value, 0), 100) + '%';
+    }, 100);
+  }
+
+  function generateTips(category, gender) {
+    const tipsUl = document.getElementById('tipsList');
+    tipsUl.innerHTML = '';
+    const tips = [];
+
+    if (category === 'Obesity Class I' || category === 'Obesity Class II' || category === 'Obesity Class III') {
+      tips.push('Precautions for Obesity:');
+      tips.push(' - Follow a low-calorie, nutritious diet.');
+      tips.push(' - Avoid sugary drinks and processed foods.');
+      tips.push(' - Engage in regular physical activity.');
+      tips.push(' - Monitor weight regularly.');
+      tips.push("Do's & Don'ts:");
+      tips.push('Do: Eat vegetables, stay active.');
+      tips.push("Don't: Skip meals, indulge in junk food.");
+      tips.push('Wellness Tips:');
+      if (gender === 'male') {
+        tips.push('Men: Focus on strength training and balanced diet.');
+      } else {
+        tips.push('Women: Incorporate cardio and mindful eating.');
+      }
+    } else {
+      tips.push('Maintain a healthy lifestyle for ' + category + '.');
+    }
+
+    tips.forEach(t => {
+      const li = document.createElement('li');
+      li.textContent = t;
+      tipsUl.appendChild(li);
+    });
+  }
+
+  function generateAdvice(w, h, bmi, category) {
+    return '=== BMI & Health Analysis ===\n\n' +
+      'BMI: ' + bmi + ' (' + category + ')\n\n' +
+      'Tips:\n' +
+      '- Maintain balanced nutrition.\n' +
+      '- Engage in regular exercise.\n' +
+      '- Sleep 7-9 hours nightly.\n' +
+      '- Manage stress effectively.\n' +
+      '- Consult health professionals for personalized advice.\n';
+  }
+
+  function generateGoalsAndGuidance(category, gender) {
+    let guidanceText = '';
+    if (category === 'Obesity Class I' || category === 'Obesity Class II' || category === 'Obesity Class III') {
+      guidanceText = '**Guidance for Obesity:**\n\n' +
+        '- Aim for gradual weight loss of 0.5-1 kg per week.\n' +
+        '- Focus on calorie deficit with healthy eating.\n' +
+        '- Incorporate regular physical activity.\n' +
+        '- Avoid crash diets.\n' +
+        '- Consult healthcare providers before starting weight loss programs.';
+    } else if (category === 'Overweight') {
+      guidanceText = '**Guidance for Overweight:**\n\n' +
+        '- Implement a balanced diet with moderate calorie reduction.\n' +
+        '- Increase physical activity.\n' +
+        '- Track your progress.\n' +
+        '- Avoid sugary and fried foods.';
+    } else if (category === 'Normal weight') {
+      guidanceText = '**Maintain Your Weight:**\n\n' +
+        '- Keep a balanced diet.\n' +
+        '- Stay active.\n' +
+        '- Regular health checkups.\n' +
+        '- Avoid overeating and sedentary lifestyle.';
+    } else if (category === 'Underweight') {
+      guidanceText = '**Guidance for Underweight:**\n\n' +
+        '- Increase calorie intake with nutritious foods.\n' +
+        '- Focus on muscle-building exercises.\n' +
+        '- Avoid skipping meals.\n' +
+        '- Consult a healthcare professional for personalized advice.';
+    } else if (category === 'Severely Underweight') {
+      guidanceText = '**Severe Underweight Caution:**\n\n' +
+        '- Seek medical advice.\n' +
+        '- Increase calorie intake with nutrient-rich foods.\n' +
+        '- Avoid excessive exercise without supervision.\n' +
+        '- Monitor weight regularly.';
+    }
+    document.getElementById('goalsGuidance').innerText = guidanceText;
+  }
+
+  // Food nutrition search (mock data)
+  document.getElementById('searchFood').addEventListener('click', () => {
+    const query = document.getElementById('nutritionSearchBox').value.trim();
+    const resultsDiv = document.getElementById('foodResults');
+    resultsDiv.innerHTML = '';
+    if (!query) {
+      alert('Enter food name to search.');
+      return;
+    }
+    const mockData = [
+      { description: query + ' (Standard Serving)', calories: 150, fat: 5, carbs: 20, protein: 3 },
+      { description: query + ' (Healthy Variant)', calories: 200, fat: 8, carbs: 30, protein: 5 },
+    ];
+    mockData.forEach(food => {
+      const div = document.createElement('div');
+      div.innerHTML = '<b>' + food.description + '</b><br/>' +
+        'Calories: ' + food.calories + ' kcal<br/>' +
+        'Fat: ' + food.fat + ' g<br/>' +
+        'Carbohydrates: ' + food.carbs + ' g<br/>' +
+        'Proteins: ' + food.protein + ' g';
+      resultsDiv.appendChild(div);
+    });
+  });
+
+  // Calorie calculator standalone button
+  document.getElementById('calculateCalories').addEventListener('click', performCalorieCalculation);
+
+  // Perform calorie calculation using Mifflin-St Jeor equation
+  function performCalorieCalculation() {
+    const gender = document.getElementById('calcGender').value;
+    const age = parseInt(document.getElementById('calcAge').value);
+    const weight = parseFloat(document.getElementById('calcWeight').value);
+    const height = parseFloat(document.getElementById('calcHeight').value);
+    const activityLevel = parseFloat(document.getElementById('activityLevel').value);
+
+    if (isNaN(age) || isNaN(weight) || isNaN(height) || age < 0 || weight <= 0 || height <= 0) {
+      document.getElementById('calorieResult').innerText = '';
+      return;
+    }
+
+    let bmr = 0;
+    if (gender === 'male') {
+      bmr = 10 * weight + 6.25 * height - 5 * age + 5;
+    } else {
+      bmr = 10 * weight + 6.25 * height - 5 * age - 161;
+    }
+    const totalCalories = Math.round(bmr * activityLevel);
+    document.getElementById('calorieResult').innerText = 'Estimated Daily Calorie Needs: ' + totalCalories + ' kcal';
+  }
+
+  // Save report — copy all health data to clipboard
+  document.getElementById('saveReport').addEventListener('click', () => {
+    const reportText = document.getElementById('healthReport').innerText;
+    if (!reportText.trim()) {
+      alert('No report to save. Run a health scan first.');
+      return;
+    }
+
+    const gaugesData = '\n--- Gauges ---\n' +
+      'BMI: ' + document.getElementById('gaugeBMI').innerText + '\n' +
+      'Activity: ' + document.getElementById('gaugeActivity').innerText + '\n' +
+      'Calories: ' + document.getElementById('gaugeCalories').innerText + '\n';
+
+    const progressData = '\n--- Progress ---\n' +
+      'Heart Rate: ' + document.getElementById('heartRateBar').style.width + '\n' +
+      'Blood Pressure: ' + document.getElementById('bpBar').style.width + '\n' +
+      'Oxygen Level: ' + document.getElementById('oxygenBar').style.width + '\n';
+
+    const tipsArray = Array.from(document.getElementById('tipsList').children).map(li => '- ' + li.innerText);
+    const tipsAndGuidance = '\n--- Tips & Guidance ---\nTips:\n' +
+      tipsArray.join('\n') + '\n\nGuidance:\n' +
+      document.getElementById('goalsGuidance').innerText + '\n';
+
+    const fullData = '=== Health Report ===\n' +
+      reportText + '\n' +
+      gaugesData + '\n' +
+      progressData + '\n' +
+      tipsAndGuidance + '\n';
+
+    navigator.clipboard.writeText(fullData).then(() => {
+      alert('Full health data copied to clipboard.');
+    }).catch(() => {
+      // Fallback for older browsers
+      const textarea = document.createElement('textarea');
+      textarea.value = fullData;
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        alert('Full health data copied to clipboard.');
+      } catch (err) {
+        alert('Failed to copy data. Please copy manually.');
+      }
+      document.body.removeChild(textarea);
+    });
+
+    // Add share button once if not present
+    if (!document.getElementById('shareBtn')) {
+      const shareBtn = document.createElement('button');
+      shareBtn.id = 'shareBtn';
+      shareBtn.innerText = 'Share Full Data';
+      shareBtn.addEventListener('click', () => {
+        if (navigator.share) {
+          navigator.share({ title: 'Health Report', text: fullData }).catch(() => {});
+        } else {
+          alert('Share API not available on this browser. Data is already in your clipboard.');
+        }
+      });
+      document.getElementById('reportButtons').appendChild(shareBtn);
+    }
+  });
+
+  // Email report — open mailto with the data
+  document.getElementById('emailReport').addEventListener('click', () => {
+    const reportText = document.getElementById('healthReport').innerText;
+    if (!reportText.trim()) {
+      alert('No report to email. Run a health scan first.');
+      return;
+    }
+
+    const subject = encodeURIComponent('My Health Report');
+    const body = encodeURIComponent('=== Health Report ===\n\n' + reportText +
+      '\n\nBMI: ' + document.getElementById('gaugeBMI').innerText +
+      '\nActivity: ' + document.getElementById('gaugeActivity').innerText +
+      '\nCalories: ' + document.getElementById('gaugeCalories').innerText +
+      '\n\nGuidance:\n' + document.getElementById('goalsGuidance').innerText);
+
+    window.location.href = 'mailto:?subject=' + subject + '&body=' + body;
+  });
+</script>
+</body>
+</html>
