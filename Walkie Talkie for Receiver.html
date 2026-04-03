@@ -3,277 +3,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TAC/COM-04 | CROSS-LINK</title>
+    <title>TAC/COM-04 | DEBUG RELAY</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        :root {
-            --crt-amber: #ffb000;
-            --crt-bg: #0d0900;
-            --main-red: #8c3024;
-            --led-blue: #00d4ff;
-        }
-
-        body {
-            background-color: #050505;
-            color: var(--crt-amber);
-            font-family: 'Courier New', Courier, monospace;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            overflow-x: hidden;
-            touch-action: manipulation;
-        }
-
-        .mainframe {
-            width: 95%;
-            max-width: 900px;
-            background: #222;
-            border: 5px solid #111;
-            display: flex;
-            flex-direction: column;
-            padding: 15px;
-            box-shadow: 0 0 50px #000;
-            box-sizing: border-box;
-        }
-
-        @media (min-width: 768px) {
-            .mainframe { display: grid; grid-template-columns: 1fr 300px; height: 600px; gap: 20px; }
-        }
-
-        .monitor {
-            background: var(--crt-bg);
-            border: 10px solid #1a1a1a;
-            border-radius: 15px;
-            padding: 15px;
-            position: relative;
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-        }
-
-        #output {
-            height: 200px;
-            overflow-y: auto;
-            font-size: 0.8rem;
-            line-height: 1.4;
-            scrollbar-width: none;
-            margin-bottom: 10px;
-        }
-
-        .module {
-            background: #111;
-            padding: 12px;
-            border: 1px solid #333;
-            margin-bottom: 10px;
-        }
-
-        .btn-ptt {
-            width: 100%;
-            height: 100px;
-            background: var(--main-red);
-            color: white;
-            border: 4px solid #5e1e16;
-            font-weight: bold;
-            font-size: 1.2rem;
-            cursor: pointer;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        .btn-ptt:active:not(:disabled) { background: #f00; }
+        :root { --amber: #ffb000; --bg: #0d0900; --red: #8c3024; --blue: #00d4ff; }
+        body { background: #050505; color: var(--amber); font-family: 'Courier New', monospace; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; touch-action: manipulation; }
+        .mainframe { width: 95%; max-width: 800px; background: #222; border: 5px solid #111; padding: 15px; display: flex; flex-direction: column; }
+        .monitor { background: var(--bg); border: 8px solid #1a1a1a; padding: 15px; flex-grow: 1; min-height: 250px; display: flex; flex-direction: column; box-shadow: inset 0 0 20px #000; }
+        #output { height: 180px; overflow-y: auto; font-size: 0.8rem; scrollbar-width: none; border-bottom: 1px solid #333; margin-bottom: 10px; }
+        .module { background: #111; padding: 10px; border: 1px solid #333; margin-top: 10px; }
+        .btn-ptt { width: 100%; height: 100px; background: var(--red); color: white; border: 4px solid #5e1e16; font-weight: bold; font-size: 1.2rem; cursor: pointer; }
         .btn-ptt:disabled { background: #333; opacity: 0.3; cursor: not-allowed; }
-
-        .btn-action {
-            width: 100%; padding: 10px; background: #333; color: #fff; border: 1px solid #555; cursor: pointer; margin-top: 5px; font-size: 0.7rem;
-        }
-
-        input {
-            width: 100%; background: #000; border: 1px solid #444;
-            color: var(--crt-amber); padding: 8px; box-sizing: border-box; outline: none;
-        }
-
-        .status-led { width: 10px; height: 10px; border-radius: 50%; background: #200; display: inline-block; vertical-align: middle; }
-        .online { background: var(--led-blue); box-shadow: 0 0 8px var(--led-blue); }
-        .tx { background: #f00; box-shadow: 0 0 8px #f00; }
-        
-        #meter { width: 100%; height: 8px; background: #111; border: 1px solid #333; margin-top: auto; }
-        #meter-fill { width: 0%; height: 100%; background: var(--crt-amber); transition: width 0.1s; }
+        .btn-action { width: 100%; padding: 10px; background: #333; color: #fff; border: 1px solid #555; cursor: pointer; margin-bottom: 5px; }
+        input { width: 100%; background: #000; border: 1px solid #444; color: var(--amber); padding: 8px; box-sizing: border-box; }
+        .status-led { width: 10px; height: 10px; border-radius: 50%; background: #200; display: inline-block; }
+        .online { background: var(--blue); box-shadow: 0 0 8px var(--blue); }
     </style>
 </head>
 <body>
 
 <div class="mainframe">
     <div class="monitor">
-        <div style="font-size: 0.6rem; border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 10px; display:flex; justify-content:space-between;">
-            <span>LINK-ID: <span id="myId" onclick="copyId()" style="cursor:pointer; text-decoration: underline;">----</span></span>
-            <span>DELAY: 1.5s</span>
+        <div style="font-size: 0.6rem; display:flex; justify-content:space-between; margin-bottom:10px;">
+            <span>ID: <span id="myId" style="color:var(--blue)">WAITING...</span></span>
+            <span>STATUS: <span id="stat">IDLE</span></span>
         </div>
-        <div id="output">
-            <div>> SYSTEM COLD BOOT...</div>
-            <div style="color: #39ff14;">> STEP 1: CLICK "INITIALIZE"</div>
-        </div>
-        <div id="meter"><div id="meter-fill"></div></div>
+        <div id="output"><div>> SYSTEM READY.</div></div>
+        <button class="btn-action" id="bootBtn" onclick="unlockAudio()" style="border-color: #39ff14; color: #39ff14;">1. INITIALIZE SYSTEM</button>
     </div>
 
-    <div class="side-panel">
-        <div class="module">
-            <button class="btn-action" style="border-color: #39ff14; color: #39ff14;" id="bootBtn" onclick="unlockAudio()">INITIALIZE ENGINE</button>
-        </div>
+    <div class="module">
+        <input type="text" id="targetId" placeholder="Enter Remote ID...">
+        <button class="btn-action" onclick="startUplink()" style="margin-top:5px;">2. LINK TO REMOTE</button>
+    </div>
 
-        <div class="module">
-            <input type="text" id="targetId" placeholder="Remote ID...">
-            <button class="btn-action" onclick="startUplink()">LINK SATELLITE</button>
-        </div>
-
-        <div class="module" style="text-align:center;">
-            <button class="btn-ptt" id="pttBtn" disabled>PUSH TO TALK</button>
-            <div style="margin-top:10px; font-size:0.6rem; display:flex; justify-content:space-around; color: #666;">
-                <span><div class="status-led" id="ledNet"></div> NET</span>
-                <span><div class="status-led" id="ledTx"></div> TRANS</span>
-            </div>
+    <div class="module">
+        <button class="btn-ptt" id="pttBtn" disabled>PUSH TO TALK</button>
+        <div style="margin-top:10px; font-size:0.6rem; text-align:center;">
+            <div class="status-led" id="ledNet"></div> NETWORK LINK
         </div>
     </div>
 </div>
 
 <script>
-    let peer, conn, localStream, audioCtx, delayNode, analyser;
+    let peer, conn, localStream, audioCtx, delayNode;
 
     function log(msg, color="#ffb000") {
         const div = document.createElement('div');
-        div.innerText = msg; div.style.color = color;
-        const out = document.getElementById('output');
-        out.appendChild(div);
-        out.scrollTop = out.scrollHeight;
-    }
-
-    function copyId() {
-        const id = document.getElementById('myId').innerText;
-        if(id === "----") return;
-        navigator.clipboard.writeText(id);
-        log("> ID COPIED TO CLIPBOARD.");
+        div.innerText = `> ${msg}`; div.style.color = color;
+        document.getElementById('output').appendChild(div);
+        document.getElementById('output').scrollTop = 9999;
     }
 
     async function unlockAudio() {
-        if (!audioCtx) {
-            try {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                delayNode = audioCtx.createDelay(5.0);
-                delayNode.delayTime.value = 1.5;
-                analyser = audioCtx.createAnalyser();
-                delayNode.connect(analyser);
-                analyser.connect(audioCtx.destination);
-                
-                localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                document.getElementById('bootBtn').style.display = "none";
-                updateMeter();
-                initPeer();
-                log("> ENGINE ONLINE. MIC ACTIVE.");
-            } catch(e) {
-                log("> ERR: MIC REQUIRED FOR UPLINK.", "red");
-            }
-        }
+        try {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            delayNode = audioCtx.createDelay(5.0);
+            delayNode.delayTime.value = 1.5;
+            delayNode.connect(audioCtx.destination);
+            
+            localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            log("MIC ACCESS GRANTED.");
+            document.getElementById('bootBtn').style.display = "none";
+            initPeer();
+        } catch(e) { log("MIC ERROR: " + e.message, "red"); }
     }
 
     function initPeer() {
         peer = new Peer();
         peer.on('open', id => { 
             document.getElementById('myId').innerText = id; 
-            log("> GLOBAL ADDR: " + id, "#00d4ff");
-            log("> SHARE THIS ID WITH REMOTE UNIT.");
+            log("YOUR GLOBAL ID: " + id, "#00d4ff");
+        });
+
+        // Receiver Logic: When someone connects to YOU
+        peer.on('connection', c => {
+            conn = c;
+            log("INCOMING CONNECTION...");
+            setupData();
         });
 
         peer.on('call', call => {
-            log("> INCOMING SATELLITE SIGNAL...");
             call.answer(localStream);
-            call.on('stream', remoteStream => {
-                const source = audioCtx.createMediaStreamSource(remoteStream);
-                source.connect(delayNode);
-                log("> SIGNAL LOCKED.");
+            call.on('stream', rem => {
+                const src = audioCtx.createMediaStreamSource(rem);
+                src.connect(delayNode);
+                log("AUDIO STREAM CONNECTED.");
             });
         });
 
-        peer.on('connection', c => { 
-            conn = c; 
-            setupDataHandlers(); 
-        });
+        peer.on('error', e => log("PEER ERROR: " + e.type, "red"));
     }
 
     function startUplink() {
         const tid = document.getElementById('targetId').value.trim();
-        if(!tid) return;
-        log("> ESTABLISHING UPLINK...");
+        if(!tid) return log("ENTER A VALID ID", "red");
+        
+        log("CONNECTING TO: " + tid);
         conn = peer.connect(tid);
         const call = peer.call(tid, localStream);
-        call.on('stream', remoteStream => {
-            const source = audioCtx.createMediaStreamSource(remoteStream);
-            source.connect(delayNode);
+        call.on('stream', rem => {
+            const src = audioCtx.createMediaStreamSource(rem);
+            src.connect(delayNode);
         });
-        setupDataHandlers();
+        setupData();
     }
 
-    function setupDataHandlers() {
+    function setupData() {
         conn.on('open', () => {
+            log("UPLINK SUCCESSFUL!", "#39ff14");
             document.getElementById('ledNet').classList.add('online');
+            document.getElementById('stat').innerText = "CONNECTED";
             document.getElementById('pttBtn').disabled = false;
-            log("> UPLINK SECURE. PTT ENABLED.", "#00d4ff");
-            playBeep(800, 0.2);
         });
-        conn.on('data', data => {
-            if(data === 'TX_ON') document.getElementById('ledTx').classList.add('tx');
-            if(data === 'TX_OFF') {
-                document.getElementById('ledTx').classList.remove('tx');
-                setTimeout(() => playBeep(450, 0.3), 1500);
-            }
+        conn.on('close', () => {
+            log("CONNECTION LOST.", "red");
+            document.getElementById('pttBtn').disabled = true;
+            document.getElementById('ledNet').classList.remove('online');
         });
     }
 
-    function updateMeter() {
-        if(!analyser) return;
-        const dataArray = new Uint8Array(analyser.frequencyBinCount);
-        analyser.getByteFrequencyData(dataArray);
-        let sum = 0;
-        for(let i=0; i<dataArray.length; i++) sum += dataArray[i];
-        document.getElementById('meter-fill').style.width = Math.min(100, (sum/dataArray.length) * 2.5) + "%";
-        requestAnimationFrame(updateMeter);
-    }
-
-    function playBeep(f, d) {
-        if(!audioCtx) return;
-        const osc = audioCtx.createOscillator();
-        const g = audioCtx.createGain();
-        osc.frequency.value = f;
-        g.gain.value = 0.1;
-        osc.connect(g); g.connect(audioCtx.destination);
-        osc.start();
-        g.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + d);
-        osc.stop(audioCtx.currentTime + d);
-    }
-
+    // PTT Events
     const ptt = document.getElementById('pttBtn');
-    
-    // Desktop Events
-    ptt.onmousedown = pttStart;
-    ptt.onmouseup = pttEnd;
-    
-    // Mobile Touch Events
-    ptt.addEventListener('touchstart', (e) => { e.preventDefault(); pttStart(); });
-    ptt.addEventListener('touchend', (e) => { e.preventDefault(); pttEnd(); });
+    const triggerStart = () => { if(!conn || ptt.disabled) return; conn.send('TX_ON'); log("TRANSMITTING..."); };
+    const triggerEnd = () => { if(!conn || ptt.disabled) return; conn.send('TX_OFF'); log("IDLE."); };
 
-    function pttStart() {
-        if(!conn || ptt.disabled) return;
-        conn.send('TX_ON');
-        document.getElementById('ledTx').classList.add('tx');
-        playBeep(1200, 0.05);
-    }
-
-    function pttEnd() {
-        if(!conn || ptt.disabled) return;
-        conn.send('TX_OFF');
-        document.getElementById('ledTx').classList.remove('tx');
-        playBeep(450, 0.25);
-    }
+    ptt.onmousedown = triggerStart; ptt.onmouseup = triggerEnd;
+    ptt.addEventListener('touchstart', (e) => { e.preventDefault(); triggerStart(); });
+    ptt.addEventListener('touchend', (e) => { e.preventDefault(); triggerEnd(); });
 </script>
 
 </body>
