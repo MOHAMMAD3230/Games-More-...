@@ -3,81 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TAC/COM | GLOBAL</title>
+    <title>TAC/COM-04 | GLOBAL</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root { --amber: #ffb000; --bg: #0d0900; --red: #8c3024; --blue: #00d4ff; --green: #39ff14; }
         body { background: #050505; color: var(--amber); font-family: 'Courier New', monospace; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; touch-action: manipulation; overflow: hidden; }
-        .mainframe { width: 95%; max-width: 850px; background: #222; border: 6px solid #111; padding: 15px; display: flex; flex-direction: column; box-shadow: 0 0 60px #000; box-sizing: border-box; }
-        @media (min-width: 768px) { .mainframe { display: grid; grid-template-columns: 1fr 280px; height: 500px; gap: 20px; } }
-        .monitor { background: var(--bg); border: 8px solid #1a1a1a; border-radius: 10px; padding: 15px; flex-grow: 1; display: flex; flex-direction: column; position: relative; border-left: 4px solid var(--amber); }
-        #output { height: 180px; overflow-y: auto; font-size: 0.75rem; scrollbar-width: none; margin-bottom: 10px; opacity: 0.8; }
-        .module { background: #111; padding: 10px; border: 1px solid #333; margin-bottom: 10px; }
-        .btn-ptt { width: 100%; height: 120px; background: var(--red); color: white; border: 4px solid #5e1e16; font-weight: bold; font-size: 1.1rem; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; }
-        .btn-ptt:active:not(:disabled) { background: #f00; filter: brightness(1.2); }
-        .btn-ptt:disabled { background: #222; color: #444; border-color: #111; }
-        .btn-action { width: 100%; padding: 8px; background: #333; color: #fff; border: 1px solid #555; cursor: pointer; font-size: 0.7rem; font-weight: bold; }
-        input { width: 100%; background: #000; border: 1px solid #444; color: var(--amber); padding: 8px; box-sizing: border-box; text-align: center; font-size: 1rem; }
-        .status-led { width: 10px; height: 10px; border-radius: 50%; background: #200; display: inline-block; margin-right: 5px; }
-        .online { background: var(--blue); box-shadow: 0 0 8px var(--blue); }
-        .tx { background: #f00; box-shadow: 0 0 8px #f00; }
-        #meter { width: 100%; height: 6px; background: #000; border: 1px solid #333; margin-top: auto; overflow: hidden; }
+        .mainframe { width: 95%; max-width: 850px; background: #222; border: 6px solid #111; padding: 15px; display: flex; flex-direction: column; box-shadow: 0 0 60px #000; box-sizing: border-box; border-radius: 5px; }
+        @media (min-width: 768px) { .mainframe { display: grid; grid-template-columns: 1fr 300px; height: 550px; gap: 20px; } }
+        .monitor { background: var(--bg); border: 10px solid #1a1a1a; border-radius: 10px; padding: 15px; flex-grow: 1; display: flex; flex-direction: column; position: relative; border-top: 2px solid var(--amber); }
+        #output { height: 200px; overflow-y: auto; font-size: 0.7rem; scrollbar-width: none; border-bottom: 1px solid #333; margin-bottom: 10px; line-height: 1.4; }
+        .module { background: #111; padding: 12px; border: 1px solid #333; margin-bottom: 10px; }
+        .btn-ptt { width: 100%; height: 130px; background: var(--red); color: white; border: 5px solid #5e1e16; font-weight: bold; font-size: 1.2rem; cursor: pointer; user-select: none; -webkit-touch-callout: none; transition: 0.05s; }
+        .btn-ptt:active:not(:disabled) { background: #f00; transform: scale(0.97); box-shadow: 0 0 15px #f00; }
+        .btn-ptt:disabled { background: #111; color: #333; border-color: #000; }
+        .btn-action { width: 100%; padding: 10px; background: #333; color: #fff; border: 1px solid #555; cursor: pointer; font-size: 0.7rem; font-weight: bold; }
+        input { width: 100%; background: #000; border: 1px solid #444; color: var(--amber); padding: 10px; box-sizing: border-box; text-align: center; font-size: 1.2rem; }
+        .status-led { width: 10px; height: 10px; border-radius: 50%; background: #200; display: inline-block; margin-right: 5px; transition: 0.3s; }
+        .online { background: var(--blue); box-shadow: 0 0 10px var(--blue); }
+        .tx { background: #f00; box-shadow: 0 0 10px #f00; }
+        #meter { width: 100%; height: 8px; background: #000; border: 1px solid #333; margin-top: auto; border-radius: 4px; overflow: hidden; }
         #meter-fill { width: 0%; height: 100%; background: var(--green); transition: width 0.1s; }
     </style>
 </head>
 <body>
 
 <div class="mainframe">
-    <audio id="remoteAudio" autoplay playsinline style="display:none;"></audio>
+    <audio id="remoteAudio" autoplay playsinline></audio>
 
     <div class="monitor">
-        <div style="font-size: 0.6rem; display:flex; justify-content:space-between; margin-bottom:10px; color:#666;">
-            <span>FREQ: <span id="curFreq" style="color:var(--blue)">---</span></span>
-            <span>DATA-RELAY: <span id="stat">SCANNING</span></span>
+        <div style="font-size: 0.6rem; display:flex; justify-content:space-between; margin-bottom:10px; color:#555;">
+            <span>FREQ: <span id="curFreq" style="color:var(--blue)">STANDBY</span></span>
+            <span>UPLINK: <span id="stat">OFFLINE</span></span>
         </div>
-        <div id="output"><div>> INITIALIZE SYSTEM HARDWARE...</div></div>
+        <div id="output"><div>> SYSTEM READY. SELECT CHANNEL...</div></div>
         <div id="meter"><div id="meter-fill"></div></div>
     </div>
 
     <div class="side-panel">
         <div class="module">
-            <input type="number" id="chanInput" value="1" placeholder="CH">
-            <button class="btn-action" id="bootBtn" onclick="initSystem()" style="margin-top:8px; border-color:var(--green); color:var(--green);">SYNC CHANNEL</button>
+            <input type="number" id="chanInput" value="1" min="1" max="999">
+            <button class="btn-action" id="bootBtn" onclick="initRelay()" style="margin-top:10px; border-color:var(--green); color:var(--green);">START TRANSCEIVER</button>
         </div>
 
         <div class="module" style="text-align:center;">
             <button class="btn-ptt" id="pttBtn" disabled>HOLD TO TALK</button>
-            <div style="margin-top:10px; font-size:0.5rem; display:flex; justify-content:space-around; color:#888;">
-                <span><div class="status-led" id="ledNet"></div> LINK</span>
-                <span><div class="status-led" id="ledTx"></div> TRANS</span>
+            <div style="margin-top:10px; font-size:0.5rem; display:flex; justify-content:space-around;">
+                <span><div class="status-led" id="ledNet"></div> NETWORK</span>
+                <span><div class="status-led" id="ledTx"></div> SIGNAL</span>
             </div>
         </div>
-        <button class="btn-action" onclick="location.reload()" style="background:#1a0000; color:#f66;">REBOOT</button>
+        <button class="btn-action" onclick="location.reload()" style="background:#200;">FORCE REBOOT</button>
     </div>
 </div>
 
 <script>
-    let peer, conn, localStream, audioCtx, delayNode, analyser, speakerGain, micSource;
-    const APP_ID = "TAC_OMNI_RELAY_"; 
+    let peer, conn, localStream, audioCtx, analyser, speakerGain, delayNode;
+    const APP_PFX = "TAC_OS_RELAY_v3_";
 
     function log(msg, color="#ffb000") {
         const div = document.createElement('div');
-        div.innerHTML = `<span style="color:#555">[${new Date().toLocaleTimeString()}]</span> <span style="color:${color}">${msg}</span>`;
+        div.innerHTML = `<span style="color:#444">>></span> <span style="color:${color}">${msg}</span>`;
         const out = document.getElementById('output');
         out.appendChild(div); out.scrollTop = out.scrollHeight;
     }
 
-    async function initSystem() {
+    async function initRelay() {
         const ch = document.getElementById('chanInput').value;
         try {
-            // Enhanced constraints for mobile 5G noise environments
+            // High-priority audio constraints
             localStream = await navigator.mediaDevices.getUserMedia({ 
-                audio: { 
-                    echoCancellation: true, 
-                    noiseSuppression: true, 
-                    autoGainControl: true,
-                    channelCount: 1 
-                } 
+                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
             });
 
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -85,101 +80,95 @@
             speakerGain.gain.value = 1;
             
             delayNode = audioCtx.createDelay(2.0);
-            delayNode.delayTime.value = 1.5; // Satellite delay simulator
+            delayNode.delayTime.value = 1.5; // Simulate distance
             
             analyser = audioCtx.createAnalyser();
-            analyser.fftSize = 256;
+            analyser.fftSize = 128;
 
-            // PRE-MUTE EVERYTHING
-            toggleComms(false);
+            muteComms(true); // Start muted
 
             document.getElementById('bootBtn').disabled = true;
             document.getElementById('curFreq').innerText = "CH-" + ch;
             
-            initPeerConnection(APP_ID + ch);
+            initPeer(APP_PFX + ch);
             updateMeter();
-            log("HARDWARE READY. ATTEMPTING HANDSHAKE.", "var(--green)");
-        } catch(e) { log("MIC ACCESS ERROR", "red"); }
+            log("HARDWARE INITIALIZED.", "var(--green)");
+        } catch(e) { log("MIC DENIED", "red"); }
     }
 
-    function initPeerConnection(targetId) {
-        // Updated STUN config for better 5G traversal
+    function initPeer(targetId) {
+        // GLOBAL ICE SERVERS - Essential for 5G/Mobile Data
         const config = {
             'iceServers': [
                 { 'urls': 'stun:stun.l.google.com:19302' },
                 { 'urls': 'stun:stun1.l.google.com:19302' },
-                { 'urls': 'stun:stun.services.mozilla.com' }
-            ],
-            'sdpSemantics': 'unified-plan'
+                { 'urls': 'stun:stun2.l.google.com:19302' }
+            ]
         };
 
         peer = new Peer(targetId, { config });
 
         peer.on('open', () => {
-            log("LISTENING ON CHANNEL...", "var(--blue)");
-            setTimeout(() => { if(!conn) tryConnect(targetId); }, 1500);
+            log("LISTENING FOR SIGNAL...", "var(--blue)");
+            setTimeout(() => { if(!conn) connectToPeer(targetId); }, 2000);
         });
 
         peer.on('error', (err) => {
             if(err.type === 'unavailable-id') {
                 peer.destroy();
                 peer = new Peer({ config });
-                peer.on('open', () => tryConnect(targetId));
-            } else {
-                log("NET ERR: " + err.type, "red");
-            }
+                peer.on('open', () => connectToPeer(targetId));
+            } else { log("LINK ERR: " + err.type, "red"); }
         });
 
-        peer.on('connection', c => { conn = c; setupRemote(); });
+        peer.on('connection', c => { conn = c; handleComms(); });
         peer.on('call', call => {
             call.answer(localStream);
             call.on('stream', stream => setupAudio(stream));
         });
     }
 
-    function tryConnect(tid) {
-        log("SCANNING FOR PEERS...");
+    function connectToPeer(tid) {
+        log("HITTING SATELLITE...");
         conn = peer.connect(tid);
         const call = peer.call(tid, localStream);
         call.on('stream', stream => setupAudio(stream));
-        setupRemote();
+        handleComms();
     }
 
     function setupAudio(stream) {
-        const remoteSource = audioCtx.createMediaStreamSource(stream);
-        // Connect through delay and gain
-        remoteSource.connect(delayNode);
+        const source = audioCtx.createMediaStreamSource(stream);
+        source.connect(delayNode);
         delayNode.connect(analyser);
         analyser.connect(speakerGain);
         speakerGain.connect(audioCtx.destination);
-        log("REMOTE UPLINK SYNCED.", "var(--green)");
+        log("UPLINK SYNCED.", "var(--green)");
     }
 
-    function setupRemote() {
+    function handleComms() {
         conn.on('open', () => {
             document.getElementById('ledNet').classList.add('online');
             document.getElementById('pttBtn').disabled = false;
-            document.getElementById('stat').innerText = "CONNECTED";
-            log("SECURE LINK ESTABLISHED.", "var(--blue)");
+            document.getElementById('stat').innerText = "ENCRYPTED";
+            log("SYNC ESTABLISHED.", "var(--blue)");
         });
-        conn.on('data', data => {
-            if(data === 'TX_ON') document.getElementById('ledTx').classList.add('tx');
-            if(data === 'TX_OFF') {
+        
+        conn.on('data', d => {
+            if(d === 'ON') document.getElementById('ledTx').classList.add('tx');
+            if(d === 'OFF') {
                 document.getElementById('ledTx').classList.remove('tx');
-                playBeep(400, 0.2); 
+                playBeep(400, 0.2);
             }
         });
     }
 
-    function toggleComms(isTransmitting) {
-        if (!localStream) return;
-        // 1. MIC CONTROL
-        localStream.getAudioTracks().forEach(t => t.enabled = isTransmitting);
-        
-        // 2. SPEAKER CONTROL (The Echo Killer)
-        // We mute our own speakers while we talk so the mic can't hear the delay
+    function muteComms(shouldMute) {
+        if (localStream) {
+            localStream.getAudioTracks().forEach(t => t.enabled = !shouldMute);
+        }
+        // ECHO KILLER: If we are talking, we MUST NOT hear anything
         if (speakerGain) {
-            speakerGain.gain.setValueAtTime(isTransmitting ? 0 : 1, audioCtx.currentTime);
+            speakerGain.gain.setValueAtTime(shouldMute ? 1 : 0, audioCtx.currentTime);
         }
     }
 
@@ -187,7 +176,7 @@
         if(!audioCtx) return;
         const osc = audioCtx.createOscillator();
         const g = audioCtx.createGain();
-        osc.frequency.value = f; g.gain.value = 0.05;
+        osc.frequency.value = f; g.gain.value = 0.03;
         osc.connect(g); g.connect(audioCtx.destination);
         osc.start();
         g.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + d);
@@ -196,34 +185,34 @@
 
     function updateMeter() {
         if(!analyser) return;
-        const dataArray = new Uint8Array(analyser.frequencyBinCount);
-        analyser.getByteFrequencyData(dataArray);
-        let sum = dataArray.reduce((a, b) => a + b, 0);
-        document.getElementById('meter-fill').style.width = Math.min(100, (sum/dataArray.length)*5) + "%";
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(data);
+        let sum = data.reduce((a, b) => a + b, 0);
+        document.getElementById('meter-fill').style.width = Math.min(100, (sum/data.length)*5) + "%";
         requestAnimationFrame(updateMeter);
     }
 
     const ptt = document.getElementById('pttBtn');
-    const pttOn = (e) => { 
+    const startTx = (e) => {
         if(e) e.preventDefault();
         if(!conn || ptt.disabled) return;
-        toggleComms(true);
-        conn.send('TX_ON');
+        muteComms(false);
+        conn.send('ON');
         document.getElementById('ledTx').classList.add('tx');
-        playBeep(1000, 0.05);
+        playBeep(1200, 0.05);
     };
-    const pttOff = (e) => { 
+    const stopTx = (e) => {
         if(e) e.preventDefault();
         if(!conn || ptt.disabled) return;
-        toggleComms(false);
-        conn.send('TX_OFF');
+        muteComms(true);
+        conn.send('OFF');
         document.getElementById('ledTx').classList.remove('tx');
         playBeep(400, 0.2);
     };
 
-    ptt.onmousedown = pttOn; ptt.onmouseup = pttOff;
-    ptt.addEventListener('touchstart', pttOn);
-    ptt.addEventListener('touchend', pttOff);
+    ptt.onmousedown = startTx; ptt.onmouseup = stopTx;
+    ptt.addEventListener('touchstart', startTx);
+    ptt.addEventListener('touchend', stopTx);
 </script>
 </body>
 </html>
