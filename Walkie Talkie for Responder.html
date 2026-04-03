@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TAC/COM-04 | GATEWAY</title>
+    <title>TAC/COM-04 | HARD-GATE</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root { --amber: #ffb000; --bg: #0d0900; --red: #8c3024; --blue: #00d4ff; --green: #39ff14; }
@@ -13,8 +13,8 @@
         .monitor { background: var(--bg); border: 10px solid #1a1a1a; border-radius: 15px; padding: 20px; flex-grow: 1; display: flex; flex-direction: column; position: relative; }
         #output { height: 200px; overflow-y: auto; font-size: 0.8rem; scrollbar-width: none; border-bottom: 1px solid #333; margin-bottom: 10px; }
         .module { background: #111; padding: 12px; border: 1px solid #333; margin-bottom: 10px; }
-        .btn-ptt { width: 100%; height: 140px; background: var(--red); color: white; border: 5px solid #5e1e16; font-weight: bold; font-size: 1.3rem; cursor: pointer; transition: 0.1s; }
-        .btn-ptt:active:not(:disabled) { background: #f00; transform: scale(0.98); box-shadow: 0 0 20px #f00; }
+        .btn-ptt { width: 100%; height: 140px; background: var(--red); color: white; border: 5px solid #5e1e16; font-weight: bold; font-size: 1.3rem; cursor: pointer; user-select: none; }
+        .btn-ptt:active:not(:disabled) { background: #f00; box-shadow: 0 0 15px #f00; }
         .btn-ptt:disabled { background: #333; opacity: 0.2; }
         .btn-action { width: 100%; padding: 10px; background: #333; color: #fff; border: 1px solid #555; cursor: pointer; font-weight: bold; font-size: 0.7rem; }
         input { width: 100%; background: #000; border: 1px solid #444; color: var(--amber); padding: 10px; box-sizing: border-box; }
@@ -22,7 +22,7 @@
         .online { background: var(--blue); box-shadow: 0 0 10px var(--blue); }
         .tx { background: #f00; box-shadow: 0 0 10px #f00; }
         #meter { width: 100%; height: 10px; background: #000; border: 1px solid #333; margin-top: auto; }
-        #meter-fill { width: 0%; height: 100%; background: var(--green); transition: width 0.1s; }
+        #meter-fill { width: 0%; height: 100%; background: var(--amber); transition: width 0.1s; }
     </style>
 </head>
 <body>
@@ -33,25 +33,25 @@
     <div class="monitor">
         <div style="font-size: 0.6rem; display:flex; justify-content:space-between; margin-bottom:10px;">
             <span>ID: <span id="myId" style="color:var(--blue)">----</span></span>
-            <span>UPLINK: <span id="stat">OFFLINE</span></span>
+            <span>GATE: <span id="gateStat" style="color:gray">LOCKED</span></span>
         </div>
-        <div id="output"><div>> COMMS GATEWAY OFFLINE.</div></div>
+        <div id="output"><div>> WAITING FOR INITIALIZATION...</div></div>
         <div id="meter"><div id="meter-fill"></div></div>
     </div>
 
     <div class="side-panel">
         <div class="module">
-            <button class="btn-action" id="bootBtn" onclick="unlockAudio()" style="border-color:var(--green); color:var(--green);">1. INITIALIZE HARDWARE</button>
+            <button class="btn-action" id="bootBtn" onclick="unlockAudio()" style="border-color:var(--green); color:var(--green);">1. BOOT AUDIO ENGINE</button>
         </div>
         <div class="module">
-            <input type="text" id="targetId" placeholder="Remote Unit ID...">
-            <button class="btn-action" onclick="startUplink()" style="margin-top:5px;">2. CONNECT SATELLITE</button>
+            <input type="text" id="targetId" placeholder="Target Unit ID...">
+            <button class="btn-action" onclick="startUplink()" style="margin-top:5px;">2. ESTABLISH LINK</button>
         </div>
         <div class="module" style="text-align:center;">
-            <button class="btn-ptt" id="pttBtn" disabled>HOLD TO TALK</button>
-            <div style="margin-top:10px; font-size:0.5rem; display:flex; justify-content:space-around;">
+            <button class="btn-ptt" id="pttBtn" disabled>HOLD TO TRANSMIT</button>
+            <div style="margin-top:10px; font-size:0.5rem; display:flex; justify-content:space-around; color:#555;">
                 <span><div class="status-led" id="ledNet"></div> LINK</span>
-                <span><div class="status-led" id="ledTx"></div> TRANS</span>
+                <span><div class="status-led" id="ledTx"></div> TX</span>
             </div>
         </div>
     </div>
@@ -59,6 +59,7 @@
 
 <script>
     let peer, conn, localStream, audioCtx, delayNode, analyser;
+    let isTransmitting = false;
 
     function log(msg, color="#ffb000") {
         const div = document.createElement('div');
@@ -73,8 +74,8 @@
                 audio: { echoCancellation: true, noiseSuppression: true } 
             });
 
-            // CRITICAL: Mute the microphone tracks immediately upon initialization
-            muteMic(true);
+            // FORCE MUTE ON BOOT
+            setMicEnabled(false);
 
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             delayNode = audioCtx.createDelay(5.0);
@@ -87,34 +88,31 @@
             document.getElementById('bootBtn').style.display = "none";
             updateMeter();
             initPeer();
-            log("HARDWARE INITIALIZED. MIC MUTED.", "var(--green)");
+            log("HARDWARE READY. GATE SECURED.", "var(--green)");
         } catch(e) { log("MIC ACCESS DENIED", "red"); }
     }
 
-    // Function to Enable/Disable Microphone input
-    function muteMic(shouldMute) {
+    function setMicEnabled(on) {
         if (localStream) {
-            localStream.getAudioTracks().forEach(track => {
-                track.enabled = !shouldMute;
-            });
+            localStream.getAudioTracks().forEach(t => t.enabled = on);
+            isTransmitting = on;
+            document.getElementById('gateStat').innerText = on ? "OPEN" : "LOCKED";
+            document.getElementById('gateStat').style.color = on ? "red" : "gray";
         }
     }
 
     function initPeer() {
-        peer = new Peer({
-            config: { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] }
-        });
-
-        peer.on('open', id => { 
-            document.getElementById('myId').innerText = id; 
-            log("ASSIGNED FREQUENCY: " + id, "var(--blue)"); 
-        });
-
+        peer = new Peer({ config: { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] } });
+        peer.on('open', id => { document.getElementById('myId').innerText = id; log("ID: " + id, "var(--blue)"); });
         peer.on('connection', c => { conn = c; setupHandlers(); });
-
         peer.on('call', call => {
             call.answer(localStream);
-            call.on('stream', stream => attachStream(stream));
+            call.on('stream', stream => {
+                document.getElementById('remoteAudio').srcObject = stream;
+                const source = audioCtx.createMediaStreamSource(stream);
+                source.connect(delayNode);
+                log("INCOMING STREAM DETECTED.");
+            });
         });
     }
 
@@ -123,31 +121,25 @@
         if(!tid) return;
         conn = peer.connect(tid);
         const call = peer.call(tid, localStream);
-        call.on('stream', stream => attachStream(stream));
+        call.on('stream', stream => {
+            document.getElementById('remoteAudio').srcObject = stream;
+            const source = audioCtx.createMediaStreamSource(stream);
+            source.connect(delayNode);
+        });
         setupHandlers();
-    }
-
-    function attachStream(stream) {
-        const audioEl = document.getElementById('remoteAudio');
-        audioEl.srcObject = stream;
-        const source = audioCtx.createMediaStreamSource(stream);
-        source.connect(delayNode);
-        log("REMOTE SIGNAL LOCKED.");
     }
 
     function setupHandlers() {
         conn.on('open', () => {
             document.getElementById('ledNet').classList.add('online');
             document.getElementById('pttBtn').disabled = false;
-            document.getElementById('stat').innerText = "SECURE";
-            log("UPLINK SECURE. MIC GATE ACTIVE.", "var(--green)");
+            log("UPLINK ACTIVE.", "var(--green)");
         });
-        
         conn.on('data', data => {
             if(data === 'TX_ON') document.getElementById('ledTx').classList.add('tx');
             if(data === 'TX_OFF') {
                 document.getElementById('ledTx').classList.remove('tx');
-                setTimeout(() => playBeep(450, 0.2), 1500); // Delayed roger beep
+                setTimeout(() => playBeep(450, 0.2), 1500);
             }
         });
     }
@@ -157,7 +149,10 @@
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
         analyser.getByteFrequencyData(dataArray);
         let sum = dataArray.reduce((a, b) => a + b, 0);
-        document.getElementById('meter-fill').style.width = Math.min(100, (sum/dataArray.length)*4) + "%";
+        
+        // ONLY SHOW METER ACTIVITY IF WE ARE TRANSMITTING
+        let val = isTransmitting ? (sum/dataArray.length)*4 : 0;
+        document.getElementById('meter-fill').style.width = Math.min(100, val) + "%";
         requestAnimationFrame(updateMeter);
     }
 
@@ -165,8 +160,7 @@
         if(!audioCtx) return;
         const osc = audioCtx.createOscillator();
         const g = audioCtx.createGain();
-        osc.frequency.value = f;
-        g.gain.value = 0.05;
+        osc.frequency.value = f; g.gain.value = 0.05;
         osc.connect(g); g.connect(audioCtx.destination);
         osc.start();
         g.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + d);
@@ -174,28 +168,22 @@
     }
 
     const ptt = document.getElementById('pttBtn');
-
     const pttOn = () => { 
         if(!conn || ptt.disabled) return;
-        muteMic(false); // UNMUTE MIC
+        setMicEnabled(true);
         conn.send('TX_ON'); 
         document.getElementById('ledTx').classList.add('tx'); 
         playBeep(1200, 0.05); 
-        log(">>> TRANSMITTING...", "red");
     };
-
     const pttOff = () => { 
         if(!conn || ptt.disabled) return;
-        muteMic(true); // MUTE MIC
+        setMicEnabled(false);
         conn.send('TX_OFF'); 
         document.getElementById('ledTx').classList.remove('tx'); 
         playBeep(450, 0.2); 
-        log("<<< READY.");
     };
 
-    // Events for Desktop & Mobile
-    ptt.onmousedown = pttOn; 
-    ptt.onmouseup = pttOff;
+    ptt.onmousedown = pttOn; ptt.onmouseup = pttOff;
     ptt.addEventListener('touchstart', (e) => { e.preventDefault(); pttOn(); });
     ptt.addEventListener('touchend', (e) => { e.preventDefault(); pttOff(); });
 </script>
