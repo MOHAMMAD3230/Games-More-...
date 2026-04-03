@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TAC/COM-04 | FIXED AUDIO RELAY</title>
+    <title>TAC/COM-04 | PUBLIC RELAY</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -74,19 +74,19 @@
         .btn-ptt:disabled { background: #333; opacity: 0.3; }
 
         .btn-action {
-            width: 100%; padding: 10px; background: #444; color: #fff; border: none; cursor: pointer; margin-top: 5px;
+            width: 100%; padding: 10px; background: #333; color: #fff; border: 1px solid #555; cursor: pointer; margin-top: 5px;
         }
 
         input {
             width: 100%; background: #000; border: 1px solid #444;
-            color: var(--crt-amber); padding: 5px; box-sizing: border-box;
+            color: var(--crt-amber); padding: 5px; box-sizing: border-box; outline: none;
         }
 
         .status-led { width: 8px; height: 8px; border-radius: 50%; background: #200; display: inline-block; }
         .online { background: var(--led-blue); box-shadow: 0 0 8px var(--led-blue); }
         .tx { background: #f00; box-shadow: 0 0 8px #f00; }
         
-        #meter { width: 100%; height: 10px; background: #111; margin-top: 10px; position: relative; border: 1px solid #333; }
+        #meter { width: 100%; height: 8px; background: #111; margin-top: 10px; border: 1px solid #333; }
         #meter-fill { width: 0%; height: 100%; background: var(--crt-amber); transition: width 0.1s; }
     </style>
 </head>
@@ -95,31 +95,29 @@
 <div class="mainframe">
     <div class="monitor">
         <div style="font-size: 0.7rem; border-bottom: 1px solid #333; margin-bottom: 10px; display:flex; justify-content:space-between;">
-            <span>LINK-ID: <span id="myId">----</span></span>
-            <span>LATENCY: <span id="latDisp">1500ms</span></span>
+            <span>ID: <span id="myId">----</span></span>
+            <span>RELAY: 1500ms</span>
         </div>
         <div id="output">
-            <div>> SYSTEM STANDBY.</div>
-            <div style="color: red;">> ATTENTION: CLICK "START AUDIO ENGINE" TO ENABLE SPEAKERS.</div>
+            <div>> TAC/COM-04 READY.</div>
+            <div style="color: #00d4ff;">> INITIALIZE AUDIO ENGINE TO COMMENCE.</div>
         </div>
         <div id="meter"><div id="meter-fill"></div></div>
-        <div style="font-size: 0.5rem; margin-top: 2px;">INCOMING SIGNAL STRENGTH</div>
     </div>
 
     <div class="side-panel" style="padding-left: 20px;">
         <div class="module">
-            <button class="btn-action" style="background: #225522;" onclick="unlockAudio()">START AUDIO ENGINE</button>
+            <button class="btn-action" style="border-color: #225522; color: #39ff14;" onclick="unlockAudio()">BOOT AUDIO ENGINE</button>
         </div>
 
         <div class="module">
-            <label style="font-size:0.6rem">UPLINK ADDRESS</label>
-            <input type="text" id="targetId" placeholder="Paste Peer ID...">
-            <button class="btn-action" onclick="startUplink()">CONNECT LINK</button>
+            <input type="text" id="targetId" placeholder="Remote ID...">
+            <button class="btn-action" onclick="startUplink()">LINK SATELLITE</button>
         </div>
 
         <div class="module">
             <button class="btn-ptt" id="pttBtn" disabled>PUSH TO TALK</button>
-            <div style="margin-top:10px; font-size:0.6rem; display:flex; justify-content:space-around;">
+            <div style="margin-top:10px; font-size:0.5rem; display:flex; justify-content:space-around; color: #555;">
                 <span><div class="status-led" id="ledNet"></div> NET</span>
                 <span><div class="status-led" id="ledTx"></div> TRANS</span>
             </div>
@@ -129,7 +127,7 @@
 
 <script>
     let peer, conn, localStream, audioCtx, delayNode, analyser;
-    
+
     function log(msg, color="#ffb000") {
         const div = document.createElement('div');
         div.innerText = msg; div.style.color = color;
@@ -137,26 +135,28 @@
         document.getElementById('output').scrollTop = document.getElementById('output').scrollHeight;
     }
 
-    // CRITICAL: Unlock AudioContext on User Gesture
     async function unlockAudio() {
+        if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+            alert("Web Audio/Mic requires HTTPS (GitHub Pages Default).");
+        }
+
         if (!audioCtx) {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             delayNode = audioCtx.createDelay(5.0);
-            delayNode.delayTime.value = 1.5; // 1.5s Satellite Latency
+            delayNode.delayTime.value = 1.5; // Satellite latency
             
             analyser = audioCtx.createAnalyser();
             delayNode.connect(analyser);
             analyser.connect(audioCtx.destination);
             
             updateMeter();
-            log("> AUDIO ENGINE ONLINE. DELAY BUFFER: 1500ms", "#00d4ff");
             
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                log("> MIC ACCESS GRANTED.");
+                log("> MIC CAPTURE ACTIVE.");
                 initPeer();
             } catch(e) {
-                log("> ERR: MIC BLOCKED.", "red");
+                log("> ERR: MIC PERMISSION DENIED.", "red");
             }
         }
     }
@@ -165,27 +165,33 @@
         peer = new Peer();
         peer.on('open', id => { 
             document.getElementById('myId').innerText = id; 
-            log("> ASSIGNED ID: " + id);
+            log("> GLOBAL ID GENERATED: " + id, "#00d4ff");
         });
 
-        // Receiving a Call (Audio)
+        // Receive Audio Call
         peer.on('call', call => {
-            log("> INCOMING VOICE CALL...");
+            log("> INCOMING SATELLITE SIGNAL...");
             call.answer(localStream);
             call.on('stream', remoteStream => {
                 const source = audioCtx.createMediaStreamSource(remoteStream);
                 source.connect(delayNode);
-                log("> SIGNAL LOCKED. AUDIO PLAYING THROUGH DELAY.");
+                log("> SIGNAL LOCKED. AUDIO BUFFERING...");
             });
         });
 
-        peer.on('connection', c => { conn = c; setupDataHandlers(); });
+        // Receive Data (LEDs/Beeps)
+        peer.on('connection', c => { 
+            conn = c; 
+            setupDataHandlers(); 
+            log("> REMOTE PEER CONNECTED.");
+        });
     }
 
     function startUplink() {
         const tid = document.getElementById('targetId').value;
         if(!tid) return;
         
+        log("> ESTABLISHING UPLINK TO " + tid);
         conn = peer.connect(tid);
         const call = peer.call(tid, localStream);
         
@@ -201,24 +207,24 @@
         conn.on('open', () => {
             document.getElementById('ledNet').classList.add('online');
             document.getElementById('pttBtn').disabled = false;
-            log("> LINK ESTABLISHED.", "#00d4ff");
+            log("> UPLINK SECURE.", "#00d4ff");
         });
         conn.on('data', data => {
             if(data === 'TX_ON') document.getElementById('ledTx').classList.add('tx');
             if(data === 'TX_OFF') {
                 document.getElementById('ledTx').classList.remove('tx');
-                playBeep(450, 0.3); // Incoming Roger Beep
+                setTimeout(() => playBeep(450, 0.3), 1500); // Delay beep to match audio
             }
         });
     }
 
     function updateMeter() {
+        if(!analyser) return;
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
         analyser.getByteFrequencyData(dataArray);
         let sum = 0;
         for(let i=0; i<dataArray.length; i++) sum += dataArray[i];
-        let average = sum / dataArray.length;
-        document.getElementById('meter-fill').style.width = Math.min(100, average * 2) + "%";
+        document.getElementById('meter-fill').style.width = Math.min(100, (sum/dataArray.length) * 2) + "%";
         requestAnimationFrame(updateMeter);
     }
 
@@ -227,7 +233,7 @@
         const osc = audioCtx.createOscillator();
         const g = audioCtx.createGain();
         osc.frequency.value = f;
-        g.gain.value = 0.1;
+        g.gain.value = 0.05;
         osc.connect(g); g.connect(audioCtx.destination);
         osc.start();
         g.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + d);
