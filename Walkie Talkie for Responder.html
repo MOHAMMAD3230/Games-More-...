@@ -3,134 +3,318 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TAC/COM-04 | DEBUG RELAY</title>
+    <title>TAC/COM-04 | GLOBAL RELAY</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        :root { --amber: #ffb000; --bg: #0d0900; --red: #8c3024; --blue: #00d4ff; }
-        body { background: #050505; color: var(--amber); font-family: 'Courier New', monospace; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; touch-action: manipulation; }
-        .mainframe { width: 95%; max-width: 800px; background: #222; border: 5px solid #111; padding: 15px; display: flex; flex-direction: column; }
-        .monitor { background: var(--bg); border: 8px solid #1a1a1a; padding: 15px; flex-grow: 1; min-height: 250px; display: flex; flex-direction: column; box-shadow: inset 0 0 20px #000; }
-        #output { height: 180px; overflow-y: auto; font-size: 0.8rem; scrollbar-width: none; border-bottom: 1px solid #333; margin-bottom: 10px; }
-        .module { background: #111; padding: 10px; border: 1px solid #333; margin-top: 10px; }
-        .btn-ptt { width: 100%; height: 100px; background: var(--red); color: white; border: 4px solid #5e1e16; font-weight: bold; font-size: 1.2rem; cursor: pointer; }
-        .btn-ptt:disabled { background: #333; opacity: 0.3; cursor: not-allowed; }
-        .btn-action { width: 100%; padding: 10px; background: #333; color: #fff; border: 1px solid #555; cursor: pointer; margin-bottom: 5px; }
-        input { width: 100%; background: #000; border: 1px solid #444; color: var(--amber); padding: 8px; box-sizing: border-box; }
-        .status-led { width: 10px; height: 10px; border-radius: 50%; background: #200; display: inline-block; }
-        .online { background: var(--blue); box-shadow: 0 0 8px var(--blue); }
+        :root {
+            --crt-amber: #ffb000;
+            --crt-bg: #0d0900;
+            --main-red: #8c3024;
+            --led-blue: #00d4ff;
+            --led-green: #39ff14;
+        }
+
+        body {
+            background-color: #050505;
+            color: var(--crt-amber);
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        .mainframe {
+            width: 95%;
+            max-width: 850px;
+            background: #222;
+            border: 6px solid #111;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 60px #000;
+            box-sizing: border-box;
+        }
+
+        @media (min-width: 768px) {
+            .mainframe { display: grid; grid-template-columns: 1fr 320px; height: 620px; gap: 20px; }
+        }
+
+        .monitor {
+            background: var(--crt-bg);
+            border: 10px solid #1a1a1a;
+            border-radius: 15px;
+            padding: 20px;
+            position: relative;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            box-shadow: inset 0 0 40px #000;
+        }
+
+        #output {
+            height: 220px;
+            overflow-y: auto;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            scrollbar-width: none;
+            margin-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 176, 0, 0.1);
+        }
+
+        .module {
+            background: #111;
+            padding: 15px;
+            border: 1px solid #333;
+            margin-bottom: 12px;
+        }
+
+        .btn-ptt {
+            width: 100%;
+            height: 120px;
+            background: var(--main-red);
+            color: white;
+            border: 5px solid #5e1e16;
+            font-weight: bold;
+            font-size: 1.3rem;
+            cursor: pointer;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            text-transform: uppercase;
+        }
+
+        .btn-ptt:active:not(:disabled) { background: #f00; transform: translateY(2px); }
+        .btn-ptt:disabled { background: #333; opacity: 0.2; cursor: not-allowed; border-color: #222; }
+
+        .btn-action {
+            width: 100%; padding: 12px; background: #333; color: #fff; border: 1px solid #555; 
+            cursor: pointer; margin-top: 5px; font-size: 0.75rem; font-weight: bold;
+        }
+
+        input {
+            width: 100%; background: #000; border: 1px solid #444;
+            color: var(--crt-amber); padding: 10px; box-sizing: border-box; outline: none; font-family: inherit;
+        }
+
+        .status-led { width: 12px; height: 12px; border-radius: 50%; background: #200; display: inline-block; vertical-align: middle; margin-right: 5px; }
+        .online { background: var(--led-blue); box-shadow: 0 0 10px var(--led-blue); }
+        .tx { background: #f00; box-shadow: 0 0 10px #f00; }
+        
+        #meter { width: 100%; height: 10px; background: #050505; border: 1px solid #333; margin-top: auto; }
+        #meter-fill { width: 0%; height: 100%; background: var(--led-green); transition: width 0.1s; }
+
+        .scanline {
+            width: 100%; height: 2px; background: rgba(255,255,255,0.02);
+            position: absolute; top: 0; left: 0; animation: scan 6s linear infinite; pointer-events: none;
+        }
+        @keyframes scan { from { top: 0; } to { top: 100%; } }
     </style>
 </head>
 <body>
 
 <div class="mainframe">
     <div class="monitor">
-        <div style="font-size: 0.6rem; display:flex; justify-content:space-between; margin-bottom:10px;">
-            <span>ID: <span id="myId" style="color:var(--blue)">WAITING...</span></span>
-            <span>STATUS: <span id="stat">IDLE</span></span>
+        <div class="scanline"></div>
+        <div style="font-size: 0.65rem; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 12px; display:flex; justify-content:space-between;">
+            <span>ID: <span id="myId" style="color:var(--led-blue); font-weight:bold;">----</span></span>
+            <span>UPLINK: <span id="stat" style="color: #666;">IDLE</span></span>
         </div>
-        <div id="output"><div>> SYSTEM READY.</div></div>
-        <button class="btn-action" id="bootBtn" onclick="unlockAudio()" style="border-color: #39ff14; color: #39ff14;">1. INITIALIZE SYSTEM</button>
+        <div id="output">
+            <div>> SYSTEM STANDBY.</div>
+            <div style="color: var(--led-green);">> CLICK "INITIALIZE ENGINE" TO ACCESS MIC...</div>
+        </div>
+        <div id="meter"><div id="meter-fill"></div></div>
     </div>
 
-    <div class="module">
-        <input type="text" id="targetId" placeholder="Enter Remote ID...">
-        <button class="btn-action" onclick="startUplink()" style="margin-top:5px;">2. LINK TO REMOTE</button>
-    </div>
+    <div class="side-panel">
+        <div class="module">
+            <button class="btn-action" style="border: 2px solid var(--led-green); color: var(--led-green);" id="bootBtn" onclick="unlockAudio()">INITIALIZE ENGINE</button>
+        </div>
 
-    <div class="module">
-        <button class="btn-ptt" id="pttBtn" disabled>PUSH TO TALK</button>
-        <div style="margin-top:10px; font-size:0.6rem; text-align:center;">
-            <div class="status-led" id="ledNet"></div> NETWORK LINK
+        <div class="module">
+            <div style="font-size: 0.6rem; color: #555; margin-bottom: 5px;">REMOTE ADDRESS</div>
+            <input type="text" id="targetId" placeholder="Paste Remote ID...">
+            <button class="btn-action" onclick="startUplink()">LINK SATELLITE</button>
+        </div>
+
+        <div class="module" style="text-align:center;">
+            <button class="btn-ptt" id="pttBtn" disabled>PUSH TO TALK</button>
+            <div style="margin-top:15px; font-size:0.6rem; display:flex; justify-content:space-around; color: #777;">
+                <span><div class="status-led" id="ledNet"></div> NET LINK</span>
+                <span><div class="status-led" id="ledTx"></div> TRANS</span>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-    let peer, conn, localStream, audioCtx, delayNode;
+    let peer, conn, localStream, audioCtx, delayNode, analyser;
 
     function log(msg, color="#ffb000") {
         const div = document.createElement('div');
         div.innerText = `> ${msg}`; div.style.color = color;
-        document.getElementById('output').appendChild(div);
-        document.getElementById('output').scrollTop = 9999;
+        const out = document.getElementById('output');
+        out.appendChild(div);
+        out.scrollTop = out.scrollHeight;
     }
 
     async function unlockAudio() {
+        if (!window.isSecureContext) {
+            alert("Mic access blocked: HTTPS is required.");
+            return;
+        }
+
         try {
+            // High-quality audio constraints for P2P
+            localStream = await navigator.mediaDevices.getUserMedia({ 
+                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
+            });
+
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            delayNode = audioCtx.createDelay(5.0);
-            delayNode.delayTime.value = 1.5;
-            delayNode.connect(audioCtx.destination);
+            if (audioCtx.state === 'suspended') await audioCtx.resume();
             
-            localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            log("MIC ACCESS GRANTED.");
+            delayNode = audioCtx.createDelay(5.0);
+            delayNode.delayTime.value = 1.5; // Satellite delay
+            
+            analyser = audioCtx.createAnalyser();
+            delayNode.connect(analyser);
+            analyser.connect(audioCtx.destination);
+            
             document.getElementById('bootBtn').style.display = "none";
+            updateMeter();
             initPeer();
-        } catch(e) { log("MIC ERROR: " + e.message, "red"); }
+            log("HARDWARE READY. MIC ACTIVE.", "var(--led-green)");
+        } catch(e) {
+            alert("PERMISSIONS BLOCKED: Click the LOCK icon in your URL bar and ALLOW the microphone.");
+            log("ERR: " + e.message, "red");
+        }
     }
 
     function initPeer() {
-        peer = new Peer();
+        // Essential STUN servers to punch through NAT/Firewalls
+        const config = {
+            'iceServers': [
+                { 'urls': 'stun:stun.l.google.com:19302' },
+                { 'urls': 'stun:stun1.l.google.com:19302' },
+                { 'urls': 'stun:stun2.l.google.com:19302' }
+            ]
+        };
+
+        peer = new Peer(config);
+
         peer.on('open', id => { 
             document.getElementById('myId').innerText = id; 
-            log("YOUR GLOBAL ID: " + id, "#00d4ff");
+            log("LOCAL UNIT ID: " + id, "var(--led-blue)");
         });
 
-        // Receiver Logic: When someone connects to YOU
         peer.on('connection', c => {
             conn = c;
-            log("INCOMING CONNECTION...");
-            setupData();
+            log("REMOTE HANDSHAKE DETECTED...");
+            setupDataHandlers();
         });
 
         peer.on('call', call => {
+            log("INCOMING CARRIER SIGNAL...");
             call.answer(localStream);
-            call.on('stream', rem => {
-                const src = audioCtx.createMediaStreamSource(rem);
-                src.connect(delayNode);
-                log("AUDIO STREAM CONNECTED.");
+            call.on('stream', remoteStream => {
+                const source = audioCtx.createMediaStreamSource(remoteStream);
+                source.connect(delayNode);
+                log("UPLINK SYNCED. RECEIVING AUDIO.");
             });
         });
 
-        peer.on('error', e => log("PEER ERROR: " + e.type, "red"));
+        peer.on('error', e => log("PEER ERR: " + e.type, "red"));
     }
 
     function startUplink() {
         const tid = document.getElementById('targetId').value.trim();
-        if(!tid) return log("ENTER A VALID ID", "red");
+        if(!tid) return;
         
-        log("CONNECTING TO: " + tid);
+        log("ESTABLISHING LINK TO " + tid + "...");
         conn = peer.connect(tid);
+        
         const call = peer.call(tid, localStream);
-        call.on('stream', rem => {
-            const src = audioCtx.createMediaStreamSource(rem);
-            src.connect(delayNode);
+        call.on('stream', remoteStream => {
+            const source = audioCtx.createMediaStreamSource(remoteStream);
+            source.connect(delayNode);
         });
-        setupData();
+        
+        setupDataHandlers();
     }
 
-    function setupData() {
+    function setupDataHandlers() {
         conn.on('open', () => {
-            log("UPLINK SUCCESSFUL!", "#39ff14");
             document.getElementById('ledNet').classList.add('online');
-            document.getElementById('stat').innerText = "CONNECTED";
             document.getElementById('pttBtn').disabled = false;
+            document.getElementById('stat').innerText = "CONNECTED";
+            document.getElementById('stat').style.color = "var(--led-blue)";
+            log("CHANNEL SECURE. READY TO TALK.", "var(--led-green)");
+            playBeep(800, 0.2);
         });
+
+        conn.on('data', data => {
+            if(data === 'TX_ON') document.getElementById('ledTx').classList.add('tx');
+            if(data === 'TX_OFF') {
+                document.getElementById('ledTx').classList.remove('tx');
+                setTimeout(() => playBeep(450, 0.3), 1500);
+            }
+        });
+
         conn.on('close', () => {
-            log("CONNECTION LOST.", "red");
             document.getElementById('pttBtn').disabled = true;
             document.getElementById('ledNet').classList.remove('online');
+            log("SIGNAL LOST.", "red");
         });
     }
 
-    // PTT Events
-    const ptt = document.getElementById('pttBtn');
-    const triggerStart = () => { if(!conn || ptt.disabled) return; conn.send('TX_ON'); log("TRANSMITTING..."); };
-    const triggerEnd = () => { if(!conn || ptt.disabled) return; conn.send('TX_OFF'); log("IDLE."); };
+    function updateMeter() {
+        if(!analyser) return;
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for(let i=0; i<dataArray.length; i++) sum += dataArray[i];
+        document.getElementById('meter-fill').style.width = Math.min(100, (sum / dataArray.length) * 3) + "%";
+        requestAnimationFrame(updateMeter);
+    }
 
-    ptt.onmousedown = triggerStart; ptt.onmouseup = triggerEnd;
-    ptt.addEventListener('touchstart', (e) => { e.preventDefault(); triggerStart(); });
-    ptt.addEventListener('touchend', (e) => { e.preventDefault(); triggerEnd(); });
+    function playBeep(f, d) {
+        if(!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.frequency.value = f;
+        g.gain.value = 0.08;
+        osc.connect(g); g.connect(audioCtx.destination);
+        osc.start();
+        g.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + d);
+        osc.stop(audioCtx.currentTime + d);
+    }
+
+    const ptt = document.getElementById('pttBtn');
+    
+    const pttOn = () => {
+        if(!conn || ptt.disabled) return;
+        conn.send('TX_ON');
+        document.getElementById('ledTx').classList.add('tx');
+        playBeep(1200, 0.05);
+        log(">>> SENDING...", "red");
+    };
+
+    const pttOff = () => {
+        if(!conn || ptt.disabled) return;
+        conn.send('TX_OFF');
+        document.getElementById('ledTx').classList.remove('tx');
+        playBeep(450, 0.25);
+        log("<<< STANDBY.");
+    };
+
+    ptt.onmousedown = pttOn;
+    ptt.onmouseup = pttOff;
+    ptt.addEventListener('touchstart', (e) => { e.preventDefault(); pttOn(); });
+    ptt.addEventListener('touchend', (e) => { e.preventDefault(); pttOff(); });
+
 </script>
 
 </body>
