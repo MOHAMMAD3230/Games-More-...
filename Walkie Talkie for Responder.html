@@ -3,490 +3,201 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TAC/COM-04 | GLOBAL RELAY</title>
+    <title>TAC/COM-04 | GATEWAY</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        :root {
-            --crt-amber: #ffb000;
-            --crt-bg: #0d0900;
-            --main-red: #8c3024;
-            --led-blue: #00d4ff;
-            --led-green: #39ff14;
-            --led-off: #331111;
-        }
-
-        body {
-            background-color: #050505;
-            color: var(--crt-amber);
-            font-family: 'Courier New', Courier, monospace;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            overflow: hidden;
-            touch-action: manipulation;
-        }
-
-        .mainframe {
-            width: 95%;
-            max-width: 850px;
-            background: #222;
-            border: 6px solid #111;
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 0 60px #000;
-            box-sizing: border-box;
-            position: relative;
-        }
-
-        @media (min-width: 768px) {
-            .mainframe { display: grid; grid-template-columns: 1fr 320px; height: 620px; gap: 20px; }
-        }
-
-        .monitor {
-            background: var(--crt-bg);
-            border: 10px solid #1a1a1a;
-            border-radius: 15px;
-            padding: 20px;
-            position: relative;
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            box-shadow: inset 0 0 40px #000;
-        }
-
-        #output {
-            height: 220px;
-            overflow-y: auto;
-            font-size: 0.8rem;
-            line-height: 1.5;
-            scrollbar-width: none;
-            margin-bottom: 10px;
-            border-bottom: 1px solid rgba(255, 176, 0, 0.1);
-        }
-        
-        #output::-webkit-scrollbar { display: none; }
-
-        .module {
-            background: #111;
-            padding: 15px;
-            border: 1px solid #333;
-            margin-bottom: 12px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .btn-ptt {
-            width: 100%;
-            height: 100px;
-            background: var(--main-red);
-            color: white;
-            border: 5px solid #5e1e16;
-            font-weight: bold;
-            font-size: 1.3rem;
-            cursor: pointer;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
-            text-transform: uppercase;
-            transition: background 0.1s, transform 0.1s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .btn-ptt:active:not(:disabled) { background: #ff3333; transform: translateY(2px); box-shadow: 0 0 15px var(--main-red); }
-        .btn-ptt:disabled { background: #222; opacity: 0.5; cursor: not-allowed; border-color: #444; color: #555; }
-
-        .btn-action {
-            width: 100%; padding: 12px; background: #222; color: var(--crt-amber); border: 1px solid #555; 
-            cursor: pointer; margin-top: 5px; font-size: 0.75rem; font-weight: bold;
-            transition: all 0.2s;
-        }
-        .btn-action:hover { background: #333; border-color: var(--crt-amber); }
-
-        input {
-            width: 100%; background: #000; border: 1px solid #444;
-            color: var(--crt-amber); padding: 10px; box-sizing: border-box; outline: none; font-family: inherit;
-            font-size: 0.9rem;
-        }
-        input:focus { border-color: var(--led-blue); }
-
-        .status-led { width: 12px; height: 12px; border-radius: 50%; display: inline-block; vertical-align: middle; margin-right: 5px; background: var(--led-off); transition: background 0.3s, box-shadow 0.3s; }
-        
-        .online { background: var(--led-blue); box-shadow: 0 0 8px var(--led-blue); }
-        .tx { background: #ff0000; box-shadow: 0 0 12px #ff0000; }
-        
-        #meter { width: 100%; height: 12px; background: #050505; border: 1px solid #333; margin-top: auto; position: relative; overflow: hidden; }
-        #meter-fill { width: 0%; height: 100%; background: var(--led-green); transition: width 0.05s linear; }
-        .meter-grid {
-            position: absolute; top:0; left:0; width:100%; height:100%;
-            background-image: linear-gradient(90deg, transparent 98%, #222 98%);
-            background-size: 10% 100%;
-            pointer-events: none;
-        }
-
-        .scanline {
-            width: 100%; height: 3px; background: rgba(255,255,255,0.03);
-            position: absolute; top: 0; left: 0; animation: scan 8s linear infinite; pointer-events: none; z-index: 10;
-        }
-        @keyframes scan { from { top: -5%; } to { top: 105%; } }
-        
-        /* Text Glitch Effect */
-        .glitch { animation: glitch-anim 0.3s infinite; }
-        @keyframes glitch-anim {
-            0% { transform: translate(0); }
-            20% { transform: translate(-2px, 2px); }
-            40% { transform: translate(-2px, -2px); }
-            60% { transform: translate(2px, 2px); }
-            80% { transform: translate(2px, -2px); }
-            100% { transform: translate(0); }
-        }
+        :root { --amber: #ffb000; --bg: #0d0900; --red: #8c3024; --blue: #00d4ff; --green: #39ff14; }
+        body { background: #050505; color: var(--amber); font-family: 'Courier New', monospace; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; touch-action: manipulation; overflow: hidden; }
+        .mainframe { width: 95%; max-width: 850px; background: #222; border: 6px solid #111; padding: 15px; display: flex; flex-direction: column; box-shadow: 0 0 60px #000; box-sizing: border-box; }
+        @media (min-width: 768px) { .mainframe { display: grid; grid-template-columns: 1fr 320px; height: 600px; gap: 20px; } }
+        .monitor { background: var(--bg); border: 10px solid #1a1a1a; border-radius: 15px; padding: 20px; flex-grow: 1; display: flex; flex-direction: column; position: relative; }
+        #output { height: 200px; overflow-y: auto; font-size: 0.8rem; scrollbar-width: none; border-bottom: 1px solid #333; margin-bottom: 10px; }
+        .module { background: #111; padding: 12px; border: 1px solid #333; margin-bottom: 10px; }
+        .btn-ptt { width: 100%; height: 140px; background: var(--red); color: white; border: 5px solid #5e1e16; font-weight: bold; font-size: 1.3rem; cursor: pointer; transition: 0.1s; }
+        .btn-ptt:active:not(:disabled) { background: #f00; transform: scale(0.98); box-shadow: 0 0 20px #f00; }
+        .btn-ptt:disabled { background: #333; opacity: 0.2; }
+        .btn-action { width: 100%; padding: 10px; background: #333; color: #fff; border: 1px solid #555; cursor: pointer; font-weight: bold; font-size: 0.7rem; }
+        input { width: 100%; background: #000; border: 1px solid #444; color: var(--amber); padding: 10px; box-sizing: border-box; }
+        .status-led { width: 12px; height: 12px; border-radius: 50%; background: #200; display: inline-block; }
+        .online { background: var(--blue); box-shadow: 0 0 10px var(--blue); }
+        .tx { background: #f00; box-shadow: 0 0 10px #f00; }
+        #meter { width: 100%; height: 10px; background: #000; border: 1px solid #333; margin-top: auto; }
+        #meter-fill { width: 0%; height: 100%; background: var(--green); transition: width 0.1s; }
     </style>
 </head>
 <body>
 
 <div class="mainframe">
+    <audio id="remoteAudio" autoplay playsinline style="display:none;"></audio>
+
     <div class="monitor">
-        <div class="scanline"></div>
-        <div style="font-size: 0.7rem; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 12px; display:flex; justify-content:space-between;">
-            <span>ID: <span id="myId" style="color:var(--led-blue); font-weight:bold;">OFFLINE</span></span>
-            <span>UPLINK: <span id="stat" style="color: #555;">DISCONNECTED</span></span>
+        <div style="font-size: 0.6rem; display:flex; justify-content:space-between; margin-bottom:10px;">
+            <span>ID: <span id="myId" style="color:var(--blue)">----</span></span>
+            <span>UPLINK: <span id="stat">OFFLINE</span></span>
         </div>
-        <div id="output">
-            <div>> SYSTEM STANDBY.</div>
-            <div style="color: #666;">> INITIALIZE ENGINE TO BEGIN.</div>
-        </div>
-        <div id="meter">
-            <div class="meter-grid"></div>
-            <div id="meter-fill"></div>
-        </div>
-        <div style="font-size: 0.6rem; color: #555; text-align: right; margin-top: 5px;">RX GAIN: AUTO</div>
+        <div id="output"><div>> COMMS GATEWAY OFFLINE.</div></div>
+        <div id="meter"><div id="meter-fill"></div></div>
     </div>
 
     <div class="side-panel">
         <div class="module">
-            <button class="btn-action" style="border: 2px solid var(--led-green); color: var(--led-green);" id="bootBtn" onclick="unlockAudio()">INITIALIZE ENGINE</button>
-            <div style="font-size: 0.6rem; color: #444; margin-top: 5px; text-align: center;">REQUIRED FOR MIC ACCESS</div>
+            <button class="btn-action" id="bootBtn" onclick="unlockAudio()" style="border-color:var(--green); color:var(--green);">1. INITIALIZE HARDWARE</button>
         </div>
-
         <div class="module">
-            <div style="font-size: 0.65rem; color: #888; margin-bottom: 5px;">REMOTE TARGET ID</div>
-            <input type="text" id="targetId" placeholder="ENTER PEER ID...">
-            <button class="btn-action" onclick="startUplink()">CONNECT UPLINK</button>
+            <input type="text" id="targetId" placeholder="Remote Unit ID...">
+            <button class="btn-action" onclick="startUplink()" style="margin-top:5px;">2. CONNECT SATELLITE</button>
         </div>
-
-        <div class="module" style="text-align:center; justify-content: center;">
-            <button class="btn-ptt" id="pttBtn" disabled>PUSH TO TALK</button>
-            <div style="margin-top:15px; font-size:0.65rem; display:flex; justify-content:space-around; color: #aaa;">
-                <span><div class="status-led" id="ledNet"></div> NET</span>
-                <span><div class="status-led" id="ledTx"></div> TX</span>
-                <span><div class="status-led" id="ledRx"></div> RX</span>
+        <div class="module" style="text-align:center;">
+            <button class="btn-ptt" id="pttBtn" disabled>HOLD TO TALK</button>
+            <div style="margin-top:10px; font-size:0.5rem; display:flex; justify-content:space-around;">
+                <span><div class="status-led" id="ledNet"></div> LINK</span>
+                <span><div class="status-led" id="ledTx"></div> TRANS</span>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    let peer, conn, call;
-    let localStream;
-    let audioCtx, micSource, micDestination, remoteSource, mutedGain;
-    let analyser;
-    let isTransmitting = false;
-
-    // Initialize PeerJS defaults
-    const peerConfig = {
-        debug: 1
-    };
+    let peer, conn, localStream, audioCtx, delayNode, analyser;
 
     function log(msg, color="#ffb000") {
         const div = document.createElement('div');
-        div.innerText = `> ${msg}`; 
-        div.style.color = color;
+        div.innerText = `> ${msg}`; div.style.color = color;
         const out = document.getElementById('output');
-        out.appendChild(div);
-        out.scrollTop = out.scrollHeight;
+        out.appendChild(div); out.scrollTop = out.scrollHeight;
     }
 
-    // 1. Initialize Audio Context and Microphone
     async function unlockAudio() {
-        if (!window.isSecureContext) {
-            alert("SECURE CONTEXT REQUIRED: Please use HTTPS.");
-            return;
-        }
-
         try {
-            // Get Microphone
             localStream = await navigator.mediaDevices.getUserMedia({ 
-                audio: { 
-                    echoCancellation: false, // Better for walkie talkie effect, less latency
-                    noiseSuppression: true,
-                    autoGainControl: false
-                } 
+                audio: { echoCancellation: true, noiseSuppression: true } 
             });
 
-            // Setup Web Audio API
-            const AudioContext = window.AudioContext || window.webkitAudioContext;
-            audioCtx = new AudioContext();
-            if (audioCtx.state === 'suspended') await audioCtx.resume();
+            // CRITICAL: Mute the microphone tracks immediately upon initialization
+            muteMic(true);
 
-            // Route Mic to a destination (for sending to PeerJS) but NOT to speakers (to prevent feedback)
-            micSource = audioCtx.createMediaStreamSource(localStream);
-            micDestination = audioCtx.createMediaStreamDestination();
-            micSource.connect(micDestination);
-
-            // Setup Gain for Remote Audio (Mute by default to prevent echo, unmute when not TXing)
-            mutedGain = audioCtx.createGain();
-            mutedGain.gain.value = 0; // Start muted
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            delayNode = audioCtx.createDelay(5.0);
+            delayNode.delayTime.value = 1.5;
             
-            // Analyser for the visual meter
             analyser = audioCtx.createAnalyser();
-            analyser.fftSize = 64;
-            mutedGain.connect(analyser);
+            delayNode.connect(analyser);
             analyser.connect(audioCtx.destination);
-
-            // UI Updates
-            document.getElementById('bootBtn').innerText = "SYSTEM ONLINE";
-            document.getElementById('bootBtn').disabled = true;
-            document.getElementById('bootBtn').style.opacity = "0.5";
             
-            // Start Visual Loop
+            document.getElementById('bootBtn').style.display = "none";
             updateMeter();
-            
-            // Initialize Network
             initPeer();
-            log("HARDWARE INITIALIZED. MIC ACTIVE.", "var(--led-green)");
+            log("HARDWARE INITIALIZED. MIC MUTED.", "var(--green)");
+        } catch(e) { log("MIC ACCESS DENIED", "red"); }
+    }
 
-        } catch(e) {
-            console.error(e);
-            alert("MICROPHONE ACCESS DENIED. Check browser permissions.");
-            log("ERR: " + e.message, "#ff3333");
+    // Function to Enable/Disable Microphone input
+    function muteMic(shouldMute) {
+        if (localStream) {
+            localStream.getAudioTracks().forEach(track => {
+                track.enabled = !shouldMute;
+            });
         }
     }
 
-    // 2. Initialize Peer Network
     function initPeer() {
-        // Using default PeerJS cloud server
-        peer = new Peer(null, peerConfig);
+        peer = new Peer({
+            config: { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] }
+        });
 
         peer.on('open', id => { 
             document.getElementById('myId').innerText = id; 
-            log("IDENTITY ASSIGNED: " + id, "var(--led-blue)");
+            log("ASSIGNED FREQUENCY: " + id, "var(--blue)"); 
         });
 
-        peer.on('connection', c => {
-            conn = c;
-            log("INCOMING HANDSHAKE REQUEST...");
-            setupDataHandlers();
-        });
+        peer.on('connection', c => { conn = c; setupHandlers(); });
 
-        peer.on('call', incomingCall => {
-            log("INCOMING AUDIO SIGNAL...");
-            // Answer the call with our "clean" mic stream (not the one connected to speakers)
-            incomingCall.answer(localStream);
-            handleCall(incomingCall);
-        });
-
-        peer.on('error', e => {
-            log("NET ERR: " + e.type, "#ff3333");
-            if(e.type === 'unavailable-id') log("ID TAKEN.", "red");
-            if(e.type === 'peer-unavailable') log("TARGET NOT FOUND.", "red");
+        peer.on('call', call => {
+            call.answer(localStream);
+            call.on('stream', stream => attachStream(stream));
         });
     }
 
-    // 3. Start Outgoing Connection
     function startUplink() {
         const tid = document.getElementById('targetId').value.trim();
-        if(!tid) {
-            log("ERROR: NO TARGET ID.", "red");
-            return;
-        }
-        
-        if(!peer) {
-            log("ERROR: SYSTEM NOT INITIALIZED.", "red");
-            return;
-        }
-
-        log("ATTEMPTING UPLINK TO " + tid + "...");
-        
-        // Connect Data Channel
+        if(!tid) return;
         conn = peer.connect(tid);
-        setupDataHandlers();
-
-        // Connect Audio Call
-        const outgoingCall = peer.call(tid, localStream);
-        handleCall(outgoingCall);
+        const call = peer.call(tid, localStream);
+        call.on('stream', stream => attachStream(stream));
+        setupHandlers();
     }
 
-    // 4. Handle Audio Stream (Receive Side)
-    function handleCall(callObj) {
-        call = callObj;
-        call.on('stream', remoteStream => {
-            log("SIGNAL LOCKED. AUDIO PIPELINE OPEN.");
-            
-            // Disconnect previous remote source if exists
-            if (remoteSource) remoteSource.disconnect();
-
-            // Create source from incoming stream
-            remoteSource = audioCtx.createMediaStreamSource(remoteStream);
-            
-            // Connect to Mute Gain -> Analyser -> Speakers
-            remoteSource.connect(mutedGain);
-            
-            // Indicate readiness
-            document.getElementById('ledRx').classList.add('online');
-        });
-
-        call.on('close', () => {
-            log("CALL TERMINATED.", "red");
-            resetConnectionState();
-        });
+    function attachStream(stream) {
+        const audioEl = document.getElementById('remoteAudio');
+        audioEl.srcObject = stream;
+        const source = audioCtx.createMediaStreamSource(stream);
+        source.connect(delayNode);
+        log("REMOTE SIGNAL LOCKED.");
     }
 
-    // 5. Data Handlers (PTT Signaling)
-    function setupDataHandlers() {
+    function setupHandlers() {
         conn.on('open', () => {
             document.getElementById('ledNet').classList.add('online');
             document.getElementById('pttBtn').disabled = false;
-            document.getElementById('stat').innerText = "CONNECTED";
-            document.getElementById('stat').style.color = "var(--led-green)";
-            log("CHANNEL SECURE.", "var(--led-green)");
-            playBeep(800, 0.1, "sine");
+            document.getElementById('stat').innerText = "SECURE";
+            log("UPLINK SECURE. MIC GATE ACTIVE.", "var(--green)");
         });
-
+        
         conn.on('data', data => {
-            if(data === 'TX_START') {
-                // Remote is talking -> Mute local speakers (Walkie Talkie Logic)
-                document.getElementById('ledTx').classList.add('tx');
-                if(mutedGain) mutedGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
-                log("REMOTE TRANSMITTING...", "#ffaa00");
-            } 
-            else if(data === 'TX_END') {
-                // Remote stopped -> Unmute local speakers
+            if(data === 'TX_ON') document.getElementById('ledTx').classList.add('tx');
+            if(data === 'TX_OFF') {
                 document.getElementById('ledTx').classList.remove('tx');
-                if(mutedGain) mutedGain.gain.setTargetAtTime(1, audioCtx.currentTime, 0.1);
-                log("REMOTE STANDBY.");
+                setTimeout(() => playBeep(450, 0.2), 1500); // Delayed roger beep
             }
         });
-
-        conn.on('close', () => {
-            resetConnectionState();
-            log("CONNECTION LOST.", "red");
-        });
     }
 
-    function resetConnectionState() {
-        document.getElementById('pttBtn').disabled = true;
-        document.getElementById('ledNet').classList.remove('online');
-        document.getElementById('ledRx').classList.remove('online');
-        document.getElementById('ledTx').classList.remove('tx');
-        document.getElementById('stat').innerText = "DISCONNECTED";
-        document.getElementById('stat').style.color = "#555";
-        if(mutedGain) mutedGain.gain.value = 1; // Reset volume
-    }
-
-    // 6. Visual Meter & Beeps
     function updateMeter() {
-        requestAnimationFrame(updateMeter);
         if(!analyser) return;
-
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
         analyser.getByteFrequencyData(dataArray);
-        
-        // Calculate average volume
-        let sum = 0;
-        for(let i = 0; i < dataArray.length; i++) sum += dataArray[i];
-        const average = sum / dataArray.length;
-
-        const meter = document.getElementById('meter-fill');
-        // Scale average to percentage. Multiply for sensitivity.
-        const width = Math.min(100, (average / 50) * 100); 
-        meter.style.width = width + "%";
-
-        // Color coding based on volume
-        if(width > 80) meter.style.background = "#ff0000";
-        else if(width > 50) meter.style.background = "var(--led-green)";
-        else meter.style.background = "var(--led-blue)";
+        let sum = dataArray.reduce((a, b) => a + b, 0);
+        document.getElementById('meter-fill').style.width = Math.min(100, (sum/dataArray.length)*4) + "%";
+        requestAnimationFrame(updateMeter);
     }
 
-    function playBeep(freq, duration, type="square") {
+    function playBeep(f, d) {
         if(!audioCtx) return;
         const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        
-        osc.type = type;
-        osc.frequency.value = freq;
-        
-        gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-        
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        
+        const g = audioCtx.createGain();
+        osc.frequency.value = f;
+        g.gain.value = 0.05;
+        osc.connect(g); g.connect(audioCtx.destination);
         osc.start();
-        osc.stop(audioCtx.currentTime + duration);
+        g.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + d);
+        osc.stop(audioCtx.currentTime + d);
     }
 
-    // 7. PTT Event Listeners
-    const pttBtn = document.getElementById('pttBtn');
+    const ptt = document.getElementById('pttBtn');
 
-    function startTx() {
-        if(!conn || !conn.open || pttBtn.disabled) return;
-        if(isTransmitting) return;
-
-        isTransmitting = true;
-        
-        // 1. Send Signal
-        conn.send('TX_START');
-        
-        // 2. Visuals
-        document.getElementById('ledTx').classList.add('tx');
-        pttBtn.classList.add('glitch');
-        
-        // 3. Audio Logic: Mute Incoming (so you don't hear yourself/echo)
-        if(mutedGain) mutedGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.01);
-        
-        // 4. Sound
+    const pttOn = () => { 
+        if(!conn || ptt.disabled) return;
+        muteMic(false); // UNMUTE MIC
+        conn.send('TX_ON'); 
+        document.getElementById('ledTx').classList.add('tx'); 
         playBeep(1200, 0.05); 
-        log(">>> TRANSMITTING", "red");
-    }
+        log(">>> TRANSMITTING...", "red");
+    };
 
-    function endTx() {
-        if(!isTransmitting) return;
-        isTransmitting = false;
+    const pttOff = () => { 
+        if(!conn || ptt.disabled) return;
+        muteMic(true); // MUTE MIC
+        conn.send('TX_OFF'); 
+        document.getElementById('ledTx').classList.remove('tx'); 
+        playBeep(450, 0.2); 
+        log("<<< READY.");
+    };
 
-        // 1. Send Signal
-        conn.send('TX_END');
-        
-        // 2. Visuals
-        document.getElementById('ledTx').classList.remove('tx');
-        pttBtn.classList.remove('glitch');
-        
-        // 3. Audio Logic: Unmute Incoming (hear reply)
-        if(mutedGain) mutedGain.gain.setTargetAtTime(1, audioCtx.currentTime, 0.1);
-
-        // 4. Sound
-        playBeep(600, 0.1); 
-        log("<<< STANDBY");
-    }
-
-    // Mouse Events
-    pttBtn.addEventListener('mousedown', startTx);
-    window.addEventListener('mouseup', endTx); // Window ensures release if dragged off button
-
-    // Touch Events (Mobile)
-    pttBtn.addEventListener('touchstart', (e) => {
-        e.preventDefault(); // Prevents scrolling/zooming
-        startTx();
-    }, {passive: false});
-
-    pttBtn.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        endTx();
-    });
-
+    // Events for Desktop & Mobile
+    ptt.onmousedown = pttOn; 
+    ptt.onmouseup = pttOff;
+    ptt.addEventListener('touchstart', (e) => { e.preventDefault(); pttOn(); });
+    ptt.addEventListener('touchend', (e) => { e.preventDefault(); pttOff(); });
 </script>
-
 </body>
 </html>
