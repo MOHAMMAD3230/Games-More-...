@@ -3,21 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TAC/COM-04 | FINAL 5G</title>
+    <title>TAC/COM-04 | FINAL 5G + E2EE</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root { --amber: #ffb000; --bg: #0d0900; --red: #8c3024; --blue: #00d4ff; --green: #39ff14; }
         body { background: #050505; color: var(--amber); font-family: 'Courier New', monospace; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; touch-action: manipulation; overflow: hidden; }
         .mainframe { width: 95%; max-width: 850px; background: #222; border: 6px solid #111; padding: 15px; display: flex; flex-direction: column; box-shadow: 0 0 60px #000; box-sizing: border-box; }
-        @media (min-width: 768px) { .mainframe { display: grid; grid-template-columns: 1fr 320px; height: 620px; gap: 20px; } }
+        @media (min-width: 768px) { .mainframe { display: grid; grid-template-columns: 1fr 320px; height: 640px; gap: 20px; } }
         .monitor { background: var(--bg); border: 10px solid #1a1a1a; border-radius: 15px; padding: 20px; flex-grow: 1; display: flex; flex-direction: column; position: relative; box-shadow: inset 0 0 20px #000; }
-        #output { height: 260px; overflow-y: auto; font-size: 0.78rem; scrollbar-width: none; border-bottom: 1px solid #333; margin-bottom: 12px; color: var(--amber); }
+        #output { height: 240px; overflow-y: auto; font-size: 0.78rem; scrollbar-width: none; border-bottom: 1px solid #333; margin-bottom: 12px; color: var(--amber); }
         .module { background: #111; padding: 12px; border: 1px solid #333; margin-bottom: 10px; }
         .btn-ptt { width: 100%; height: 145px; background: var(--red); color: white; border: 5px solid #5e1e16; font-weight: bold; font-size: 1.35rem; cursor: pointer; transition: 0.1s; box-shadow: 0 6px 0 #401010; }
         .btn-ptt:active:not(:disabled) { background: #f00; transform: translateY(4px); box-shadow: 0 2px 0 #401010; }
         .btn-ptt:disabled { background: #333; opacity: 0.45; box-shadow: none; }
         .btn-action { width: 100%; padding: 11px; background: #333; color: #fff; border: 1px solid #555; cursor: pointer; font-weight: bold; font-size: 0.72rem; text-transform: uppercase; }
-        input { width: 100%; background: #000; border: 1px solid #444; color: var(--amber); padding: 10px; box-sizing: border-box; outline: none; text-align: center; font-size: 1.25rem; letter-spacing: 2px; }
+        input { width: 100%; background: #000; border: 1px solid #444; color: var(--amber); padding: 10px; box-sizing: border-box; outline: none; text-align: center; font-size: 1.2rem; letter-spacing: 2px; margin-bottom: 8px; }
         .status-led { width: 13px; height: 13px; border-radius: 50%; background: #200; display: inline-block; vertical-align: middle; }
         .online { background: var(--blue); box-shadow: 0 0 12px var(--blue); }
         .tx { background: #f00; box-shadow: 0 0 15px #f00; animation: pulse 0.7s infinite; }
@@ -33,14 +33,16 @@
             <span>FREQ: <span id="curFreq" style="color:var(--blue)">UNSET</span></span>
             <span>UPLINK: <span id="stat">OFFLINE</span></span>
         </div>
-        <div id="output"><div>> TAC/COM-04 FINAL READY - SAME CHANNEL ON BOTH DEVICES</div></div>
+        <div id="output"><div>> TAC/COM-04 FINAL + E2EE LOADED</div></div>
         <div id="meter"><div id="meter-fill"></div></div>
     </div>
     <div class="side-panel">
         <div class="module">
             <div style="font-size: 0.6rem; color: #555; margin-bottom: 5px; text-align: center;">CHANNEL (1-99)</div>
             <input type="number" id="chanInput" value="42" min="1" max="99">
-            <button class="btn-action" id="bootBtn" onclick="initChannel()" style="margin-top:10px; border-color:var(--green); color:var(--green);">INITIATE SECURE LINK</button>
+            <div style="font-size: 0.6rem; color: #555; margin: 8px 0 5px;">SHARED SECRET (for E2EE)</div>
+            <input type="password" id="secretInput" value="tacsecure2026" placeholder="Enter shared password">
+            <button class="btn-action" id="bootBtn" onclick="initChannel()" style="margin-top:8px; border-color:var(--green); color:var(--green);">INITIATE SECURE LINK</button>
         </div>
         <div class="module" style="text-align:center;">
             <button class="btn-ptt" id="pttBtn" disabled>HOLD TO TALK</button>
@@ -56,6 +58,7 @@
 <script>
     let peer, conn, localStream, audioCtx, recorder, analyser, streamSource;
     let isPTTActive = false;
+    let cryptoKey = null;   // AES-GCM key
     const APP_PREFIX = "TAC-SECURE-V33-";
 
     function log(msg, color = "#ffb000") {
@@ -67,16 +70,66 @@
         out.scrollTop = out.scrollHeight;
     }
 
+    // === Web Crypto Helper Functions ===
+    async function deriveKey(password) {
+        const enc = new TextEncoder();
+        const baseKey = await crypto.subtle.importKey(
+            "raw", enc.encode(password), "PBKDF2", false, ["deriveBits", "deriveKey"]
+        );
+        return crypto.subtle.deriveKey(
+            { name: "PBKDF2", salt: enc.encode("tac-com-salt"), iterations: 100000, hash: "SHA-256" },
+            baseKey,
+            { name: "AES-GCM", length: 256 },
+            false,
+            ["encrypt", "decrypt"]
+        );
+    }
+
+    async function encryptData(data) {
+        if (!cryptoKey) throw new Error("No encryption key");
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const encrypted = await crypto.subtle.encrypt(
+            { name: "AES-GCM", iv: iv },
+            cryptoKey,
+            data
+        );
+        const combined = new Uint8Array(iv.byteLength + encrypted.byteLength);
+        combined.set(iv, 0);
+        combined.set(new Uint8Array(encrypted), iv.byteLength);
+        return combined.buffer;
+    }
+
+    async function decryptData(combinedBuffer) {
+        if (!cryptoKey) throw new Error("No encryption key");
+        const combined = new Uint8Array(combinedBuffer);
+        const iv = combined.slice(0, 12);
+        const ciphertext = combined.slice(12);
+        return crypto.subtle.decrypt(
+            { name: "AES-GCM", iv: iv },
+            cryptoKey,
+            ciphertext
+        );
+    }
+
     async function initChannel() {
         const chanNum = document.getElementById('chanInput').value.trim();
+        const password = document.getElementById('secretInput').value.trim();
+
         if (!chanNum || chanNum < 1 || chanNum > 99) {
             log("INVALID CHANNEL (1-99)", "red");
+            return;
+        }
+        if (!password || password.length < 6) {
+            log("SHARED SECRET TOO SHORT (min 6 chars)", "red");
             return;
         }
 
         const fullId = APP_PREFIX + chanNum;
 
         try {
+            cryptoKey = await deriveKey(password);
+            log("AES-256-GCM KEY DERIVED FROM SHARED SECRET", "#39ff14");
+
             localStream = await navigator.mediaDevices.getUserMedia({
                 audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, sampleRate: 48000 }
             });
@@ -89,21 +142,27 @@
 
             recorder = new MediaRecorder(localStream, { mimeType: 'audio/webm;codecs=opus' });
 
-            recorder.ondataavailable = (e) => {
-                if (conn && conn.open && e.data && e.data.size > 60 && isPTTActive) {
-                    conn.send(e.data);
+            recorder.ondataavailable = async (e) => {
+                if (!conn || !conn.open || !e.data || e.data.size < 60 || !isPTTActive) return;
+                try {
+                    const arrayBuffer = await e.data.arrayBuffer();
+                    const encrypted = await encryptData(arrayBuffer);
+                    conn.send(encrypted);
+                } catch (err) {
+                    log("ENCRYPT ERROR: " + err.message, "red");
                 }
             };
 
             document.getElementById('bootBtn').disabled = true;
             document.getElementById('curFreq').innerText = "CH-" + chanNum;
-            document.getElementById('stat').innerText = "CONNECTING...";
+            document.getElementById('stat').innerText = "CONNECTING (E2EE)...";
 
             initPeer(fullId);
             updateMeter();
-            log("MIC INITIALIZED", "#39ff14");
+            log("MIC + E2EE READY", "#39ff14");
         } catch (e) {
-            log("MIC ACCESS DENIED - Allow permission", "red");
+            log("INIT FAILED: " + e.message, "red");
+            console.error(e);
         }
     }
 
@@ -111,14 +170,13 @@
         const iceConfig = {
             iceServers: [
                 { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
-                // Reliable free TURN (20GB/month - works on 5G)
                 { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
                 { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
                 { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
                 { urls: 'turn:global.relay.metered.ca:80', username: 'metered', credential: 'metered' },
                 { urls: 'turn:global.relay.metered.ca:443', username: 'metered', credential: 'metered' }
             ],
-            iceTransportPolicy: 'relay',   // Force relay for better 5G success
+            iceTransportPolicy: 'relay',
             iceCandidatePoolSize: 15
         };
 
@@ -151,19 +209,26 @@
         conn.on('open', () => {
             document.getElementById('ledNet').classList.add('online');
             document.getElementById('pttBtn').disabled = false;
-            document.getElementById('stat').innerText = "SECURE LINK ACTIVE";
-            log("LINK ESTABLISHED - HOLD TO TALK", "#39ff14");
+            document.getElementById('stat').innerText = "SECURE LINK ACTIVE (E2EE)";
+            log("E2EE TUNNEL ESTABLISHED - HOLD TO TALK", "#39ff14");
             playBeep(950, 0.1);
         });
 
         conn.on('data', async (data) => {
-            if (!(data instanceof Blob)) return;
+            if (!(data instanceof ArrayBuffer)) return;
             document.getElementById('ledTx').classList.add('tx');
-            const url = URL.createObjectURL(data);
-            const audio = new Audio(url);
-            audio.volume = 1.0;
-            audio.onended = () => URL.revokeObjectURL(url);
-            try { await audio.play(); } catch(e) {}
+            try {
+                const decrypted = await decryptData(data);
+                const blob = new Blob([decrypted], { type: 'audio/webm' });
+                const url = URL.createObjectURL(blob);
+                const audio = new Audio(url);
+                audio.volume = 1.0;
+                audio.onended = () => URL.revokeObjectURL(url);
+                await audio.play().catch(() => {});
+            } catch (err) {
+                log("DECRYPT FAILED - Wrong secret?", "red");
+                console.error(err);
+            }
             setTimeout(() => document.getElementById('ledTx').classList.remove('tx'), 900);
         });
 
@@ -224,7 +289,7 @@
         if (peer) peer.destroy();
     });
 
-    log("FINAL VERSION LOADED - Use same channel on both devices", "#39ff14");
+    log("FINAL E2EE VERSION - Use SAME channel + SAME secret on both devices", "#39ff14");
 </script>
 </body>
 </html>
