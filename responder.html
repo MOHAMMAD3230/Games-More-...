@@ -1,666 +1,363 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SAT-COM | Orbital Link</title>
-    <style>
-        :root {
-            --bg-color: #050b14;
-            --panel-bg: rgba(10, 25, 41, 0.85);
-            --primary-color: #00f3ff;
-            --secondary-color: #ff0055;
-            --warning-color: #ffcc00;
-            --text-color: #e0f7ff;
-            --grid-line: rgba(0, 243, 255, 0.1);
-            --font-mono: 'Courier New', Courier, monospace;
-            --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            user-select: none; /* Prevent selection for app-like feel */
-        }
-
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: var(--font-ui);
-            height: 100vh;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            background-image: 
-                radial-gradient(circle at 50% 50%, #0d1b2a 0%, #000 100%);
-        }
-
-        /* --- Background Grid Animation --- */
-        .grid-bg {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 200%;
-            height: 200%;
-            background-image: 
-                linear-gradient(var(--grid-line) 1px, transparent 1px),
-                linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-            background-size: 50px 50px;
-            transform: perspective(500px) rotateX(60deg) translateY(-100px) translateZ(-200px);
-            animation: gridMove 20s linear infinite;
-            z-index: 0;
-            pointer-events: none;
-        }
-
-        @keyframes gridMove {
-            0% { transform: perspective(500px) rotateX(60deg) translateY(0) translateZ(-200px); }
-            100% { transform: perspective(500px) rotateX(60deg) translateY(50px) translateZ(-200px); }
-        }
-
-        /* --- Main Interface Container --- */
-        .device-frame {
-            position: relative;
-            z-index: 10;
-            width: 100%;
-            max-width: 450px;
-            height: 90vh;
-            max-height: 800px;
-            background: var(--panel-bg);
-            border: 2px solid var(--primary-color);
-            border-radius: 20px;
-            box-shadow: 0 0 30px rgba(0, 243, 255, 0.2), inset 0 0 20px rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(10px);
-            display: flex;
-            flex-direction: column;
-            padding: 20px;
-            overflow: hidden;
-        }
-
-        /* --- Header --- */
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--grid-line);
-            padding-bottom: 10px;
-            margin-bottom: 15px;
-        }
-
-        h1 {
-            font-family: var(--font-mono);
-            font-size: 1.2rem;
-            color: var(--primary-color);
-            text-shadow: 0 0 5px var(--primary-color);
-            letter-spacing: 2px;
-        }
-
-        .status-badges {
-            display: flex;
-            gap: 8px;
-        }
-
-        .badge {
-            font-family: var(--font-mono);
-            font-size: 0.7rem;
-            padding: 2px 6px;
-            border: 1px solid var(--primary-color);
-            border-radius: 4px;
-            color: var(--primary-color);
-            text-transform: uppercase;
-        }
-
-        .badge.wifi { color: var(--warning-color); border-color: var(--warning-color); }
-        .badge.sat { color: var(--primary-color); border-color: var(--primary-color); }
-
-        /* --- Visualizer Area (Satellite Map) --- */
-        .visualizer-container {
-            flex: 1;
-            position: relative;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid var(--grid-line);
-            border-radius: 10px;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 20px;
-        }
-
-        #satelliteMap {
-            width: 100%;
-            height: 100%;
-            display: block;
-        }
-
-        /* Overlay UI on map */
-        .map-overlay {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            font-family: var(--font-mono);
-            font-size: 0.7rem;
-            color: rgba(0, 243, 255, 0.7);
-            pointer-events: none;
-        }
-
-        /* --- Log / Messages --- */
-        .log-container {
-            height: 120px;
-            background: rgba(0, 0, 0, 0.5);
-            border: 1px solid var(--grid-line);
-            border-radius: 8px;
-            padding: 10px;
-            overflow-y: auto;
-            font-family: var(--font-mono);
-            font-size: 0.8rem;
-            margin-bottom: 20px;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-        }
-
-        .log-entry {
-            margin-bottom: 4px;
-            opacity: 0.8;
-        }
-        .log-entry.system { color: var(--warning-color); }
-        .log-entry.tx { color: var(--primary-color); }
-        .log-entry.rx { color: #00ff66; }
-
-        /* --- Controls --- */
-        .controls-area {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .ptt-button-wrapper {
-            position: relative;
-            width: 140px;
-            height: 140px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .ptt-button {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            background: radial-gradient(circle, #2a2a2a 0%, #111 100%);
-            border: 4px solid #444;
-            color: #666;
-            font-weight: bold;
-            font-size: 1.2rem;
-            cursor: pointer;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-            transition: all 0.1s ease;
-            outline: none;
-            position: relative;
-            z-index: 2;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-transform: uppercase;
-        }
-
-        .ptt-button span {
-            font-size: 0.7rem;
-            margin-top: 4px;
-            font-family: var(--font-mono);
-        }
-
-        .ptt-button:active, .ptt-button.active {
-            transform: scale(0.95);
-            border-color: var(--secondary-color);
-            box-shadow: 0 0 25px var(--secondary-color);
-            color: white;
-        }
-
-        /* Ripple effect when transmitting */
-        .ripple {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            border: 2px solid var(--secondary-color);
-            opacity: 0;
-            z-index: 1;
-            pointer-events: none;
-        }
-
-        .ptt-button.active .ripple {
-            animation: rippleAnim 1.5s infinite;
-        }
-
-        @keyframes rippleAnim {
-            0% { width: 100%; height: 100%; opacity: 0.8; }
-            100% { width: 200%; height: 200%; opacity: 0; }
-        }
-
-        .info-panel {
-            display: flex;
-            justify-content: space-between;
-            width: 100%;
-            font-family: var(--font-mono);
-            font-size: 0.8rem;
-            color: rgba(255, 255, 255, 0.6);
-            border-top: 1px solid var(--grid-line);
-            padding-top: 10px;
-        }
-
-        .metric {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        .metric strong {
-            color: var(--primary-color);
-            font-size: 1rem;
-        }
-
-        /* --- Toast Notification --- */
-        #toast {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(255, 0, 85, 0.9);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 4px;
-            font-family: var(--font-mono);
-            font-size: 0.9rem;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s;
-            z-index: 100;
-            white-space: nowrap;
-            border: 1px solid white;
-        }
-
-        #toast.show {
-            opacity: 1;
-        }
-
-        /* --- Frequency Bar Animation --- */
-        .freq-bar {
-            width: 100%;
-            height: 4px;
-            background: #333;
-            margin-top: 10px;
-            position: relative;
-            overflow: hidden;
-        }
-        .freq-fill {
-            height: 100%;
-            background: var(--primary-color);
-            width: 0%;
-            transition: width 0.1s linear;
-        }
-    </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>TAC/COM-04 | CH-TUNER</title>
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<style>
+  :root {
+    --amber: #ffb000;
+    --bg: #0d0900;
+    --red: #8c3024;
+    --blue: #00d4ff;
+    --green: #39ff14;
+  }
+  body {
+    background: #050505;
+    color: var(--amber);
+    font-family: 'Courier New', monospace;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    touch-action: manipulation;
+    overflow: hidden;
+  }
+  .mainframe {
+    width: 95%;
+    max-width: 850px;
+    background: #222;
+    border: 6px solid #111;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 60px #000;
+  }
+  @media (min-width: 768px) {
+    .mainframe {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      height: 600px;
+      gap: 20px;
+    }
+  }
+  .monitor {
+    background: var(--bg);
+    border: 10px solid #1a1a1a;
+    border-radius: 15px;
+    padding: 20px;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+  #output {
+    height: 220px;
+    overflow-y: auto;
+    font-size: 0.8rem;
+    scrollbar-width: none;
+    border-bottom: 1px solid #333;
+    margin-bottom: 10px;
+  }
+  .module {
+    background: #111;
+    padding: 12px;
+    border: 1px solid #333;
+    margin-bottom: 10px;
+  }
+  .btn-ptt {
+    width: 100%;
+    height: 140px;
+    background: var(--red);
+    color: white;
+    border: 5px solid #5e1e16;
+    font-weight: bold;
+    font-size: 1.3rem;
+    cursor: pointer;
+    transition: 0.1s;
+  }
+  .btn-ptt:active:not(:disabled) {
+    background: #f00;
+    transform: scale(0.98);
+  }
+  .btn-ptt:disabled {
+    background: #333;
+    opacity: 0.2;
+  }
+  .btn-action {
+    width: 100%;
+    padding: 10px;
+    background: #333;
+    color: #fff;
+    border: 1px solid #555;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 0.7rem;
+  }
+  input {
+    width: 100%;
+    background: #000;
+    border: 1px solid #444;
+    color: var(--amber);
+    padding: 10px;
+    box-sizing: border-box;
+    outline: none;
+    text-align: center;
+    font-size: 1.2rem;
+    letter-spacing: 2px;
+  }
+  .status-led {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #200;
+    display: inline-block;
+  }
+  .online {
+    background: var(--blue);
+    box-shadow: 0 0 10px var(--blue);
+  }
+  .tx {
+    background: #f00;
+    box-shadow: 0 0 10px #f00;
+  }
+  #meter {
+    width: 100%;
+    height: 10px;
+    background: #000;
+    border: 1px solid #333;
+    margin-top: auto;
+  }
+  #meter-fill {
+    width: 0%;
+    height: 100%;
+    background: var(--green);
+    transition: width 0.1s;
+  }
+</style>
 </head>
 <body>
+<div class="mainframe">
+  <audio id="remoteAudio" autoplay playsinline style="display:none;"></audio>
+  <div class="monitor">
+    <div style="font-size: 0.6rem; display:flex; justify-content:space-between; margin-bottom:10px;">
+      <span>FREQ: <span id="curFreq" style="color:var(--blue)">UNSET</span></span>
+      <span>UPLINK: <span id="stat">SCANNING</span></span>
+    </div>
+    <div id="output"><div>> SELECT FREQUENCY CHANNEL TO START...</div></div>
+    <div id="meter"><div id="meter-fill"></div></div>
+  </div>
+  <div class="side-panel">
+    <div class="module">
+      <div style="font-size: 0.6rem; color: #555; margin-bottom: 5px; text-align: center;">SET FREQUENCY (1-99)</div>
+      <input type="number" id="chanInput" value="1" min="1" max="99" />
+      <button class="btn-action" id="bootBtn" onclick="initChannel()" style="margin-top:10px; border-color:var(--green); color:var(--green);">SET CHANNEL</button>
+    </div>
+    <div class="module" style="text-align:center;">
+      <button class="btn-ptt" id="pttBtn" disabled>HOLD TO TALK</button>
+      <div style="margin-top:10px; font-size:0.5rem; display:flex; justify-content:space-around;">
+        <span><div class="status-led" id="ledNet"></div> SYNC</span>
+        <span><div class="status-led" id="ledTx"></div> TRANS</span>
+      </div>
+    </div>
+    <button class="btn-action" onclick="location.reload()" style="background:#200;">RESET SYSTEM</button>
+    <hr style="margin:10px 0; border-color:#555;">
+    <div style="text-align:center;">
+      <div style="margin-bottom:5px;">Enter Peer ID to connect:</div>
+      <input type="text" id="peerIdInput" placeholder="Peer ID" />
+      <button class="btn-action" onclick="connectToPeer()">Connect</button>
+    </div>
+  </div>
+</div>
+<script>
+  let peer, conn, localStream, audioCtx, delayNode, analyser, speakerGain;
 
-    <div class="grid-bg"></div>
+  const APP_PREFIX = "TAC-COM-V1-";
 
-    <div id="toast">Microphone Access Required</div>
+  function log(msg, color="#ffb000") {
+    const div = document.createElement('div');
+    div.innerText = `> ${msg}`; div.style.color = color;
+    const out = document.getElementById('output');
+    out.appendChild(div); out.scrollTop = out.scrollHeight;
+  }
 
-    <main class="device-frame">
-        <header>
-            <h1>SAT-LINK v2.0</h1>
-            <div class="status-badges">
-                <span class="badge wifi" id="netStatus">WiFi/SIM</span>
-                <span class="badge sat" id="satStatus">SAT-OFF</span>
-            </div>
-        </header>
+  // Initialize AudioContext on user gesture
+  let userGesture = false;
+  document.body.addEventListener('click', () => {
+    if (!userGesture) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      userGesture = true;
+    }
+  });
 
-        <section class="visualizer-container">
-            <canvas id="satelliteMap"></canvas>
-            <div class="map-overlay">
-                LAT: <span id="latVal">00.000</span> N<br>
-                LON: <span id="lonVal">00.000</span> E<br>
-                UPLINK: SECURE
-            </div>
-        </section>
+  async function initChannel() {
+    const chanNum = document.getElementById('chanInput').value;
+    const fullId = APP_PREFIX + chanNum;
 
-        <section class="log-container" id="logBox">
-            <div class="log-entry system">> System Boot...</div>
-            <div class="log-entry system">> Initializing WiFi/SIM Data Module...</div>
-            <div class="log-entry system">> Scanning for Satellites...</div>
-        </section>
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia({ 
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
+      });
+      muteMic(true);
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      speakerGain = audioCtx.createGain();
+      speakerGain.gain.value = 1;
+      delayNode = audioCtx.createDelay(5.0);
+      delayNode.delayTime.value = 1.5;
+      analyser = audioCtx.createAnalyser();
 
-        <section class="controls-area">
-            <div class="ptt-button-wrapper">
-                <div class="ripple"></div>
-                <button id="pttBtn" class="ptt-button" aria-label="Push to Talk">
-                    TALK
-                    <span>PUSH</span>
-                </button>
-            </div>
-            
-            <div class="freq-bar">
-                <div class="freq-fill" id="audioLevel"></div>
-            </div>
+      delayNode.connect(analyser);
+      analyser.connect(speakerGain);
+      speakerGain.connect(audioCtx.destination);
 
-            <div class="info-panel">
-                <div class="metric">
-                    <span>LINK</span>
-                    <strong id="linkQuality">0%</strong>
-                </div>
-                <div class="metric">
-                    <span>ENCRYPTION</span>
-                    <strong style="color: #00ff66;">AES-256</strong>
-                </div>
-                <div class="metric">
-                    <span>UPLINK</span>
-                    <strong id="uplinkHz">-- MHz</strong>
-                </div>
-            </div>
-        </section>
-    </main>
+      document.getElementById('bootBtn').disabled = true;
+      document.getElementById('curFreq').innerText = "CH-" + chanNum;
+      updateMeter();
 
-    <script>
-        /* 
-         * SAT-COM LOGIC CONTROLLER 
-         * Handles UI interaction, Canvas Animation, and Simulated Audio Logic
-         */
+      initPeer(fullId);
+      log("TUNING TO CHANNEL " + chanNum + "...", "var(--blue)");
+    } catch(e) { log("HARDWARE ERROR", "red"); }
+  }
 
-        // --- DOM Elements ---
-        const pttBtn = document.getElementById('pttBtn');
-        const logBox = document.getElementById('logBox');
-        const netStatus = document.getElementById('netStatus');
-        const satStatus = document.getElementById('satStatus');
-        const audioLevelBar = document.getElementById('audioLevel');
-        const canvas = document.getElementById('satelliteMap');
-        const ctx = canvas.getContext('2d');
-        const toast = document.getElementById('toast');
-        const linkQualityEl = document.getElementById('linkQuality');
-        const uplinkHzEl = document.getElementById('uplinkHz');
-        const latVal = document.getElementById('latVal');
-        const lonVal = document.getElementById('lonVal');
+  function initPeer(myId) {
+    peer = new Peer(myId, {
+      config: {
+        'iceServers': [
+          { 'urls': 'stun:stun.l.google.com:19302' },
+          // Optional TURN server
+          // {
+          //   'urls': 'turn:YOUR_TURN_SERVER:3478',
+          //   'username': 'YOUR_USERNAME',
+          //   'credential': 'YOUR_CREDENTIAL'
+          // }
+        ]
+      }
+    });
+    peer.on('open', id => {
+      log("CHANNEL ACTIVE. LISTENING FOR PEERS...", "var(--green)");
+      alert("Share this ID with your friend: " + id);
+    });
+    peer.on('connection', c => {
+      conn = c; setupHandlers();
+      log("Connection established");
+    });
+    peer.on('call', call => {
+      call.answer(localStream);
+      call.on('stream', stream => attachStream(stream));
+    });
+    peer.on('error', (err) => {
+      if(err.type === 'unavailable-id') {
+        log("CHANNEL BUSY. ATTEMPTING HANDSHAKE...", "var(--amber)");
+        peer.destroy();
+        // Prompt for peer ID to connect
+        const targetId = prompt("Peer ID busy. Enter the peer ID to connect:");
+        if(targetId) initCallerMode(targetId);
+      } else {
+        log(`Error: ${err.message}`);
+      }
+    });
+  }
 
-        // --- State Variables ---
-        let isTransmitting = false;
-        let isConnected = false;
-        let animationFrameId;
-        let satellites = [];
-        let audioContext = null;
-        let analyser = null;
-        let microphone = null;
-        let dataArray = null;
+  function connectToPeer() {
+    const peerId = document.getElementById('peerIdInput').value.trim();
+    if(peerId) {
+      initCallerMode(peerId);
+    } else {
+      alert("Please enter a valid Peer ID");
+    }
+  }
 
-        // --- Initialization ---
-        function init() {
-            resizeCanvas();
-            window.addEventListener('resize', resizeCanvas);
-            
-            // Generate random satellites
-            for(let i=0; i<5; i++) {
-                satellites.push({
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height,
-                    angle: Math.random() * Math.PI * 2,
-                    speed: 0.2 + Math.random() * 0.5,
-                    dist: 50 + Math.random() * 100,
-                    id: `SAT-${100 + i}`
-                });
-            }
+  function initCallerMode(targetId) {
+    peer = new Peer();
+    peer.on('open', () => {
+      log("HANDSHAKE INITIATED...");
+      conn = peer.connect(targetId);
+      conn.on('open', () => {
+        const call = peer.call(targetId, localStream);
+        call.on('stream', stream => attachStream(stream));
+        setupHandlers();
+      });
+    });
+  }
 
-            // Start Animation Loop
-            animate();
+  function attachStream(stream) {
+    const audioEl = document.getElementById('remoteAudio');
+    audioEl.srcObject = stream;
+    const source = audioCtx.createMediaStreamSource(stream);
+    source.connect(delayNode);
+    log("REMOTE SYNC SUCCESSFUL.");
+  }
 
-            // Simulate Connection Delay
-            setTimeout(() => {
-                isConnected = true;
-                netStatus.innerText = navigator.onLine ? "WIFI/SIM: ON" : "OFFLINE";
-                satStatus.innerText = "SAT-4 LINKED";
-                satStatus.style.color = "#00f3ff";
-                satStatus.style.borderColor = "#00f3ff";
-                addLog("> Connection Established via WiFi/SIM Gateway.", "system");
-                addLog(`> Locked on ${satellites[0].id}`, "system");
-                updateMetrics(true);
-            }, 2000);
+  function setupHandlers() {
+    conn.on('open', () => {
+      document.getElementById('ledNet').classList.add('online');
+      document.getElementById('pttBtn').disabled = false;
+      document.getElementById('stat').innerText = "SYNCED";
+      log("VOICE LINK ESTABLISHED.", "var(--green)");
+    });
+    conn.on('data', data => {
+      if(data === 'TX_ON') {
+        document.getElementById('ledTx').classList.add('tx');
+      }
+      if(data === 'TX_OFF') {
+        document.getElementById('ledTx').classList.remove('tx');
+        setTimeout(() => playBeep(450, 0.2), 1500);
+      }
+    });
+    peer.on('error', err => {
+      log("Peer error: " + err.message);
+    });
+  }
 
-            // Check Online Status
-            window.addEventListener('online', () => netStatus.innerText = "WIFI/SIM: ON");
-            window.addEventListener('offline', () => netStatus.innerText = "NO SIGNAL");
-        }
+  function muteMic(shouldMute) {
+    if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = !shouldMute);
+    if (speakerGain) speakerGain.gain.setValueAtTime(shouldMute ? 1 : 0, audioCtx.currentTime);
+  }
 
-        // --- Visualizer / Satellite Map Logic ---
-        function resizeCanvas() {
-            canvas.width = canvas.parentElement.offsetWidth;
-            canvas.height = canvas.parentElement.offsetHeight;
-        }
+  function updateMeter() {
+    if(!analyser) return;
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(dataArray);
+    let sum = dataArray.reduce((a, b) => a + b, 0);
+    document.getElementById('meter-fill').style.width = Math.min(100, (sum/dataArray.length)*4) + "%";
+    requestAnimationFrame(updateMeter);
+  }
 
-        function animate() {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)'; // Trail effect
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+  function playBeep(f, d) {
+    if(!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.frequency.value = f; g.gain.value = 0.05;
+    osc.connect(g); g.connect(audioCtx.destination);
+    osc.start();
+    g.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + d);
+    osc.stop(audioCtx.currentTime + d);
+  }
 
-            const centerX = canvas.width / 2;
-            const centerY = canvas.height / 2;
+  const ptt = document.getElementById('pttBtn');
+  const pttOn = () => {
+    if(!conn || ptt.disabled) return;
+    muteMic(false); 
+    conn.send('TX_ON'); 
+    document.getElementById('ledTx').classList.add('tx'); 
+    playBeep(1200, 0.05);
+  };
+  const pttOff = () => {
+    if(!conn || ptt.disabled) return;
+    muteMic(true);
+    conn.send('TX_OFF');
+    document.getElementById('ledTx').classList.remove('tx');
+    playBeep(450, 0.2);
+  };
 
-            // Draw Center Station (User)
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, 6, 0, Math.PI * 2);
-            ctx.fillStyle = isTransmitting ? '#ff0055' : '#00f3ff';
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = ctx.fillStyle;
-            ctx.fill();
-            ctx.shadowBlur = 0;
-
-            // Draw Satellites
-            satellites.forEach(sat => {
-                // Update position
-                sat.angle += sat.speed * 0.01;
-                sat.x = centerX + Math.cos(sat.angle) * sat.dist;
-                sat.y = centerY + Math.sin(sat.angle) * sat.dist;
-
-                // Draw Line
-                ctx.beginPath();
-                ctx.moveTo(centerX, centerY);
-                ctx.lineTo(sat.x, sat.y);
-                ctx.strokeStyle = isConnected ? 'rgba(0, 243, 255, 0.2)' : 'rgba(255, 0, 0, 0.1)';
-                ctx.stroke();
-
-                // Draw Sat Body
-                ctx.beginPath();
-                ctx.arc(sat.x, sat.y, 4, 0, Math.PI * 2);
-                ctx.fillStyle = '#fff';
-                ctx.fill();
-
-                // Draw ID
-                ctx.fillStyle = 'rgba(255,255,255,0.5)';
-                ctx.font = '10px monospace';
-                ctx.fillText(sat.id, sat.x + 8, sat.y + 3);
-            });
-
-            // Simulate Audio Waveform if transmitting
-            if (isTransmitting && analyser) {
-                analyser.getByteTimeDomainData(dataArray);
-                
-                ctx.lineWidth = 2;
-                ctx.strokeStyle = '#ff0055';
-                ctx.beginPath();
-
-                const sliceWidth = canvas.width * 1.0 / dataArray.length;
-                let x = 0;
-
-                for(let i = 0; i < dataArray.length; i++) {
-                    const v = dataArray[i] / 128.0;
-                    const y = v * canvas.height / 2; // Center the wave
-
-                    if(i === 0) ctx.moveTo(x, y);
-                    else ctx.lineTo(x, y);
-
-                    x += sliceWidth;
-                }
-
-                ctx.stroke();
-                
-                // Update Frequency Bar based on volume
-                let sum = 0;
-                for(let i = 0; i < dataArray.length; i++) {
-                    sum += Math.abs(dataArray[i] - 128);
-                }
-                const average = sum / dataArray.length;
-                const percentage = Math.min(100, (average / 50) * 100);
-                audioLevelBar.style.width = `${percentage}%`;
-            } else {
-                audioLevelBar.style.width = '0%';
-            }
-
-            // Random Coordinate Update
-            if(Math.random() > 0.95) {
-                latVal.innerText = (Math.random() * 90).toFixed(3);
-                lonVal.innerText = (Math.random() * 180).toFixed(3);
-            }
-
-            requestAnimationFrame(animate);
-        }
-
-        // --- Audio & PTT Logic ---
-
-        async function startAudio() {
-            if (!audioContext) {
-                try {
-                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    microphone = audioContext.createMediaStreamSource(stream);
-                    analyser = audioContext.createAnalyser();
-                    analyser.fftSize = 256;
-                    microphone.connect(analyser);
-                    dataArray = new Uint8Array(analyser.frequencyBinCount);
-                } catch (err) {
-                    showToast("Mic Access Denied or Not Available");
-                    console.error(err);
-                    return false;
-                }
-            }
-            if (audioContext.state === 'suspended') {
-                await audioContext.resume();
-            }
-            return true;
-        }
-
-        pttBtn.addEventListener('mousedown', async (e) => {
-            e.preventDefault(); // Prevent text selection
-            if (!isConnected) {
-                showToast("No Satellite Link!");
-                return;
-            }
-            if (isTransmitting) return;
-
-            const audioReady = await startAudio();
-            if(!audioReady) return;
-
-            isTransmitting = true;
-            pttBtn.classList.add('active');
-            addLog("> TX STARTED...", "tx");
-            satStatus.innerText = "TRANSMITTING";
-            satStatus.style.color = "#ff0055";
-            satStatus.style.borderColor = "#ff0055";
-        });
-
-        const stopTransmission = () => {
-            if (!isTransmitting) return;
-            isTransmitting = false;
-            pttBtn.classList.remove('active');
-            addLog("> TX ENDED.", "tx");
-            
-            // Revert status
-            satStatus.innerText = "SAT-4 LINKED";
-            satStatus.style.color = "#00f3ff";
-            satStatus.style.borderColor = "#00f3ff";
-            
-            // Simulate incoming response after a delay
-            setTimeout(() => {
-                if(Math.random() > 0.5) {
-                    addLog(`> RX: Signal received from ${satellites[1].id}`, "rx");
-                    simulateIncomingVoice();
-                }
-            }, 1500);
-        };
-
-        pttBtn.addEventListener('mouseup', stopTransmission);
-        pttBtn.addEventListener('mouseleave', stopTransmission);
-
-        // Touch support for mobile
-        pttBtn.addEventListener('touchstart', async (e) => {
-            e.preventDefault();
-            if (!isConnected) return;
-            if (isTransmitting) return;
-            const audioReady = await startAudio();
-            if(!audioReady) return;
-            isTransmitting = true;
-            pttBtn.classList.add('active');
-            addLog("> TX STARTED...", "tx");
-            satStatus.innerText = "TRANSMITTING";
-            satStatus.style.color = "#ff0055";
-        });
-        
-        pttBtn.addEventListener('touchend', stopTransmission);
-
-        // --- Helper Functions ---
-
-        function addLog(msg, type) {
-            const div = document.createElement('div');
-            div.className = `log-entry ${type}`;
-            div.innerText = msg;
-            logBox.appendChild(div);
-            logBox.scrollTop = logBox.scrollHeight;
-        }
-
-        function showToast(msg) {
-            toast.innerText = msg;
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 3000);
-        }
-
-        function updateMetrics(active) {
-            if(active) {
-                // Fluctuating Link Quality
-                setInterval(() => {
-                    if(!isTransmitting) {
-                        const quality = 85 + Math.floor(Math.random() * 15);
-                        linkQualityEl.innerText = `${quality}%`;
-                        const freq = 1620 + Math.floor(Math.random() * 5);
-                        uplinkHzEl.innerText = `${freq}.000 MHz`;
-                    }
-                }, 2000);
-            }
-        }
-
-        function simulateIncomingVoice() {
-            satStatus.innerText = "RECEIVING...";
-            satStatus.style.color = "#00ff66";
-            satStatus.style.borderColor = "#00ff66";
-            
-            let duration = 0;
-            const interval = setInterval(() => {
-                duration += 100;
-                audioLevelBar.style.width = `${Math.random() * 80}%`;
-                if (duration > 2000) {
-                    clearInterval(interval);
-                    audioLevelBar.style.width = '0%';
-                    satStatus.innerText = "SAT-4 LINKED";
-                    satStatus.style.color = "#00f3ff";
-                    satStatus.style.borderColor = "#00f3ff";
-                }
-            }, 100);
-        }
-
-        // Run Init
-        init();
-
-    </script>
+  ptt.onmousedown = pttOn;
+  ptt.onmouseup = pttOff;
+  ptt.addEventListener('touchstart', (e) => { e.preventDefault(); pttOn(); });
+  ptt.addEventListener('touchend', (e) => { e.preventDefault(); pttOff(); });
+</script>
 </body>
 </html>
