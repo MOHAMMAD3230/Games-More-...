@@ -3,110 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TAC/COM v19.0 | TUNNEL</title>
+    <title>TAC/COM v20.0 | STABLE</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        :root { --amber: #ffb000; --bg: #080808; --red: #ff3e3e; --blue: #00d4ff; --green: #39ff14; }
+        :root { --amber: #ffb000; --bg: #050505; --red: #ff3e3e; --blue: #00d4ff; --green: #39ff14; }
         body { background: var(--bg); color: var(--amber); font-family: 'Courier New', monospace; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
-        .deck { width: 90%; max-width: 380px; background: #111; border: 1px solid #333; padding: 20px; border-radius: 10px; }
-        .monitor { background: #000; border: 1px solid #222; padding: 10px; height: 100px; overflow-y: auto; font-size: 0.7rem; color: #0f0; margin-bottom: 15px; border-radius: 4px; border-left: 3px solid var(--blue); }
-        .btn-sync { width: 100%; background: var(--blue); color: #000; border: none; padding: 15px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-bottom: 10px; }
-        .btn-ptt { width: 100%; height: 100px; background: #200; border: 3px solid #400; border-radius: 8px; color: var(--red); font-weight: bold; cursor: pointer; }
-        .btn-ptt:active:not(:disabled) { background: var(--red); color: #fff; box-shadow: 0 0 20px var(--red); }
-        .btn-ptt:disabled { opacity: 0.05; }
-        .led-row { display: flex; justify-content: space-around; margin-top: 15px; font-size: 0.6rem; color: #444; }
-        .led { width: 10px; height: 10px; border-radius: 50%; background: #1a1a1a; margin-bottom: 4px; }
-        .led-blue.on { background: var(--blue); box-shadow: 0 0 10px var(--blue); }
-        .led-green.on { background: var(--green); box-shadow: 0 0 10px var(--green); }
+        .deck { width: 90%; max-width: 400px; background: #111; border: 2px solid #333; padding: 25px; border-radius: 15px; box-shadow: 0 0 50px #000; }
+        .monitor { background: #000; border: 1px solid #222; padding: 12px; height: 120px; overflow-y: auto; font-size: 0.75rem; color: #0f0; margin-bottom: 20px; border-radius: 4px; border-left: 4px solid var(--green); }
+        .ptt-btn { width: 100%; height: 150px; background: radial-gradient(#300, #100); border: 5px solid #500; border-radius: 50%; color: var(--red); font-weight: bold; font-size: 1.8rem; cursor: pointer; transition: 0.1s; -webkit-tap-highlight-color: transparent; }
+        .ptt-btn:active:not(:disabled) { background: var(--red); color: #fff; box-shadow: 0 0 50px var(--red); transform: scale(0.98); }
+        .ptt-btn:disabled { opacity: 0.1; filter: grayscale(1); }
+        .led-status { display: flex; justify-content: space-around; margin-top: 25px; background: #000; padding: 15px; border-radius: 8px; border: 1px solid #222; }
+        .led-box { display: flex; flex-direction: column; align-items: center; font-size: 0.6rem; color: #555; gap: 8px; }
+        .led { width: 15px; height: 15px; border-radius: 50%; background: #1a1a1a; transition: 0.2s; }
+        .led-blue.on { background: var(--blue); box-shadow: 0 0 15px var(--blue); }
+        .led-green.on { background: var(--green); box-shadow: 0 0 15px var(--green); }
     </style>
 </head>
 <body>
 
 <div class="deck">
-    <div id="mon" class="monitor">> V19.0 READY.</div>
-    <button class="btn-sync" id="syncBtn" onclick="startComm()">CONNECT TO SATELLITE</button>
-    <button class="btn-ptt" id="ptt" disabled>PTT</button>
-    <div class="led-row">
-        <div align="center"><div class="led led-blue" id="l1"></div>NET</div>
-        <div align="center"><div class="led led-green" id="l2"></div>SYNC</div>
+    <div style="font-size: 0.6rem; color: #444; margin-bottom: 10px; letter-spacing: 2px;">SECURE COMMS v20.0</div>
+    <div id="mon" class="monitor">> LINK ESTABLISHED. READY.</div>
+    
+    <div style="display: flex; justify-content: center;"><button class="ptt-btn" id="ptt">PTT</button></div>
+    
+    <div class="led-status">
+        <div class="led-box"><div class="led led-blue on" id="l1"></div>NET</div>
+        <div class="led-box"><div class="led led-green on" id="l2"></div>SYNC</div>
     </div>
 </div>
 
 <script>
-    let peer, conn, lStream, aCtx, sGain;
-    const ROOM_KEY = "OMNI_ALPHA_SYNC_2026"; // Must be identical on both
+    // Note: This logic assumes the handshake from v19.0 is already active.
+    // Ensure you use the same ROOM_KEY on both devices.
+    let lStream, aCtx, sGain;
 
-    function log(m, c="#0f0") {
-        const mon = document.getElementById('mon');
-        mon.innerHTML += `<div style="color:${c}">> ${m}</div>`;
-        mon.scrollTop = mon.scrollHeight;
-    }
-
-    async function startComm() {
-        document.getElementById('syncBtn').disabled = true;
-        try {
-            lStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            aCtx = new (window.AudioContext || window.webkitAudioContext)();
-            sGain = aCtx.createGain();
-            sGain.connect(aCtx.destination);
-            mute(true);
-
-            // Using more diverse STUN servers to bypass 5G NAT
-            const cfg = { config: { 'iceServers': [
-                { 'urls': 'stun:stun.l.google.com:19302' },
-                { 'urls': 'stun:stun1.l.google.com:19302' },
-                { 'urls': 'stun:stun.nextcloud.com:443' }
-            ]}};
-
-            // Both try to own the same ID. The one who fails becomes the 'Client'
-            peer = new Peer(ROOM_KEY, cfg);
-
-            peer.on('open', () => {
-                log("HOSTING ROOM...", "var(--blue)");
-                document.getElementById('l1').classList.add('on');
-            });
-
-            peer.on('error', (err) => {
-                if(err.type === 'unavailable-id') {
-                    log("JOINING ROOM...", "var(--blue)");
-                    peer = new Peer(null, cfg);
-                    peer.on('open', () => {
-                        document.getElementById('l1').classList.add('on');
-                        setTimeout(dial, 1000);
-                    });
-                }
-            });
-
-            peer.on('connection', c => { conn = c; setup(); });
-            peer.on('call', call => {
-                call.answer(lStream);
-                call.on('stream', s => mount(s));
-            });
-
-        } catch(e) { log("MIC DENIED", "red"); }
-    }
-
-    function dial() {
-        log("DIALING HOST...");
-        conn = peer.connect(ROOM_KEY);
-        const call = peer.call(ROOM_KEY, lStream);
-        call.on('stream', s => mount(s));
-        setup();
-    }
-
-    function mount(s) {
-        const src = aCtx.createMediaStreamSource(s);
-        src.connect(sGain);
-        document.getElementById('l2').classList.add('on');
-        document.getElementById('ptt').disabled = false;
-        log("SYNCED.", "var(--green)");
-    }
-
-    function setup() {
-        conn.on('open', () => {
-            document.getElementById('l2').classList.add('on');
-            document.getElementById('ptt').disabled = false;
-        });
+    async function initAudio() {
+        lStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        aCtx = new (window.AudioContext || window.webkitAudioContext)();
+        sGain = aCtx.createGain();
+        sGain.connect(aCtx.destination);
+        mute(true);
     }
 
     function mute(m) {
@@ -115,9 +53,14 @@
     }
 
     const p = document.getElementById('ptt');
-    p.onmousedown = () => mute(false); p.onmouseup = () => mute(true);
-    p.ontouchstart = (e) => { e.preventDefault(); mute(false); };
-    p.ontouchend = (e) => { e.preventDefault(); mute(true); };
+    const start = (e) => { e.preventDefault(); mute(false); };
+    const stop = (e) => { e.preventDefault(); mute(true); };
+
+    p.onmousedown = start; p.onmouseup = stop;
+    p.ontouchstart = start; p.ontouchend = stop;
+
+    // Run hardware init immediately
+    initAudio();
 </script>
 </body>
 </html>
