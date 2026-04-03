@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SAT-LINK | TEXT-ONLY RELAY</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root { --amber: #ffb000; --bg: #080808; --blue: #00d4ff; --green: #39ff14; --red: #ff3e3e; }
+        
+        * { box-sizing: border-box; }
+        body { 
+            background: #000; 
+            color: var(--amber); 
+            font-family: 'Courier New', monospace; 
+            margin: 0; 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column;
+        }
+
+        /* --- Header & Status --- */
+        .top-bar { 
+            background: #111; 
+            padding: 10px 15px; 
+            border-bottom: 2px solid #222;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+        }
+
+        /* --- Terminal Output --- */
+        #console { 
+            flex: 1; 
+            padding: 20px; 
+            overflow-y: auto; 
+            background: var(--bg);
+            scrollbar-width: none;
+        }
+        .entry { margin-bottom: 8px; line-height: 1.2; font-size: 0.9rem; }
+        .ts { color: #555; margin-right: 10px; }
+        .sys { color: #888; font-style: italic; }
+        .local { color: var(--green); }
+        .remote { color: var(--blue); font-weight: bold; }
+
+        /* --- Input Area --- */
+        .footer { 
+            background: #111; 
+            padding: 15px; 
+            border-top: 2px solid #222;
+        }
+        .config-zone { display: flex; gap: 10px; margin-bottom: 10px; }
+        .chat-zone { display: flex; gap: 10px; }
+
+        input { 
+            background: #000; 
+            border: 1px solid #333; 
+            color: var(--amber); 
+            padding: 12px; 
+            outline: none;
+            font-family: inherit;
+        }
+        #chanInput { width: 80px; text-align: center; }
+        #msgInput { flex: 1; }
+
+        button { 
+            background: #222; 
+            color: var(--amber); 
+            border: 1px solid var(--amber); 
+            padding: 10px 20px; 
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        button:active { background: var(--amber); color: #000; }
+        button:disabled { border-color: #333; color: #333; cursor: not-allowed; }
+
+        .led { width: 8px; height: 8px; border-radius: 50%; display: inline-block; background: #300; margin-right: 5px; }
+        .active-led { background: var(--green); box-shadow: 0 0 8px var(--green); }
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <span>RELAY_MODE: <b style="color:var(--blue)">TEXT_ONLY</b></span>
+    <span><div class="led" id="statusLed"></div> STATUS: <span id="statText">OFFLINE</span></span>
+</div>
+
+<div id="console">
+    <div class="entry sys">> SYSTEM READY. ENTER FREQUENCY (1-99) TO INITIALIZE UPLINK.</div>
+</div>
+
+<div class="footer">
+    <div class="config-zone" id="setup">
+        <input type="number" id="chanInput" placeholder="CH" min="1" max="99">
+        <button onclick="initLink()">Initialize Link</button>
+    </div>
+
+    <div class="chat-zone" id="comms" style="display:none;">
+        <input type="text" id="msgInput" placeholder="Enter coordinates or message..." onkeypress="checkEnter(event)">
+        <button onclick="sendMsg()">Transmit</button>
+    </div>
+</div>
+
+<script>
+    let peer, conn;
+    const PREFIX = "SAT-CHAT-V3-";
+
+    function log(msg, className="sys") {
+        const consoleEl = document.getElementById('console');
+        const div = document.createElement('div');
+        div.className = `entry ${className}`;
+        
+        const time = new Date().toLocaleTimeString([], {hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit'});
+        div.innerHTML = `<span class="ts">[${time}]</span> ${msg}`;
+        
+        consoleEl.appendChild(div);
+        consoleEl.scrollTop = consoleEl.scrollHeight;
+    }
+
+    function initLink() {
+        const chan = document.getElementById('chanInput').value;
+        if(!chan) return;
+
+        const myId = PREFIX + chan;
+        log(`TUNING TO CHANNEL ${chan}...`);
+
+        peer = new Peer(myId, {
+            config: { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] }
+        });
+
+        peer.on('open', id => {
+            log(`BROADCASTING ON CHANNEL ${chan}. AWAITING PEER...`);
+            document.getElementById('statText').innerText = "LISTENING";
+        });
+
+        // Handle incoming connection (Person B connecting to Person A)
+        peer.on('connection', c => {
+            conn = c;
+            bindEvents();
+        });
+
+        // Handle busy channel (Person B joining Person A)
+        peer.on('error', err => {
+            if(err.type === 'unavailable-id') {
+                log("CHANNEL OCCUPIED. ATTEMPTING TO JOIN RELAY...");
+                peer.destroy();
+                joinLink(myId);
+            } else {
+                log(`ERROR: ${err.type}`, "remote");
+            }
+        });
+    }
+
+    function joinLink(targetId) {
+        peer = new Peer(); // Random ID for the joiner
+        peer.on('open', () => {
+            conn = peer.connect(targetId);
+            bindEvents();
+        });
+    }
+
+    function bindEvents() {
+        conn.on('open', () => {
+            log("UPLINK ESTABLISHED. ENCRYPTION ACTIVE.", "local");
+            document.getElementById('statusLed').classList.add('active-led');
+            document.getElementById('statText').innerText = "CONNECTED";
+            document.getElementById('setup').style.display = "none";
+            document.getElementById('comms').style.display = "flex";
+        });
+
+        conn.on('data', data => {
+            log(`REMOTE << ${data}`, "remote");
+            playBeep();
+        });
+
+        conn.on('close', () => {
+            log("LINK SEVERED. CONNECTION LOST.", "remote");
+            location.reload();
+        });
+    }
+
+    function sendMsg() {
+        const input = document.getElementById('msgInput');
+        const val = input.value;
+        if(!val || !conn) return;
+
+        conn.send(val);
+        log(`LOCAL >> ${val}`, "local");
+        input.value = '';
+    }
+
+    function checkEnter(e) {
+        if(e.key === 'Enter') sendMsg();
+    }
+
+    // Audio Feedback (Tactical "Ping")
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playBeep() {
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = 'square';
+        osc.frequency.value = 800;
+        g.gain.value = 0.02;
+        osc.connect(g);
+        g.connect(audioCtx.destination);
+        osc.start();
+        g.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.1);
+        osc.stop(audioCtx.currentTime + 0.1);
+    }
+</script>
+</body>
+</html>
