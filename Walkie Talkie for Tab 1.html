@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TAC/COM-04 | FIXED AUDIO RELAY</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            --crt-amber: #ffb000;
+            --crt-bg: #0d0900;
+            --main-red: #8c3024;
+            --led-blue: #00d4ff;
+        }
+
+        body {
+            background-color: #050505;
+            color: var(--crt-amber);
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .mainframe {
+            width: 900px;
+            height: 600px;
+            background: #222;
+            border: 10px solid #111;
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            padding: 20px;
+            box-shadow: 0 0 50px #000;
+        }
+
+        .monitor {
+            background: var(--crt-bg);
+            border: 15px solid #1a1a1a;
+            border-radius: 20px;
+            padding: 20px;
+            position: relative;
+            box-shadow: inset 0 0 30px #000;
+        }
+
+        #output {
+            height: 300px;
+            overflow-y: auto;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            scrollbar-width: none;
+        }
+
+        .module {
+            background: #111;
+            padding: 15px;
+            border: 1px solid #333;
+            margin-bottom: 10px;
+        }
+
+        .btn-ptt {
+            width: 100%;
+            height: 80px;
+            background: var(--main-red);
+            color: white;
+            border: 4px solid #5e1e16;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .btn-ptt:active:not(:disabled) { background: #f00; }
+        .btn-ptt:disabled { background: #333; opacity: 0.3; }
+
+        .btn-action {
+            width: 100%; padding: 10px; background: #444; color: #fff; border: none; cursor: pointer; margin-top: 5px;
+        }
+
+        input {
+            width: 100%; background: #000; border: 1px solid #444;
+            color: var(--crt-amber); padding: 5px; box-sizing: border-box;
+        }
+
+        .status-led { width: 8px; height: 8px; border-radius: 50%; background: #200; display: inline-block; }
+        .online { background: var(--led-blue); box-shadow: 0 0 8px var(--led-blue); }
+        .tx { background: #f00; box-shadow: 0 0 8px #f00; }
+        
+        #meter { width: 100%; height: 10px; background: #111; margin-top: 10px; position: relative; border: 1px solid #333; }
+        #meter-fill { width: 0%; height: 100%; background: var(--crt-amber); transition: width 0.1s; }
+    </style>
+</head>
+<body>
+
+<div class="mainframe">
+    <div class="monitor">
+        <div style="font-size: 0.7rem; border-bottom: 1px solid #333; margin-bottom: 10px; display:flex; justify-content:space-between;">
+            <span>LINK-ID: <span id="myId">----</span></span>
+            <span>LATENCY: <span id="latDisp">1500ms</span></span>
+        </div>
+        <div id="output">
+            <div>> SYSTEM STANDBY.</div>
+            <div style="color: red;">> ATTENTION: CLICK "START AUDIO ENGINE" TO ENABLE SPEAKERS.</div>
+        </div>
+        <div id="meter"><div id="meter-fill"></div></div>
+        <div style="font-size: 0.5rem; margin-top: 2px;">INCOMING SIGNAL STRENGTH</div>
+    </div>
+
+    <div class="side-panel" style="padding-left: 20px;">
+        <div class="module">
+            <button class="btn-action" style="background: #225522;" onclick="unlockAudio()">START AUDIO ENGINE</button>
+        </div>
+
+        <div class="module">
+            <label style="font-size:0.6rem">UPLINK ADDRESS</label>
+            <input type="text" id="targetId" placeholder="Paste Peer ID...">
+            <button class="btn-action" onclick="startUplink()">CONNECT LINK</button>
+        </div>
+
+        <div class="module">
+            <button class="btn-ptt" id="pttBtn" disabled>PUSH TO TALK</button>
+            <div style="margin-top:10px; font-size:0.6rem; display:flex; justify-content:space-around;">
+                <span><div class="status-led" id="ledNet"></div> NET</span>
+                <span><div class="status-led" id="ledTx"></div> TRANS</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let peer, conn, localStream, audioCtx, delayNode, analyser;
+    
+    function log(msg, color="#ffb000") {
+        const div = document.createElement('div');
+        div.innerText = msg; div.style.color = color;
+        document.getElementById('output').appendChild(div);
+        document.getElementById('output').scrollTop = document.getElementById('output').scrollHeight;
+    }
+
+    // CRITICAL: Unlock AudioContext on User Gesture
+    async function unlockAudio() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            delayNode = audioCtx.createDelay(5.0);
+            delayNode.delayTime.value = 1.5; // 1.5s Satellite Latency
+            
+            analyser = audioCtx.createAnalyser();
+            delayNode.connect(analyser);
+            analyser.connect(audioCtx.destination);
+            
+            updateMeter();
+            log("> AUDIO ENGINE ONLINE. DELAY BUFFER: 1500ms", "#00d4ff");
+            
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                log("> MIC ACCESS GRANTED.");
+                initPeer();
+            } catch(e) {
+                log("> ERR: MIC BLOCKED.", "red");
+            }
+        }
+    }
+
+    function initPeer() {
+        peer = new Peer();
+        peer.on('open', id => { 
+            document.getElementById('myId').innerText = id; 
+            log("> ASSIGNED ID: " + id);
+        });
+
+        // Receiving a Call (Audio)
+        peer.on('call', call => {
+            log("> INCOMING VOICE CALL...");
+            call.answer(localStream);
+            call.on('stream', remoteStream => {
+                const source = audioCtx.createMediaStreamSource(remoteStream);
+                source.connect(delayNode);
+                log("> SIGNAL LOCKED. AUDIO PLAYING THROUGH DELAY.");
+            });
+        });
+
+        peer.on('connection', c => { conn = c; setupDataHandlers(); });
+    }
+
+    function startUplink() {
+        const tid = document.getElementById('targetId').value;
+        if(!tid) return;
+        
+        conn = peer.connect(tid);
+        const call = peer.call(tid, localStream);
+        
+        call.on('stream', remoteStream => {
+            const source = audioCtx.createMediaStreamSource(remoteStream);
+            source.connect(delayNode);
+        });
+        
+        setupDataHandlers();
+    }
+
+    function setupDataHandlers() {
+        conn.on('open', () => {
+            document.getElementById('ledNet').classList.add('online');
+            document.getElementById('pttBtn').disabled = false;
+            log("> LINK ESTABLISHED.", "#00d4ff");
+        });
+        conn.on('data', data => {
+            if(data === 'TX_ON') document.getElementById('ledTx').classList.add('tx');
+            if(data === 'TX_OFF') {
+                document.getElementById('ledTx').classList.remove('tx');
+                playBeep(450, 0.3); // Incoming Roger Beep
+            }
+        });
+    }
+
+    function updateMeter() {
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for(let i=0; i<dataArray.length; i++) sum += dataArray[i];
+        let average = sum / dataArray.length;
+        document.getElementById('meter-fill').style.width = Math.min(100, average * 2) + "%";
+        requestAnimationFrame(updateMeter);
+    }
+
+    function playBeep(f, d) {
+        if(!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.frequency.value = f;
+        g.gain.value = 0.1;
+        osc.connect(g); g.connect(audioCtx.destination);
+        osc.start();
+        g.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + d);
+        osc.stop(audioCtx.currentTime + d);
+    }
+
+    const ptt = document.getElementById('pttBtn');
+    ptt.onmousedown = () => {
+        if(!conn) return;
+        conn.send('TX_ON');
+        document.getElementById('ledTx').classList.add('tx');
+        playBeep(1200, 0.05);
+    };
+    ptt.onmouseup = () => {
+        if(!conn) return;
+        conn.send('TX_OFF');
+        document.getElementById('ledTx').classList.remove('tx');
+        playBeep(450, 0.25);
+    };
+</script>
+
+</body>
+</html>
