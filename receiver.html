@@ -3,98 +3,61 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAC/COM-P2P CHAT</title>
+<title>TAC/COM-P2P CHAT FIXED</title>
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <style>
-:root {
-  --amber:#ffb000; --bg:#050505; --red:#8c3024; --blue:#00d4ff; --green:#39ff14;
-}
-body {
-  background:#050505; color:var(--amber); font-family:monospace;
-  display:flex; justify-content:center; align-items:center; min-height:100vh; margin:0;
-}
-.mainframe { width:95%; max-width:850px; background:#222; border:6px solid #111; padding:15px; display:flex; flex-direction:column; }
-.monitor { background:var(--bg); border:10px solid #1a1a1a; border-radius:15px; padding:20px; flex-grow:1; display:flex; flex-direction:column; }
-#output { height:200px; overflow-y:auto; font-size:0.8rem; border-bottom:1px solid #333; margin-bottom:10px; }
-.module { background:#111; padding:12px; border:1px solid #333; margin-bottom:10px; }
-input { width:100%; background:#000; border:1px solid #444; color:var(--amber); padding:10px; outline:none; text-align:center; font-size:1.2rem; }
-button { width:100%; padding:10px; font-weight:bold; cursor:pointer; background:#333; color:#fff; border:1px solid #555; }
-.pttBtn { background:var(--red); color:#fff; border:5px solid #5e1e16; height:140px; font-size:1.3rem; font-weight:bold; cursor:pointer; }
-.pttBtn:active:not(:disabled) { background:#f00; transform:scale(0.98); }
-.pttBtn:disabled { background:#333; opacity:0.2; cursor:not-allowed; }
-.status-led { width:12px; height:12px; border-radius:50%; background:#200; display:inline-block; }
-.online { background:var(--blue); box-shadow:0 0 10px var(--blue); }
-.tx { background:#f00; box-shadow:0 0 10px #f00; }
+body { background:#050505; color:#ffb000; font-family:monospace; display:flex; justify-content:center; align-items:center; height:100vh; margin:0; }
+.mainframe { width:95%; max-width:600px; background:#222; padding:20px; border:6px solid #111; display:flex; flex-direction:column; gap:10px; }
+#output { height:200px; overflow-y:auto; border:1px solid #333; padding:5px; background:#0d0900; }
+input, button { width:100%; padding:10px; font-size:1rem; margin-top:5px; }
+.pttBtn { background:red; color:#fff; font-size:1.2rem; font-weight:bold; height:120px; border:none; cursor:pointer; }
+.pttBtn:disabled { background:#333; cursor:not-allowed; }
+.status-led { width:12px; height:12px; border-radius:50%; display:inline-block; background:#200; }
+.online { background:blue; box-shadow:0 0 10px blue; }
+.tx { background:red; box-shadow:0 0 10px red; }
 </style>
 </head>
 <body>
 
 <div class="mainframe">
+  <div id="output">&gt; Enter channel number to start...</div>
+  <input type="number" id="chanInput" min="1" max="99" placeholder="Channel 1-99">
+  <button id="bootBtn">SET CHANNEL</button>
+  <button class="pttBtn" id="pttBtn" disabled>HOLD TO TALK</button>
+  <div style="display:flex; justify-content:space-between; font-size:0.8rem; margin-top:5px;">
+    <span>SYNC <div class="status-led" id="ledNet"></div></span>
+    <span>TX <div class="status-led" id="ledTx"></div></span>
+  </div>
   <audio id="remoteAudio" autoplay playsinline style="display:none;"></audio>
-
-  <div class="monitor">
-    <div style="font-size:0.6rem; display:flex; justify-content:space-between; margin-bottom:10px;">
-      <span>CHANNEL: <span id="curFreq" style="color:var(--blue)">UNSET</span></span>
-      <span>STATUS: <span id="stat">OFFLINE</span></span>
-    </div>
-    <div id="output"><div>> SELECT CHANNEL TO START...</div></div>
-  </div>
-
-  <div class="module">
-    <input type="number" id="chanInput" value="1" min="1" max="99" placeholder="Channel 1-99">
-    <button id="bootBtn" onclick="initChannel()">SET CHANNEL</button>
-  </div>
-
-  <div class="module">
-    <button class="pttBtn" id="pttBtn" disabled>HOLD TO TALK</button>
-    <div style="margin-top:10px; display:flex; justify-content:space-around; font-size:0.7rem;">
-      <span><div class="status-led" id="ledNet"></div> SYNC</span>
-      <span><div class="status-led" id="ledTx"></div> TX</span>
-    </div>
-  </div>
-
-  <button onclick="location.reload()" style="background:#200; color:#fff; padding:10px;">RESET</button>
 </div>
 
 <script>
 let peer, conn, localStream, audioCtx, speakerGain, delayNode;
-const APP_PREFIX = "TAC-P2P-";
+const PREFIX="TAC-P2P-";
 
-function log(msg, color=var(--amber)) {
-  const out = document.getElementById('output');
-  const div = document.createElement('div');
-  div.innerText = `> ${msg}`;
-  div.style.color = color;
-  out.appendChild(div);
-  out.scrollTop = out.scrollHeight;
+function log(msg) {
+  const out=document.getElementById('output');
+  const div=document.createElement('div'); div.innerText='> '+msg; out.appendChild(div); out.scrollTop=out.scrollHeight;
 }
 
 async function initChannel() {
-  const chan = document.getElementById('chanInput').value;
-  if(!chan) return;
+  const chan=document.getElementById('chanInput').value;
+  if(!chan) return alert("Enter channel number 1-99");
+  document.getElementById('bootBtn').disabled=true;
 
-  const fullId = APP_PREFIX + chan;
+  const fullId=PREFIX+chan;
+  log("Getting microphone...");
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ audio:true });
-    muteMic(true);
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    speakerGain = audioCtx.createGain();
-    speakerGain.gain.value=1;
-    delayNode = audioCtx.createDelay(5.0);
-    delayNode.delayTime.value = 0.5;
-    delayNode.connect(speakerGain);
-    speakerGain.connect(audioCtx.destination);
+    localStream=await navigator.mediaDevices.getUserMedia({ audio:true });
+  } catch(e){ log("Microphone access denied"); return; }
 
-    document.getElementById('curFreq').innerText = "CH-" + chan;
-    document.getElementById('bootBtn').disabled=true;
+  audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  speakerGain=audioCtx.createGain(); speakerGain.gain.value=1;
+  delayNode=audioCtx.createDelay(5.0); delayNode.delayTime=0.5;
+  delayNode.connect(speakerGain); speakerGain.connect(audioCtx.destination);
 
-    initPeer(fullId);
-    log("TUNING TO CHANNEL " + chan + "...","var(--blue)");
-  } catch(e) { log("ERROR ACCESSING MICROPHONE","red"); }
-}
-
-function initPeer(myId) {
-  peer = new Peer(myId,{
+  log("Initializing PeerJS...");
+  peer=new Peer(fullId,{
     host:'peerjs-server.herokuapp.com',
     port:443,
     path:'/',
@@ -102,83 +65,71 @@ function initPeer(myId) {
     config:{ iceServers:[{ urls:'stun:stun.l.google.com:19302' }] }
   });
 
-  peer.on('open', id=>{
-    log("CHANNEL ACTIVE. LISTENING...","var(--green)");
-    setTimeout(autoConnect,1000);
-  });
-
+  peer.on('open', id=>{ log("Channel active. Listening..."); tryAutoConnect(fullId); });
   peer.on('connection', c=>{ conn=c; setupHandlers(); });
-  peer.on('call', call=>{
-    call.answer(localStream);
-    call.on('stream', s=>attachStream(s));
-  });
-
+  peer.on('call', call=>{ call.answer(localStream); call.on('stream', s=>attachStream(s)); });
   peer.on('error', err=>{
-    if(err.type==='unavailable-id') {
-      log("CHANNEL BUSY. INITIATING HANDSHAKE...","var(--amber)");
+    if(err.type==='unavailable-id'){
+      log("Channel busy, connecting as joiner...");
       peer.destroy();
-      initCallerMode(myId);
-    } else log("NETWORK ERROR: "+err,"red");
+      initCallerMode(fullId);
+    } else log("Error: "+err);
   });
 }
 
 function initCallerMode(targetId){
-  peer = new Peer();
+  peer=new Peer();
   peer.on('open', ()=>{
-    log("HANDSHAKE INITIATED...");
+    log("Calling host...");
     conn=peer.connect(targetId);
-    const call = peer.call(targetId, localStream);
+    const call=peer.call(targetId, localStream);
     call.on('stream', s=>attachStream(s));
     setupHandlers();
   });
 }
 
 function attachStream(stream){
-  const audioEl = document.getElementById('remoteAudio');
+  const audioEl=document.getElementById('remoteAudio');
   audioEl.srcObject=stream;
-  const source = audioCtx.createMediaStreamSource(stream);
+  const source=audioCtx.createMediaStreamSource(stream);
   source.connect(delayNode);
-  log("REMOTE AUDIO STREAM CONNECTED","var(--green)");
+  log("Remote audio connected");
 }
 
 function setupHandlers(){
   conn.on('open', ()=>{
     document.getElementById('ledNet').classList.add('online');
     document.getElementById('pttBtn').disabled=false;
-    document.getElementById('stat').innerText="SYNCED";
-    log("PEER LINK ESTABLISHED","var(--green)");
+    log("Peer link established");
   });
-
   conn.on('data', data=>{
     if(data==='TX_ON') document.getElementById('ledTx').classList.add('tx');
     if(data==='TX_OFF') document.getElementById('ledTx').classList.remove('tx');
   });
 }
 
-function muteMic(mute){
-  if(localStream) localStream.getAudioTracks().forEach(t=>t.enabled=!mute);
-}
+function muteMic(mute){ if(localStream) localStream.getAudioTracks().forEach(t=>t.enabled=!mute); }
 
-const ptt = document.getElementById('pttBtn');
+const ptt=document.getElementById('pttBtn');
 ptt.onmousedown=pttOn; ptt.onmouseup=pttOff;
-ptt.addEventListener('touchstart',e=>{e.preventDefault(); pttOn();});
-ptt.addEventListener('touchend',e=>{e.preventDefault(); pttOff();});
+ptt.addEventListener('touchstart', e=>{ e.preventDefault(); pttOn(); });
+ptt.addEventListener('touchend', e=>{ e.preventDefault(); pttOff(); });
+function pttOn(){ if(!conn||ptt.disabled) return; muteMic(false); conn.send('TX_ON'); }
+function pttOff(){ if(!conn||ptt.disabled) return; muteMic(true); conn.send('TX_OFF'); }
 
-function pttOn(){ if(!conn || ptt.disabled) return; muteMic(false); conn.send('TX_ON'); }
-function pttOff(){ if(!conn || ptt.disabled) return; muteMic(true); conn.send('TX_OFF'); }
-
-function autoConnect(){
-  const chanNum=document.getElementById('chanInput').value;
-  const fullId=APP_PREFIX+chanNum;
-  if(peer && peer.id!==fullId){
-    const c=peer.connect(fullId);
-    c.on('open',()=>{
-      conn=c; setupHandlers();
-    });
-    const call = peer.call(fullId, localStream);
-    call.on('stream', s=>attachStream(s));
-  }
+function tryAutoConnect(fullId){
+  setTimeout(()=>{
+    if(peer.id!==fullId){
+      const c=peer.connect(fullId);
+      c.on('open', ()=>{ conn=c; setupHandlers(); });
+      const call=peer.call(fullId, localStream);
+      call.on('stream', s=>attachStream(s));
+    }
+  }, 1500);
 }
+
+document.getElementById('bootBtn').onclick=initChannel;
 </script>
+
 </body>
 </html>
