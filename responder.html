@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TAC/COM-04 | 5G DEBUG</title>
+    <title>TAC/COM-04 | FINAL 5G</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root { --amber: #ffb000; --bg: #0d0900; --red: #8c3024; --blue: #00d4ff; --green: #39ff14; }
@@ -33,7 +33,7 @@
             <span>FREQ: <span id="curFreq" style="color:var(--blue)">UNSET</span></span>
             <span>UPLINK: <span id="stat">OFFLINE</span></span>
         </div>
-        <div id="output"><div>> TAC/COM-04 DEBUG MODE LOADED</div></div>
+        <div id="output"><div>> TAC/COM-04 FINAL READY - SAME CHANNEL ON BOTH DEVICES</div></div>
         <div id="meter"><div id="meter-fill"></div></div>
     </div>
     <div class="side-panel">
@@ -65,13 +65,12 @@
         div.style.color = color;
         out.appendChild(div);
         out.scrollTop = out.scrollHeight;
-        console.log("[TAC]", msg);
     }
 
     async function initChannel() {
         const chanNum = document.getElementById('chanInput').value.trim();
         if (!chanNum || chanNum < 1 || chanNum > 99) {
-            log("INVALID CHANNEL - Use 1 to 99", "red");
+            log("INVALID CHANNEL (1-99)", "red");
             return;
         }
 
@@ -88,14 +87,11 @@
             streamSource = audioCtx.createMediaStreamSource(localStream);
             streamSource.connect(analyser);
 
-            recorder = new MediaRecorder(localStream, { 
-                mimeType: 'audio/webm;codecs=opus' 
-            });
+            recorder = new MediaRecorder(localStream, { mimeType: 'audio/webm;codecs=opus' });
 
             recorder.ondataavailable = (e) => {
                 if (conn && conn.open && e.data && e.data.size > 60 && isPTTActive) {
                     conn.send(e.data);
-                    log("AUDIO CHUNK SENT (" + (e.data.size/1024).toFixed(1) + " KB)", "#00d4ff");
                 }
             };
 
@@ -105,47 +101,47 @@
 
             initPeer(fullId);
             updateMeter();
-            log("MIC INITIALIZED - Ready for PTT", "#39ff14");
+            log("MIC INITIALIZED", "#39ff14");
         } catch (e) {
-            log("MIC ACCESS DENIED - Allow microphone permission", "red");
-            console.error(e);
+            log("MIC ACCESS DENIED - Allow permission", "red");
         }
     }
 
     function initPeer(myId) {
         const iceConfig = {
             iceServers: [
-                { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] },
-                // Strong TURN servers for Indian 5G CGNAT
+                { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
+                // Reliable free TURN (20GB/month - works on 5G)
                 { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
                 { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
                 { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
                 { urls: 'turn:global.relay.metered.ca:80', username: 'metered', credential: 'metered' },
                 { urls: 'turn:global.relay.metered.ca:443', username: 'metered', credential: 'metered' }
             ],
+            iceTransportPolicy: 'relay',   // Force relay for better 5G success
             iceCandidatePoolSize: 15
         };
 
         peer = new Peer(myId, { config: iceConfig, debug: 2 });
 
         peer.on('open', (id) => {
-            log("PEER ID OPEN: " + id.split('-').pop(), "#39ff14");
+            log("CHANNEL READY: " + id.split('-').pop(), "#39ff14");
             setTimeout(() => {
                 if (!conn) {
-                    log("ATTEMPTING AUTO-CONNECT TO SAME CHANNEL...", "#ffb000");
                     const c = peer.connect(myId, { reliable: true });
                     setupConnection(c);
                 }
-            }, 700);
+            }, 800);
         });
 
         peer.on('connection', (c) => setupConnection(c));
 
         peer.on('error', (err) => {
-            log("PEER ERROR: " + err.type, "red");
-            console.error(err);
-            if (err.type === 'unavailable-id' || err.type === 'peer-unavailable') {
-                log("Try different channel or ensure both use same channel", "#ffb000");
+            log("ERROR: " + err.type, "red");
+            if (err.type === 'unavailable-id') {
+                log("CHANNEL BUSY - RETRYING...", "#ffb000");
+                if (peer) peer.destroy();
+                setTimeout(() => initPeer(myId), 1200);
             }
         });
     }
@@ -156,36 +152,26 @@
             document.getElementById('ledNet').classList.add('online');
             document.getElementById('pttBtn').disabled = false;
             document.getElementById('stat').innerText = "SECURE LINK ACTIVE";
-            log("DATA CHANNEL OPEN - You can now use PTT", "#39ff14");
-            playBeep(950, 0.12);
+            log("LINK ESTABLISHED - HOLD TO TALK", "#39ff14");
+            playBeep(950, 0.1);
         });
 
         conn.on('data', async (data) => {
             if (!(data instanceof Blob)) return;
             document.getElementById('ledTx').classList.add('tx');
-            log("RECEIVED AUDIO CHUNK - Playing...", "#00d4ff");
-
             const url = URL.createObjectURL(data);
             const audio = new Audio(url);
             audio.volume = 1.0;
             audio.onended = () => URL.revokeObjectURL(url);
-            try {
-                await audio.play();
-            } catch (err) {
-                log("PLAYBACK ERROR: " + err.message, "red");
-                console.error(err);
-            }
+            try { await audio.play(); } catch(e) {}
             setTimeout(() => document.getElementById('ledTx').classList.remove('tx'), 900);
         });
 
         conn.on('close', () => {
-            log("CONNECTION CLOSED", "red");
+            log("DISCONNECTED", "red");
             document.getElementById('ledNet').classList.remove('online');
             document.getElementById('pttBtn').disabled = true;
-            document.getElementById('stat').innerText = "DISCONNECTED";
         });
-
-        conn.on('error', (err) => log("DATA ERROR: " + err, "red"));
     }
 
     function playBeep(freq, dur) {
@@ -193,7 +179,7 @@
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.frequency.value = freq;
-        gain.gain.value = 0.035;
+        gain.gain.value = 0.04;
         osc.connect(gain).connect(audioCtx.destination);
         osc.start();
         gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + dur);
@@ -207,7 +193,7 @@
         let sum = 0;
         for (let v of data) sum += v;
         const avg = sum / data.length;
-        document.getElementById('meter-fill').style.width = Math.min(100, avg * 2.9) + "%";
+        document.getElementById('meter-fill').style.width = Math.min(100, avg * 2.8) + "%";
         requestAnimationFrame(updateMeter);
     }
 
@@ -215,24 +201,16 @@
     const pttBtn = document.getElementById('pttBtn');
 
     function startPTT() {
-        if (!conn || !conn.open || !recorder) {
-            log("Cannot transmit - No active link", "red");
-            return;
-        }
-        if (recorder.state === 'inactive') recorder.start(150);
+        if (!conn || !conn.open || !recorder) return;
+        if (recorder.state === 'inactive') recorder.start(160);
         isPTTActive = true;
         document.getElementById('ledTx').classList.add('tx');
-        playBeep(1350, 0.04);
-        log("PTT PRESSED - TRANSMITTING", "#00d4ff");
     }
 
     function stopPTT() {
-        if (!isPTTActive) return;
         isPTTActive = false;
-        if (recorder.state === 'recording') recorder.stop();
+        if (recorder && recorder.state === 'recording') recorder.stop();
         document.getElementById('ledTx').classList.remove('tx');
-        playBeep(480, 0.2);
-        log("PTT RELEASED", "#ffb000");
     }
 
     pttBtn.onmousedown = startPTT;
@@ -246,7 +224,7 @@
         if (peer) peer.destroy();
     });
 
-    log("DEBUG BUILD LOADED - Check console (F12) for extra info", "#39ff14");
+    log("FINAL VERSION LOADED - Use same channel on both devices", "#39ff14");
 </script>
 </body>
 </html>
