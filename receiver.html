@@ -3,121 +3,98 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TAC/COM v23.0 | FINAL</title>
+    <title>TAC/COM v26.0 | HOLE-PUNCH</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root { --amber: #ffb000; --bg: #050505; --red: #ff3e3e; --blue: #00d4ff; --green: #39ff14; }
         body { background: var(--bg); color: var(--amber); font-family: 'Courier New', monospace; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; touch-action: none; overflow: hidden; }
         .deck { width: 90%; max-width: 400px; background: #111; border: 2px solid #333; padding: 25px; border-radius: 15px; text-align: center; }
-        
-        /* PULSE INDICATOR */
-        .v-meter { height: 10px; background: #000; border-radius: 5px; margin-bottom: 20px; overflow: hidden; border: 1px solid #222; }
-        #v-bar { height: 100%; width: 0%; background: var(--green); transition: 0.1s; box-shadow: 0 0 10px var(--green); }
-
-        .btn-boot { width: 100%; background: var(--blue); color: #000; border: none; padding: 15px; font-weight: bold; border-radius: 8px; cursor: pointer; margin-bottom: 20px; }
-        .btn-boot.ready { background: #222; color: #555; cursor: default; }
-
-        .ptt-btn { width: 150px; height: 150px; background: #222; border: 8px solid #333; border-radius: 50%; color: #444; font-weight: bold; font-size: 1.5rem; cursor: not-allowed; margin: 0 auto; -webkit-tap-highlight-color: transparent; }
+        .signal-box { background: #000; border: 1px solid #222; padding: 10px; margin-bottom: 20px; border-radius: 5px; }
+        .bar-bg { width: 100%; height: 12px; background: #111; border-radius: 6px; overflow: hidden; border: 1px solid #333; }
+        #bar-fg { width: 0%; height: 100%; background: var(--blue); transition: 0.1s; }
+        .btn-main { width: 100%; background: var(--green); color: #000; border: none; padding: 18px; font-weight: bold; border-radius: 10px; cursor: pointer; margin-bottom: 20px; text-transform: uppercase; }
+        .ptt-btn { width: 140px; height: 140px; background: #1a1a1a; border: 8px solid #222; border-radius: 50%; color: #333; font-weight: bold; font-size: 1.5rem; cursor: not-allowed; margin: 0 auto; display: block; -webkit-tap-highlight-color: transparent; }
         .ptt-btn.unlocked { border-color: var(--red); color: var(--red); background: #300; cursor: pointer; }
         .ptt-btn.unlocked:active { background: var(--red); color: #fff; }
-
-        .led-row { display: flex; justify-content: space-around; margin-top: 20px; font-size: 0.6rem; color: #444; }
-        .led { width: 10px; height: 10px; border-radius: 50%; background: #1a1a1a; margin-bottom: 5px; }
-        .led-green.on { background: var(--green); box-shadow: 0 0 10px var(--green); }
+        #log { font-size: 0.7rem; margin-top: 15px; color: #444; }
     </style>
 </head>
 <body>
 
 <div class="deck">
-    <div class="v-meter"><div id="v-bar"></div></div>
-    
-    <button class="btn-boot" id="bootBtn" onclick="initSystem()">1. INITIALIZE SATELLITE LINK</button>
-    
-    <button class="ptt-btn" id="ptt">PTT</button>
-    
-    <div class="led-row">
-        <div align="center"><div class="led led-green" id="l-sync"></div>SYNC</div>
-        <div align="center"><div id="status">OFFLINE</div></div>
+    <div class="signal-box">
+        <div style="font-size:0.6rem; margin-bottom:5px; text-align:left;">FIREWALL PENETRATION:</div>
+        <div class="bar-bg"><div id="bar-fg"></div></div>
     </div>
+    <button class="btn-main" id="startBtn" onclick="ignite()">Ignite Comms</button>
+    <button class="ptt-btn" id="ptt">PTT</button>
+    <div id="log">READY.</div>
 </div>
 
-<script>
-    let peer, conn, lStream, aCtx, sGain, analyser, dataArray;
-    const ROOM = "5G_HYBRID_X_2026"; // Keep this same on both
+<audio id="rAudio" autoplay playsinline></audio>
 
-    async function initSystem() {
-        const bootBtn = document.getElementById('bootBtn');
+<script>
+    let peer, conn, lStream, aCtx;
+    const ROOM_KEY = "5G_BYPASS_FINAL_ALPHA";
+
+    async function ignite() {
         try {
             lStream = await navigator.mediaDevices.getUserMedia({ audio: true });
             aCtx = new (window.AudioContext || window.webkitAudioContext)();
-            sGain = aCtx.createGain(); sGain.connect(aCtx.destination);
+            if (aCtx.state === 'suspended') await aCtx.resume();
             
-            // Visualizer setup
-            analyser = aCtx.createAnalyser();
-            analyser.fftSize = 256;
-            dataArray = new Uint8Array(analyser.frequencyBinCount);
+            document.getElementById('startBtn').innerText = "TUNNELING...";
+            document.getElementById('startBtn').disabled = true;
 
-            bootBtn.innerText = "UPLINK ACTIVE";
-            bootBtn.classList.add('ready');
-            bootBtn.disabled = true;
+            // FORCE a more aggressive ICE configuration
+            const ice = { config: { 'iceServers': [
+                { 'urls': 'stun:stun.l.google.com:19302' },
+                { 'urls': 'stun:stun1.l.google.com:19302' },
+                { 'urls': 'stun:stun2.l.google.com:19302' }
+            ], 'iceTransportPolicy': 'all' }};
 
-            setupNetwork();
-            updateVolumeMeter();
-        } catch(e) { alert("Mic required"); }
+            peer = new Peer(ROOM_KEY, ice);
+            
+            peer.on('open', () => document.getElementById('log').innerText = "WAITING FOR PEER...");
+            
+            peer.on('error', (err) => {
+                if(err.type === 'unavailable-id') {
+                    peer = new Peer(null, ice);
+                    peer.on('open', () => {
+                        document.getElementById('log').innerText = "HANDSHAKING...";
+                        conn = peer.connect(ROOM_KEY, { reliable: false }); // UDP Mode
+                        const call = peer.call(ROOM_KEY, lStream);
+                        call.on('stream', s => mount(s));
+                    });
+                }
+            });
+
+            peer.on('call', call => {
+                call.answer(lStream);
+                call.on('stream', s => mount(s));
+            });
+
+            unlock();
+        } catch(e) { alert("Mic Access Denied"); }
     }
 
-    function setupNetwork() {
-        peer = new Peer(ROOM, { config: { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] } });
+    function mount(s) {
+        document.getElementById('log').innerText = "TUNNEL ESTABLISHED";
+        document.getElementById('log').style.color = "var(--green)";
+        document.getElementById('bar-fg').style.width = "100%";
+        document.getElementById('rAudio').srcObject = s;
         
-        peer.on('open', () => document.getElementById('status').innerText = "HOSTING...");
-        
-        peer.on('error', (err) => {
-            if(err.type === 'unavailable-id') {
-                document.getElementById('status').innerText = "JOINING...";
-                peer = new Peer();
-                peer.on('open', () => {
-                    peer.connect(ROOM);
-                    const call = peer.call(ROOM, lStream);
-                    call.on('stream', s => handleRemoteStream(s));
-                });
-            }
-        });
-
-        peer.on('call', call => {
-            call.answer(lStream);
-            call.on('stream', s => handleRemoteStream(s));
-        });
-        
-        unlockPTT();
+        // PING LOOP: Keeps the 5G tower from closing the port
+        setInterval(() => { if(conn) conn.send('keep-alive'); }, 1000);
     }
 
-    function handleRemoteStream(s) {
-        document.getElementById('l-sync').classList.add('on');
-        const src = aCtx.createMediaStreamSource(s);
-        src.connect(analyser); // Connect to visualizer
-        src.connect(sGain);    // Connect to speaker
-    }
-
-    function updateVolumeMeter() {
-        if(analyser) {
-            analyser.getByteFrequencyData(dataArray);
-            let sum = dataArray.reduce((a, b) => a + b, 0);
-            let vol = (sum / dataArray.length) * 2;
-            document.getElementById('v-bar').style.width = vol + "%";
-        }
-        requestAnimationFrame(updateVolumeMeter);
-    }
-
-    function unlockPTT() {
+    function unlock() {
         const p = document.getElementById('ptt');
         p.classList.add('unlocked');
-        const toggle = (m) => {
-            lStream.getAudioTracks().forEach(t => t.enabled = !m);
-            sGain.gain.setValueAtTime(m ? 1 : 0, aCtx.currentTime);
-        };
-        p.onmousedown = () => toggle(false); p.onmouseup = () => toggle(true);
-        p.ontouchstart = (e) => { e.preventDefault(); toggle(false); };
-        p.ontouchend = (e) => { e.preventDefault(); toggle(true); };
+        const talk = (m) => lStream.getAudioTracks().forEach(t => t.enabled = !m);
+        p.onmousedown = () => talk(false); p.onmouseup = () => talk(true);
+        p.ontouchstart = (e) => { e.preventDefault(); talk(false); };
+        p.ontouchend = (e) => { e.preventDefault(); talk(true); };
     }
 </script>
 </body>
