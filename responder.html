@@ -3,121 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TAC/COM v23.0 | FINAL</title>
+    <title>TAC/COM v27.0</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root { --amber: #ffb000; --bg: #050505; --red: #ff3e3e; --blue: #00d4ff; --green: #39ff14; }
-        body { background: var(--bg); color: var(--amber); font-family: 'Courier New', monospace; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; touch-action: none; overflow: hidden; }
-        .deck { width: 90%; max-width: 400px; background: #111; border: 2px solid #333; padding: 25px; border-radius: 15px; text-align: center; }
-        
-        /* PULSE INDICATOR */
-        .v-meter { height: 10px; background: #000; border-radius: 5px; margin-bottom: 20px; overflow: hidden; border: 1px solid #222; }
-        #v-bar { height: 100%; width: 0%; background: var(--green); transition: 0.1s; box-shadow: 0 0 10px var(--green); }
-
-        .btn-boot { width: 100%; background: var(--blue); color: #000; border: none; padding: 15px; font-weight: bold; border-radius: 8px; cursor: pointer; margin-bottom: 20px; }
-        .btn-boot.ready { background: #222; color: #555; cursor: default; }
-
-        .ptt-btn { width: 150px; height: 150px; background: #222; border: 8px solid #333; border-radius: 50%; color: #444; font-weight: bold; font-size: 1.5rem; cursor: not-allowed; margin: 0 auto; -webkit-tap-highlight-color: transparent; }
-        .ptt-btn.unlocked { border-color: var(--red); color: var(--red); background: #300; cursor: pointer; }
-        .ptt-btn.unlocked:active { background: var(--red); color: #fff; }
-
-        .led-row { display: flex; justify-content: space-around; margin-top: 20px; font-size: 0.6rem; color: #444; }
-        .led { width: 10px; height: 10px; border-radius: 50%; background: #1a1a1a; margin-bottom: 5px; }
-        .led-green.on { background: var(--green); box-shadow: 0 0 10px var(--green); }
+        body { background: var(--bg); color: var(--amber); font-family: monospace; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; touch-action: none; }
+        .deck { width: 90%; max-width: 380px; background: #111; border: 2px solid #333; padding: 20px; border-radius: 12px; text-align: center; }
+        .id-display { font-size: 1.5rem; color: var(--blue); margin: 15px 0; letter-spacing: 5px; background: #000; padding: 10px; border: 1px solid #222; }
+        input { width: 80%; padding: 12px; background: #000; border: 1px solid var(--amber); color: #fff; text-align: center; font-size: 1.2rem; margin-bottom: 10px; border-radius: 5px; }
+        .btn { width: 100%; padding: 15px; font-weight: bold; cursor: pointer; border: none; border-radius: 5px; margin-bottom: 10px; text-transform: uppercase; }
+        .btn-act { background: var(--amber); color: #000; }
+        .btn-conn { background: var(--blue); color: #000; }
+        .ptt { width: 120px; height: 120px; background: #222; border: 5px solid #444; border-radius: 50%; color: #444; font-size: 1.2rem; margin: 10px auto; display: block; }
+        .ptt.on { border-color: var(--red); color: var(--red); background: #300; box-shadow: 0 0 20px var(--red); }
     </style>
 </head>
 <body>
 
 <div class="deck">
-    <div class="v-meter"><div id="v-bar"></div></div>
+    <div id="status" style="font-size: 0.7rem; color: #555;">SYSTEM STANDBY</div>
     
-    <button class="btn-boot" id="bootBtn" onclick="initSystem()">1. INITIALIZE SATELLITE LINK</button>
-    
-    <button class="ptt-btn" id="ptt">PTT</button>
-    
-    <div class="led-row">
-        <div align="center"><div class="led led-green" id="l-sync"></div>SYNC</div>
-        <div align="center"><div id="status">OFFLINE</div></div>
+    <div id="setup-zone">
+        <button class="btn btn-act" onclick="initHost()">1. ACTIVATE (LAPTOP)</button>
+        <div class="id-display" id="myIdDisplay">----</div>
+        <hr style="border: 0; border-top: 1px solid #333; margin: 20px 0;">
+        <input type="number" id="targetId" placeholder="ENTER LAPTOP ID">
+        <button class="btn btn-conn" onclick="initClient()">2. CONNECT (PHONE)</button>
     </div>
+
+    <button class="ptt" id="ptt">PTT</button>
 </div>
 
+<audio id="rAudio" autoplay playsinline></audio>
+
 <script>
-    let peer, conn, lStream, aCtx, sGain, analyser, dataArray;
-    const ROOM = "5G_HYBRID_X_2026"; // Keep this same on both
+    let peer, lStream, aCtx, sGain;
 
-    async function initSystem() {
-        const bootBtn = document.getElementById('bootBtn');
-        try {
-            lStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            aCtx = new (window.AudioContext || window.webkitAudioContext)();
-            sGain = aCtx.createGain(); sGain.connect(aCtx.destination);
-            
-            // Visualizer setup
-            analyser = aCtx.createAnalyser();
-            analyser.fftSize = 256;
-            dataArray = new Uint8Array(analyser.frequencyBinCount);
-
-            bootBtn.innerText = "UPLINK ACTIVE";
-            bootBtn.classList.add('ready');
-            bootBtn.disabled = true;
-
-            setupNetwork();
-            updateVolumeMeter();
-        } catch(e) { alert("Mic required"); }
+    async function getMic() {
+        lStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        aCtx = new (window.AudioContext || window.webkitAudioContext)();
+        sGain = aCtx.createGain();
+        sGain.connect(aCtx.destination);
     }
 
-    function setupNetwork() {
-        peer = new Peer(ROOM, { config: { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] } });
-        
-        peer.on('open', () => document.getElementById('status').innerText = "HOSTING...");
-        
-        peer.on('error', (err) => {
-            if(err.type === 'unavailable-id') {
-                document.getElementById('status').innerText = "JOINING...";
-                peer = new Peer();
-                peer.on('open', () => {
-                    peer.connect(ROOM);
-                    const call = peer.call(ROOM, lStream);
-                    call.on('stream', s => handleRemoteStream(s));
-                });
-            }
+    function initHost() {
+        getMic();
+        const shortId = Math.floor(1000 + Math.random() * 9000);
+        peer = new Peer("TAC-" + shortId);
+        peer.on('open', (id) => {
+            document.getElementById('myIdDisplay').innerText = shortId;
+            document.getElementById('status').innerText = "LISTENING...";
         });
-
         peer.on('call', call => {
             call.answer(lStream);
-            call.on('stream', s => handleRemoteStream(s));
+            call.on('stream', s => { document.getElementById('rAudio').srcObject = s; unlock(); });
         });
-        
-        unlockPTT();
     }
 
-    function handleRemoteStream(s) {
-        document.getElementById('l-sync').classList.add('on');
-        const src = aCtx.createMediaStreamSource(s);
-        src.connect(analyser); // Connect to visualizer
-        src.connect(sGain);    // Connect to speaker
+    function initClient() {
+        getMic();
+        const target = document.getElementById('targetId').value;
+        peer = new Peer();
+        peer.on('open', () => {
+            const call = peer.call("TAC-" + target, lStream);
+            call.on('stream', s => { document.getElementById('rAudio').srcObject = s; unlock(); });
+            document.getElementById('status').innerText = "UPLINKING...";
+        });
     }
 
-    function updateVolumeMeter() {
-        if(analyser) {
-            analyser.getByteFrequencyData(dataArray);
-            let sum = dataArray.reduce((a, b) => a + b, 0);
-            let vol = (sum / dataArray.length) * 2;
-            document.getElementById('v-bar').style.width = vol + "%";
-        }
-        requestAnimationFrame(updateVolumeMeter);
-    }
-
-    function unlockPTT() {
+    function unlock() {
         const p = document.getElementById('ptt');
-        p.classList.add('unlocked');
-        const toggle = (m) => {
-            lStream.getAudioTracks().forEach(t => t.enabled = !m);
-            sGain.gain.setValueAtTime(m ? 1 : 0, aCtx.currentTime);
-        };
-        p.onmousedown = () => toggle(false); p.onmouseup = () => toggle(true);
-        p.ontouchstart = (e) => { e.preventDefault(); toggle(false); };
-        p.ontouchend = (e) => { e.preventDefault(); toggle(true); };
+        p.classList.add('on');
+        document.getElementById('status').innerText = "SYNCED";
+        const talk = (m) => lStream.getAudioTracks().forEach(t => t.enabled = !m);
+        p.onmousedown = () => talk(false); p.onmouseup = () => talk(true);
+        p.ontouchstart = (e) => { e.preventDefault(); talk(false); };
+        p.ontouchend = (e) => { e.preventDefault(); talk(true); };
     }
 </script>
 </body>
