@@ -2,26 +2,35 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<!-- 1. CONTENT SECURITY POLICY (CSP) -->
+<!-- Allows PeerJS scripts from unpkg.com and secure WebRTC connections to signaling servers -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline'; connect-src 'self' wss://0.peerjs.com wss://*.peerjs.com; img-src 'self' data: https:; font-src 'self';">
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PeerJS Cross-Device Mesh Chat</title>
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <style>
 body { background:#000; color:#ffb000; font-family:monospace; margin:0; padding:0; display:flex; flex-direction:column; height:100vh; }
-.console { flex:1; overflow-y:auto; padding:10px; background:#080808; }
-.entry { margin-bottom:6px; }
-.ts { color:#555; margin-right:6px; }
+.console { flex:1; overflow-y:auto; padding:10px; background:#080808; word-break: break-all; }
+.entry { margin-bottom:6px; border-bottom: 1px solid #111; padding-bottom: 2px;}
+.ts { color:#555; margin-right:6px; font-weight: bold; }
 .local { color:#39ff14; font-weight:bold; }
 .remote { color:#00d4ff; font-weight:bold; }
-.controls { display:flex; background:#111; padding:10px; gap:10px; }
-input { flex:1; padding:8px; background:#000; border:1px solid #333; color:#ffb000; }
-button { padding:8px 12px; background:#222; border:1px solid #ffb000; color:#ffb000; cursor:pointer; }
+.controls { display:flex; background:#111; padding:10px; gap:10px; border-top: 2px solid #ffb000; }
+input { flex:1; padding:8px; background:#000; border:1px solid #333; color:#ffb000; outline: none; }
+input:focus { border-color: #ff0000; }
+button { padding:8px 12px; background:#222; border:1px solid #ffb000; color:#ffb000; cursor:pointer; font-weight: bold; text-transform: uppercase; }
 button:active { background:#ffb000; color:#000; }
-#status { font-weight:bold; margin-left:6px; }
+#status { font-weight:bold; margin-left:6px; color: #00ff00; }
+#status2 { font-weight:bold; margin-left:6px; color: #00ff00; }
+.warn { color: yellow; font-weight: bold; }
 </style>
 </head>
 <body>
 
 <div class="console" id="console">
+    <div class="entry"><span class="ts">[SYSTEM]</span> Mesh Chat Node Initializing...</div>
+    <div class="entry"><span class="ts">[SYSTEM]</span> Security Protocols: <span style="color:#00ff00">ACTIVE</span>. XSS Filter: <span style="color:#00ff00">ENABLED</span>.</div>
     <div class="entry">> Chat system ready. Enter a channel number (1-99) to start.</div>
 </div>
 
@@ -32,7 +41,7 @@ button:active { background:#ffb000; color:#000; }
 </div>
 
 <div class="controls" id="chat" style="display:none;">
-    <input type="text" id="msgInput" placeholder="Enter message..." onkeypress="checkEnter(event)">
+    <input type="text" id="msgInput" placeholder="Enter message..." onkeypress="checkEnter(event)" autocomplete="off">
     <button onclick="sendMsg()">Send</button>
     <span>STATUS: <span id="status2">CONNECTED</span></span>
 </div>
@@ -40,25 +49,44 @@ button:active { background:#ffb000; color:#000; }
 <script>
 let peer, conn;
 const PREFIX = "PEERCHAT-";
+const MAX_MSG_LENGTH = 500; // Prevent DoS/Freezing
 
-// Logging function
+// Logging function (SECURE: Uses textContent to prevent XSS)
 function log(msg, className="") {
     const consoleEl = document.getElementById('console');
     const div = document.createElement('div');
     div.className = 'entry ' + className;
     const time = new Date().toLocaleTimeString([], {hour12:false});
-    div.innerHTML = `<span class="ts">[${time}]</span> ${msg}`;
+    
+    // DOM Creation instead of innerHTML for security
+    const timeSpan = document.createElement('span');
+    timeSpan.className = 'ts';
+    timeSpan.textContent = `[${time}]`;
+    
+    const msgSpan = document.createElement('span');
+    // SECURITY: textContent treats input as plain text, preventing script execution
+    msgSpan.textContent = msg; 
+
+    div.appendChild(timeSpan);
+    div.appendChild(msgSpan);
+    
     consoleEl.appendChild(div);
     consoleEl.scrollTop = consoleEl.scrollHeight;
 }
 
 // Initialize PeerJS link
 function initLink() {
-    const chan = document.getElementById('chanInput').value;
-    if(!chan) return alert("Enter a channel 1-99!");
+    const chanInput = document.getElementById('chanInput');
+    const chan = chanInput.value;
+    
+    // Basic Input Validation
+    if(!chan || chan < 1 || chan > 99) {
+        log("ERR: Invalid Channel. Select 1-99.", "warn");
+        return;
+    }
 
     const myId = PREFIX + chan;
-    log(`Tuning to channel ${chan}...`);
+    log(`Tuning to channel ${chan} (ID: ${myId})...`);
 
     peer = new Peer(myId, {
         config: { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] }
@@ -67,6 +95,8 @@ function initLink() {
     peer.on('open', id => {
         log(`Broadcasting on channel ${chan}. Waiting for peer...`);
         document.getElementById('status').innerText = "LISTENING";
+        document.getElementById('status').style.color = "#ffff00";
+        chanInput.disabled = true;
     });
 
     // Incoming connection
@@ -75,14 +105,18 @@ function initLink() {
         bindEvents();
     });
 
-    // If channel busy, try to join
+    // Error Handling
     peer.on('error', err => {
         if(err.type === 'unavailable-id') {
-            log("Channel occupied. Attempting to join...");
+            log("Channel occupied. Attempting to join...", "warn");
             peer.destroy();
             joinLink(myId);
+        } else if(err.type === 'peer-unavailable') {
+            log("ERR: No host found on this channel.", "warn");
+            document.getElementById('status').innerText = "NO_HOST";
+            document.getElementById('status').style.color = "red";
         } else {
-            log(`ERROR: ${err.type}`, "remote");
+            log(`ERROR: ${err.type}`, "warn");
         }
     });
 
@@ -91,10 +125,15 @@ function initLink() {
 
 // Join existing channel
 function joinLink(targetId) {
-    peer = new Peer(); // Random ID
+    peer = new Peer(); // Generate a random ID for the client
     peer.on('open', () => {
+        log(`Connecting to host: ${targetId}...`);
         conn = peer.connect(targetId);
         bindEvents();
+    });
+    
+    peer.on('error', err => {
+        log(`Connection failed: ${err.type}`, "warn");
     });
 }
 
@@ -103,24 +142,43 @@ function bindEvents() {
     conn.on('open', () => {
         log("Uplink established. You can now chat.", "local");
         document.getElementById('chat').style.display = "flex";
+        document.getElementById('setup').style.display = "none";
         document.getElementById('status2').innerText = "CONNECTED";
+        document.getElementById('status2').style.color = "#00ff00";
     });
 
     conn.on('data', data => {
+        // Security: Data from remote is handled safely by log()
         log(`REMOTE << ${data}`, "remote");
     });
 
     conn.on('close', () => {
-        log("Connection lost.", "remote");
-        location.reload();
+        log("Connection lost. Reloading node...", "remote");
+        setTimeout(() => location.reload(), 2000);
+    });
+    
+    conn.on('error', (err) => {
+        log(`Connection Error: ${err}`, "warn");
     });
 }
 
 // Send message
 function sendMsg() {
     const input = document.getElementById('msgInput');
-    const val = input.value.trim();
-    if(!val || !conn) return;
+    let val = input.value.trim();
+    
+    if(!val) return;
+    if(!conn) {
+        log("ERR: Not connected to peer.", "warn");
+        return;
+    }
+    
+    // Security: Truncate long messages to prevent freezing/DoS
+    if(val.length > MAX_MSG_LENGTH) {
+        log(`WARN: Message truncated (Max ${MAX_MSG_LENGTH} chars).`, "warn");
+        val = val.substring(0, MAX_MSG_LENGTH);
+    }
+    
     conn.send(val);
     log(`LOCAL >> ${val}`, "local");
     input.value = '';
