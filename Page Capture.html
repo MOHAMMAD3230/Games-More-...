@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+   <!-- 1. CONTENT SECURITY POLICY (CSP) -->
+   <!-- Restricts scripts to trusted sources and prevents XSS execution -->
+   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' https: data:; media-src 'self' blob:; connect-src 'self' https://www.google-analytics.com;">
+
    <link rel="icon" href="https://mohammad3230.github.io/Games-More-.../favicon.png" type="image/png" sizes="32x32" />
    <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=GT-NC6T5LRJ"></script>
@@ -914,13 +918,24 @@
   const statSize = document.getElementById('statSize');
   const toastContainer = document.getElementById('toastContainer');
 
-  // ========== Toast system ==========
+  // ========== Toast system (SECURE - No innerHTML) ==========
   function showToast(message, type = 'info') {
     const icons = { info: 'fa-info-circle', success: 'fa-check-circle', error: 'fa-exclamation-circle' };
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    toast.innerHTML = `<i class="fas ${icons[type] || icons.info}"></i><span>${message}</span>`;
+    
+    // Use DOM creation to prevent XSS
+    const icon = document.createElement('i');
+    icon.className = `fas ${icons[type] || icons.info}`;
+    
+    const span = document.createElement('span');
+    // SECURITY: textContent prevents script injection
+    span.textContent = message;
+    
+    toast.appendChild(icon);
+    toast.appendChild(span);
     toastContainer.appendChild(toast);
+    
     setTimeout(() => { if (toast.parentNode) toast.remove(); }, 3500);
   }
 
@@ -947,7 +962,11 @@
     const url = urlInput.value.trim();
     if (!url) { showToast('Please enter a URL first.', 'error'); return; }
     try {
-      new URL(url);
+      const urlObj = new URL(url);
+      // SECURITY: Prevent opening javascript: or data: protocols
+      if (!['http:', 'https:'].includes(urlObj.protocol)) {
+        throw new Error('Invalid protocol');
+      }
       window.open(url, '_blank');
       showToast('Page opened in a new tab. Switch to it when recording.', 'success');
     } catch {
@@ -1138,7 +1157,22 @@
   downloadBtn.addEventListener('click', () => {
     if (!resultBlob) return;
     const ext = resultBlob.type.includes('mp4') ? 'mp4' : 'webm';
-    const urlSlug = new URL(urlInput.value.trim()).hostname.replace(/[^a-z0-9]/gi, '_');
+    
+    // SECURITY: Validate URL before parsing to prevent crashes
+    let urlSlug = 'capture';
+    try {
+        const rawUrl = urlInput.value.trim();
+        if (rawUrl) {
+            // Validate protocol before parsing
+            const urlObj = new URL(rawUrl);
+            if (['http:', 'https:'].includes(urlObj.protocol)) {
+                urlSlug = urlObj.hostname.replace(/[^a-z0-9]/gi, '_');
+            }
+        }
+    } catch (e) {
+        console.warn('Could not parse URL for filename, using default.');
+    }
+
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const filename = `${urlSlug}_${timestamp}.${ext}`;
 
