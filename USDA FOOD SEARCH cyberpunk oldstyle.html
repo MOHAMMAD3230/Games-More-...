@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- 1. CONTENT SECURITY POLICY (CSP) -->
+  <!-- Prevents script injection and restricts data transmission to authorized domains only -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://ouadtdnyyaxprbdeotvl.supabase.co; font-src 'self';">
+
   <meta charset="UTF-8" />
 
   <link rel="icon" href="https://mohammad3230.github.io/Games-More-.../favicon.png" type="image/png" sizes="32x32" />
@@ -100,7 +104,7 @@
     @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } }
   </style>
 </head>
-<body onresize="resize()">
+<body>
 
 <div class="steam-panel" id="deck">
   <canvas id="smokeCanvas"></canvas>
@@ -337,15 +341,32 @@
     
     try {
       document.getElementById('results').textContent = "DATA FLUSHED. TRANSMITTING AETHER PULSE...";
+      
+      const queryVal = document.getElementById('query').value;
+      
+      // SECURITY: Basic validation before sending
+      if (!queryVal.trim()) {
+          throw new Error("FREQUENCY MODULATION EMPTY");
+      }
+
       const res = await fetch('https://ouadtdnyyaxprbdeotvl.supabase.co/functions/v1/usda-proxy', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ query: document.getElementById('query').value })
+        body: JSON.stringify({ query: queryVal })
       });
+      
+      if (!res.ok) {
+          throw new Error(`UPLINK ERROR: ${res.status}`);
+      }
+
       const data = await res.json();
+      
+      // SECURITY: Using textContent prevents XSS from the API response
       document.getElementById('results').textContent = JSON.stringify(data, null, 2);
+      
     } catch (e) {
       errorState = true;
-      document.getElementById('results').textContent = "UPLINK FAILED: ENGINE OVERHEAT.";
+      // SECURITY: Displaying error message safely via textContent
+      document.getElementById('results').textContent = "UPLINK FAILED: " + e.message;
     } finally {
       setTimeout(() => {
         active = false; psi = 0; errorState = false;
@@ -389,6 +410,9 @@
     document.getElementById('h-hour').style.transform = `rotate(${(now.getHours()%12*30) + (now.getMinutes()*0.5)}deg)`;
     requestAnimationFrame(updateChronos);
   }
+
+  // Add resize listener via JS for better practice (cleaner than inline onresize)
+  window.onresize = resize;
 
   window.onload = () => { 
     resize(); 
