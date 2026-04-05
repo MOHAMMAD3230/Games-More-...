@@ -687,26 +687,47 @@ input[type=number], select, input[type=text] {
     document.getElementById('goalsGuidance').innerText = guidanceText;
   }
 
-  // Food nutrition search (mock data)
+  // Food nutrition search (SECURE VERSION - XSS FIXED)
   document.getElementById('searchFood').addEventListener('click', () => {
     const query = document.getElementById('nutritionSearchBox').value.trim();
     const resultsDiv = document.getElementById('foodResults');
-    resultsDiv.innerHTML = '';
+    resultsDiv.innerHTML = ''; // Clear previous results
+    
     if (!query) {
       alert('Enter food name to search.');
       return;
     }
+    
     const mockData = [
       { description: query + ' (Standard Serving)', calories: 150, fat: 5, carbs: 20, protein: 3 },
       { description: query + ' (Healthy Variant)', calories: 200, fat: 8, carbs: 30, protein: 5 },
     ];
+
     mockData.forEach(food => {
       const div = document.createElement('div');
-      div.innerHTML = '<b>' + food.description + '</b><br/>' +
-        'Calories: ' + food.calories + ' kcal<br/>' +
-        'Fat: ' + food.fat + ' g<br/>' +
-        'Carbohydrates: ' + food.carbs + ' g<br/>' +
-        'Proteins: ' + food.protein + ' g';
+
+      // 1. Create the Bold Description safely
+      const b = document.createElement('b');
+      // SECURITY: textContent treats input as plain text, preventing XSS
+      b.textContent = food.description; 
+      div.appendChild(b);
+      div.appendChild(document.createElement('br'));
+
+      // 2. Create the Calories line safely
+      div.appendChild(document.createTextNode('Calories: ' + food.calories + ' kcal'));
+      div.appendChild(document.createElement('br'));
+
+      // 3. Create the Fat line safely
+      div.appendChild(document.createTextNode('Fat: ' + food.fat + ' g'));
+      div.appendChild(document.createElement('br'));
+
+      // 4. Create the Carbs line safely
+      div.appendChild(document.createTextNode('Carbohydrates: ' + food.carbs + ' g'));
+      div.appendChild(document.createElement('br'));
+
+      // 5. Create the Protein line safely
+      div.appendChild(document.createTextNode('Proteins: ' + food.protein + ' g'));
+
       resultsDiv.appendChild(div);
     });
   });
