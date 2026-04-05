@@ -80,7 +80,6 @@
         .sig-bar:nth-child(3) { height: 75%; }
         .sig-bar:nth-child(4) { height: 100%; }
         
-        /* Signal Colors based on Ping */
         .sig-lvl-1 .sig-bar:nth-child(1) { background: var(--red); box-shadow: 0 0 5px var(--red); }
         .sig-lvl-2 .sig-bar:nth-child(-n+2) { background: #ffaa00; }
         .sig-lvl-3 .sig-bar:nth-child(-n+3) { background: var(--blue); }
@@ -112,6 +111,7 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         
         .sys-msg { color: #777; font-size: 0.8rem; border-left: 2px solid #333; padding-left: 8px; }
+        .err-msg { color: var(--red); font-weight: bold; font-size: 0.8rem; }
         .local-msg { color: var(--green); text-shadow: 0 0 1px rgba(57, 255, 20, 0.5); }
         .remote-msg { color: var(--blue); text-shadow: 0 0 1px rgba(0, 212, 255, 0.5); }
         .timestamp { font-size: 0.7rem; color: #555; margin-right: 6px; user-select: none; }
@@ -195,6 +195,29 @@
         }
         .setup-box h2 { margin-top: 0; color: var(--amber); font-size: 1.2rem; }
         .setup-box input { margin-bottom: 20px; text-align: center; letter-spacing: 2px; }
+        
+        /* Connection Mode Select */
+        .mode-select {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            background: #000;
+            border: 1px solid #444;
+            padding: 4px;
+        }
+        .mode-opt {
+            flex: 1;
+            padding: 8px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .mode-opt.active {
+            background: var(--amber);
+            color: #000;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -204,7 +227,6 @@
     <div class="header-stats">
         <div style="display:flex; flex-direction:column;">
             <span>FREQ: <span id="curFreq" style="color:var(--blue)">UNSET</span></span>
-            <!-- This now uses Browser Native Info -->
             <span id="netInfo" style="color:#666; font-size:0.6rem;">DETECTING LINK...</span>
         </div>
         
@@ -247,7 +269,16 @@
     <div id="setupPanel">
         <div class="setup-box">
             <h2>TAC/COM LINK</h2>
-            <div style="margin-bottom:10px; font-size:0.7rem; color:#666;">SELECT FREQUENCY (1-99)</div>
+            <div style="margin-bottom:15px; font-size:0.7rem; color:#666;">CONNECTION STRATEGY</div>
+            
+            <!-- Manual/Auto Selector -->
+            <div class="mode-select">
+                <div class="mode-opt active" id="modeAuto" onclick="setMode('auto')">AUTO</div>
+                <div class="mode-opt" id="modeHost" onclick="setMode('host')">HOST</div>
+                <div class="mode-opt" id="modeClient" onclick="setMode('client')">CLIENT</div>
+            </div>
+
+            <div style="margin-bottom:10px; font-size:0.7rem; color:#666;">FREQUENCY (1-99)</div>
             <input type="number" id="chanInput" value="1" min="1" max="99">
             <button class="btn-main" id="bootBtn" onclick="initChannel()" style="width:100%; padding: 12px;">CONNECT</button>
         </div>
@@ -257,35 +288,41 @@
 <script>
     let peer, conn, heartbeatInterval, pingInterval;
     let lastUsedChannel = null;
-    const APP_PREFIX = "TAC-TEXT-V5-"; 
+    let connectionMode = 'auto'; // auto, host, client
+    const APP_PREFIX = "TAC-TEXT-V6-"; 
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     
-    // Robust ICE Config
+    // EXPANDED ICE CONFIGURATION for better NAT Traversal
     const PEER_CONFIG = {
         config: {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
                 { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:global.stun.twilio.com:3478' }
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun4.l.google.com:19302' },
+                { urls: 'stun:global.stun.twilio.com:3478' },
+                { urls: 'stun:stun.services.mozilla.com' }
             ]
         }
     };
 
-    // --- 1. BROWSER NATIVE NETWORK INFO (No API Limits) ---
+    // --- UI: MODE SELECTION ---
+    function setMode(mode) {
+        connectionMode = mode;
+        document.querySelectorAll('.mode-opt').forEach(el => el.classList.remove('active'));
+        document.getElementById('mode' + mode.charAt(0).toUpperCase() + mode.slice(1)).classList.add('active');
+    }
+
+    // --- NATIVE NETWORK INFO ---
     function getLocalNetworkInfo() {
         const netEl = document.getElementById('netInfo');
         const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-
         if (connection) {
-            // Get Connection Type (wifi, cellular, ethernet, etc.)
             let type = connection.type;
-            // Some browsers return 'wifi' or 'cellular', others return effectiveType
             if (!type && connection.effectiveType) type = "DATA"; 
             if (!type) type = "LAN/WIFI";
-
-            // Get Speed (4g, 3g, 2g)
             let speed = connection.effectiveType ? connection.effectiveType.toUpperCase() : "UNKNOWN";
-
             netEl.innerText = `LINK: ${type.toUpperCase()} | ${speed}`;
             netEl.style.color = "var(--green)";
         } else {
@@ -294,14 +331,12 @@
         }
     }
 
-    // --- 2. REAL-TIME LATENCY (PING) SYSTEM ---
+    // --- PING SYSTEM ---
     function startPingSystem() {
         stopPingSystem();
-        // Send a ping every 2 seconds
         pingInterval = setInterval(() => {
             if(conn && conn.open) {
-                const timestamp = Date.now();
-                conn.send({ type: 'ping', time: timestamp });
+                conn.send({ type: 'ping', time: Date.now() });
             }
         }, 2000);
     }
@@ -312,34 +347,28 @@
 
     function updateSignalMeter(pingMs) {
         const meter = document.getElementById('signalMeter');
-        // Remove old levels
         meter.className = 'signal-container';
-        
         let level = 1;
-        if (pingMs < 20) level = 4;      // Excellent LAN
-        else if (pingMs < 100) level = 3; // Good
-        else if (pingMs < 300) level = 2; // Fair
-        else level = 1;                   // Poor
-
+        if (pingMs < 20) level = 4;      
+        else if (pingMs < 100) level = 3; 
+        else if (pingMs < 300) level = 2; 
+        else level = 1;                   
         meter.classList.add(`sig-lvl-${level}`);
     }
 
-    // --- UI & UTILS ---
-
+    // --- UTILS ---
     function log(msg, type="sys") {
         const div = document.createElement('div');
         const time = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
-        div.className = `msg-entry ${type}-msg}`;
-        
+        div.className = `msg-entry ${type}-msg`;
         if (type === 'sys') div.innerHTML = `<span class="timestamp">[${time}]</span> ${msg}`;
+        else if (type === 'error') div.innerHTML = `<span class="timestamp">[${time}]</span> ${msg}`; // Error handled by styling
         else if (type === 'local') div.innerHTML = `<span class="timestamp">[${time}]</span> <b>YOU:</b> ${msg}`;
         else if (type === 'remote') div.innerHTML = `<span class="timestamp">[${time}]</span> <b>REMOTE:</b> ${msg}`;
         
         const out = document.getElementById('output');
         out.appendChild(div);
-        
-        const isNearBottom = out.scrollHeight - out.scrollTop - out.clientHeight < 100;
-        if(isNearBottom) out.scrollTop = out.scrollHeight;
+        out.scrollTop = out.scrollHeight;
     }
 
     function flashLed(ledId, colorClass, duration=200) {
@@ -367,35 +396,27 @@
         if (connected) {
             panel.style.opacity = '0';
             setTimeout(() => panel.style.display = 'none', 200);
-            
             inputs.disabled = false;
             sendBtn.disabled = false;
             syncBtn.disabled = false;
-            
             if(window.innerWidth > 768) inputs.focus();
-            
             stat.innerHTML = "LINK ESTABLISHED";
             stat.style.color = "var(--green)";
             setLedState('ledNet', true, 'green');
-            
             startHeartbeat();
             startPingSystem();
-            getLocalNetworkInfo(); // Update network info on connect
+            getLocalNetworkInfo();
         } else {
             panel.style.display = 'flex';
             setTimeout(() => panel.style.opacity = '1', 10);
-            
             inputs.disabled = true;
             sendBtn.disabled = true;
             syncBtn.disabled = true; 
-            
             bootBtn.disabled = false;
             bootBtn.innerText = "CONNECT";
-            
             stat.innerText = "OFFLINE";
             stat.style.color = "#666";
             setLedState('ledNet', false);
-            
             stopHeartbeat();
             stopPingSystem();
             document.getElementById('signalMeter').className = 'signal-container sig-lvl-0';
@@ -436,13 +457,10 @@
         osc.stop(audioCtx.currentTime + duration);
     }
 
-    // --- HEARTBEAT ---
     function startHeartbeat() {
         stopHeartbeat();
         heartbeatInterval = setInterval(() => {
-            if(conn && conn.open) {
-                conn.send({ type: 'heartbeat' });
-            }
+            if(conn && conn.open) conn.send({ type: 'heartbeat' });
         }, 3000); 
     }
 
@@ -465,22 +483,47 @@
         btn.innerText = "LINKING...";
         
         if (audioCtx.state === 'suspended') audioCtx.resume();
-        getLocalNetworkInfo(); // Get local network status immediately
+        getLocalNetworkInfo();
 
-        initPeer(fullId);
+        // LOGIC BASED ON MODE
+        if (connectionMode === 'host') {
+            // Force Host: Create ID, Fail if taken
+            initPeer(fullId, true);
+        } else if (connectionMode === 'client') {
+            // Force Client: Create Random ID, Connect to Host
+            initPeer(null, false, fullId);
+        } else {
+            // Auto: Try Host, Failover to Client
+            initPeer(fullId, false);
+        }
     }
 
-    function initPeer(myId) {
-        if(peer) { try { peer.destroy(); } catch(e){} }
+    // isForcedHost = true (don't switch to client on error)
+    // targetIdForClient = used if we start directly as client
+    function initPeer(myId, isForcedHost, targetIdForClient = null) {
+        if(peer) { try { peer.destroy(); } catch(e){} peer = null; }
 
-        peer = new Peer(myId, PEER_CONFIG);
+        // If we are forcing client mode, myId is null (random)
+        const config = myId ? { ...PEER_CONFIG, debug: 2 } : PEER_CONFIG;
+        peer = new Peer(myId, config);
 
-        peer.on('open', id => { 
-            log(`CHANNEL ${myId.replace(APP_PREFIX, '')} ACTIVE.`, 'sys');
-            document.getElementById('curFreq').innerText = "CH-" + myId.replace(APP_PREFIX, '');
-            document.getElementById('bootBtn').disabled = false;
-            document.getElementById('bootBtn').innerText = "CONNECT";
-        });
+        if (myId) {
+            peer.on('open', id => { 
+                log(`CHANNEL ${myId.replace(APP_PREFIX, '')} ACTIVE.`, 'sys');
+                document.getElementById('curFreq').innerText = "CH-" + myId.replace(APP_PREFIX, '');
+                document.getElementById('bootBtn').disabled = false;
+                document.getElementById('bootBtn').innerText = "CONNECT";
+            });
+        } else {
+             peer.on('open', id => {
+                log("CLIENT MODE: SEARCHING FOR HOST...", 'sys');
+                // We are a client, connect immediately to the target
+                if(targetIdForClient) {
+                     conn = peer.connect(targetIdForClient, { reliable: true });
+                     setupHandlers();
+                }
+            });
+        }
 
         peer.on('connection', c => { 
             if(conn && conn.open) { c.close(); return; }
@@ -489,51 +532,54 @@
         });
 
         peer.on('error', (err) => {
-            if(err.type === 'unavailable-id') {
-                peer.destroy();
-                peer = null;
-                initCallerMode(myId);
+            console.error("PeerError:", err);
+            if (isForcedHost) {
+                // If forced host fails, it's a hard error
+                log(`HOST ERROR: ${err.type}. CHANNEL BUSY.`, 'error');
+                document.getElementById('bootBtn').disabled = false;
+                document.getElementById('bootBtn').innerText = "CONNECT";
+            } else if (err.type === 'unavailable-id') {
+                // Auto Mode: Switch to client
+                log("CHANNEL BUSY. SWITCHING TO CLIENT MODE...", 'sys');
+                document.getElementById('curFreq').innerText = "CH-" + myId.replace(APP_PREFIX, '') + " [RX]";
+                if(peer) { peer.destroy(); peer = null; }
+                initPeer(null, false, myId);
             } else {
-                log("CONN ERROR: " + err.type, 'sys');
+                log("CONN ERROR: " + err.type, 'error');
                 document.getElementById('bootBtn').disabled = false;
             }
         });
     }
 
-    function initCallerMode(targetId) {
-        peer = new Peer(PEER_CONFIG); 
-        peer.on('open', () => {
-            log("CONNECTING TO HOST...", 'sys');
-            conn = peer.connect(targetId, { reliable: true });
-            setupHandlers();
-        });
-        peer.on('error', (err) => {
-             log("HANDSHAKE FAILED", 'sys');
-             document.getElementById('bootBtn').disabled = false;
-        });
-    }
-
     function setupHandlers() {
+        // Add a timeout to connection attempt
+        const connectionTimer = setTimeout(() => {
+            if(conn && !conn.open) {
+                log("CONNECTION TIMEOUT. TRY MANUAL MODE.", 'error');
+                conn.close();
+                document.getElementById('bootBtn').disabled = false;
+                document.getElementById('bootBtn').innerText = "RETRY";
+            }
+        }, 10000); // 10 seconds timeout
+
         conn.on('open', () => {
+            clearTimeout(connectionTimer);
             setUIState(true);
             log("DATA LINK SECURE.", 'sys');
             conn.send({ type: 'join' });
         });
 
         conn.on('data', data => {
-            // Handle Ping/Pong
             if(data.type === 'ping') {
                 conn.send({ type: 'pong', time: data.time });
                 return;
             }
             if(data.type === 'pong') {
-                const now = Date.now();
-                const rtt = now - data.time;
+                const rtt = Date.now() - data.time;
                 updateSignalMeter(rtt);
                 return;
             }
 
-            // Standard Messages
             if (data.type !== 'heartbeat') flashLed('ledRx', 'blue', 300);
 
             if (typeof data === 'string') {
@@ -558,16 +604,16 @@
         });
 
         conn.on('close', () => {
+            clearTimeout(connectionTimer);
             conn = null;
             setDisconnectedState();
         });
         
         conn.on('error', (err) => {
-            log("LINK ERROR.", 'sys');
+            clearTimeout(connectionTimer);
+            log("LINK ERROR.", 'error');
         });
     }
-
-    // --- ACTIONS ---
 
     function attemptSync() {
         if(conn && conn.open) {
@@ -583,7 +629,8 @@
                     const fullId = APP_PREFIX + lastUsedChannel;
                     if(peer) peer.destroy();
                     peer = null;
-                    initPeer(fullId);
+                    // Retry using current mode logic
+                    initChannel(); 
                 }, 500);
             }
         }
