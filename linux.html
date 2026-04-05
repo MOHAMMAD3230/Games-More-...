@@ -1,17 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=GT-NC6T5LRJ"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
+    <!-- 1. SECURITY: ROBUST CONTENT SECURITY POLICY (CSP) -->
+    <!-- 
+       - script-src: Allows Supabase SDK from cdn.jsdelivr.net and inline scripts.
+       - connect-src: Restricts network calls to ONLY your Supabase instance and the RSS feed.
+       - style-src: Allows inline styles.
+       - default-src: Defaults to 'self' for other resources.
+    -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://xgfazfmigrwrmkntdjfp.supabase.co https://api.rss2json.com; img-src 'self' data: https:; font-src 'self' data:;">
 
-  gtag('config', 'GT-NC6T5LRJ');
-</script>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=GT-NC6T5LRJ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'GT-NC6T5LRJ');
+    </script>
+
     <meta charset="UTF-8" />
-    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" href="https://mohammad3230.github.io/Games-More-.../favicon.png" type="image/png" sizes="32x32" />
     <title>Omni-Deck v80.8 | Active Session</title>
@@ -319,7 +327,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS virtual_fs_owner_name_parent_idx ON virtual_fs
         function addLog(msg, color = "var(--glow-blue)") {
             const lc = document.getElementById('terminalLog'); if (!lc) return;
             const d = document.createElement('div');
-            d.className = "log-entry"; d.style.color = color; d.innerHTML = `> ${msg}`;
+            d.className = "log-entry"; d.style.color = color; 
+            // SECURITY: Using textContent for the message part, but since we rely on HTML structure for colors,
+            // we trust the 'color' param. However, we must ensure the msg itself is sanitized at the source (in the event listener).
+            // To be strictly secure while maintaining internal HTML styling, we allow HTML here BUT we must 
+            // sanitize the user input BEFORE passing it here.
+            d.innerHTML = `> ${msg}`; 
             lc.appendChild(d); lc.scrollTop = lc.scrollHeight;
             setTimeout(() => { d.classList.add('log-fade'); setTimeout(() => d.remove(), 1000); }, 60000);
         }
@@ -573,8 +586,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS virtual_fs_owner_name_parent_idx ON virtual_fs
         document.getElementById('terminalInput').addEventListener('keydown', async (e) => {
             if (e.key !== "Enter") return;
             const raw = e.target.value.trim(); if (!raw) return;
+            
+            // SECURITY: XSS Prevention
+            // Escape user input to prevent script injection via innerHTML
+            const safeRaw = raw.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
             const args = raw.split(/\s+/), cmd = args[0].toLowerCase();
-            e.target.value = ""; addLog(`$ ${raw}`, "#fff");
+            e.target.value = ""; addLog(`$ ${safeRaw}`, "#fff"); // Use safeRaw for display
             neuralSync = Math.min(100, neuralSync + 15); heatUp();
 
             switch(cmd) {
@@ -619,14 +637,27 @@ CREATE UNIQUE INDEX IF NOT EXISTS virtual_fs_owner_name_parent_idx ON virtual_fs
                 }
                 case "site": {
                     let u = args.includes("--url") ? args[args.indexOf("--url")+1] : args[1];
-                    if (u) { if (!u.startsWith('http')) u = 'https://' + u; window.open(u, '_blank'); } break;
+                    if (u) { 
+                        try {
+                            // SECURITY: Open Redirect Prevention
+                            const urlObj = new URL(u.startsWith('http') ? u : 'https://' + u);
+                            if (['javascript:', 'data:', 'vbscript:'].includes(urlObj.protocol)) {
+                                addLog("ERR: PROTOCOL_BLOCKED", "var(--glow-red)");
+                                return;
+                            }
+                            window.open(urlObj.href, '_blank');
+                        } catch(err) {
+                            addLog("ERR: INVALID_URL_FORMAT", "var(--glow-red)");
+                        }
+                    } 
+                    break;
                 }
                 case "osint": {
-                    addLog(`SCANNING: ${args[1] || "ASHRAF_ALI"}...`, "var(--glow-gold)");
+                    addLog(`SCANNING: ${safeRaw || "ASHRAF_ALI"}...`, "var(--glow-gold)"); // Use safeRaw
                     setTimeout(() => addLog("MATCH: GitHub/AshrafAli - Active", "var(--glow-blue)"), 1200); break;
                 }
                 case "trace": case "traceroute": {
-                    addLog(`TRACE: ${args[1] || "127.0.0.1"}...`, "var(--glow-purple)");
+                    addLog(`TRACE: ${safeRaw || "127.0.0.1"}...`, "var(--glow-purple)"); // Use safeRaw
                     let h = 0; const ti = setInterval(() => { h++; addLog(`HOP ${h}: 10.0.${Math.floor(Math.random()*255)}.${h} -- ${(Math.random()*20+10).toFixed(1)}ms`, "rgba(188,19,254,0.7)"); if (h>=5) { clearInterval(ti); addLog("TRACE DONE.", "var(--glow-green)"); } }, 400); break;
                 }
                 case "diag": {
