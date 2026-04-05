@@ -195,17 +195,17 @@
         }
         .setup-box h2 { margin-top: 0; color: var(--amber); font-size: 1.2rem; }
         .setup-box input { margin-bottom: 20px; text-align: center; letter-spacing: 2px; }
-        .api-status { font-size: 0.6rem; color: #555; margin-top: 10px; height: 10px; }
     </style>
 </head>
 <body>
 
 <div class="mainframe">
-    <!-- Header with ISP Info & Signal Meter -->
+    <!-- Header -->
     <div class="header-stats">
         <div style="display:flex; flex-direction:column;">
             <span>FREQ: <span id="curFreq" style="color:var(--blue)">UNSET</span></span>
-            <span id="ispInfo" style="color:#666; font-size:0.6rem;">DETECTING NETWORK...</span>
+            <!-- This now uses Browser Native Info -->
+            <span id="netInfo" style="color:#666; font-size:0.6rem;">DETECTING LINK...</span>
         </div>
         
         <div style="display:flex; align-items:center;">
@@ -250,7 +250,6 @@
             <div style="margin-bottom:10px; font-size:0.7rem; color:#666;">SELECT FREQUENCY (1-99)</div>
             <input type="number" id="chanInput" value="1" min="1" max="99">
             <button class="btn-main" id="bootBtn" onclick="initChannel()" style="width:100%; padding: 12px;">CONNECT</button>
-            <div class="api-status" id="apiStatus"></div>
         </div>
     </div>
 </div>
@@ -258,12 +257,9 @@
 <script>
     let peer, conn, heartbeatInterval, pingInterval;
     let lastUsedChannel = null;
-    const APP_PREFIX = "TAC-TEXT-V4-"; 
+    const APP_PREFIX = "TAC-TEXT-V5-"; 
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     
-    // Free API Info
-    const API_URL = "https://ipwho.is/";
-
     // Robust ICE Config
     const PEER_CONFIG = {
         config: {
@@ -275,41 +271,33 @@
         }
     };
 
-    // --- 1. FREE API INTEGRATION (Network Info) ---
-    function fetchNetworkInfo() {
-        const statusEl = document.getElementById('apiStatus');
-        const ispEl = document.getElementById('ispInfo');
-        
-        statusEl.innerText = "FETCHING NET DATA...";
-        
-        fetch(API_URL)
-            .then(response => response.json())
-            .then(data => {
-                if(data.success) {
-                    // Display ISP and Type (e.g., "Verizon (Wireless)")
-                    const connection = data.connection;
-                    const isp = data.isp;
-                    const type = connection.type ? connection.type.toUpperCase() : "UNKNOWN";
-                    
-                    ispEl.innerText = `${type} | ${isp}`;
-                    ispEl.style.color = "var(--green)";
-                    statusEl.innerText = "";
-                } else {
-                    throw new Error("API Error");
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                ispEl.innerText = "NET INFO UNAVAILABLE";
-                statusEl.innerText = "API LIMIT / OFFLINE";
-                statusEl.style.color = "var(--red)";
-            });
+    // --- 1. BROWSER NATIVE NETWORK INFO (No API Limits) ---
+    function getLocalNetworkInfo() {
+        const netEl = document.getElementById('netInfo');
+        const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+
+        if (connection) {
+            // Get Connection Type (wifi, cellular, ethernet, etc.)
+            let type = connection.type;
+            // Some browsers return 'wifi' or 'cellular', others return effectiveType
+            if (!type && connection.effectiveType) type = "DATA"; 
+            if (!type) type = "LAN/WIFI";
+
+            // Get Speed (4g, 3g, 2g)
+            let speed = connection.effectiveType ? connection.effectiveType.toUpperCase() : "UNKNOWN";
+
+            netEl.innerText = `LINK: ${type.toUpperCase()} | ${speed}`;
+            netEl.style.color = "var(--green)";
+        } else {
+            netEl.innerText = "LINK: LOCAL NETWORK";
+            netEl.style.color = "var(--amber)";
+        }
     }
 
     // --- 2. REAL-TIME LATENCY (PING) SYSTEM ---
     function startPingSystem() {
         stopPingSystem();
-        // Send a ping every 2 seconds to measure connection strength
+        // Send a ping every 2 seconds
         pingInterval = setInterval(() => {
             if(conn && conn.open) {
                 const timestamp = Date.now();
@@ -328,10 +316,10 @@
         meter.className = 'signal-container';
         
         let level = 1;
-        if (pingMs < 20) level = 4;      // LAN / Excellent
-        else if (pingMs < 100) level = 3; // Good 4G / WiFi
-        else if (pingMs < 300) level = 2; // 3G / Slow
-        else level = 1;                   // Laggy
+        if (pingMs < 20) level = 4;      // Excellent LAN
+        else if (pingMs < 100) level = 3; // Good
+        else if (pingMs < 300) level = 2; // Fair
+        else level = 1;                   // Poor
 
         meter.classList.add(`sig-lvl-${level}`);
     }
@@ -341,7 +329,7 @@
     function log(msg, type="sys") {
         const div = document.createElement('div');
         const time = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
-        div.className = `msg-entry ${type}-msg`;
+        div.className = `msg-entry ${type}-msg}`;
         
         if (type === 'sys') div.innerHTML = `<span class="timestamp">[${time}]</span> ${msg}`;
         else if (type === 'local') div.innerHTML = `<span class="timestamp">[${time}]</span> <b>YOU:</b> ${msg}`;
@@ -391,7 +379,8 @@
             setLedState('ledNet', true, 'green');
             
             startHeartbeat();
-            startPingSystem(); // Start measuring signal
+            startPingSystem();
+            getLocalNetworkInfo(); // Update network info on connect
         } else {
             panel.style.display = 'flex';
             setTimeout(() => panel.style.opacity = '1', 10);
@@ -409,7 +398,6 @@
             
             stopHeartbeat();
             stopPingSystem();
-            // Reset signal meter
             document.getElementById('signalMeter').className = 'signal-container sig-lvl-0';
         }
     }
@@ -477,8 +465,7 @@
         btn.innerText = "LINKING...";
         
         if (audioCtx.state === 'suspended') audioCtx.resume();
-        // Fetch Network Info on connect
-        fetchNetworkInfo();
+        getLocalNetworkInfo(); // Get local network status immediately
 
         initPeer(fullId);
     }
@@ -534,14 +521,12 @@
         });
 
         conn.on('data', data => {
-            // Handle Ping/Pong for Signal Meter
+            // Handle Ping/Pong
             if(data.type === 'ping') {
-                // Respond with Pong immediately
                 conn.send({ type: 'pong', time: data.time });
-                return; // Don't flash LED for system pings
+                return;
             }
             if(data.type === 'pong') {
-                // Calculate Round Trip Time (Latency)
                 const now = Date.now();
                 const rtt = now - data.time;
                 updateSignalMeter(rtt);
@@ -630,10 +615,6 @@
             location.reload();
         }
     }
-
-    // Initialize
-    // Optional: Pre-fetch network info on load
-    // fetchNetworkInfo(); 
 </script>
 </body>
 </html>
