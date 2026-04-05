@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OMNI-DECK // OVERLORD_V175</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        :root { --neon: #00f2ff; --bg: #020617; --panel: rgba(15, 23, 42, 0.98); --brd: #1e293b; --danger: #ff3e3e; }
+        body { background: var(--bg); color: var(--neon); font-family: 'JetBrains Mono', monospace; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        #sidebar { width: 260px; border-right: 1px solid var(--brd); background: #000; display: flex; flex-direction: column; z-index: 50; }
+        #main-content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; padding: 25px; gap: 20px; }
+        .module { border: 1px solid var(--brd); background: var(--panel); padding: 20px; display: none; flex-direction: column; gap: 15px; }
+        .module.active { display: flex; animation: scanline 0.2s ease-in; }
+        @keyframes scanline { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .label { font-size: 9px; text-transform: uppercase; opacity: 0.5; letter-spacing: 2px; color: var(--neon); display: block;}
+        textarea, input, select { background: #000 !important; border: 1px solid var(--brd) !important; color: #fff !important; font-size: 11px; padding: 10px; outline: none; width: 100%; }
+        textarea:focus, input:focus { border-color: var(--neon) !important; box-shadow: 0 0 10px rgba(0,242,255,0.2); }
+        .btn { background: var(--neon); color: #000; font-weight: 900; font-size: 10px; padding: 10px; cursor: pointer; border: none; transition: 0.2s; text-transform: uppercase; }
+        .btn:hover { box-shadow: 0 0 15px var(--neon); transform: scale(1.02); }
+        .nav-item { padding: 12px 20px; border-bottom: 1px solid #111; cursor: pointer; font-size: 10px; transition: 0.2s; opacity: 0.6; display: flex; align-items: center; }
+        .nav-item:hover, .nav-item.active { background: rgba(0,242,255,0.1); opacity: 1; color: #fff; }
+        .nav-item.active { border-left: 3px solid var(--neon); }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .console-box { background: #000; border: 1px solid #111; padding: 10px; font-size: 10px; overflow-y: auto; font-family: 'Courier New', monospace; }
+    </style>
+</head>
+<body>
+
+    <aside id="sidebar">
+        <div class="p-6 border-b border-slate-900 text-center">
+            <div class="text-xl font-black text-white italic">OMNI-DECK</div>
+            <div class="text-[8px] text-emerald-500 uppercase tracking-[3px] mt-1">UPLINK_ESTABLISHED</div>
+        </div>
+        <nav class="flex-1 overflow-y-auto">
+            <div class="nav-item active" onclick="showMod('m-vuln', this)"><i class="fas fa-user-secret w-5"></i> VULN_SCANNER</div>
+            <div class="nav-item" onclick="showMod('m-net', this)"><i class="fas fa-satellite-dish w-5"></i> NETWORK_INTEL</div>
+            <div class="nav-item" onclick="showMod('m-osint', this)"><i class="fas fa-globe w-5"></i> OSINT_GEOSPATIAL</div>
+            <div class="nav-item" onclick="showMod('m-dev', this)"><i class="fas fa-terminal w-5"></i> DEV_UTILITIES</div>
+            <div class="nav-item" onclick="showMod('m-design', this)"><i class="fas fa-palette w-5"></i> DESIGN_ENGINE</div>
+            <div class="nav-item" onclick="showMod('m-storage', this)"><i class="fas fa-database w-5"></i> PERSISTENCE</div>
+            <div class="nav-item" onclick="showMod('m-sandbox', this)"><i class="fas fa-vial w-5"></i> HTML_SANDBOX</div>
+        </nav>
+        <div class="p-4 text-[8px] opacity-20 text-center">ASHRAF_ALI // SECURE_SHELL</div>
+    </aside>
+
+    <main id="main-content">
+        <div id="m-vuln" class="module active">
+            <div class="grid-2">
+                <div class="space-y-4">
+                    <span class="label">Signature_Audit: SQLi_&_XSS_Scanner</span>
+                    <textarea id="vuln-in" class="h-40" placeholder="Paste payload or URL to scan..."></textarea>
+                    <div class="flex gap-2">
+                        <button class="btn flex-1 bg-red-900/40 text-red-400" onclick="scanPayload()">Scan_Payload</button>
+                        <button class="btn flex-1 opacity-50" onclick="loadSamples()">Samples</button>
+                    </div>
+                    <div id="vuln-out" class="console-box h-48 text-amber-500">// System Ready...</div>
+                </div>
+                <div class="space-y-4">
+                    <span class="label">Protocol_&_Handshake_Audit</span>
+                    <div class="flex gap-2"><input type="text" id="proto-url" placeholder="example.com"><button class="btn" onclick="auditProtocol()">Check</button></div>
+                    <div id="proto-out" class="console-box h-80 text-cyan-400"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="m-net" class="module">
+            <div class="grid-2">
+                <div class="space-y-4">
+                    <span class="label">SSL_Protocol_Audit (Proxy)</span>
+                    <div class="flex gap-2"><input type="text" id="ssl-in" placeholder="site.com"><button class="btn" onclick="checkSSL()">Audit</button></div>
+                    <div id="ssl-out" class="console-box h-64 text-cyan-200"></div>
+                </div>
+                <div class="space-y-4">
+                    <span class="label">Web-Socket_Monitor</span>
+                    <div class="flex gap-2"><input type="text" id="ws-in" placeholder="wss://..."><button class="btn" onclick="toggleWS()" id="ws-btn">Link</button></div>
+                    <div id="ws-out" class="console-box h-64 text-emerald-500"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="m-osint" class="module">
+            <div class="grid-2">
+                <div class="space-y-4">
+                    <span class="label">Global_IP_Trace</span>
+                    <div class="flex gap-2"><input type="text" id="ip-in" placeholder="8.8.8.8"><button class="btn" onclick="locateIP()">Trace</button></div>
+                    <div id="ip-out" class="console-box h-64 text-amber-400"></div>
+                </div>
+                <div class="space-y-4">
+                    <span class="label">Whois_Registry</span>
+                    <div class="flex gap-2"><input type="text" id="who-in" placeholder="github.com"><button class="btn" onclick="lookupWhois()">Whois</button></div>
+                    <div id="who-out" class="console-box h-64 text-blue-300"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="m-dev" class="module">
+            <div class="grid grid-cols-3 gap-4">
+                <div class="space-y-4"><span class="label">Minifier</span><textarea id="min-in" class="h-64"></textarea><button class="btn w-full" onclick="runMinify()">Compress</button></div>
+                <div class="space-y-4"><span class="label">Renamer</span><input type="text" id="ren-pre" value="asset_"><input type="number" id="ren-num" value="5"><textarea id="ren-out" class="h-44 text-[9px]" readonly></textarea></div>
+                <div class="space-y-4"><span class="label">Markdown</span><textarea id="md-in" class="h-32" oninput="renderMD()"></textarea><div id="md-out" class="h-32 bg-white text-black p-2 text-xs overflow-auto"></div></div>
+            </div>
+        </div>
+
+        <div id="m-design" class="module">
+            <div class="grid-2">
+                <div class="space-y-4">
+                    <span class="label">PX_to_REM</span>
+                    <input type="number" id="unit-px" placeholder="Pixels" oninput="convertUnits()">
+                    <div id="unit-rem" class="text-3xl font-bold mt-2">0.000rem</div>
+                </div>
+                <div class="space-y-4">
+                    <span class="label">Color_Architect</span>
+                    <div class="flex gap-2"><input type="color" id="clr-seed" oninput="genPalette()"><input type="text" id="clr-hex" placeholder="#HEX" oninput="genPalette()"></div>
+                    <div id="pal-out" class="grid grid-cols-5 h-20 border border-slate-900 mt-2"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="m-storage" class="module">
+            <div class="grid-2">
+                <div class="space-y-4">
+                    <span class="label">LocalStorage_Auditor</span>
+                    <div class="flex gap-2"><input type="text" id="ls-k" placeholder="Key"><input type="text" id="ls-v" placeholder="Value"><button class="btn" onclick="setLS()">Set</button></div>
+                    <div id="ls-out" class="h-48 overflow-auto bg-black p-2 text-[10px]"></div>
+                </div>
+                <div class="space-y-4">
+                    <span class="label">Favicon_Gen</span>
+                    <div class="flex gap-2"><input type="text" id="fav-e" value="⚡" class="w-12 text-center"><input type="color" id="fav-bg" value="#00f2ff" oninput="genFavicon()"></div>
+                    <canvas id="fav-can" width="64" height="64" class="hidden"></canvas>
+                    <img id="fav-pre" class="w-16 h-16 border border-slate-700 mt-2">
+                    <button class="btn w-full mt-2" onclick="copyFav()">Copy Link Tag</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="m-sandbox" class="module h-[500px]">
+            <span class="label">Isolated_Runtime</span>
+            <div class="grid-2 flex-1">
+                <textarea id="code-in" class="h-full font-mono" placeholder="<html>..."></textarea>
+                <iframe id="code-pre" class="w-full h-full bg-white"></iframe>
+            </div>
+            <button class="btn mt-4" onclick="compile()">Deploy_Code</button>
+        </div>
+    </main>
+
+    <script>
+        const proxy = "https://corsproxy.io/?";
+
+        function showMod(id, el) {
+            document.querySelectorAll('.module').forEach(m => m.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            el.classList.add('active');
+        }
+
+        // --- VULN SCANNER LOGIC ---
+        function scanPayload() {
+            const i = document.getElementById('vuln-in').value;
+            const o = document.getElementById('vuln-out');
+            let t = [];
+            if (/\b(union|select|drop|insert)\b/i.test(i)) t.push("[CRITICAL] SQL_Injected_Keyword");
+            if (/<script|on\w+=|javascript:/i.test(i)) t.push("[CRITICAL] XSS_Vector_Detected");
+            o.innerHTML = t.length > 0 ? `<div class="text-red-500">${t.join('<br>')}</div>` : `<div class="text-emerald-500">SIGNATURE_CHECK: PASSED</div>`;
+        }
+
+        async function auditProtocol() {
+            const u = document.getElementById('proto-url').value, o = document.getElementById('proto-out');
+            o.innerText = "Analyzing handshakes...";
+            try {
+                const f = await fetch(proxy + encodeURIComponent(u), { method: 'HEAD' });
+                o.innerHTML = `SSL: ${u.startsWith('https') ? 'ENCRYPTED' : 'PLAIN_TEXT'}<br>HSTS: ${f.headers.get('strict-transport-security') || 'OFF'}<br>NODE: ${f.headers.get('server') || 'HIDDEN'}`;
+            } catch(e) { o.innerText = "Connection Refused."; }
+        }
+
+        // --- NETWORK & OSINT ---
+        async function checkSSL() {
+            const d = document.getElementById('ssl-in').value, o = document.getElementById('ssl-out');
+            try { const f = await fetch(proxy + encodeURIComponent(`https://ssl-checker.io/api/v1/check/${d}`)); const j = await f.json(); o.innerText = JSON.stringify(j, null, 2); } catch(e) { o.innerText = "SSL API Error."; }
+        }
+        async function locateIP() {
+            const i = document.getElementById('ip-in').value, o = document.getElementById('ip-out');
+            try { const f = await fetch(`http://ip-api.com/json/${i}`); const j = await f.json(); o.innerText = JSON.stringify(j, null, 2); } catch(e) { o.innerText = "Trace Failed."; }
+        }
+        async function lookupWhois() {
+            const d = document.getElementById('who-in').value, o = document.getElementById('who-out');
+            try { const f = await fetch(`https://rdap.org/domain/${d}`); const j = await f.json(); o.innerText = JSON.stringify(j, null, 2); } catch(e) { o.innerText = "RDAP Error."; }
+        }
+
+        // --- UTILS ---
+        function runMinify() { document.getElementById('min-in').value = document.getElementById('min-in').value.replace(/\s+/g, ' ').trim(); }
+        function convertUnits() { document.getElementById('unit-rem').innerText = (document.getElementById('unit-px').value / 16).toFixed(3) + "rem"; }
+        function genPalette() {
+            const h = document.getElementById('clr-hex').value || document.getElementById('clr-seed').value;
+            const o = document.getElementById('pal-out'); o.innerHTML = '';
+            [0.5, 0.8, 1, 1.3, 1.6].forEach(m => {
+                const b = document.createElement('div'); b.style.backgroundColor = h; b.style.filter = `brightness(${m})`; o.appendChild(b);
+            });
+        }
+        function genFavicon() {
+            const c = document.getElementById('fav-can'), ctx = c.getContext('2d'), e = document.getElementById('fav-e').value;
+            ctx.fillStyle = document.getElementById('fav-bg').value; ctx.fillRect(0,0,64,64); ctx.font = "40px serif"; ctx.fillText(e,12,45);
+            document.getElementById('fav-pre').src = c.toDataURL();
+        }
+        function setLS() { localStorage.setItem(document.getElementById('ls-k').value, document.getElementById('ls-v').value); refreshLS(); }
+        function refreshLS() {
+            const o = document.getElementById('ls-out'); o.innerHTML = '';
+            for(let i=0; i<localStorage.length; i++) o.innerHTML += `<div>${localStorage.key(i)}: ${localStorage.getItem(localStorage.key(i))}</div>`;
+        }
+        function compile() {
+            const p = document.getElementById('code-pre').contentWindow.document; p.open(); p.write(document.getElementById('code-in').value); p.close();
+        }
+
+        // Init
+        genPalette(); genFavicon(); refreshLS();
+    </script>
+</body>
+</html>
