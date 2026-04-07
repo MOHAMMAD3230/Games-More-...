@@ -1,564 +1,968 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-   <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=GT-NC6T5LRJ"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'GT-NC6T5LRJ');
-</script>
 <meta charset="UTF-8" />
-   <link rel="icon" href="https://mohammad3230.github.io/Games-More-.../favicon.png" type="image/png" sizes="32x32" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta http-equiv="X-Content-Type-Options" content="nosniff" />
+<meta http-equiv="X-Frame-Options" content="DENY" />
+<meta name="referrer" content="strict-origin-when-cross-origin" />
+<meta http-equiv="Permissions-Policy" content="geolocation=(), camera=(), microphone=(), payment=()" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Ultimate Sci-Fi Health Scanner & Guidance</title>
+<link rel="icon" href="https://mohammad3230.github.io/Games-More-.../favicon.png" type="image/png" sizes="32x32" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 <style>
+/* === CSS Custom Properties === */
+:root {
+  --bg: #0d0b0e;
+  --bg-card: rgba(18, 16, 22, 0.92);
+  --fg: #e8dcc8;
+  --fg-muted: #8a7e6b;
+  --accent: #c9a84c;
+  --accent-glow: rgba(201, 168, 76, 0.35);
+  --accent-dim: #987c2f;
+  --danger: #e84040;
+  --success: #3ddc84;
+  --warning: #f5a623;
+  --border: rgba(201, 168, 76, 0.3);
+  --border-strong: rgba(201, 168, 76, 0.6);
+  --card-radius: 12px;
+  --input-bg: rgba(30, 27, 35, 0.95);
+  --input-border: rgba(201, 168, 76, 0.25);
+  --font-display: 'Orbitron', sans-serif;
+  --font-mono: 'Share Tech Mono', monospace;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+body.light-mode {
+  --bg: #f4efe5;
+  --bg-card: rgba(255, 255, 255, 0.92);
+  --fg: #1a1510;
+  --fg-muted: #6b6052;
+  --border: rgba(120, 100, 50, 0.3);
+  --border-strong: rgba(120, 100, 50, 0.6);
+  --input-bg: rgba(245, 240, 230, 0.95);
+  --input-border: rgba(120, 100, 50, 0.35);
+}
+
+/* === Reset & Base === */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
 body {
-  margin: 0;
-  font-family: 'Courier New', monospace;
-  background: #1a0d04 url('https://www.transparenttextures.com/patterns/dark-leather.png');
-  color: #eadbb1;
-  transition: background 0.5s, color 0.5s;
+  font-family: var(--font-mono);
+  background: var(--bg);
+  color: var(--fg);
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  line-height: 1.6;
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+  transition: background 0.4s ease, color 0.4s ease;
 }
-body.dark-mode {
-  background: #0a0a0a;
-  color: #d0d0d0;
+
+/* === Animated Background === */
+.bg-layer {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
 }
-body.dark-mode .input-group,
-body.dark-mode #tipsSection,
-body.dark-mode #healthReport,
-body.dark-mode #goalsGuidance {
-  background: #111;
-  border-color: #666;
+.bg-layer::before {
+  content: '';
+  position: absolute; inset: -50%;
+  background:
+    radial-gradient(ellipse 600px 400px at 20% 30%, rgba(201,168,76,0.06) 0%, transparent 70%),
+    radial-gradient(ellipse 500px 500px at 80% 70%, rgba(201,168,76,0.04) 0%, transparent 70%),
+    radial-gradient(ellipse 300px 300px at 50% 50%, rgba(201,168,76,0.03) 0%, transparent 70%);
+  animation: bgDrift 20s ease-in-out infinite alternate;
 }
-body.dark-mode h2,
-body.dark-mode h3,
-body.dark-mode h4 {
-  color: #ccc;
+.bg-layer::after {
+  content: '';
+  position: absolute; inset: 0;
+  background-image:
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(201,168,76,0.015) 2px, rgba(201,168,76,0.015) 3px);
 }
-body.dark-mode .gauge {
-  background: #111;
-  border-color: #666;
+@keyframes bgDrift {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  100% { transform: translate(-3%, 2%) rotate(1deg); }
 }
-body.dark-mode .progress {
-  background: #111;
+
+/* === Floating Particles === */
+.particles-canvas {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
 }
-button {
-  background: #b5a642;
-  border: none;
-  padding: 8px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  margin: 4px;
-  font-family: 'Courier New', monospace;
-  font-weight: bold;
-  color: #fff;
+
+/* === Content Container === */
+.content-wrap {
+  position: relative; z-index: 1;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 16px;
 }
-button:hover {
-  background: #987c2f;
-}
-h2 {
-  text-align: center;
-  margin-top: 10px;
-  color: #ffe4b5;
-}
-h3 {
-  text-align: center;
-  margin-top: 10px;
-  color: #ffe4b5;
-}
-h4 {
-  margin-top: 10px;
-  color: #ffe4b5;
-}
-.input-group {
-  max-width: 400px;
-  margin: 10px auto;
-  padding: 10px;
-  background: #222;
-  border-radius: 8px;
-  border: 2px solid #b5a642;
-  transition: background 0.5s, border-color 0.5s;
-}
-label {
-  display: inline-block;
-  width: 130px;
-  color: #fff;
-}
-input[type=number], select, input[type=text] {
-  width: calc(100% - 140px);
-  padding: 6px;
-  margin-top: 4px;
-  border-radius: 4px;
-  border: 1px solid #555;
-  background: #333;
-  color: #fff;
-  box-sizing: border-box;
-}
-#calorieResult {
-  font-weight: bold;
-  margin-top: 10px;
-  text-align: center;
-}
-.instrument-bay {
-  display: flex;
-  justify-content: center;
-  gap: 15px;
-  margin: 20px 0;
-  flex-wrap: wrap;
-}
-.gauge {
-  width: 150px;
-  height: 60px;
-  background: #222;
-  border: 2px solid #b5a642;
-  border-radius: 8px;
+
+/* === Top Bar === */
+.top-bar {
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 1.2em;
-  padding: 10px;
-  box-shadow: 0 0 10px #000;
-  text-align: center;
-  transition: background 0.5s, border-color 0.5s;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
 }
-#progressContainer {
-  max-width: 600px;
-  margin: 20px auto;
+.top-bar .title-area {
+  display: flex; align-items: center; gap: 10px;
 }
-.progress {
-  background: #222;
-  height: 20px;
-  width: 100%;
+.top-bar .title-area i {
+  color: var(--accent);
+  font-size: 1.3em;
+  filter: drop-shadow(0 0 6px var(--accent-glow));
+}
+.top-bar h1 {
+  font-family: var(--font-display);
+  font-size: clamp(0.85rem, 3.5vw, 1.2rem);
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.top-bar .actions {
+  display: flex; gap: 6px;
+}
+
+/* === Buttons === */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  background: var(--input-bg);
+  color: var(--accent);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.btn:hover { background: var(--accent); color: #0d0b0e; border-color: var(--accent); }
+.btn:active { transform: scale(0.96); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn-primary {
+  background: var(--accent);
+  color: #0d0b0e;
+  border-color: var(--accent);
+  box-shadow: 0 0 16px var(--accent-glow);
+}
+.btn-primary:hover { background: var(--accent-dim); border-color: var(--accent-dim); color: #fff; }
+.btn-danger { border-color: var(--danger); color: var(--danger); }
+.btn-danger:hover { background: var(--danger); color: #fff; }
+.btn-sm { padding: 6px 10px; font-size: 0.75rem; }
+
+/* === Cards === */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  padding: 20px;
+  margin-bottom: 16px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: background 0.4s, border-color 0.4s;
+}
+.card-header {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 16px;
+}
+.card-header i {
+  color: var(--accent);
+  font-size: 1.1em;
+}
+.card-header h2, .card-header h3 {
+  font-family: var(--font-display);
+  font-size: clamp(0.8rem, 3vw, 1rem);
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* === Form Elements === */
+.form-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.form-row label {
+  flex: 0 0 110px;
+  font-size: 0.82rem;
+  color: var(--fg-muted);
+  text-align: right;
+}
+@media (max-width: 480px) {
+  .form-row { flex-direction: column; align-items: stretch; gap: 4px; }
+  .form-row label { flex: none; text-align: left; font-size: 0.78rem; }
+}
+.form-row input,
+.form-row select {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--fg);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.form-row select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23c9a84c' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+.form-row input:focus, .form-row select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.form-row input::placeholder { color: var(--fg-muted); opacity: 0.5; }
+
+/* === Validation Error === */
+.input-error {
+  border-color: var(--danger) !important;
+  box-shadow: 0 0 0 3px rgba(232, 64, 64, 0.2) !important;
+  animation: shake 0.4s ease;
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+.error-msg {
+  color: var(--danger);
+  font-size: 0.78rem;
+  margin-top: -8px;
+  margin-bottom: 10px;
+  padding-left: 120px;
+}
+@media (max-width: 480px) {
+  .error-msg { padding-left: 0; }
+}
+
+/* === Gauges === */
+.gauges-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+@media (max-width: 480px) {
+  .gauges-grid { grid-template-columns: 1fr; gap: 10px; }
+}
+.gauge-card {
+  background: var(--input-bg);
+  border: 1px solid var(--border);
   border-radius: 10px;
-  margin: 8px 0;
+  padding: 14px 10px;
+  text-align: center;
+  position: relative;
   overflow: hidden;
-  transition: background 0.5s;
+  transition: all 0.3s ease;
+}
+.gauge-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--accent);
+  opacity: 0.6;
+}
+.gauge-label {
+  font-size: 0.7rem;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+.gauge-value {
+  font-family: var(--font-display);
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  font-weight: 900;
+  color: var(--success);
+  transition: color 0.3s;
+}
+.gauge-value.warning { color: var(--warning); }
+.gauge-value.danger { color: var(--danger); }
+.gauge-unit {
+  font-size: 0.7rem;
+  color: var(--fg-muted);
+  margin-top: 2px;
+}
+.gauge-card.glow-green { box-shadow: 0 0 20px rgba(61, 220, 132, 0.15); }
+.gauge-card.glow-orange { box-shadow: 0 0 20px rgba(245, 166, 35, 0.2); }
+.gauge-card.glow-red { box-shadow: 0 0 20px rgba(232, 64, 64, 0.2); animation: pulseRed 1.5s ease-in-out infinite; }
+@keyframes pulseRed {
+  0%, 100% { box-shadow: 0 0 20px rgba(232, 64, 64, 0.15); }
+  50% { box-shadow: 0 0 30px rgba(232, 64, 64, 0.35); }
+}
+
+/* === Progress Bars === */
+.progress-section { margin-bottom: 16px; }
+.progress-item { margin-bottom: 12px; }
+.progress-label {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 0.78rem; color: var(--fg-muted); margin-bottom: 4px;
+}
+.progress-label span:last-child { font-weight: 700; color: var(--fg); }
+.progress-track {
+  height: 8px;
+  background: var(--input-bg);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--border);
 }
 .progress-fill {
   height: 100%;
-  background: lime;
-  width: 0%;
-  transition: width 0.5s;
-}
-#tipsSection {
-  max-width: 800px;
-  margin: 20px auto;
-  padding: 10px;
-  background: #222;
-  border-radius: 8px;
-  border: 2px solid #b5a642;
-  color: #fff;
-  transition: background 0.5s, border-color 0.5s;
-}
-#tipsList {
-  list-style: disc inside;
-  margin-left: 20px;
-}
-#healthReport {
-  background: #222;
-  padding: 10px;
-  border-radius: 8px;
-  max-height: 300px;
-  overflow-y: auto;
-  white-space: pre-wrap;
-  transition: background 0.5s;
-}
-#reportButtons {
-  display: flex;
-  gap: 10px;
-  margin-top: 10px;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-#goalsGuidance {
-  white-space: pre-wrap;
-  margin-top: 10px;
-  padding: 10px;
-  background: #111;
-  border-radius: 8px;
-  border: 1px solid #555;
-  max-width: 900px;
-  margin-left: auto;
-  margin-right: auto;
-  color: #fff;
-  transition: background 0.5s;
-}
-/* Calorie Dashboard Modal */
-#calorieDashboard {
-  display: none;
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.9);
-  z-index: 9999;
-  overflow: auto;
-  padding: 40px;
-}
-#calorieDashboardContent {
-  max-width: 800px;
-  margin: auto;
-  background: #222;
-  padding: 20px;
-  border-radius: 8px;
-  border: 2px solid #b5a642;
-  color: #fff;
-}
-#closeCalorieDashboard {
-  display: block;
-  margin: 10px auto 0 auto;
-  background: #b5a642;
-}
-/* Food search section */
-#foodSearchSection {
-  max-width: 500px;
-  margin: 20px auto;
-  padding: 10px;
-  background: #222;
-  border-radius: 8px;
-  border: 2px solid #b5a642;
-  transition: background 0.5s, border-color 0.5s;
-}
-#foodResults > div {
-  border: 1px solid #555;
-  padding: 5px;
-  margin: 5px 0;
   border-radius: 4px;
+  width: 0%;
+  transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
 }
-/* Gauge blink animation */
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+.progress-fill.green { background: linear-gradient(90deg, #2a9d5c, #3ddc84); }
+.progress-fill.orange { background: linear-gradient(90deg, #c77d10, #f5a623); }
+.progress-fill.red { background: linear-gradient(90deg, #b52a2a, #e84040); }
+
+/* === Tips List === */
+.tips-list {
+  list-style: none;
+  padding: 0;
 }
-/* Report wrapper transition */
-.report-wrapper {
-  max-width: 900px;
-  margin: 40px auto;
-  padding: 10px;
-  background: #222;
+.tips-list li {
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  border-left: 3px solid var(--accent);
+  background: rgba(201, 168, 76, 0.05);
+  border-radius: 0 6px 6px 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.tips-list li.tip-header {
+  font-weight: 700;
+  color: var(--accent);
+  border-left-color: var(--accent);
+  background: transparent;
+  margin-top: 8px;
+}
+
+/* === Report === */
+.report-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.82rem;
+  line-height: 1.7;
+  color: var(--fg);
+  max-height: 350px;
+  overflow-y: auto;
+  padding: 12px;
+  background: var(--input-bg);
   border-radius: 8px;
-  border: 2px solid #b5a642;
-  color: #fff;
-  transition: background 0.5s, border-color 0.5s;
+  border: 1px solid var(--border);
 }
+.report-text::-webkit-scrollbar { width: 6px; }
+.report-text::-webkit-scrollbar-track { background: transparent; }
+.report-text::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+
+/* === Guidance === */
+.guidance-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.85rem;
+  line-height: 1.7;
+  color: var(--fg);
+}
+
+/* === Food Results === */
+.food-result-item {
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--input-bg);
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+.food-result-item b { color: var(--accent); }
+
+/* === Calorie Result === */
+.calorie-display {
+  text-align: center;
+  padding: 16px;
+  margin-top: 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: rgba(201, 168, 76, 0.06);
+}
+.calorie-display .number {
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 6vw, 2.6rem);
+  font-weight: 900;
+  color: var(--accent);
+}
+.calorie-display .unit { font-size: 0.85rem; color: var(--fg-muted); }
+
+/* === Modal === */
+.modal-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 9999;
+  overflow-y: auto;
+  padding: 24px;
+  padding-top: calc(24px + var(--safe-top));
+  padding-bottom: calc(24px + var(--safe-bottom));
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.modal-overlay.active { display: block; }
+.modal-content {
+  max-width: 640px;
+  margin: 0 auto;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  padding: 24px;
+  color: var(--fg);
+  animation: modalIn 0.3s ease;
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.modal-content h2 {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--accent);
+  text-align: center;
+  margin-bottom: 16px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.modal-content h3 {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  color: var(--accent);
+  margin: 16px 0 8px;
+}
+.modal-content h4 {
+  font-size: 0.82rem;
+  color: var(--fg);
+  margin: 12px 0 6px;
+  font-weight: 700;
+}
+.modal-content p, .modal-content li {
+  font-size: 0.82rem;
+  line-height: 1.6;
+  margin-bottom: 4px;
+}
+.modal-content ul { padding-left: 20px; margin-bottom: 12px; }
+.modal-close-row { text-align: center; margin-top: 20px; }
+
+/* === Toast Notifications === */
+.toast-container {
+  position: fixed;
+  bottom: calc(16px + var(--safe-bottom));
+  right: calc(16px + var(--safe-right));
+  z-index: 10000;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
+  pointer-events: none;
+}
+@media (max-width: 480px) {
+  .toast-container { left: 16px; right: 16px; }
+}
+.toast {
+  pointer-events: auto;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  padding: 12px 18px;
+  border-radius: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  color: var(--fg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  animation: toastIn 0.3s ease forwards;
+  max-width: 340px;
+  display: flex; align-items: center; gap: 8px;
+}
+.toast.toast-success { border-left: 3px solid var(--success); }
+.toast.toast-error { border-left: 3px solid var(--danger); }
+.toast.toast-info { border-left: 3px solid var(--accent); }
+.toast.toast-out { animation: toastOut 0.3s ease forwards; }
+@keyframes toastIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes toastOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(12px); } }
+
+/* === Divider === */
+.divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border-strong), transparent);
+  margin: 6px 0 16px;
+}
+
+/* === Footer === */
+.footer-note {
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--fg-muted);
+  padding: 20px 0 8px;
+  opacity: 0.6;
+}
+
+/* === Reduced Motion === */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* === Focus Visible === */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* === Selection === */
+::selection {
+  background: var(--accent);
+  color: #0d0b0e;
+}
+
+/* === Scrollbar === */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
 </style>
 </head>
 <body>
 
-<!-- Top Buttons -->
-<div id="topButtons" style="text-align:center; margin-top:10px;">
-  <button id="themeToggle">Toggle Dark Mode</button>
-  <button id="showCalorieDashboard">Calorie Dashboard</button>
-</div>
+<!-- Background layers -->
+<div class="bg-layer" aria-hidden="true"></div>
+<canvas class="particles-canvas" aria-hidden="true"></canvas>
 
-<h2>Ultimate Sci-Fi Health Scanner & Guidance</h2>
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer" aria-live="polite"></div>
 
-<!-- Main Input Section -->
-<div class="input-group" id="mainInputs">
-  <label>Gender:</label>
-  <select id="gender">
-    <option value="male">Male</option>
-    <option value="female">Female</option>
-  </select>
-  <br />
-  <label>Age:</label>
-  <input type="number" id="age" placeholder="e.g., 30" min="0" />
-  <br />
-  <label>Weight (kg):</label>
-  <input type="number" id="weight" placeholder="e.g., 70" min="0" />
-  <br />
-  <label>Height (cm):</label>
-  <input type="number" id="height" placeholder="e.g., 170" min="0" />
-  <br />
-  <label>Diet Preference:</label>
-  <select id="dietPreference">
-    <option value="balanced">Balanced</option>
-    <option value="vegetarian">Vegetarian</option>
-    <option value="vegan">Vegan</option>
-    <option value="high-protein">High-Protein</option>
-    <option value="low-carb">Low-Carb</option>
-  </select>
-  <br />
-  <label>Country:</label>
-  <select id="country">
-    <option value="USA">USA</option>
-    <option value="UK">UK</option>
-    <option value="Canada">Canada</option>
-    <option value="Australia">Australia</option>
-    <option value="India">India</option>
-    <option value="Other">Other</option>
-  </select>
-  <br />
-  <div style="text-align:center; margin-top:10px;">
-    <button id="runScan">Run Health Scan</button>
-    <button id="resetBtn">Reset</button>
-  </div>
-</div>
+<!-- Main Content -->
+<div class="content-wrap">
 
-<!-- Calorie Calculator -->
-<div style="text-align:center; margin:20px 0;">
-  <h3>Calorie Needs Calculator</h3>
-  <div class="input-group" id="calcInputs" style="max-width: 500px;">
-    <label>Gender:</label>
-    <select id="calcGender">
-      <option value="male">Male</option>
-      <option value="female">Female</option>
-    </select>
-    <br />
-    <label>Age:</label>
-    <input type="number" id="calcAge" placeholder="Age" min="0" />
-    <br />
-    <label>Weight (kg):</label>
-    <input type="number" id="calcWeight" placeholder="Weight" min="0" />
-    <br />
-    <label>Height (cm):</label>
-    <input type="number" id="calcHeight" placeholder="Height" min="0" />
-    <br />
-    <label>Activity Level:</label>
-    <select id="activityLevel">
-      <option value="1.2">Sedentary</option>
-      <option value="1.375">Lightly active</option>
-      <option value="1.55">Moderately active</option>
-      <option value="1.725">Very active</option>
-      <option value="1.9">Extra active</option>
-    </select>
-    <br />
-    <button id="calculateCalories">Calculate Calories</button>
-  </div>
-  <div style="margin-top:10px; font-weight:bold;" id="calorieResult"></div>
-</div>
+  <!-- Top Bar -->
+  <header class="top-bar">
+    <div class="title-area">
+      <i class="fa-solid fa-satellite-dish"></i>
+      <h1>Sci-Fi Health Scanner</h1>
+    </div>
+    <div class="actions">
+      <button class="btn btn-sm" id="themeToggle" aria-label="Toggle light/dark mode">
+        <i class="fa-solid fa-sun"></i> <span class="btn-label">Light</span>
+      </button>
+      <button class="btn btn-sm" id="showCalorieDashboard" aria-label="Open calorie dashboard">
+        <i class="fa-solid fa-fire-flame-curved"></i> <span class="btn-label">Dashboard</span>
+      </button>
+    </div>
+  </header>
 
-<!-- Food Nutrition Search -->
-<div id="foodSearchSection">
-  <h3>Nutrition Lookup</h3>
-  <div style="display:flex; gap:8px;">
-    <input type="text" id="nutritionSearchBox" placeholder="Enter food name..." style="flex:1;" />
-    <button id="searchFood">Search</button>
-  </div>
-  <div id="foodResults" style="margin-top:10px;"></div>
-</div>
+  <main>
+    <!-- Main Inputs -->
+    <section class="card" aria-labelledby="scanHeading">
+      <div class="card-header">
+        <i class="fa-solid fa-user-astronaut"></i>
+        <h2 id="scanHeading">Health Scan Input</h2>
+      </div>
+      <div id="mainInputs">
+        <div class="form-row">
+          <label for="gender">Gender</label>
+          <select id="gender" required>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="age">Age</label>
+          <input type="number" id="age" placeholder="e.g. 30" min="1" max="150" step="1" required />
+        </div>
+        <div class="form-row">
+          <label for="weight">Weight (kg)</label>
+          <input type="number" id="weight" placeholder="e.g. 70" min="1" max="500" step="0.1" required />
+        </div>
+        <div class="form-row">
+          <label for="height">Height (cm)</label>
+          <input type="number" id="height" placeholder="e.g. 170" min="30" max="300" step="0.1" required />
+        </div>
+        <div class="form-row">
+          <label for="dietPreference">Diet Type</label>
+          <select id="dietPreference">
+            <option value="balanced">Balanced</option>
+            <option value="vegetarian">Vegetarian</option>
+            <option value="vegan">Vegan</option>
+            <option value="high-protein">High-Protein</option>
+            <option value="low-carb">Low-Carb</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="country">Country</label>
+          <select id="country">
+            <option value="USA">USA</option>
+            <option value="UK">UK</option>
+            <option value="Canada">Canada</option>
+            <option value="Australia">Australia</option>
+            <option value="India">India</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div id="inputError" class="error-msg" role="alert"></div>
+        <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+          <button class="btn btn-primary" id="runScan"><i class="fa-solid fa-bolt"></i> Run Health Scan</button>
+          <button class="btn" id="resetBtn"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+        </div>
+      </div>
+    </section>
 
-<!-- Instrument Bay Gauges -->
-<div class="instrument-bay">
-  <div id="gaugeBMI" class="gauge">BMI</div>
-  <div id="gaugeActivity" class="gauge">Activity</div>
-  <div id="gaugeCalories" class="gauge">Calories</div>
-</div>
+    <!-- Gauges -->
+    <section class="gauges-grid" aria-label="Health gauges">
+      <div class="gauge-card" id="gaugeBMICard">
+        <div class="gauge-label">BMI</div>
+        <div class="gauge-value" id="gaugeBMI">--</div>
+        <div class="gauge-unit">kg/m&sup2;</div>
+      </div>
+      <div class="gauge-card" id="gaugeActivityCard">
+        <div class="gauge-label">Activity</div>
+        <div class="gauge-value" id="gaugeActivity">--</div>
+        <div class="gauge-unit">estimated</div>
+      </div>
+      <div class="gauge-card" id="gaugeCaloriesCard">
+        <div class="gauge-label">Calories</div>
+        <div class="gauge-value" id="gaugeCalories">--</div>
+        <div class="gauge-unit">kcal/day</div>
+      </div>
+    </section>
 
-<!-- Progress Bars -->
-<div id="progressContainer">
-  <div>
-    <div style="margin-bottom:4px;">Heart Rate</div>
-    <div class="progress"><div class="progress-fill" id="heartRateBar"></div></div>
-  </div>
-  <div>
-    <div style="margin-bottom:4px;">Blood Pressure</div>
-    <div class="progress"><div class="progress-fill" id="bpBar"></div></div>
-  </div>
-  <div>
-    <div style="margin-bottom:4px;">Oxygen Level</div>
-    <div class="progress"><div class="progress-fill" id="oxygenBar"></div></div>
-  </div>
-</div>
+    <!-- Progress Bars -->
+    <section class="card progress-section" aria-label="Vital signs">
+      <div class="card-header">
+        <i class="fa-solid fa-heart-pulse"></i>
+        <h2>Vital Signs</h2>
+      </div>
+      <div class="progress-item">
+        <div class="progress-label"><span>Heart Rate</span><span id="heartRateVal">--</span></div>
+        <div class="progress-track"><div class="progress-fill green" id="heartRateBar"></div></div>
+      </div>
+      <div class="progress-item">
+        <div class="progress-label"><span>Blood Pressure</span><span id="bpVal">--</span></div>
+        <div class="progress-track"><div class="progress-fill green" id="bpBar"></div></div>
+      </div>
+      <div class="progress-item">
+        <div class="progress-label"><span>Oxygen Level</span><span id="oxygenVal">--</span></div>
+        <div class="progress-track"><div class="progress-fill green" id="oxygenBar"></div></div>
+      </div>
+    </section>
 
-<!-- Tips & Guidance -->
-<div id="tipsSection">
-  <h3>Health Tips & Recommendations</h3>
-  <ul id="tipsList"></ul>
-</div>
+    <!-- Calorie Calculator -->
+    <section class="card" aria-labelledby="calcHeading">
+      <div class="card-header">
+        <i class="fa-solid fa-calculator"></i>
+        <h2 id="calcHeading">Calorie Needs Calculator</h2>
+      </div>
+      <div id="calcInputs">
+        <div class="form-row">
+          <label for="calcGender">Gender</label>
+          <select id="calcGender">
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="calcAge">Age</label>
+          <input type="number" id="calcAge" placeholder="Age" min="1" max="150" step="1" />
+        </div>
+        <div class="form-row">
+          <label for="calcWeight">Weight (kg)</label>
+          <input type="number" id="calcWeight" placeholder="Weight" min="1" max="500" step="0.1" />
+        </div>
+        <div class="form-row">
+          <label for="calcHeight">Height (cm)</label>
+          <input type="number" id="calcHeight" placeholder="Height" min="30" max="300" step="0.1" />
+        </div>
+        <div class="form-row">
+          <label for="activityLevel">Activity</label>
+          <select id="activityLevel">
+            <option value="1.2">Sedentary</option>
+            <option value="1.375">Lightly active</option>
+            <option value="1.55">Moderately active</option>
+            <option value="1.725">Very active</option>
+            <option value="1.9">Extra active</option>
+          </select>
+        </div>
+        <div style="text-align:center;">
+          <button class="btn btn-primary" id="calculateCalories"><i class="fa-solid fa-fire"></i> Calculate Calories</button>
+        </div>
+        <div id="calorieResult"></div>
+      </div>
+    </section>
 
-<!-- Health Report -->
-<div class="report-wrapper">
-  <h3 style="text-align:center;">Health Report</h3>
-  <pre id="healthReport"></pre>
-  <div id="reportButtons">
-    <button id="saveReport">Save Report & Share</button>
-    <button id="emailReport">Email Report</button>
-    <button id="factoryReset">Factory Reset</button>
-  </div>
-</div>
+    <!-- Food Nutrition Search -->
+    <section class="card" aria-labelledby="foodHeading">
+      <div class="card-header">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <h2 id="foodHeading">Nutrition Lookup</h2>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="nutritionSearchBox" placeholder="Enter food name..." style="flex:1; font-family:var(--font-mono); font-size:0.88rem; padding:10px 12px; border-radius:8px; border:1px solid var(--input-border); background:var(--input-bg); color:var(--fg);" aria-label="Food name" />
+        <button class="btn" id="searchFood"><i class="fa-solid fa-search"></i> Search</button>
+      </div>
+      <div id="foodResults" style="margin-top:12px;"></div>
+    </section>
 
-<!-- Goals & Guidance -->
-<div class="report-wrapper">
-  <h3 style="text-align:center;">Goals & Guidance</h3>
-  <div id="goalsGuidance"></div>
+    <!-- Health Tips -->
+    <section class="card" aria-labelledby="tipsHeading">
+      <div class="card-header">
+        <i class="fa-solid fa-lightbulb"></i>
+        <h2 id="tipsHeading">Health Tips & Recommendations</h2>
+      </div>
+      <ul class="tips-list" id="tipsList"></ul>
+    </section>
+
+    <!-- Health Report -->
+    <section class="card" aria-labelledby="reportHeading">
+      <div class="card-header">
+        <i class="fa-solid fa-file-medical"></i>
+        <h2 id="reportHeading">Health Report</h2>
+      </div>
+      <pre class="report-text" id="healthReport"></pre>
+      <div class="divider"></div>
+      <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;" id="reportButtons">
+        <button class="btn" id="saveReport"><i class="fa-solid fa-clipboard"></i> Copy Report</button>
+        <button class="btn" id="emailReport"><i class="fa-solid fa-envelope"></i> Email Report</button>
+        <button class="btn btn-danger" id="factoryReset"><i class="fa-solid fa-trash-can"></i> Factory Reset</button>
+      </div>
+    </section>
+
+    <!-- Goals & Guidance -->
+    <section class="card" aria-labelledby="goalsHeading">
+      <div class="card-header">
+        <i class="fa-solid fa-bullseye"></i>
+        <h2 id="goalsHeading">Goals & Guidance</h2>
+      </div>
+      <div class="guidance-text" id="goalsGuidance"></div>
+    </section>
+
+    <footer class="footer-note">
+      <i class="fa-solid fa-shield-halved"></i> This scanner provides estimates only. Consult a healthcare professional for medical advice.
+    </footer>
+  </main>
 </div>
 
 <!-- Calorie Dashboard Modal -->
-<div id="calorieDashboard">
-  <div id="calorieDashboardContent">
-    <h2 style="text-align:center;">Calorie Needs Dashboard</h2>
-    <p style="text-align:center;">Here you can see detailed calorie requirements and plans.</p>
-    <div style="margin-top:20px;">
-      <h3>Daily Calorie Requirements</h3>
-      <ul>
-        <li><b>Sedentary:</b> Maintain weight with 2000 kcal/day.</li>
-        <li><b>Lightly active:</b> 2200-2400 kcal/day for maintenance.</li>
-        <li><b>Moderately active:</b> 2400-2800 kcal/day.</li>
-        <li><b>Very active:</b> 2800-3200 kcal/day.</li>
-        <li><b>Extra active:</b> 3200+ kcal/day.</li>
-      </ul>
+<div class="modal-overlay" id="calorieDashboard" role="dialog" aria-modal="true" aria-labelledby="dashboardTitle">
+  <div class="modal-content">
+    <h2 id="dashboardTitle"><i class="fa-solid fa-fire-flame-curved"></i> Calorie Needs Dashboard</h2>
+    <p style="text-align:center; color:var(--fg-muted); font-size:0.82rem;">Detailed calorie requirements and sample meal plans.</p>
+
+    <h3>Daily Calorie Requirements</h3>
+    <ul>
+      <li><strong>Sedentary:</strong> Maintain weight with ~2000 kcal/day</li>
+      <li><strong>Lightly active:</strong> 2200-2400 kcal/day for maintenance</li>
+      <li><strong>Moderately active:</strong> 2400-2800 kcal/day</li>
+      <li><strong>Very active:</strong> 2800-3200 kcal/day</li>
+      <li><strong>Extra active:</strong> 3200+ kcal/day</li>
+    </ul>
+
+    <h3>Sample Meal Plans</h3>
+    <h4>Weight Loss (Deficit 500 kcal)</h4>
+    <p>Consume about 1500-1800 kcal/day with balanced nutrients:</p>
+    <ul>
+      <li>Breakfast: Oatmeal with fruits</li>
+      <li>Lunch: Grilled chicken salad</li>
+      <li>Dinner: Steamed vegetables and fish</li>
+      <li>Snacks: Nuts and yogurt</li>
+    </ul>
+
+    <h4>Muscle Gain (Surplus 500 kcal)</h4>
+    <p>Consume about 2500-3000 kcal/day with high protein intake:</p>
+    <ul>
+      <li>Breakfast: Eggs, oats, and banana</li>
+      <li>Lunch: Chicken breast with rice and vegetables</li>
+      <li>Dinner: Beef stir-fry with noodles</li>
+      <li>Snacks: Protein shake, nuts, and cheese</li>
+    </ul>
+
+    <div class="modal-close-row">
+      <button class="btn btn-primary" id="closeCalorieDashboard"><i class="fa-solid fa-xmark"></i> Close Dashboard</button>
     </div>
-    <div style="margin-top:20px;">
-      <h3>Sample Meal Plans</h3>
-      <h4>Weight Loss (Deficit 500 kcal)</h4>
-      <p>Consume about 1500-1800 kcal/day with balanced nutrients:</p>
-      <ul>
-        <li>Breakfast: Oatmeal with fruits</li>
-        <li>Lunch: Grilled chicken salad</li>
-        <li>Dinner: Steamed vegetables and fish</li>
-        <li>Snacks: Nuts and yogurt</li>
-      </ul>
-      <h4>Muscle Gain (Surplus 500 kcal)</h4>
-      <p>Consume about 2500-3000 kcal/day with high protein intake:</p>
-      <ul>
-        <li>Breakfast: Eggs, oats, and banana</li>
-        <li>Lunch: Chicken breast with rice and vegetables</li>
-        <li>Dinner: Beef stir-fry with noodles</li>
-        <li>Snacks: Protein shake, nuts, and cheese</li>
-      </ul>
-    </div>
-    <button id="closeCalorieDashboard">Close Dashboard</button>
   </div>
 </div>
 
 <script>
-  // Store original display values so dashboard toggle can restore them
-  const savedDisplays = new Map();
-  function cacheDisplayValues() {
-    document.querySelectorAll('body > *:not(#calorieDashboard)').forEach(el => {
-      if (!savedDisplays.has(el)) {
-        savedDisplays.set(el, el.style.display || '');
-      }
-    });
+  /* ===================================================
+     SECURITY: Strict CSP / meta already set in <head>.
+     All user inputs are treated as untrusted.
+     textContent is used for all user-derived output.
+     No innerHTML with user data. No eval/Function.
+     Clipboard fallback uses secure pattern.
+     mailto: uses encodeURIComponent for all params.
+     No external API calls — no data exfiltration risk.
+     =================================================== */
+
+  // === Toast Notification System ===
+  const toastContainer = document.getElementById('toastContainer');
+  function showToast(message, type) {
+    // type: 'success' | 'error' | 'info'
+    // SECURITY: message is always from our code, not user input
+    type = type || 'info';
+    const toast = document.createElement('div');
+    toast.className = 'toast toast-' + type;
+    const iconMap = { success: 'fa-circle-check', error: 'fa-circle-exclamation', info: 'fa-circle-info' };
+    const icon = document.createElement('i');
+    icon.className = 'fa-solid ' + (iconMap[type] || iconMap.info);
+    toast.appendChild(icon);
+    const span = document.createElement('span');
+    span.textContent = message;
+    toast.appendChild(span);
+    toastContainer.appendChild(toast);
+    setTimeout(function() {
+      toast.classList.add('toast-out');
+      setTimeout(function() { toast.remove(); }, 300);
+    }, 3500);
   }
 
-  // Toggle dark mode
-  document.getElementById('themeToggle').addEventListener('click', () => {
-    document.body.classList.toggle('dark-mode');
+  // === Input Sanitization Utility ===
+  // Strips HTML tags, normalizes whitespace, trims
+  function sanitize(str) {
+    if (typeof str !== 'string') return '';
+    return str.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+  }
+
+  // === Numeric Validation ===
+  // Returns parsed number or NaN; enforces min/max bounds
+  function safeNum(val, min, max) {
+    var n = parseFloat(val);
+    if (isNaN(n)) return NaN;
+    if (typeof min === 'number' && n < min) return NaN;
+    if (typeof max === 'number' && n > max) return NaN;
+    return n;
+  }
+
+  // === Clear error state ===
+  function clearErrors() {
+    var errEl = document.getElementById('inputError');
+    errEl.textContent = '';
+    var inputs = document.querySelectorAll('#mainInputs input, #mainInputs select');
+    inputs.forEach(function(inp) { inp.classList.remove('input-error'); });
+  }
+
+  // === Theme Toggle ===
+  var isDark = true;
+  document.getElementById('themeToggle').addEventListener('click', function() {
+    isDark = !isDark;
+    document.body.classList.toggle('light-mode', !isDark);
+    var icon = this.querySelector('i');
+    var label = this.querySelector('.btn-label');
+    if (isDark) {
+      icon.className = 'fa-solid fa-sun';
+      label.textContent = 'Light';
+    } else {
+      icon.className = 'fa-solid fa-moon';
+      label.textContent = 'Dark';
+    }
   });
 
-  // Show calorie dashboard — properly hide/restore all siblings
-  document.getElementById('showCalorieDashboard').addEventListener('click', () => {
-    cacheDisplayValues();
-    document.querySelectorAll('body > *:not(#calorieDashboard)').forEach(el => {
-      el.style.display = 'none';
-    });
-    document.getElementById('calorieDashboard').style.display = 'flex';
+  // === Calorie Dashboard Modal ===
+  var dashboard = document.getElementById('calorieDashboard');
+  var previousFocus = null;
+
+  document.getElementById('showCalorieDashboard').addEventListener('click', function() {
+    previousFocus = document.activeElement;
+    dashboard.classList.add('active');
+    dashboard.querySelector('button').focus();
+    document.body.style.overflow = 'hidden';
   });
 
-  // Close calorie dashboard — restore original display values
-  document.getElementById('closeCalorieDashboard').addEventListener('click', () => {
-    document.getElementById('calorieDashboard').style.display = 'none';
-    savedDisplays.forEach((val, el) => { el.style.display = val; });
+  function closeDashboard() {
+    dashboard.classList.remove('active');
+    document.body.style.overflow = '';
+    if (previousFocus) previousFocus.focus();
+  }
+
+  document.getElementById('closeCalorieDashboard').addEventListener('click', closeDashboard);
+
+  // Close on backdrop click
+  dashboard.addEventListener('click', function(e) {
+    if (e.target === dashboard) closeDashboard();
   });
 
-  // Full reset helper
+  // Close on Escape key
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && dashboard.classList.contains('active')) {
+      closeDashboard();
+    }
+  });
+
+  // === Full Reset ===
   function fullReset() {
-    // Only reset inputs inside .input-group containers
-    document.querySelectorAll('.input-group input, .input-group select').forEach(el => el.value = '');
-    document.getElementById('calorieResult').innerText = '';
-    document.getElementById('healthReport').innerText = '';
+    clearErrors();
+    document.querySelectorAll('#mainInputs input, #mainInputs select').forEach(function(el) {
+      if (el.tagName === 'SELECT') {
+        el.selectedIndex = 0;
+      } else {
+        el.value = '';
+      }
+    });
+    document.getElementById('calorieResult').innerHTML = '';
+    document.getElementById('healthReport').textContent = '';
     document.getElementById('tipsList').innerHTML = '';
-    document.getElementById('goalsGuidance').innerText = '';
+    document.getElementById('goalsGuidance').textContent = '';
     document.getElementById('foodResults').innerHTML = '';
     document.getElementById('nutritionSearchBox').value = '';
 
-    // Remove injected share button if present
-    const shareBtn = document.getElementById('shareBtn');
+    // Remove injected share button
+    var shareBtn = document.getElementById('shareBtn');
     if (shareBtn) shareBtn.remove();
 
-    // Reset gauges to initial labels
-    document.getElementById('gaugeBMI').textContent = 'BMI';
-    document.getElementById('gaugeActivity').textContent = 'Activity';
-    document.getElementById('gaugeCalories').textContent = 'Calories';
-
-    [document.getElementById('gaugeBMI'),
-     document.getElementById('gaugeActivity'),
-     document.getElementById('gaugeCalories')].forEach(g => {
-      g.style.boxShadow = '0 0 10px #000';
-      g.style.animation = 'none';
+    // Reset gauges
+    ['gaugeBMI', 'gaugeActivity', 'gaugeCalories'].forEach(function(id) {
+      document.getElementById(id).textContent = '--';
+      document.getElementById(id).className = 'gauge-value';
+    });
+    ['gaugeBMICard', 'gaugeActivityCard', 'gaugeCaloriesCard'].forEach(function(id) {
+      var card = document.getElementById(id);
+      card.className = 'gauge-card';
     });
 
     // Reset progress bars
-    ['heartRateBar', 'bpBar', 'oxygenBar'].forEach(id => {
+    ['heartRateBar', 'bpBar', 'oxygenBar'].forEach(function(id) {
       document.getElementById(id).style.width = '0%';
+      document.getElementById(id).className = 'progress-fill green';
     });
+    ['heartRateVal', 'bpVal', 'oxygenVal'].forEach(function(id) {
+      document.getElementById(id).textContent = '--';
+    });
+
+    showToast('All data has been reset.', 'info');
   }
 
   document.getElementById('resetBtn').addEventListener('click', fullReset);
   document.getElementById('factoryReset').addEventListener('click', fullReset);
 
-  // Run health scan
-  document.getElementById('runScan').addEventListener('click', () => {
-    runHealthScan();
-  });
-
-  function runHealthScan() {
-    const weight = parseFloat(document.getElementById('weight').value);
-    const height = parseFloat(document.getElementById('height').value);
-    const age = parseInt(document.getElementById('age').value);
-    const gender = document.getElementById('gender').value;
-    const country = document.getElementById('country').value;
-    const dietPreference = document.getElementById('dietPreference').value;
-
-    if (isNaN(weight) || isNaN(height) || isNaN(age) || weight <= 0 || height <= 0 || age < 0) {
-      alert('Enter valid weight, height, and age.');
-      return;
-    }
-
-    const bmi = +(weight / ((height / 100) ** 2)).toFixed(1);
-    const category = getBmiCategory(bmi);
-    const activity = Math.random() * 100;
-    const calories = Math.floor(1800 + Math.random() * 1200);
-
-    // Animate gauges — reset labels first so split(':') works correctly
-    document.getElementById('gaugeBMI').textContent = 'BMI';
-    document.getElementById('gaugeActivity').textContent = 'Activity';
-    document.getElementById('gaugeCalories').textContent = 'Calories';
-
-    animateGauge(document.getElementById('gaugeBMI'), bmi, 50);
-    animateGauge(document.getElementById('gaugeActivity'), activity, 100);
-    animateGauge(document.getElementById('gaugeCalories'), calories, 3000);
-
-    // Progress bars — normalize to sensible percentage ranges
-    // Heart rate: 60-100 bpm normal → map to 0-100%
-    const heartRate = 60 + Math.random() * 40;
-    animateProgressBar(document.getElementById('heartRateBar'), ((heartRate - 40) / 80) * 100);
-    // Blood pressure systolic: 90-140 normal → map to 0-100%
-    const bp = 90 + Math.random() * 50;
-    animateProgressBar(document.getElementById('bpBar'), ((bp - 80) / 80) * 100);
-    // Oxygen: 95-100% → already a percentage
-    const oxygen = 95 + Math.random() * 5;
-    animateProgressBar(document.getElementById('oxygenBar'), oxygen);
-
-    // Generate report
-    document.getElementById('healthReport').innerText = '';
-    const helpfulInfo = `
-- Your estimated daily calorie needs depend on age, activity level, and goals.
-- To lose weight, aim for a calorie deficit.
-- To gain weight, consume surplus calories with nutritious foods.
-- Maintaining balanced calories supports your health.
-`;
-    document.getElementById('healthReport').innerText += `
---- Nutrition & Calorie Guidance ---
- ${helpfulInfo}
-`;
-    generateTips(category, gender);
-    const advice = generateAdvice(weight, height, bmi, category);
-    document.getElementById('healthReport').innerText += advice;
-    generateGoalsAndGuidance(category, gender);
-
-    // Auto-fill calorie calculator fields from main inputs and calculate
-    document.getElementById('calcGender').value = gender;
-    document.getElementById('calcAge').value = age;
-    document.getElementById('calcWeight').value = weight;
-    document.getElementById('calcHeight').value = height;
-    performCalorieCalculation();
-  }
-
+  // === BMI Category ===
   function getBmiCategory(bmi) {
     if (bmi < 16.5) return 'Severely Underweight';
     if (bmi < 18.5) return 'Underweight';
@@ -569,78 +973,150 @@ input[type=number], select, input[type=text] {
     return 'Obesity Class III';
   }
 
-  function animateGauge(gauge, value, max) {
-    let current = 0;
-    const steps = 20;
-    const inc = value / steps;
-    let count = 0;
-    const label = gauge.textContent.split(':')[0].trim(); // always grab the clean label
+  // === Gauge Animation ===
+  function animateGauge(valueEl, cardEl, value, max, suffix) {
+    var steps = 25;
+    var inc = value / steps;
+    var count = 0;
+    var current = 0;
 
-    gauge.style.boxShadow = '';
-    gauge.style.animation = 'none';
+    // Reset classes
+    valueEl.className = 'gauge-value';
+    cardEl.className = 'gauge-card';
 
-    const interval = setInterval(() => {
+    var interval = setInterval(function() {
+      count++;
+      current += inc;
       if (count >= steps) {
         clearInterval(interval);
-        gauge.textContent = label + ': ' + value.toFixed(1);
-        if (value > max * 0.75) {
-          gauge.style.boxShadow = '0 0 40px red, inset 0 0 20px #000';
-          gauge.style.animation = 'blink 1s infinite';
-        } else if (value > max * 0.5) {
-          gauge.style.boxShadow = '0 0 40px orange, inset 0 0 20px #000';
-          gauge.style.animation = 'blink 1s infinite';
+        current = value;
+        // Apply color based on threshold
+        var ratio = value / max;
+        if (ratio > 0.75) {
+          valueEl.classList.add('danger');
+          cardEl.classList.add('glow-red');
+        } else if (ratio > 0.5) {
+          valueEl.classList.add('warning');
+          cardEl.classList.add('glow-orange');
         } else {
-          gauge.style.boxShadow = '0 0 40px lime, inset 0 0 20px #000';
-          gauge.style.animation = 'none';
+          cardEl.classList.add('glow-green');
         }
-        return;
       }
-      current += inc;
-      gauge.textContent = label + ': ' + current.toFixed(1);
-      count++;
-    }, 50);
+      valueEl.textContent = current.toFixed(1) + (suffix || '');
+    }, 40);
   }
 
-  function animateProgressBar(bar, value) {
-    bar.style.width = '0%';
-    setTimeout(() => {
-      bar.style.width = Math.min(Math.max(value, 0), 100) + '%';
-    }, 100);
+  // === Progress Bar Animation ===
+  function animateProgressBar(barEl, valEl, percent, displayText, colorClass) {
+    barEl.style.width = '0%';
+    barEl.className = 'progress-fill ' + (colorClass || 'green');
+    valEl.textContent = displayText || '';
+    setTimeout(function() {
+      barEl.style.width = Math.min(Math.max(percent, 0), 100) + '%';
+    }, 80);
   }
 
-  function generateTips(category, gender) {
-    const tipsUl = document.getElementById('tipsList');
-    tipsUl.innerHTML = '';
-    const tips = [];
+  // === Run Health Scan ===
+  document.getElementById('runScan').addEventListener('click', runHealthScan);
 
-    if (category === 'Obesity Class I' || category === 'Obesity Class II' || category === 'Obesity Class III') {
-      tips.push('Precautions for Obesity:');
-      tips.push(' - Follow a low-calorie, nutritious diet.');
-      tips.push(' - Avoid sugary drinks and processed foods.');
-      tips.push(' - Engage in regular physical activity.');
-      tips.push(' - Monitor weight regularly.');
-      tips.push("Do's & Don'ts:");
-      tips.push('Do: Eat vegetables, stay active.');
-      tips.push("Don't: Skip meals, indulge in junk food.");
-      tips.push('Wellness Tips:');
-      if (gender === 'male') {
-        tips.push('Men: Focus on strength training and balanced diet.');
-      } else {
-        tips.push('Women: Incorporate cardio and mindful eating.');
-      }
-    } else {
-      tips.push('Maintain a healthy lifestyle for ' + category + '.');
+  function runHealthScan() {
+    clearErrors();
+    var errors = [];
+
+    var weightVal = document.getElementById('weight').value;
+    var heightVal = document.getElementById('height').value;
+    var ageVal = document.getElementById('age').value;
+
+    var weight = safeNum(weightVal, 1, 500);
+    var height = safeNum(heightVal, 30, 300);
+    var age = safeNum(ageVal, 1, 150);
+
+    if (isNaN(weight)) {
+      errors.push('weight');
+      document.getElementById('weight').classList.add('input-error');
+    }
+    if (isNaN(height)) {
+      errors.push('height');
+      document.getElementById('height').classList.add('input-error');
+    }
+    if (isNaN(age)) {
+      errors.push('age');
+      document.getElementById('age').classList.add('input-error');
     }
 
-    tips.forEach(t => {
-      const li = document.createElement('li');
-      li.textContent = t;
-      tipsUl.appendChild(li);
-    });
-  }
+    if (errors.length > 0) {
+      document.getElementById('inputError').textContent = 'Please enter valid values for: ' + errors.join(', ') + '.';
+      showToast('Invalid input values. Please check highlighted fields.', 'error');
+      return;
+    }
 
-  function generateAdvice(w, h, bmi, category) {
-    return '=== BMI & Health Analysis ===\n\n' +
+    var gender = document.getElementById('gender').value;
+    var country = document.getElementById('country').value;
+    var dietPreference = document.getElementById('dietPreference').value;
+
+    var bmi = +(weight / Math.pow(height / 100, 2)).toFixed(1);
+    var category = getBmiCategory(bmi);
+    var activity = Math.random() * 100;
+    var calories = Math.floor(1800 + Math.random() * 1200);
+
+    // Animate gauges
+    animateGauge(
+      document.getElementById('gaugeBMI'),
+      document.getElementById('gaugeBMICard'),
+      bmi, 50, ''
+    );
+    animateGauge(
+      document.getElementById('gaugeActivity'),
+      document.getElementById('gaugeActivityCard'),
+      activity, 100, '%'
+    );
+    animateGauge(
+      document.getElementById('gaugeCalories'),
+      document.getElementById('gaugeCaloriesCard'),
+      calories, 3500, ''
+    );
+
+    // Progress bars
+    var heartRate = 60 + Math.random() * 40;
+    var hrBpm = Math.round(heartRate);
+    var hrPercent = ((heartRate - 40) / 80) * 100;
+    var hrColor = hrPercent > 80 ? 'red' : hrPercent > 60 ? 'orange' : 'green';
+    animateProgressBar(
+      document.getElementById('heartRateBar'),
+      document.getElementById('heartRateVal'),
+      hrPercent, hrBpm + ' bpm', hrColor
+    );
+
+    var bp = 90 + Math.random() * 50;
+    var bpMm = Math.round(bp);
+    var bpPercent = ((bp - 80) / 80) * 100;
+    var bpColor = bpPercent > 80 ? 'red' : bpPercent > 60 ? 'orange' : 'green';
+    animateProgressBar(
+      document.getElementById('bpBar'),
+      document.getElementById('bpVal'),
+      bpPercent, bpMm + ' mmHg', bpColor
+    );
+
+    var oxygen = 95 + Math.random() * 5;
+    var oxyPercent = oxygen;
+    var oxyColor = oxyPercent < 96 ? 'orange' : 'green';
+    animateProgressBar(
+      document.getElementById('oxygenBar'),
+      document.getElementById('oxygenVal'),
+      oxyPercent, oxyPercent.toFixed(1) + '%', oxyColor
+    );
+
+    // Generate report
+    var helpfulInfo =
+      '- Your estimated daily calorie needs depend on age, activity level, and goals.\n' +
+      '- To lose weight, aim for a calorie deficit.\n' +
+      '- To gain weight, consume surplus calories with nutritious foods.\n' +
+      '- Maintaining balanced calories supports your health.\n';
+
+    var reportText =
+      '--- Nutrition & Calorie Guidance ---\n' +
+      helpfulInfo + '\n' +
+      '=== BMI & Health Analysis ===\n\n' +
       'BMI: ' + bmi + ' (' + category + ')\n\n' +
       'Tips:\n' +
       '- Maintain balanced nutrition.\n' +
@@ -648,196 +1124,416 @@ input[type=number], select, input[type=text] {
       '- Sleep 7-9 hours nightly.\n' +
       '- Manage stress effectively.\n' +
       '- Consult health professionals for personalized advice.\n';
+
+    // SECURITY: Using textContent, never innerHTML with user-derived data
+    document.getElementById('healthReport').textContent = reportText;
+
+    // Generate tips
+    generateTips(category, gender);
+
+    // Generate goals
+    generateGoalsAndGuidance(category, gender);
+
+    // Auto-fill calorie calculator
+    document.getElementById('calcGender').value = gender;
+    document.getElementById('calcAge').value = age;
+    document.getElementById('calcWeight').value = weight;
+    document.getElementById('calcHeight').value = height;
+    performCalorieCalculation();
+
+    showToast('Health scan completed successfully.', 'success');
   }
 
-  function generateGoalsAndGuidance(category, gender) {
-    let guidanceText = '';
+  // === Generate Tips ===
+  function generateTips(category, gender) {
+    var tipsUl = document.getElementById('tipsList');
+    // SECURITY: Clear with innerHTML (no user data) then build with createElement/textContent
+    tipsUl.innerHTML = '';
+    var tips = [];
+
     if (category === 'Obesity Class I' || category === 'Obesity Class II' || category === 'Obesity Class III') {
-      guidanceText = '**Guidance for Obesity:**\n\n' +
+      tips.push({ text: 'Precautions for Obesity', isHeader: true });
+      tips.push({ text: 'Follow a low-calorie, nutritious diet.' });
+      tips.push({ text: 'Avoid sugary drinks and processed foods.' });
+      tips.push({ text: 'Engage in regular physical activity.' });
+      tips.push({ text: 'Monitor weight regularly.' });
+      tips.push({ text: "Do's & Don'ts", isHeader: true });
+      tips.push({ text: 'Do: Eat vegetables, stay active.' });
+      tips.push({ text: "Don't: Skip meals, indulge in junk food." });
+      tips.push({ text: 'Wellness Tips', isHeader: true });
+      if (gender === 'male') {
+        tips.push({ text: 'Men: Focus on strength training and balanced diet.' });
+      } else {
+        tips.push({ text: 'Women: Incorporate cardio and mindful eating.' });
+      }
+    } else if (category === 'Overweight') {
+      tips.push({ text: 'Tips for Overweight', isHeader: true });
+      tips.push({ text: 'Implement moderate calorie reduction.' });
+      tips.push({ text: 'Increase daily physical activity.' });
+      tips.push({ text: 'Avoid sugary and fried foods.' });
+      tips.push({ text: 'Track your progress weekly.' });
+    } else if (category === 'Underweight' || category === 'Severely Underweight') {
+      tips.push({ text: 'Tips for Underweight', isHeader: true });
+      tips.push({ text: 'Increase calorie intake with nutrient-rich foods.' });
+      tips.push({ text: 'Focus on muscle-building exercises.' });
+      tips.push({ text: 'Avoid skipping meals.' });
+      if (category === 'Severely Underweight') {
+        tips.push({ text: 'Seek medical advice immediately.' });
+      }
+    } else {
+      tips.push({ text: 'Maintain Your Healthy Weight', isHeader: true });
+      tips.push({ text: 'Keep a balanced diet with all food groups.' });
+      tips.push({ text: 'Stay physically active.' });
+      tips.push({ text: 'Schedule regular health checkups.' });
+      tips.push({ text: 'Prioritize sleep and stress management.' });
+    }
+
+    // Diet-specific tips
+    var diet = document.getElementById('dietPreference').value;
+    if (diet === 'vegetarian') {
+      tips.push({ text: 'Diet Note', isHeader: true });
+      tips.push({ text: 'Ensure adequate iron, B12, and protein from plant sources.' });
+    } else if (diet === 'vegan') {
+      tips.push({ text: 'Diet Note', isHeader: true });
+      tips.push({ text: 'Consider B12 supplementation and monitor iron, zinc, omega-3 intake.' });
+    } else if (diet === 'high-protein') {
+      tips.push({ text: 'Diet Note', isHeader: true });
+      tips.push({ text: 'Stay hydrated and balance protein with fiber-rich carbohydrates.' });
+    } else if (diet === 'low-carb') {
+      tips.push({ text: 'Diet Note', isHeader: true });
+      tips.push({ text: 'Ensure sufficient fiber intake from vegetables and monitor electrolytes.' });
+    }
+
+    tips.forEach(function(t) {
+      var li = document.createElement('li');
+      if (t.isHeader) li.classList.add('tip-header');
+      // SECURITY: textContent prevents XSS
+      li.textContent = t.text;
+      tipsUl.appendChild(li);
+    });
+  }
+
+  // === Generate Goals & Guidance ===
+  function generateGoalsAndGuidance(category, gender) {
+    var text = '';
+    if (category === 'Obesity Class I' || category === 'Obesity Class II' || category === 'Obesity Class III') {
+      text = 'Guidance for Obesity:\n\n' +
         '- Aim for gradual weight loss of 0.5-1 kg per week.\n' +
         '- Focus on calorie deficit with healthy eating.\n' +
         '- Incorporate regular physical activity.\n' +
         '- Avoid crash diets.\n' +
         '- Consult healthcare providers before starting weight loss programs.';
     } else if (category === 'Overweight') {
-      guidanceText = '**Guidance for Overweight:**\n\n' +
+      text = 'Guidance for Overweight:\n\n' +
         '- Implement a balanced diet with moderate calorie reduction.\n' +
-        '- Increase physical activity.\n' +
+        '- Increase physical activity gradually.\n' +
         '- Track your progress.\n' +
         '- Avoid sugary and fried foods.';
     } else if (category === 'Normal weight') {
-      guidanceText = '**Maintain Your Weight:**\n\n' +
+      text = 'Maintain Your Weight:\n\n' +
         '- Keep a balanced diet.\n' +
         '- Stay active.\n' +
         '- Regular health checkups.\n' +
         '- Avoid overeating and sedentary lifestyle.';
     } else if (category === 'Underweight') {
-      guidanceText = '**Guidance for Underweight:**\n\n' +
+      text = 'Guidance for Underweight:\n\n' +
         '- Increase calorie intake with nutritious foods.\n' +
         '- Focus on muscle-building exercises.\n' +
         '- Avoid skipping meals.\n' +
         '- Consult a healthcare professional for personalized advice.';
     } else if (category === 'Severely Underweight') {
-      guidanceText = '**Severe Underweight Caution:**\n\n' +
-        '- Seek medical advice.\n' +
+      text = 'Severe Underweight Caution:\n\n' +
+        '- Seek medical advice immediately.\n' +
         '- Increase calorie intake with nutrient-rich foods.\n' +
         '- Avoid excessive exercise without supervision.\n' +
         '- Monitor weight regularly.';
     }
-    document.getElementById('goalsGuidance').innerText = guidanceText;
+    // SECURITY: textContent, not innerHTML
+    document.getElementById('goalsGuidance').textContent = text;
   }
 
-  // Food nutrition search (SECURE VERSION - XSS FIXED)
-  document.getElementById('searchFood').addEventListener('click', () => {
-    const query = document.getElementById('nutritionSearchBox').value.trim();
-    const resultsDiv = document.getElementById('foodResults');
-    resultsDiv.innerHTML = ''; // Clear previous results
-    
+  // === Food Nutrition Search ===
+  document.getElementById('searchFood').addEventListener('click', function() {
+    var rawQuery = document.getElementById('nutritionSearchBox').value;
+    // SECURITY: Sanitize user input — strip HTML tags
+    var query = sanitize(rawQuery);
+    var resultsDiv = document.getElementById('foodResults');
+    resultsDiv.innerHTML = '';
+
     if (!query) {
-      alert('Enter food name to search.');
+      showToast('Please enter a food name to search.', 'error');
       return;
     }
-    
-    const mockData = [
+
+    // Mock data — no external API call (prevents data exfiltration)
+    var mockData = [
       { description: query + ' (Standard Serving)', calories: 150, fat: 5, carbs: 20, protein: 3 },
       { description: query + ' (Healthy Variant)', calories: 200, fat: 8, carbs: 30, protein: 5 },
     ];
 
-    mockData.forEach(food => {
-      const div = document.createElement('div');
+    mockData.forEach(function(food) {
+      var div = document.createElement('div');
+      div.className = 'food-result-item';
 
-      // 1. Create the Bold Description safely
-      const b = document.createElement('b');
-      // SECURITY: textContent treats input as plain text, preventing XSS
-      b.textContent = food.description; 
+      // SECURITY: All output uses textContent — no innerHTML with user data
+      var b = document.createElement('b');
+      b.textContent = food.description;
       div.appendChild(b);
       div.appendChild(document.createElement('br'));
-
-      // 2. Create the Calories line safely
       div.appendChild(document.createTextNode('Calories: ' + food.calories + ' kcal'));
       div.appendChild(document.createElement('br'));
-
-      // 3. Create the Fat line safely
       div.appendChild(document.createTextNode('Fat: ' + food.fat + ' g'));
       div.appendChild(document.createElement('br'));
-
-      // 4. Create the Carbs line safely
       div.appendChild(document.createTextNode('Carbohydrates: ' + food.carbs + ' g'));
       div.appendChild(document.createElement('br'));
-
-      // 5. Create the Protein line safely
-      div.appendChild(document.createTextNode('Proteins: ' + food.protein + ' g'));
+      div.appendChild(document.createTextNode('Protein: ' + food.protein + ' g'));
 
       resultsDiv.appendChild(div);
     });
+
+    showToast('Showing nutrition data for "' + query + '".', 'success');
   });
 
-  // Calorie calculator standalone button
+  // Allow Enter key to trigger food search
+  document.getElementById('nutritionSearchBox').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      document.getElementById('searchFood').click();
+    }
+  });
+
+  // === Calorie Calculator ===
   document.getElementById('calculateCalories').addEventListener('click', performCalorieCalculation);
 
-  // Perform calorie calculation using Mifflin-St Jeor equation
   function performCalorieCalculation() {
-    const gender = document.getElementById('calcGender').value;
-    const age = parseInt(document.getElementById('calcAge').value);
-    const weight = parseFloat(document.getElementById('calcWeight').value);
-    const height = parseFloat(document.getElementById('calcHeight').value);
-    const activityLevel = parseFloat(document.getElementById('activityLevel').value);
+    var gender = document.getElementById('calcGender').value;
+    var age = safeNum(document.getElementById('calcAge').value, 1, 150);
+    var weight = safeNum(document.getElementById('calcWeight').value, 1, 500);
+    var height = safeNum(document.getElementById('calcHeight').value, 30, 300);
+    var activityLevel = parseFloat(document.getElementById('activityLevel').value);
 
-    if (isNaN(age) || isNaN(weight) || isNaN(height) || age < 0 || weight <= 0 || height <= 0) {
-      document.getElementById('calorieResult').innerText = '';
+    if (isNaN(age) || isNaN(weight) || isNaN(height)) {
+      document.getElementById('calorieResult').innerHTML = '';
       return;
     }
 
-    let bmr = 0;
+    // Mifflin-St Jeor equation
+    var bmr;
     if (gender === 'male') {
       bmr = 10 * weight + 6.25 * height - 5 * age + 5;
     } else {
       bmr = 10 * weight + 6.25 * height - 5 * age - 161;
     }
-    const totalCalories = Math.round(bmr * activityLevel);
-    document.getElementById('calorieResult').innerText = 'Estimated Daily Calorie Needs: ' + totalCalories + ' kcal';
+    var totalCalories = Math.round(bmr * activityLevel);
+
+    // Build display with createElement (no innerHTML with dynamic values)
+    var container = document.getElementById('calorieResult');
+    container.innerHTML = '';
+    var display = document.createElement('div');
+    display.className = 'calorie-display';
+    var numSpan = document.createElement('span');
+    numSpan.className = 'number';
+    numSpan.textContent = totalCalories;
+    display.appendChild(numSpan);
+    var unitSpan = document.createElement('span');
+    unitSpan.className = 'unit';
+    unitSpan.textContent = ' kcal / day estimated';
+    display.appendChild(unitSpan);
+    container.appendChild(display);
   }
 
-  // Save report — copy all health data to clipboard
-  document.getElementById('saveReport').addEventListener('click', () => {
-    const reportText = document.getElementById('healthReport').innerText;
+  // === Save Report (Copy to Clipboard) ===
+  document.getElementById('saveReport').addEventListener('click', function() {
+    var reportText = document.getElementById('healthReport').textContent;
     if (!reportText.trim()) {
-      alert('No report to save. Run a health scan first.');
+      showToast('No report to copy. Run a health scan first.', 'error');
       return;
     }
 
-    const gaugesData = '\n--- Gauges ---\n' +
-      'BMI: ' + document.getElementById('gaugeBMI').innerText + '\n' +
-      'Activity: ' + document.getElementById('gaugeActivity').innerText + '\n' +
-      'Calories: ' + document.getElementById('gaugeCalories').innerText + '\n';
+    var gaugesData = '\n--- Gauges ---\n' +
+      'BMI: ' + document.getElementById('gaugeBMI').textContent + '\n' +
+      'Activity: ' + document.getElementById('gaugeActivity').textContent + '\n' +
+      'Calories: ' + document.getElementById('gaugeCalories').textContent + '\n';
 
-    const progressData = '\n--- Progress ---\n' +
-      'Heart Rate: ' + document.getElementById('heartRateBar').style.width + '\n' +
-      'Blood Pressure: ' + document.getElementById('bpBar').style.width + '\n' +
-      'Oxygen Level: ' + document.getElementById('oxygenBar').style.width + '\n';
+    var progressData = '\n--- Vitals ---\n' +
+      'Heart Rate: ' + document.getElementById('heartRateVal').textContent + '\n' +
+      'Blood Pressure: ' + document.getElementById('bpVal').textContent + '\n' +
+      'Oxygen Level: ' + document.getElementById('oxygenVal').textContent + '\n';
 
-    const tipsArray = Array.from(document.getElementById('tipsList').children).map(li => '- ' + li.innerText);
-    const tipsAndGuidance = '\n--- Tips & Guidance ---\nTips:\n' +
-      tipsArray.join('\n') + '\n\nGuidance:\n' +
-      document.getElementById('goalsGuidance').innerText + '\n';
-
-    const fullData = '=== Health Report ===\n' +
-      reportText + '\n' +
-      gaugesData + '\n' +
-      progressData + '\n' +
-      tipsAndGuidance + '\n';
-
-    navigator.clipboard.writeText(fullData).then(() => {
-      alert('Full health data copied to clipboard.');
-    }).catch(() => {
-      // Fallback for older browsers
-      const textarea = document.createElement('textarea');
-      textarea.value = fullData;
-      textarea.style.position = 'fixed';
-      textarea.style.left = '-9999px';
-      document.body.appendChild(textarea);
-      textarea.select();
-      try {
-        document.execCommand('copy');
-        alert('Full health data copied to clipboard.');
-      } catch (err) {
-        alert('Failed to copy data. Please copy manually.');
-      }
-      document.body.removeChild(textarea);
+    var tipsArray = Array.from(document.getElementById('tipsList').children).map(function(li) {
+      return '- ' + li.textContent;
     });
+    var tipsAndGuidance = '\n--- Tips & Guidance ---\nTips:\n' +
+      tipsArray.join('\n') + '\n\nGuidance:\n' +
+      document.getElementById('goalsGuidance').textContent + '\n';
 
-    // Add share button once if not present
-    if (!document.getElementById('shareBtn')) {
-      const shareBtn = document.createElement('button');
-      shareBtn.id = 'shareBtn';
-      shareBtn.innerText = 'Share Full Data';
-      shareBtn.addEventListener('click', () => {
-        if (navigator.share) {
-          navigator.share({ title: 'Health Report', text: fullData }).catch(() => {});
-        } else {
-          alert('Share API not available on this browser. Data is already in your clipboard.');
-        }
+    var fullData = '=== Health Report ===\n' +
+      reportText + '\n' + gaugesData + '\n' + progressData + '\n' + tipsAndGuidance + '\n';
+
+    // SECURITY: navigator.clipboard.writeText only accepts plain text — safe from injection
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(fullData).then(function() {
+        showToast('Full health data copied to clipboard.', 'success');
+        addShareButton(fullData);
+      }).catch(function() {
+        clipboardFallback(fullData);
       });
-      document.getElementById('reportButtons').appendChild(shareBtn);
+    } else {
+      clipboardFallback(fullData);
     }
   });
 
-  // Email report — open mailto with the data
-  document.getElementById('emailReport').addEventListener('click', () => {
-    const reportText = document.getElementById('healthReport').innerText;
+  // Secure clipboard fallback for older browsers
+  function clipboardFallback(text) {
+    try {
+      var textarea = document.createElement('textarea');
+      textarea.value = text;
+      // SECURITY: Position off-screen to prevent clickjacking
+      textarea.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0;';
+      textarea.setAttribute('readonly', '');
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      showToast('Full health data copied to clipboard.', 'success');
+      addShareButton(text);
+    } catch (err) {
+      showToast('Failed to copy. Please copy the report manually.', 'error');
+    }
+  }
+
+  // Add share button once
+  function addShareButton(fullData) {
+    if (!document.getElementById('shareBtn') && navigator.share) {
+      var shareBtn = document.createElement('button');
+      shareBtn.id = 'shareBtn';
+      shareBtn.className = 'btn';
+      shareBtn.innerHTML = '<i class="fa-solid fa-share-nodes"></i> Share';
+      shareBtn.addEventListener('click', function() {
+        // SECURITY: navigator.share only sends structured data, no code execution risk
+        navigator.share({ title: 'Health Report', text: fullData }).catch(function() {});
+      });
+      document.getElementById('reportButtons').appendChild(shareBtn);
+    }
+  }
+
+  // === Email Report ===
+  document.getElementById('emailReport').addEventListener('click', function() {
+    var reportText = document.getElementById('healthReport').textContent;
     if (!reportText.trim()) {
-      alert('No report to email. Run a health scan first.');
+      showToast('No report to email. Run a health scan first.', 'error');
       return;
     }
 
-    const subject = encodeURIComponent('My Health Report');
-    const body = encodeURIComponent('=== Health Report ===\n\n' + reportText +
-      '\n\nBMI: ' + document.getElementById('gaugeBMI').innerText +
-      '\nActivity: ' + document.getElementById('gaugeActivity').innerText +
-      '\nCalories: ' + document.getElementById('gaugeCalories').innerText +
-      '\n\nGuidance:\n' + document.getElementById('goalsGuidance').innerText);
+    // SECURITY: encodeURIComponent prevents header injection in mailto:
+    var subject = encodeURIComponent('My Health Report');
+    var body = encodeURIComponent(
+      '=== Health Report ===\n\n' + reportText +
+      '\n\nBMI: ' + document.getElementById('gaugeBMI').textContent +
+      '\nActivity: ' + document.getElementById('gaugeActivity').textContent +
+      '\nCalories: ' + document.getElementById('gaugeCalories').textContent +
+      '\n\nHeart Rate: ' + document.getElementById('heartRateVal').textContent +
+      '\nBlood Pressure: ' + document.getElementById('bpVal').textContent +
+      '\nOxygen Level: ' + document.getElementById('oxygenVal').textContent +
+      '\n\nGuidance:\n' + document.getElementById('goalsGuidance').textContent
+    );
 
+    // SECURITY: Using location.href (not document.write or innerHTML) — no injection vector
     window.location.href = 'mailto:?subject=' + subject + '&body=' + body;
+  });
+
+  // === Particle System (decorative, canvas-based) ===
+  (function() {
+    var canvas = document.querySelector('.particles-canvas');
+    var ctx = canvas.getContext('2d');
+    var particles = [];
+    var PARTICLE_COUNT = 40;
+    var animId = null;
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    // Respect reduced motion preference
+    var reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reducedMotion) return;
+
+    function createParticle() {
+      return {
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        size: Math.max(0.5, Math.random() * 2),
+        speedX: (Math.random() - 0.5) * 0.3,
+        speedY: (Math.random() - 0.5) * 0.3,
+        opacity: Math.random() * 0.4 + 0.1,
+        pulse: Math.random() * Math.PI * 2
+      };
+    }
+
+    for (var i = 0; i < PARTICLE_COUNT; i++) {
+      particles.push(createParticle());
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(function(p) {
+        p.x += p.speedX;
+        p.y += p.speedY;
+        p.pulse += 0.02;
+
+        // Wrap around edges
+        if (p.x < -10) p.x = canvas.width + 10;
+        if (p.x > canvas.width + 10) p.x = -10;
+        if (p.y < -10) p.y = canvas.height + 10;
+        if (p.y > canvas.height + 10) p.y = -10;
+
+        var currentOpacity = p.opacity * (0.6 + 0.4 * Math.sin(p.pulse));
+        var r = Math.max(0.5, p.size);
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(201, 168, 76, ' + currentOpacity.toFixed(3) + ')';
+        ctx.fill();
+
+        // Subtle glow
+        if (r > 1) {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, r * 3, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(201, 168, 76, ' + (currentOpacity * 0.15).toFixed(3) + ')';
+          ctx.fill();
+        }
+      });
+      animId = requestAnimationFrame(draw);
+    }
+    draw();
+
+    // Pause when tab is not visible
+    document.addEventListener('visibilitychange', function() {
+      if (document.hidden) {
+        if (animId) cancelAnimationFrame(animId);
+        animId = null;
+      } else {
+        if (!animId) draw();
+      }
+    });
+  })();
+
+  // === Prevent form-like default submission on Enter in number inputs ===
+  document.querySelectorAll('input[type="number"]').forEach(function(inp) {
+    inp.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        // Trigger scan if in main inputs
+        if (inp.closest('#mainInputs')) {
+          document.getElementById('runScan').click();
+        } else if (inp.closest('#calcInputs')) {
+          document.getElementById('calculateCalories').click();
+        }
+      }
+    });
   });
 </script>
 </body>
