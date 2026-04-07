@@ -1,16 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- 1. SECURITY: ROBUST CONTENT SECURITY POLICY (CSP) -->
-    <!-- 
-       - script-src: Allows Supabase SDK from cdn.jsdelivr.net and inline scripts.
-       - connect-src: Restricts network calls to ONLY your Supabase instance and the RSS feed.
-       - style-src: Allows inline styles.
-       - default-src: Defaults to 'self' for other resources.
-    -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://xgfazfmigrwrmkntdjfp.supabase.co https://api.rss2json.com; img-src 'self' data: https:; font-src 'self' data:;">
-
-    <!-- Google tag (gtag.js) -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://xgfazfmigrwrmkntdjfp.supabase.co https://api.rss2json.com https://www.google-analytics.com; img-src 'self' data: https:; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';">
+    <meta name="referrer" content="no-referrer">
     <script async src="https://www.googletagmanager.com/gtag/js?id=GT-NC6T5LRJ"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -18,717 +10,1294 @@
       gtag('js', new Date());
       gtag('config', 'GT-NC6T5LRJ');
     </script>
-
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" href="https://mohammad3230.github.io/Games-More-.../favicon.png" type="image/png" sizes="32x32" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='4' fill='%23000'/><text x='4' y='24' font-size='22' font-family='monospace' fill='%2300f0ff'>G</text></svg>" type="image/svg+xml" />
     <title>Omni-Deck v80.8 | Active Session</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         :root {
-            --glow-blue: #00f0ff; --glow-green: #00ff88; --glow-gold: #ffcc00;
-            --glow-red: #ff4444; --glow-purple: #bc13fe; --glass: rgba(0, 5, 12, 0.95);
-            --text-glow: 0 0 8px rgba(0, 240, 255, 0.6);
+            --cyan: #00f0ff; --green: #00ff88; --gold: #ffcc00;
+            --red: #ff4444; --purple: #bc13fe; --magenta: #ff00aa;
+            --glass-bg: rgba(0, 8, 18, 0.88);
+            --glass-border: rgba(0, 240, 255, 0.25);
+            --glass-glow: rgba(0, 240, 255, 0.08);
+            --text-glow: 0 0 10px rgba(0, 240, 255, 0.5);
+            --panel-radius: 6px;
+            --shield-h: 54px;
+            --ticker-h: 36px;
         }
-        * { box-sizing: border-box; }
-        body { 
-            margin: 0; background: #000; color: var(--glow-blue); 
-            font-family: 'Consolas', 'Courier New', monospace; 
-            overflow: hidden; -webkit-font-smoothing: antialiased; 
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #000;
+            color: var(--cyan);
+            font-family: 'Share Tech Mono', 'Consolas', 'Courier New', monospace;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
             transition: opacity 0.5s ease;
         }
-        .cloaked { opacity: 0.12 !important; filter: blur(8px) grayscale(100%); pointer-events: none; }
-        body::after {
-            content: " "; display: block; position: fixed; inset: 0;
-            background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.1) 50%), 
-                        linear-gradient(90deg, rgba(255,0,0,0.03), rgba(0,255,0,0.01), rgba(0,255,0,0.03));
-            z-index: 2000; background-size: 100% 3px, 3px 100%; pointer-events: none;
-        }
-        #matrix { position: fixed; inset: 0; z-index: -1; filter: brightness(0.6); transition: filter 0.5s; }
-        .log-entry { transition: opacity 1s ease-out; margin-bottom: 6px; word-break: break-all; text-shadow: var(--text-glow); font-size: 0.9rem; font-weight: 700; opacity: 1; }
-        .log-fade { opacity: 0 !important; }
-        .side-panel {
-            position: fixed; background: var(--glass); border: 1px solid rgba(0,240,255,0.4);
-            padding: 12px; border-radius: 4px; backdrop-filter: blur(10px); z-index: 100;
-            box-shadow: 0 0 25px rgba(0,0,0,0.9); transition: 0.3s;
-        }
-        #navPanel { top: 70px; left: 20px; width: 240px; border-left: 5px solid var(--glow-blue); }
-        #dataStream { bottom: 50px; left: 20px; width: 240px; height: 250px; overflow-y: auto; border-left: 5px solid var(--glow-red); scrollbar-width: none; }
-        .intel-alert { animation: pulse 2s infinite; margin-bottom: 12px; border-bottom: 1px solid rgba(255,0,0,0.2); padding-bottom: 6px; cursor: pointer; transition: background 0.2s; }
-        .intel-alert:hover { background: rgba(255,68,68,0.1); }
-        @keyframes pulse { 0% { border-color: rgba(255,0,0,0.2); } 50% { border-color: rgba(255,0,0,0.6); } 100% { border-color: rgba(255,0,0,0.2); } }
-        #sysWidget { bottom: 310px; right: 25px; width: 200px; border-right: 5px solid var(--glow-gold); font-size: 0.7rem; text-align: right; }
-        #shieldBar {
-            position: fixed; top: 0; left: 0; width: 100%; height: 50px;
-            border-bottom: 2px solid var(--glow-blue); display: flex; align-items: center; 
-            justify-content: space-between; padding: 0 30px; font-size: 0.85rem; background: rgba(0,2,8,1);
-            z-index: 1000; text-shadow: var(--text-glow); font-weight: 900;
-        }
-        .dash-container {
-            position: fixed; bottom: 50px; right: 25px; width: 600px;
-            background: var(--glass); border: 1px solid var(--glow-blue);
-            padding: 18px; border-radius: 4px; z-index: 100;
-            box-shadow: 0 0 40px rgba(0,0,0,1);
-        }
-        .stats-grid { display: grid; grid-template-columns: 1fr 1.4fr; gap: 15px; margin-bottom: 15px; }
-        .stat-card { background: rgba(0,10,18,0.9); border: 1px solid rgba(0,240,255,0.2); padding: 12px; }
-        #syncBar { height: 100%; background: var(--glow-purple); width: 0%; transition: width 0.3s ease; }
-        #dpi_monitor { height: 90px; font-size: 0.75rem; color: #fff; overflow-y: auto; border-left: 2px solid var(--glow-blue); padding-left: 12px; scrollbar-width: none; }
-        #terminalLog { height: 180px; overflow-y: auto; font-size: 0.9rem; scrollbar-width: none; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 12px; }
-        #terminalInput { background: transparent; border: none; color: #fff; width: 60%; outline: none; font-family: inherit; font-size: 1.1rem; font-weight: bold; }
-        .arc-pulse { animation: arc-glow 3s infinite ease-in-out; }
-        @keyframes arc-glow { 0%,100% { box-shadow: 0 0 15px rgba(0,240,255,0.2); border-color: rgba(0,240,255,0.4); } 50% { box-shadow: 0 0 30px rgba(0,240,255,0.5); border-color: rgba(0,240,255,0.8); } }
-        .stress-active { animation: shake 0.1s infinite; filter: saturate(4) hue-rotate(-50deg); }
-        @keyframes shake { 0% { transform: translate(1px,1px); } 50% { transform: translate(-2px,-1px); } 100% { transform: translate(1px,2px); } }
-        #ticker-wrapper {
-            position: fixed; bottom: 0; left: 0; width: 100%; height: 34px;
-            background: rgba(0,5,10,0.95); border-top: 2px solid var(--glow-blue);
-            display: flex; align-items: center; z-index: 1000; overflow: hidden;
-            backdrop-filter: blur(10px); box-shadow: 0 -5px 20px rgba(0,240,255,0.15);
-        }
-        .ticker-label { background: var(--glow-blue); color: #000; padding: 0 15px; font-weight: 900; height: 100%; display: flex; align-items: center; font-size: 11px; letter-spacing: 1px; z-index: 10; position: relative; }
-        .ticker-content { white-space: nowrap; display: inline-block; will-change: transform; animation: ticker-move 60s linear infinite; color: var(--glow-green); font-size: 13px; }
-        .news-item { margin-right: 60px; text-decoration: none; color: var(--glow-blue); transition: 0.2s; font-weight: bold; display: inline-block; }
-        .news-item:hover { color: #fff; text-shadow: 0 0 10px var(--glow-blue); }
-        .source-tag { color: var(--glow-purple); font-size: 10px; margin-right: 8px; opacity: 0.8; }
-        @keyframes ticker-move { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-        .glitch-text { position: relative; }
-        .glitch-text::before { content: attr(data-text); position: absolute; left: -1px; text-shadow: 1px 0 var(--glow-red); background: var(--glow-blue); overflow: hidden; animation: noise-1 3s infinite linear alternate-reverse; }
-        @keyframes noise-1 { 0% { clip-path: inset(40% 0 61% 0); } 100% { clip-path: inset(10% 0 80% 0); } }
-        #loginOverlay { position: fixed; inset: 0; background: rgba(0,8,15,0.98); z-index: 3000; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: transform 0.8s cubic-bezier(0.85,0,0.15,1); }
-        #loginOverlay input { background: rgba(0,240,255,0.05); border: 1px solid var(--glow-blue); color: #fff; padding: 12px; margin: 10px; width: 340px; font-family: 'Consolas', monospace; text-align: center; outline: none; box-shadow: 0 0 10px rgba(0,240,255,0.1); }
-        .login-btn { background: var(--glow-green); color: #000; border: none; padding: 12px 30px; font-weight: 900; cursor: pointer; margin-top: 20px; letter-spacing: 2px; font-family: inherit; transition: 0.3s; }
-        .login-btn:hover { background: #fff; box-shadow: 0 0 20px var(--glow-green); }
-        #syncIndicator { font-size: 10px; margin-left: 15px; padding: 2px 8px; border: 1px solid var(--glow-blue); border-radius: 3px; text-transform: uppercase; transition: all 0.3s ease; }
-        .sync-idle { color: var(--glow-blue); opacity: 0.6; }
-        .sync-active { color: var(--glow-purple); border-color: var(--glow-purple); box-shadow: 0 0 10px var(--glow-purple); animation: pulse 1s infinite; }
-        .sync-error { color: var(--glow-red); border: 1px solid var(--glow-red); }
 
-        /* CONSTRAINT FIX MODAL */
-        #fixModal {
+        /* ===== ATMOSPHERIC BACKGROUND ===== */
+        .atmosphere {
+            position: fixed; inset: 0; z-index: -2; pointer-events: none;
+            background:
+                radial-gradient(ellipse 80% 60% at 20% 80%, rgba(0, 240, 255, 0.04) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 50% at 80% 20%, rgba(188, 19, 254, 0.04) 0%, transparent 60%),
+                radial-gradient(ellipse 90% 70% at 50% 50%, rgba(0, 255, 136, 0.02) 0%, transparent 70%),
+                linear-gradient(180deg, #000510 0%, #000a14 40%, #000208 100%);
+        }
+        .atmos-orb {
+            position: fixed; border-radius: 50%; pointer-events: none;
+            filter: blur(80px); z-index: -1; opacity: 0.5;
+            animation: orb-drift 20s ease-in-out infinite alternate;
+        }
+        .atmos-orb:nth-child(1) { width: 400px; height: 400px; background: rgba(0,240,255,0.06); top: -100px; left: -100px; }
+        .atmos-orb:nth-child(2) { width: 350px; height: 350px; background: rgba(188,19,254,0.05); bottom: -80px; right: -80px; animation-delay: -7s; animation-duration: 25s; }
+        .atmos-orb:nth-child(3) { width: 250px; height: 250px; background: rgba(0,255,136,0.04); top: 50%; left: 50%; transform: translate(-50%,-50%); animation-delay: -12s; animation-duration: 18s; }
+        @keyframes orb-drift {
+            0% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(30px, -20px) scale(1.1); }
+            66% { transform: translate(-20px, 30px) scale(0.95); }
+            100% { transform: translate(15px, 15px) scale(1.05); }
+        }
+
+        /* ===== SCANLINES ===== */
+        body::after {
+            content: ""; position: fixed; inset: 0; z-index: 2000; pointer-events: none;
+            background:
+                repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px),
+                linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.06) 50%);
+            background-size: 100% 4px, 100% 3px;
+        }
+        .cloaked { opacity: 0.08 !important; filter: blur(12px) grayscale(100%); pointer-events: none; }
+
+        /* ===== MATRIX CANVAS ===== */
+        #matrix { position: fixed; inset: 0; z-index: -1; }
+
+        /* ===== LOG ENTRIES ===== */
+        .log-entry {
+            transition: opacity 1s ease-out; margin-bottom: 5px;
+            word-break: break-word; font-size: 0.85rem; font-weight: 400;
+            opacity: 1; line-height: 1.5;
+        }
+        .log-fade { opacity: 0 !important; }
+
+        /* ===== GLASS PANEL BASE ===== */
+        .glass-panel {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--panel-radius);
+            backdrop-filter: blur(16px) saturate(1.2);
+            -webkit-backdrop-filter: blur(16px) saturate(1.2);
+            box-shadow:
+                0 0 1px rgba(0,240,255,0.4),
+                0 4px 24px rgba(0,0,0,0.6),
+                inset 0 1px 0 rgba(0,240,255,0.06);
+        }
+
+        /* ===== SIDE PANELS ===== */
+        .side-panel {
+            position: fixed; padding: 14px; z-index: 100; transition: all 0.3s ease;
+        }
+        .side-panel:hover {
+            border-color: rgba(0,240,255,0.45);
+            box-shadow: 0 0 1px rgba(0,240,255,0.6), 0 4px 30px rgba(0,0,0,0.7), inset 0 1px 0 rgba(0,240,255,0.1), 0 0 40px var(--glass-glow);
+        }
+        #navPanel { top: 74px; left: 20px; width: 230px; border-left: 3px solid var(--cyan); }
+        #dataStream { bottom: 54px; left: 20px; width: 230px; height: 240px; overflow-y: auto; border-left: 3px solid var(--red); scrollbar-width: none; }
+        #dataStream::-webkit-scrollbar { display: none; }
+        #sysWidget { bottom: 304px; right: 20px; width: 195px; border-right: 3px solid var(--gold); font-size: 0.7rem; text-align: right; }
+
+        .intel-alert {
+            animation: intel-pulse 2.5s infinite ease-in-out;
+            margin-bottom: 10px; border-bottom: 1px solid rgba(255,68,68,0.15);
+            padding-bottom: 8px; cursor: pointer; transition: all 0.2s;
+            border-radius: 3px; padding: 6px; margin-left: -6px;
+        }
+        .intel-alert:hover { background: rgba(255,68,68,0.08); border-bottom-color: rgba(255,68,68,0.4); }
+        @keyframes intel-pulse {
+            0%, 100% { border-bottom-color: rgba(255,68,68,0.15); }
+            50% { border-bottom-color: rgba(255,68,68,0.5); }
+        }
+
+        .panel-label {
+            font-family: 'Orbitron', sans-serif; font-size: 0.6rem; font-weight: 700;
+            letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .panel-label::before {
+            content: ""; display: inline-block; width: 6px; height: 6px;
+            border-radius: 50%; background: currentColor;
+            box-shadow: 0 0 6px currentColor;
+        }
+
+        .cmd-section { font-size: 0.62rem; line-height: 1.6; color: rgba(255,255,255,0.7); }
+        .cmd-section b { color: var(--cyan); opacity: 0.9; }
+
+        /* ===== SHIELD BAR ===== */
+        #shieldBar {
+            position: fixed; top: 0; left: 0; width: 100%; height: var(--shield-h);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 24px; z-index: 1000; font-size: 0.8rem;
+            background: linear-gradient(180deg, rgba(0,4,12,0.97) 0%, rgba(0,6,16,0.92) 100%);
+            border-bottom: 1px solid rgba(0,240,255,0.2);
+            box-shadow: 0 2px 20px rgba(0,0,0,0.8), 0 1px 0 rgba(0,240,255,0.08);
+        }
+        #shieldBar::after {
+            content: ""; position: absolute; bottom: -1px; left: 0; width: 100%; height: 1px;
+            background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+            opacity: 0.5;
+        }
+
+        #mobileMenuBtn {
+            display: none; position: fixed; top: 11px; left: 11px; z-index: 6000;
+            width: 30px; height: 30px; background: rgba(0,240,255,0.06);
+            border: 1px solid rgba(0,240,255,0.3); color: var(--cyan);
+            font-size: 16px; cursor: pointer; align-items: center;
+            justify-content: center; border-radius: 4px; line-height: 1;
+            transition: all 0.2s;
+        }
+        #mobileMenuBtn:hover { background: rgba(0,240,255,0.12); border-color: var(--cyan); }
+
+        .shield-left { display: flex; align-items: center; gap: 4px; }
+        .shield-center {
+            font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: 0.7rem;
+            letter-spacing: 6px; color: var(--cyan);
+            text-shadow: 0 0 12px rgba(0,240,255,0.4), 0 0 30px rgba(0,240,255,0.15);
+        }
+        .shield-right { display: flex; align-items: center; gap: 8px; width: 160px; justify-content: flex-end; }
+
+        #clock {
+            font-family: 'Orbitron', sans-serif; font-size: 0.75rem;
+            color: var(--gold); letter-spacing: 1px;
+            text-shadow: 0 0 8px rgba(255,204,0,0.3);
+        }
+        #syncIndicator {
+            font-size: 9px; padding: 2px 8px; border: 1px solid rgba(0,240,255,0.3);
+            border-radius: 3px; text-transform: uppercase; transition: all 0.3s;
+            white-space: nowrap; letter-spacing: 0.5px;
+        }
+        .sync-idle { color: var(--cyan); opacity: 0.5; }
+        .sync-active { color: var(--purple); border-color: var(--purple); box-shadow: 0 0 12px rgba(188,19,254,0.3); animation: sync-blink 1.2s infinite; }
+        .sync-error { color: var(--red); border-color: var(--red); box-shadow: 0 0 8px rgba(255,68,68,0.3); }
+        @keyframes sync-blink { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        .hud-chip {
+            font-size: 0.65rem; padding: 2px 6px; border-radius: 3px;
+            border: 1px solid; letter-spacing: 0.5px;
+        }
+
+        /* ===== DASHBOARD ===== */
+        .dash-container {
+            position: fixed; bottom: 54px; right: 20px; width: 580px;
+            padding: 16px; z-index: 100;
+            box-shadow: 0 0 1px rgba(0,240,255,0.5), 0 8px 40px rgba(0,0,0,0.8), inset 0 1px 0 rgba(0,240,255,0.08);
+        }
+        .dash-container::before {
+            content: ""; position: absolute; top: -1px; left: 20px; right: 20px; height: 1px;
+            background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+            opacity: 0.6;
+        }
+        .stats-grid { display: grid; grid-template-columns: 180px 1fr; gap: 12px; margin-bottom: 12px; }
+        .stat-card {
+            background: rgba(0,12,22,0.9); border: 1px solid rgba(0,240,255,0.12);
+            padding: 12px; border-radius: 4px; position: relative; overflow: hidden;
+        }
+        .stat-card::after {
+            content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(0,240,255,0.2), transparent);
+        }
+        .stat-label {
+            font-family: 'Orbitron', sans-serif; font-size: 0.55rem; font-weight: 700;
+            color: rgba(0,240,255,0.7); letter-spacing: 1.5px; text-transform: uppercase;
+        }
+        .stat-value { font-size: 2rem; font-weight: 900; line-height: 1.1; margin: 6px 0; }
+        .stat-value .unit { font-size: 0.8rem; color: rgba(0,240,255,0.5); }
+
+        #syncBarTrack {
+            width: 100%; height: 6px; background: rgba(0,20,30,0.8);
+            border: 1px solid rgba(255,255,255,0.06); border-radius: 3px;
+            overflow: hidden; margin-top: 8px;
+        }
+        #syncBar {
+            height: 100%; width: 0%; border-radius: 3px;
+            background: linear-gradient(90deg, var(--purple), var(--cyan));
+            box-shadow: 0 0 8px rgba(188,19,254,0.5);
+            transition: width 0.3s ease;
+        }
+
+        #dpi_monitor {
+            height: 88px; font-size: 0.7rem; color: rgba(255,255,255,0.7);
+            overflow-y: auto; border-left: 2px solid rgba(0,240,255,0.2);
+            padding-left: 10px; scrollbar-width: none;
+        }
+        #dpi_monitor::-webkit-scrollbar { display: none; }
+        .dpi-line { padding: 2px 0; border-bottom: 1px solid rgba(0,240,255,0.04); }
+        .dpi-line .proto { color: var(--green); font-weight: 700; }
+
+        /* ===== TERMINAL ===== */
+        #terminalLog {
+            height: 160px; overflow-y: auto; font-size: 0.82rem;
+            scrollbar-width: none; border-top: 1px solid rgba(255,255,255,0.08);
+            padding-top: 10px;
+        }
+        #terminalLog::-webkit-scrollbar { display: none; }
+
+        .terminal-prompt {
+            display: flex; align-items: center; gap: 8px;
+            border-top: 1px solid rgba(0,240,255,0.15); padding-top: 10px;
+            margin-top: 4px;
+        }
+        #promptLabel {
+            font-family: 'Orbitron', sans-serif; color: var(--green);
+            font-size: 0.7rem; font-weight: 700; white-space: nowrap;
+            text-shadow: 0 0 6px rgba(0,255,136,0.3);
+            letter-spacing: 0.5px; cursor: default;
+        }
+        #terminalInput {
+            background: transparent; border: none; color: #fff;
+            flex: 1; outline: none; font-family: 'Share Tech Mono', monospace;
+            font-size: 0.9rem; caret-color: var(--cyan);
+        }
+        #terminalInput::placeholder { color: rgba(0,240,255,0.2); }
+
+        /* ===== TICKER ===== */
+        #ticker-wrapper {
+            position: fixed; bottom: 0; left: 0; width: 100%; height: var(--ticker-h);
+            display: flex; align-items: center; z-index: 1000; overflow: hidden;
+            background: linear-gradient(180deg, rgba(0,4,10,0.95) 0%, rgba(0,6,14,0.98) 100%);
+            border-top: 1px solid rgba(0,240,255,0.15);
+            box-shadow: 0 -2px 20px rgba(0,0,0,0.6);
+        }
+        #ticker-wrapper::before {
+            content: ""; position: absolute; top: -1px; left: 0; width: 100%; height: 1px;
+            background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+            opacity: 0.3;
+        }
+        .ticker-label {
+            background: linear-gradient(135deg, var(--cyan), rgba(0,200,220,0.9));
+            color: #000; padding: 0 16px; font-weight: 900; height: 100%;
+            display: flex; align-items: center; font-size: 10px;
+            letter-spacing: 1.5px; z-index: 10; position: relative; flex-shrink: 0;
+            font-family: 'Orbitron', sans-serif;
+        }
+        .ticker-content {
+            white-space: nowrap; display: inline-block; will-change: transform;
+            animation: ticker-move 55s linear infinite; font-size: 12px;
+        }
+        .news-item {
+            margin-right: 50px; text-decoration: none; color: var(--cyan);
+            transition: all 0.2s; font-weight: 400; display: inline-block;
+            opacity: 0.8;
+        }
+        .news-item:hover { color: #fff; opacity: 1; text-shadow: 0 0 8px var(--cyan); }
+        .source-tag { color: var(--purple); font-size: 9px; margin-right: 6px; font-weight: 700; }
+        @keyframes ticker-move { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+        /* ===== ANIMATIONS ===== */
+        .arc-pulse {
+            animation: arc-glow 4s infinite ease-in-out;
+        }
+        @keyframes arc-glow {
+            0%, 100% { box-shadow: 0 0 1px rgba(0,240,255,0.4), 0 4px 24px rgba(0,0,0,0.6), inset 0 1px 0 rgba(0,240,255,0.06); border-color: rgba(0,240,255,0.25); }
+            50% { box-shadow: 0 0 1px rgba(0,240,255,0.7), 0 4px 30px rgba(0,0,0,0.7), inset 0 1px 0 rgba(0,240,255,0.12), 0 0 50px rgba(0,240,255,0.06); border-color: rgba(0,240,255,0.45); }
+        }
+        .stress-active { animation: stress-shake 0.08s infinite; }
+        @keyframes stress-shake {
+            0% { transform: translate(1px, 1px); filter: saturate(3) hue-rotate(-30deg); }
+            25% { transform: translate(-2px, 0px); }
+            50% { transform: translate(0px, -2px); filter: saturate(4) hue-rotate(-60deg) brightness(1.1); }
+            75% { transform: translate(2px, 1px); }
+            100% { transform: translate(-1px, 2px); }
+        }
+        .glitch-text { position: relative; display: inline-block; }
+        .glitch-text::before, .glitch-text::after {
+            content: attr(data-text); position: absolute; left: 0; top: 0;
+            overflow: hidden; background: transparent;
+        }
+        .glitch-text::before {
+            text-shadow: 1px 0 var(--red); animation: glitch-1 4s infinite linear alternate-reverse;
+            clip-path: inset(20% 0 60% 0);
+        }
+        .glitch-text::after {
+            text-shadow: -1px 0 var(--cyan); animation: glitch-2 3s infinite linear alternate-reverse;
+            clip-path: inset(60% 0 10% 0);
+        }
+        @keyframes glitch-1 { 0% { clip-path: inset(20% 0 60% 0); } 100% { clip-path: inset(50% 0 10% 0); } }
+        @keyframes glitch-2 { 0% { clip-path: inset(60% 0 10% 0); } 100% { clip-path: inset(10% 0 70% 0); } }
+
+        /* ===== LOGIN OVERLAY ===== */
+        #loginOverlay {
+            position: fixed; inset: 0; z-index: 3000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: transform 0.8s cubic-bezier(0.85,0,0.15,1), opacity 0.6s;
+            padding: 20px; overflow-y: auto;
+            background: radial-gradient(ellipse at center, rgba(0,20,30,0.98) 0%, rgba(0,4,10,0.99) 70%);
+        }
+        #loginOverlay.hidden { transform: translateY(-100%); opacity: 0; pointer-events: none; }
+        .login-box {
+            width: 100%; max-width: 380px; position: relative;
+            padding: 40px 30px;
+            background: rgba(0,10,20,0.9);
+            border: 1px solid rgba(0,240,255,0.2);
+            border-radius: 8px;
+            box-shadow: 0 0 60px rgba(0,240,255,0.05), 0 20px 60px rgba(0,0,0,0.8);
+        }
+        .login-box::before {
+            content: ""; position: absolute; top: -1px; left: 30px; right: 30px; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+        }
+        .login-title {
+            font-family: 'Orbitron', sans-serif; font-size: 0.9rem;
+            letter-spacing: 4px; color: var(--green); text-align: center;
+            margin-bottom: 30px;
+            text-shadow: 0 0 15px rgba(0,255,136,0.3);
+        }
+        .login-input {
+            width: 100%; background: rgba(0,240,255,0.04);
+            border: 1px solid rgba(0,240,255,0.2); color: #fff;
+            padding: 14px 16px; margin: 8px 0;
+            font-family: 'Share Tech Mono', monospace; font-size: 0.9rem;
+            text-align: center; outline: none; border-radius: 4px;
+            transition: all 0.3s;
+            -webkit-appearance: none;
+        }
+        .login-input:focus {
+            border-color: var(--cyan);
+            box-shadow: 0 0 15px rgba(0,240,255,0.1), inset 0 0 20px rgba(0,240,255,0.03);
+            background: rgba(0,240,255,0.06);
+        }
+        .login-input::placeholder { color: rgba(0,240,255,0.25); letter-spacing: 1px; font-size: 0.75rem; }
+        .login-btn {
+            width: 100%; background: linear-gradient(135deg, var(--green), rgba(0,220,120,0.9));
+            color: #000; border: none; padding: 14px 20px;
+            font-weight: 900; cursor: pointer; margin-top: 24px;
+            letter-spacing: 3px; font-family: 'Orbitron', sans-serif;
+            font-size: 0.7rem; border-radius: 4px; transition: all 0.3s;
+            text-transform: uppercase; -webkit-appearance: none;
+        }
+        .login-btn:hover {
+            background: linear-gradient(135deg, #fff, var(--green));
+            box-shadow: 0 0 25px rgba(0,255,136,0.3);
+            transform: translateY(-1px);
+        }
+        .login-btn:active { transform: translateY(0) scale(0.98); }
+        .login-error {
+            color: var(--red); display: none; margin-top: 12px;
+            font-size: 0.75rem; text-align: center;
+            text-shadow: 0 0 8px rgba(255,68,68,0.3);
+        }
+        .login-subtle-btn {
+            background: transparent; color: rgba(0,240,255,0.4); border: none;
+            margin-top: 24px; cursor: pointer; font-size: 0.6rem; width: 100%;
+            letter-spacing: 2px; font-family: 'Share Tech Mono', monospace;
+            transition: color 0.3s; padding: 8px;
+        }
+        .login-subtle-btn:hover { color: var(--cyan); }
+
+        /* ===== MODALS ===== */
+        .modal-overlay {
             display: none; position: fixed; inset: 0; z-index: 9999;
-            background: rgba(0,0,0,0.97); 
+            background: rgba(0,0,0,0.92);
             flex-direction: column; align-items: center; justify-content: center;
-            font-family: 'Consolas', monospace; color: #fff; padding: 30px;
+            padding: 20px; overflow-y: auto;
         }
-        #fixModal.show { display: flex; }
-        #fixModal .fix-box {
-            background: rgba(20,0,0,0.95); border: 2px solid var(--glow-red);
-            padding: 30px; max-width: 700px; width: 90%; border-radius: 6px;
-            box-shadow: 0 0 60px rgba(255,0,0,0.3);
+        .modal-overlay.show { display: flex; }
+        .modal-box {
+            padding: 28px; max-width: 680px; width: 95%;
+            border-radius: 8px; max-height: 90vh; overflow-y: auto;
+            background: rgba(10,2,2,0.96);
+            border: 1px solid rgba(255,68,68,0.3);
+            box-shadow: 0 0 80px rgba(255,68,68,0.08), 0 20px 60px rgba(0,0,0,0.8);
         }
-        #fixModal h2 { color: var(--glow-red); margin: 0 0 15px 0; text-align: center; font-size: 1.1rem; letter-spacing: 3px; }
-        #fixModal p { color: #ccc; font-size: 0.8rem; margin: 10px 0; line-height: 1.6; }
-        #fixModal pre {
-            background: #000; border: 1px solid var(--glow-gold); padding: 15px;
-            font-size: 0.75rem; color: var(--glow-green); overflow-x: auto;
-            margin: 15px 0; line-height: 1.8; cursor: pointer; position: relative;
+        .modal-box h2 {
+            font-family: 'Orbitron', sans-serif; color: var(--red);
+            margin: 0 0 16px; text-align: center; font-size: 0.85rem;
+            letter-spacing: 3px; text-shadow: 0 0 15px rgba(255,68,68,0.3);
         }
-        #fixModal pre:hover { border-color: #fff; }
-        #fixModal .copy-hint { font-size: 0.6rem; color: var(--glow-blue); text-align: right; margin-top: 5px; }
-        #fixModal .dismiss-btn {
-            display: block; margin: 20px auto 0; background: var(--glow-gold); color: #000;
-            border: none; padding: 12px 40px; font-weight: 900; cursor: pointer;
-            font-family: inherit; font-size: 0.85rem; letter-spacing: 2px;
+        .modal-box p { color: rgba(255,255,255,0.7); font-size: 0.78rem; margin: 8px 0; line-height: 1.7; }
+        .modal-box pre {
+            background: rgba(0,0,0,0.8); border: 1px solid rgba(255,204,0,0.3);
+            padding: 14px; font-size: 0.7rem; color: var(--green);
+            overflow-x: auto; margin: 14px 0; line-height: 1.9;
+            cursor: pointer; border-radius: 4px; word-break: break-all;
         }
-        #fixModal .dismiss-btn:hover { background: #fff; }
-        #fixModal .step-num { color: var(--glow-gold); font-weight: 900; }
+        .modal-box pre:hover { border-color: var(--gold); }
+        .copy-hint { font-size: 0.6rem; color: rgba(0,240,255,0.5); text-align: right; margin-top: 4px; }
+        .modal-btn {
+            display: block; margin: 20px auto 0;
+            background: linear-gradient(135deg, var(--gold), rgba(220,180,0,0.9));
+            color: #000; border: none; padding: 12px 36px;
+            font-weight: 900; cursor: pointer; font-family: 'Orbitron', sans-serif;
+            font-size: 0.7rem; letter-spacing: 2px; border-radius: 4px;
+            transition: all 0.3s; text-transform: uppercase;
+            -webkit-appearance: none;
+        }
+        .modal-btn:hover { background: linear-gradient(135deg, #fff, var(--gold)); box-shadow: 0 0 20px rgba(255,204,0,0.3); }
+        .modal-btn:active { transform: scale(0.97); }
+        .modal-btn.secondary {
+            background: transparent; color: var(--cyan);
+            border: 1px solid rgba(0,240,255,0.3);
+        }
+        .modal-btn.secondary:hover { background: rgba(0,240,255,0.08); border-color: var(--cyan); }
+        .step-num { color: var(--gold); font-weight: 900; }
+
+        /* Register Modal */
+        #registerModal .modal-box {
+            border-color: rgba(188,19,254,0.3);
+            box-shadow: 0 0 80px rgba(188,19,254,0.06), 0 20px 60px rgba(0,0,0,0.8);
+        }
+        #registerModal h2 { color: var(--purple); text-shadow: 0 0 15px rgba(188,19,254,0.3); }
+        .reg-input {
+            width: 100%; background: rgba(188,19,254,0.04);
+            border: 1px solid rgba(188,19,254,0.2); color: #fff;
+            padding: 14px 16px; margin: 8px 0;
+            font-family: 'Share Tech Mono', monospace; font-size: 0.9rem;
+            text-align: center; outline: none; border-radius: 4px;
+            transition: all 0.3s; -webkit-appearance: none;
+        }
+        .reg-input:focus {
+            border-color: var(--purple);
+            box-shadow: 0 0 15px rgba(188,19,254,0.1);
+        }
+        .reg-btn { background: linear-gradient(135deg, var(--purple), rgba(160,10,220,0.9)) !important; }
+        .reg-btn:hover { background: linear-gradient(135deg, #fff, var(--purple)) !important; box-shadow: 0 0 20px rgba(188,19,254,0.3) !important; }
+
+        /* ===== MOBILE DRAWER ===== */
+        #drawerOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 5499; }
+        #drawerOverlay.open { display: block; }
+        #mobileDrawer {
+            position: fixed; top: 0; left: -300px; width: 280px; height: 100%;
+            background: linear-gradient(180deg, rgba(0,8,18,0.98), rgba(0,4,12,0.99));
+            z-index: 5500; transition: left 0.3s ease;
+            overflow-y: auto; padding: 56px 14px 80px;
+            border-right: 1px solid rgba(0,240,255,0.2);
+            -webkit-overflow-scrolling: touch;
+        }
+        #mobileDrawer.open { left: 0; }
+        .drawer-close {
+            position: absolute; top: 12px; right: 12px; background: transparent;
+            border: 1px solid rgba(255,68,68,0.3); color: var(--red);
+            width: 28px; height: 28px; font-size: 16px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 4px; transition: all 0.2s;
+        }
+        .drawer-close:hover { background: rgba(255,68,68,0.1); border-color: var(--red); }
+        #mobileDrawer .side-panel { position: static !important; width: 100% !important; margin-bottom: 14px; }
+        #mobileDrawer #dataStream { height: 180px; }
+
+        /* ===== RESPONSIVE: MOBILE ===== */
+        @media (max-width: 768px) {
+            :root { --shield-h: 46px; --ticker-h: 32px; }
+            #mobileMenuBtn { display: flex !important; }
+            #navPanel, #sysWidget, #dataStream { display: none; }
+            #shieldBar { padding: 0 12px 0 48px; }
+            .shield-center { font-size: 0.5rem !important; letter-spacing: 2px !important; }
+            #syncIndicator { font-size: 7px; padding: 1px 4px; margin-left: 4px; }
+            .shield-right { width: auto; }
+            .hud-chip { font-size: 0.55rem; }
+            .dash-container { width: calc(100% - 12px); right: 6px; bottom: calc(var(--ticker-h) + 6px); left: 6px; padding: 12px; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .stat-value { font-size: 1.5rem; }
+            #terminalLog { height: 130px; font-size: 0.75rem; }
+            #terminalInput { font-size: 0.82rem; }
+            .ticker-label { font-size: 8px; padding: 0 10px; }
+            .ticker-content { font-size: 10px; }
+            .news-item { margin-right: 30px; }
+            .login-box { padding: 28px 20px; }
+            .login-title { font-size: 0.75rem; letter-spacing: 2px; }
+            .modal-box { padding: 18px; }
+            .modal-box h2 { font-size: 0.75rem; }
+            .modal-box p { font-size: 0.7rem; }
+            .modal-box pre { font-size: 0.62rem; padding: 10px; }
+            .modal-btn { padding: 10px 16px; font-size: 0.6rem; width: 100%; }
+            .atmos-orb { display: none; }
+        }
+        @media (min-width: 769px) and (max-width: 1024px) {
+            #mobileMenuBtn { display: none !important; }
+            #mobileDrawer, #drawerOverlay { display: none !important; }
+            #navPanel { width: 200px; }
+            #dataStream { width: 200px; height: 200px; }
+            #sysWidget { width: 170px; }
+            .dash-container { width: 430px; right: 14px; }
+            .shield-center { letter-spacing: 4px !important; }
+            .stats-grid { grid-template-columns: 160px 1fr; }
+        }
+
+        /* ===== REDUCED MOTION ===== */
+        @media (prefers-reduced-motion: reduce) {
+            .arc-pulse, .stress-active, .intel-alert, .sync-active { animation: none !important; }
+            .ticker-content, .atmos-orb, .glitch-text::before, .glitch-text::after { animation: none !important; display: none; }
+            .log-entry, #syncBar, .side-panel, #mobileDrawer, #loginOverlay { transition: none !important; }
+        }
+
+        /* ===== FOCUS ===== */
+        :focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+        button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: none; }
+
+        /* ===== SCROLLBAR (desktop) ===== */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(0,240,255,0.15); border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(0,240,255,0.3); }
     </style>
 </head>
 <body id="mainBody">
-    
-    <!-- CONSTRAINT FIX MODAL -->
-    <div id="fixModal">
-        <div class="fix-box">
-            <h2>⚠ DATABASE CONSTRAINT BLOCKING SYNC ⚠</h2>
-            <p>Your table <b style="color:var(--glow-blue)">virtual_fs</b> has a <b style="color:var(--glow-red)">UNIQUE(name)</b> constraint. This prevents multiple users from having files with the same name, and breaks upsert operations.</p>
-            <p><span class="step-num">STEP 1:</span> Open your Supabase dashboard → <b>SQL Editor</b> (left sidebar)</p>
-            <p><span class="step-num">STEP 2:</span> Paste ALL lines below and click <b>RUN</b>:</p>
+
+    <!-- Atmospheric layers -->
+    <div class="atmosphere" aria-hidden="true"></div>
+    <div class="atmos-orb" aria-hidden="true"></div>
+    <div class="atmos-orb" aria-hidden="true"></div>
+    <div class="atmos-orb" aria-hidden="true"></div>
+
+    <!-- Constraint Fix Modal -->
+    <div id="fixModal" class="modal-overlay" role="dialog" aria-label="Database fix instructions">
+        <div class="modal-box">
+            <h2>DATABASE CONSTRAINT BLOCKING SYNC</h2>
+            <p>Your table <b style="color:var(--cyan)">virtual_fs</b> has a <b style="color:var(--red)">UNIQUE(name)</b> constraint preventing multi-user sync.</p>
+            <p><span class="step-num">STEP 1:</span> Open Supabase &rarr; <b>SQL Editor</b></p>
+            <p><span class="step-num">STEP 2:</span> Paste and run:</p>
             <pre id="fixSQL">ALTER TABLE virtual_fs DROP CONSTRAINT IF EXISTS virtual_fs_name_key;
 DROP INDEX IF EXISTS virtual_fs_name_key;
 ALTER TABLE virtual_fs ADD COLUMN IF NOT EXISTS owner_id TEXT;
 UPDATE virtual_fs SET owner_id = id WHERE owner_id IS NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS virtual_fs_owner_name_parent_idx ON virtual_fs(owner_id, name, parent);</pre>
-            <div class="copy-hint">[ CLICK SQL BLOCK TO COPY ]</div>
-            <p><span class="step-num">STEP 3:</span> After running, click the button below, then type <b style="color:var(--glow-green)">diag</b> to verify.</p>
-            <button class="dismiss-btn" onclick="dismissFixModal()">✓ I'VE RUN THE SQL — DISMISS</button>
+            <div class="copy-hint">[ CLICK TO COPY ]</div>
+            <p><span class="step-num">STEP 3:</span> Click below, then type <b style="color:var(--green)">diag</b>.</p>
+            <button class="modal-btn" id="dismissFixBtn">DISMISS</button>
         </div>
     </div>
 
-    <div id="loginOverlay">
-        <h2 class="glitch" style="letter-spacing: 5px; color: var(--glow-green);">CORE_LINK REQUIRED</h2>
-        <input type="text" id="ghostID" placeholder="UUID_IDENTIFIER" autocomplete="off">
-        <input type="password" id="ghostPass" placeholder="SECURITY_KEY" autocomplete="off">
-        <button onclick="authenticateGhost()" class="login-btn">INITIALIZE UPLINK</button>
-        <div id="errorCode" style="color:var(--glow-red); display:none; margin-top:15px; font-size:0.8rem; font-weight:bold;">INVALID_GHOST_CREDENTIALS</div>
-        <button onclick="registerNewGhost()" style="background:transparent; color:var(--glow-blue); border:none; margin-top:30px; cursor:pointer; font-size:10px; opacity:0.5;">[ REGISTER_NEW_NODE ]</button>
-    </div>
-
-    <canvas id="matrix"></canvas>
-
-    <div id="shieldBar">
-        <div style="display:flex; align-items:center;">
-            <span id="clock" style="color:var(--glow-gold); width: 100px;">00:00:00</span>
-            <span id="syncIndicator" class="sync-idle">[ CLOUD_IDLE ]</span>
-        </div>
-        <span id="deckTitle" style="letter-spacing:10px;">◈ GHOST_TAC_v80.8 ◈</span>
-        <div style="width: 150px; text-align: right;">
-            <span id="downHUD" style="color:var(--glow-blue)">SYS: OK</span> &nbsp; 
-            <span id="upHUD" style="color:var(--glow-purple)">14ms</span>
+    <!-- Register Modal -->
+    <div id="registerModal" class="modal-overlay" role="dialog" aria-label="Register new node">
+        <div class="modal-box">
+            <h2>REGISTER NEW GHOST NODE</h2>
+            <p>Choose a strong security key. It will be hashed before storage.</p>
+            <input type="password" class="reg-input" id="regKeyInput" placeholder="ENTER SECURITY_KEY" autocomplete="new-password" maxlength="128">
+            <div id="regError" style="color:var(--red);display:none;font-size:0.72rem;margin-top:6px;"></div>
+            <button class="modal-btn reg-btn" id="confirmRegBtn">COMMIT TO DATABASE</button>
+            <button class="modal-btn secondary" id="cancelRegBtn">CANCEL</button>
         </div>
     </div>
 
-    <div id="navPanel" class="side-panel arc-pulse">
-        <h5 style="color:var(--glow-gold); margin:0 0 10px 0; text-transform:uppercase; font-size:0.75rem;">Command Index</h5>
-        <div style="font-size:0.65rem; line-height:1.5; color:#fff;">
-            <b style="color:var(--glow-blue)">[NAV]</b> ls, cd, help, clear<br>
-            <b style="color:var(--glow-red)">[FILE]</b> cat, rm, mkdir, site, write<br>
-            <b style="color:var(--glow-purple)">[SYS]</b> ghost, stress, sync, diag, exit
-        </div>
-        <hr style="border:0; border-top:1px solid rgba(0,240,255,0.2); margin:10px 0;">
-        <button onclick="refreshAllSystems()" style="width:100%; background:rgba(0,240,255,0.1); border:1px solid var(--glow-blue); color:var(--glow-blue); cursor:pointer; font-family:inherit; font-size:10px; padding:5px;">[ REFRESH SYNC ]</button>
-    </div>
-
-    <div id="sysWidget" class="side-panel">
-        <div style="color:var(--glow-gold); margin-bottom:5px; font-weight:bold;">SYSTEM_LOAD</div>
-        <div id="cpuReadout">CPU: -- [....]</div>
-        <div id="memReadout">MEM: -- [....]</div>
-        <div id="tempReadout" style="color:var(--glow-blue); margin-top:3px;">TEMP: 42°C [SAFE]</div>
-    </div>
-
-    <div id="dataStream" class="side-panel">
-        <h5 style="color:var(--glow-red); margin:0 0 10px 0; text-transform:uppercase; font-size:0.75rem; letter-spacing: 1px;">Threat Feed</h5>
-        <div id="ticker" style="font-size: 0.65rem; color: #fff; line-height: 1.4;">
-            <div style="color: var(--glow-blue); opacity: 0.5;">INITIALIZING STREAM...</div>
+    <!-- Login Overlay -->
+    <div id="loginOverlay" role="dialog" aria-label="Login">
+        <div class="login-box">
+            <div class="login-title glitch-text" data-text="CORE_LINK REQUIRED">CORE_LINK REQUIRED</div>
+            <input type="text" class="login-input" id="ghostID" placeholder="UUID_IDENTIFIER" autocomplete="off" maxlength="64" aria-label="UUID identifier">
+            <input type="password" class="login-input" id="ghostPass" placeholder="SECURITY_KEY" autocomplete="off" maxlength="128" aria-label="Security key">
+            <button class="login-btn" id="loginBtn">INITIALIZE UPLINK</button>
+            <div class="login-error" id="errorCode" role="alert"></div>
+            <button class="login-subtle-btn" id="registerBtn">[ REGISTER_NEW_NODE ]</button>
         </div>
     </div>
 
-    <div id="systemPanel" class="dash-container arc-pulse">
+    <button id="mobileMenuBtn" aria-label="Open system panels">&#9776;</button>
+
+    <div id="drawerOverlay"></div>
+    <nav id="mobileDrawer" aria-label="System panels">
+        <button class="drawer-close" id="drawerCloseBtn" aria-label="Close panels">&times;</button>
+    </nav>
+
+    <canvas id="matrix" aria-hidden="true"></canvas>
+
+    <!-- Shield Bar -->
+    <header id="shieldBar" role="banner">
+        <div class="shield-left">
+            <span id="clock">00:00:00</span>
+            <span id="syncIndicator" class="sync-idle">IDLE</span>
+        </div>
+        <span class="shield-center">GHOST_TAC_v80.8</span>
+        <div class="shield-right">
+            <span class="hud-chip" id="downHUD" style="color:var(--cyan);border-color:rgba(0,240,255,0.2);">SYS:OK</span>
+            <span class="hud-chip" id="upHUD" style="color:var(--purple);border-color:rgba(188,19,254,0.2);">14ms</span>
+        </div>
+    </header>
+
+    <!-- Desktop Side Panels -->
+    <aside id="navPanel" class="side-panel glass-panel arc-pulse" aria-label="Command index">
+        <div class="panel-label" style="color:var(--gold);">Command Index</div>
+        <div class="cmd-section">
+            <b>[NAV]</b> ls, cd, help, clear<br>
+            <b>[FILE]</b> cat, rm, mkdir, site, write<br>
+            <b>[SYS]</b> ghost, stress, sync, diag, exit
+        </div>
+        <hr style="border:0;border-top:1px solid rgba(0,240,255,0.1);margin:10px 0;">
+        <button id="refreshBtn" style="width:100%;background:rgba(0,240,255,0.06);border:1px solid rgba(0,240,255,0.2);color:var(--cyan);cursor:pointer;font-family:inherit;font-size:10px;padding:6px;border-radius:3px;transition:all 0.2s;letter-spacing:1px;">[ REFRESH SYNC ]</button>
+    </aside>
+
+    <aside id="sysWidget" class="side-panel glass-panel" aria-label="System load">
+        <div class="panel-label" style="color:var(--gold);">System Load</div>
+        <div id="cpuReadout" style="margin-bottom:3px;">CPU: --</div>
+        <div id="memReadout" style="margin-bottom:3px;">MEM: --</div>
+        <div id="tempReadout" style="color:var(--cyan);margin-top:6px;">TEMP: 42&#176;C <span style="color:var(--green)">[SAFE]</span></div>
+    </aside>
+
+    <aside id="dataStream" class="side-panel glass-panel" aria-label="Threat feed">
+        <div class="panel-label" style="color:var(--red);">Threat Feed</div>
+        <div id="ticker" style="font-size:0.62rem;color:rgba(255,255,255,0.7);line-height:1.5;">
+            <div style="color:var(--cyan);opacity:0.4;">INITIALIZING STREAM...</div>
+        </div>
+    </aside>
+
+    <!-- Main Dashboard -->
+    <main id="systemPanel" class="dash-container glass-panel arc-pulse" role="main">
         <div class="stats-grid">
             <div class="stat-card">
-                <span style="font-size:0.65rem; color:var(--glow-blue); font-weight:bold;">NEURAL SYNC</span>
-                <div style="font-size:1.8rem; font-weight:900;"><span id="syncVal">0</span>%</div>
-                <div style="width:100%; height:8px; background:#051015; margin-top:10px; border:1px solid rgba(255,255,255,0.1);">
-                    <div id="syncBar"></div>
-                </div>
+                <div class="stat-label">Neural Sync</div>
+                <div class="stat-value"><span id="syncVal">0</span><span class="unit">%</span></div>
+                <div id="syncBarTrack"><div id="syncBar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div></div>
             </div>
             <div class="stat-card">
-                <span style="font-size:0.65rem; color:var(--glow-blue); font-weight:bold;">DPI SNIFFER</span>
+                <div class="stat-label">DPI Sniffer</div>
                 <div id="dpi_monitor"></div>
             </div>
         </div>
-        <div id="terminalLog"></div>
-        <div style="display:flex; align-items:center; border-top:1px solid rgba(255,255,255,0.2); padding-top:12px;">
-            <span id="promptLabel" style="color:var(--glow-green); margin-right:10px; font-weight:900; white-space:nowrap;">GHOST:~$</span>
-            <input type="text" id="terminalInput" spellcheck="false" autocomplete="off" autofocus>
+        <div id="terminalLog" role="log" aria-live="polite" aria-label="Terminal output"></div>
+        <div class="terminal-prompt">
+            <label id="promptLabel" for="terminalInput">GHOST:~$</label>
+            <input type="text" id="terminalInput" spellcheck="false" autocomplete="off" enterkeyhint="send" aria-label="Terminal command input">
         </div>
-    </div> 
+    </main>
 
-    <div id="ticker-wrapper">
-        <div class="ticker-label">
-            <span class="glitch-text" data-text="LIVE_INTELLIGENCE">LIVE_INTELLIGENCE</span>
-        </div>
+    <!-- News Ticker -->
+    <footer id="ticker-wrapper" role="contentinfo">
+        <div class="ticker-label">LIVE_INTEL</div>
         <div class="ticker-content" id="ticker-content">
-            <span class="loading">ESTABLISHING ENCRYPTED UPLINK...</span>
+            <span>ESTABLISHING ENCRYPTED UPLINK...</span>
         </div>
-    </div>
+    </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
     <script>
-        const SUPABASE_URL = 'https://xgfazfmigrwrmkntdjfp.supabase.co'; 
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhnZmF6Zm1pZ3J3cm1rbnRkamZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NTQyMzQsImV4cCI6MjA5MDIzMDIzNH0.SHS6aIqbQi5ihow-GrLyWCr9hUJdZipqhZXAaH0F9jo';
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    /* ============================================================
+       SECURITY UTILITIES
+       ============================================================ */
+    function sanitize(str) {
+        if (typeof str !== 'string') return String(str || '');
+        var div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+    function isSafeURL(url) {
+        try {
+            var u = new URL(url);
+            if (!['http:', 'https:'].includes(u.protocol)) return false;
+            var h = u.hostname;
+            if (h === 'localhost' || h === '127.0.0.1' || h === '[::1]') return false;
+            if (h.startsWith('192.168.') || h.startsWith('10.') || h.startsWith('172.')) return false;
+            if (h === '0.0.0.0' || h.endsWith('.local') || h.endsWith('.internal')) return false;
+            return true;
+        } catch(e) { return false; }
+    }
+    function sanitizeFileName(name) {
+        if (!name || typeof name !== 'string') return '';
+        var c = name.replace(/[\/\\]/g, '').replace(/\.\./g, '').trim();
+        return c.length > 100 ? c.substring(0, 100) : c;
+    }
+    async function hashPassword(pw) {
+        var enc = new TextEncoder();
+        var data = enc.encode(pw + '_ghost_deck_v80_salt');
+        var buf = await crypto.subtle.digest('SHA-256', data);
+        return Array.from(new Uint8Array(buf)).map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
+    }
+    var loginRateLimit = { lastAttempt: 0, cooldown: 5000 };
+    function isRateLimited() {
+        var now = Date.now();
+        if (now - loginRateLimit.lastAttempt < loginRateLimit.cooldown) return Math.ceil((loginRateLimit.cooldown - (now - loginRateLimit.lastAttempt)) / 1000);
+        loginRateLimit.lastAttempt = now;
+        return 0;
+    }
 
-        const canvas = document.getElementById('matrix'), ctx = canvas.getContext('2d');
-        let matrixColor = "#00f0ff", gravity = 0.8, neuralSync = 0, isStress = false;
-        let drops = [], columns, fontSize = 18;
-        const chars = "0101010101ABCDEFHIJKLMNOPQRSTUVWXYZ0123456789$+-*/=%\"'#&_(),.;:?!\\|{}<>[]^~";
-        let currentDir = "root", currentTemp = 42, activeUUID = null, realtimeActive = false;
+    /* ============================================================
+       SUPABASE
+       ============================================================ */
+    var SUPABASE_URL = 'https://xgfazfmigrwrmkntdjfp.supabase.co';
+    var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhnZmF6Zm1pZ3J3cm1rbnRkamZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NTQyMzQsImV4cCI6MjA5MDIzMDIzNH0.SHS6aIqbQi5ihow-GrLyWCr9hUJdZipqhZXAaH0F9jo';
+    var supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let virtualFS = [
-            { name: "bin", type: "dir", parent: "root" },
-            { name: "logs", type: "dir", parent: "root" },
-            { name: "root.key", content: "ASHRAF-99-ALPHA", type: "file", parent: "root" }
-        ];
+    /* ============================================================
+       STATE
+       ============================================================ */
+    var canvas = document.getElementById('matrix'), ctx = canvas.getContext('2d');
+    var matrixColor = [0, 240, 255], gravity = 0.6, neuralSync = 0, isStress = false;
+    var drops = [], drops2 = [], columns, fontSize = 16;
+    var currentDir = 'root', currentTemp = 42, activeUUID = null, realtimeActive = false;
+    var animFrame;
+    var virtualFS = [
+        { name: 'bin', type: 'dir', parent: 'root' },
+        { name: 'logs', type: 'dir', parent: 'root' },
+        { name: 'root.key', content: 'ASHRAF-99-ALPHA', type: 'file', parent: 'root' }
+    ];
 
-        /* =============================================
-           DETERMINISTIC FILE IDs
-           Instead of relying on composite unique constraints
-           that may not exist, we generate a deterministic ID
-           from owner+name+parent and upsert on 'id' (PK).
-        ============================================= */
-        function makeFileId(owner, name, parent) {
-            const src = owner + '::' + parent + '::' + name;
-            let h = 0x811c9dc5;
-            for (let i = 0; i < src.length; i++) {
-                h ^= src.charCodeAt(i);
-                h = Math.imul(h, 0x01000193);
-            }
-            h = h >>> 0;
-            const a = h.toString(16).padStart(8, '0');
-            const b = ((h >> 16) & 0xFFFF).toString(16).padStart(8, '0');
-            return `${a}-${b.substring(0,4)}-4${b.substring(4,7)}-a${a.substring(1,4)}-${a}${b}`.substring(0, 36);
+    function makeFileId(owner, name, parent) {
+        var src = owner + '::' + parent + '::' + name, h = 0x811c9dc5;
+        for (var i = 0; i < src.length; i++) { h ^= src.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+        h = h >>> 0;
+        var a = h.toString(16).padStart(8,'0'), b = ((h >> 16) & 0xFFFF).toString(16).padStart(8,'0');
+        return (a + '-' + b.substring(0,4) + '-4' + b.substring(4,7) + '-a' + a.substring(1,4) + '-' + a + b).substring(0,36);
+    }
+
+    /* ============================================================
+       ENHANCED MATRIX RAIN — Two depth layers with color variation
+       ============================================================ */
+    var charsFast = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$%#@&';
+    var charsSlow = '01';
+    var lastTime = 0;
+
+    function initMatrix() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        var mobile = window.innerWidth < 768;
+        fontSize = mobile ? 11 : 16;
+        columns = Math.floor(canvas.width / fontSize);
+        drops = []; drops2 = [];
+        for (var i = 0; i < columns; i++) {
+            drops.push(Math.random() * -60);
+            drops2.push(Math.random() * -40);
         }
+    }
 
-        /* =============================================
-           FIX MODAL — shows when constraint is detected
-        ============================================= */
-        let constraintFixShown = false;
+    function drawMatrix(timestamp) {
+        animFrame = requestAnimationFrame(drawMatrix);
+        // Throttle to ~30fps on mobile for performance
+        if (window.innerWidth < 768 && timestamp - lastTime < 33) return;
+        lastTime = timestamp;
 
-        function showConstraintFixModal() {
-            if (constraintFixShown) return;
-            constraintFixShown = true;
-            document.getElementById('fixModal').classList.add('show');
-        }
+        // Trail fade — slower fade = longer trails
+        var r = isStress ? 35 : 8, g = isStress ? 0 : 3, b = isStress ? 0 : 12;
+        ctx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',0.1)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        function dismissFixModal() {
-            document.getElementById('fixModal').classList.remove('show');
-            constraintFixShown = false;
-        }
+        var accentColor = isStress ? [255, 40, 40] : matrixColor;
 
-        // Click-to-copy on the SQL block
-        document.getElementById('fixSQL').addEventListener('click', function() {
-            navigator.clipboard.writeText(this.textContent).then(() => {
-                const hint = this.nextElementSibling;
-                hint.innerText = '[ COPIED TO CLIPBOARD ]';
-                hint.style.color = 'var(--glow-green)';
-                setTimeout(() => { hint.innerText = '[ CLICK SQL BLOCK TO COPY ]'; hint.style.color = ''; }, 2000);
-            });
-        });
-
-        /* =============================================
-           UI / MATRIX
-        ============================================= */
-        function initMatrix() {
-            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-            columns = Math.floor(canvas.width / fontSize);
-            drops = Array(columns).fill(1).map(() => Math.random() * -100);
-        }
-
-        function drawMatrix() {
-            ctx.fillStyle = isStress ? "rgba(40,0,0,0.2)" : "rgba(0,0,0,0.08)";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.font = `bold ${isStress ? 22 : fontSize}px monospace`;
-            for (let i = 0; i < drops.length; i++) {
-                const t = chars.charAt(Math.floor(Math.random() * chars.length));
-                ctx.fillStyle = isStress ? "#ff0000" : (Math.random() > 0.98 ? "#fff" : matrixColor);
-                ctx.fillText(t, i * fontSize, drops[i] * fontSize);
-                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
-                drops[i] += gravity;
-            }
-            neuralSync = Math.max(0, neuralSync - 0.1);
-            document.getElementById('syncBar').style.width = neuralSync + "%";
-            document.getElementById('syncVal').innerText = Math.floor(neuralSync);
-            document.getElementById('clock').innerText = new Date().toLocaleTimeString();
-            document.getElementById('cpuReadout').innerText = `CPU: ${isStress ? (5+Math.random()).toFixed(1) : (0.9+Math.random()).toFixed(1)}GHz`;
-            document.getElementById('memReadout').innerText = `MEM: ${Math.floor(Math.random()*20+30)}%`;
-        }
-
-        function addLog(msg, color = "var(--glow-blue)") {
-            const lc = document.getElementById('terminalLog'); if (!lc) return;
-            const d = document.createElement('div');
-            d.className = "log-entry"; d.style.color = color; 
-            // SECURITY: Using textContent for the message part, but since we rely on HTML structure for colors,
-            // we trust the 'color' param. However, we must ensure the msg itself is sanitized at the source (in the event listener).
-            // To be strictly secure while maintaining internal HTML styling, we allow HTML here BUT we must 
-            // sanitize the user input BEFORE passing it here.
-            d.innerHTML = `> ${msg}`; 
-            lc.appendChild(d); lc.scrollTop = lc.scrollHeight;
-            setTimeout(() => { d.classList.add('log-fade'); setTimeout(() => d.remove(), 1000); }, 60000);
-        }
-
-        function heatUp() { currentTemp += 5; }
-        function updateThermal() {
-            const te = document.getElementById('tempReadout');
-            if (currentTemp > 42) currentTemp -= 0.5;
-            const dt = (currentTemp + Math.random() * 0.8).toFixed(1);
-            let s = "[SAFE]", c = "var(--glow-blue)";
-            if (dt > 75) { s = "[CRITICAL]"; c = "var(--glow-red)"; }
-            else if (dt > 60) { s = "[WARNING]"; c = "var(--glow-gold)"; }
-            te.innerText = `TEMP: ${dt}°C ${s}`; te.style.color = c;
-        }
-
-        async function updateThreatFeed() {
-            const tk = document.getElementById('ticker'), ft = document.getElementById('ticker-content');
-            if (!tk) return;
-            try {
-                const r = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent('https://thehackernews.com/rss.xml')}&t=${Date.now()}`);
-                const d = await r.json();
-                if (d.status === 'ok') {
-                    tk.innerHTML = ""; let fh = "";
-                    d.items.slice(0, 8).forEach((item, i) => {
-                        if (i < 5) {
-                            const e = document.createElement('div'); e.className = "intel-alert";
-                            e.innerHTML = `<span style="color:var(--glow-red);font-weight:bold;">[INTEL_ALERT]</span><div style="font-size:0.7rem;color:#fff;margin-top:3px;">${item.title.toUpperCase()}</div><div style="font-size:0.55rem;color:var(--glow-blue);opacity:0.7;">SOURCE: THE HACKER NEWS</div>`;
-                            e.onclick = () => window.open(item.link, '_blank'); tk.appendChild(e);
-                        }
-                        fh += `<a href="${item.link}" target="_blank" class="news-item"><span class="source-tag">[THN]</span> ${item.title.toUpperCase()}</a>`;
-                    });
-                    if (ft) ft.innerHTML = fh + fh;
+        // Layer 1: Fast bright characters
+        ctx.font = 'bold ' + fontSize + 'px monospace';
+        for (var i = 0; i < drops.length; i++) {
+            if (drops[i] * fontSize > 0) {
+                var ch = charsFast.charAt(Math.floor(Math.random() * charsFast.length));
+                // Head character is brightest
+                var brightness = 0.6 + Math.random() * 0.4;
+                ctx.fillStyle = 'rgba(' + accentColor[0] + ',' + accentColor[1] + ',' + accentColor[2] + ',' + brightness + ')';
+                ctx.fillText(ch, i * fontSize, drops[i] * fontSize);
+                // Glow on head
+                if (Math.random() > 0.85) {
+                    ctx.shadowColor = 'rgba(' + accentColor[0] + ',' + accentColor[1] + ',' + accentColor[2] + ',0.6)';
+                    ctx.shadowBlur = 8;
+                    ctx.fillText(ch, i * fontSize, drops[i] * fontSize);
+                    ctx.shadowBlur = 0;
                 }
-            } catch(e) { tk.innerHTML = `<div style="color:var(--glow-red)">OFFLINE: UPLINK TIMEOUT</div>`; }
-        }
-
-        /* =============================================
-           SYNC STATUS
-        ============================================= */
-        function setSyncStatus(s) {
-            const el = document.getElementById('syncIndicator'); if (!el) return;
-            el.className = '';
-            if (s === 'syncing') { el.innerText = '[ SYNCING... ]'; el.classList.add('sync-active'); }
-            else if (s === 'error') { el.innerText = '[ SYNC_ERROR ]'; el.classList.add('sync-error'); }
-            else if (s === 'live') { el.innerText = '[ REALTIME_LIVE ]'; el.classList.add('sync-active'); }
-            else { el.innerText = '[ CLOUD_SYNCED ]'; el.classList.add('sync-idle'); }
-        }
-
-        /* =============================================
-           DB ERROR PARSER
-        ============================================= */
-        function parseDBError(err) {
-            const msg = (err && err.message) ? err.message : JSON.stringify(err);
-            if (msg.includes('42703') || (msg.includes('does not exist') && msg.includes('column')))
-                return 'COLUMN_MISSING: ' + (msg.split('"')[1] || msg);
-            if (msg.includes('42P01') || (msg.includes('does not exist') && msg.includes('relation')))
-                return 'TABLE_MISSING: virtual_fs';
-            if (msg.includes('42501')) return 'RLS_DENIED: Row-Level-Security blocking query';
-            if (msg.includes('23505')) {
-                if (msg.includes('virtual_fs_name_key'))
-                    return 'BAD_CONSTRAINT: unique(name) blocks sync. FIX SQL shown in popup.';
-                return 'DUPLICATE_KEY violation';
             }
-            if (msg.includes('could not identify a unique constraint'))
-                return 'NO_MATCHING_CONSTRAINT for onConflict target';
-            if (msg.includes('network') || msg.includes('fetch') || msg.includes('Failed') || msg.includes('Load failed'))
-                return 'NETWORK_ERROR: Cannot reach Supabase';
-            return msg;
+            if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = Math.random() * -30;
+            drops[i] += gravity;
         }
 
-        // Check if error is the bad name constraint
-        function isNameConstraintError(err) {
-            const msg = (err && err.message) ? err.message : '';
-            return msg.includes('23505') && msg.includes('virtual_fs_name_key');
-        }
-
-        /* =============================================
-           CLOUD SYNC — PULL
-        ============================================= */
-        async function syncVFSFromCloud() {
-            if (!activeUUID) return false;
-            setSyncStatus('syncing');
-            try {
-                const { data, error } = await supabaseClient.from('virtual_fs').select('*').eq('owner_id', activeUUID);
-                if (error) throw error;
-                virtualFS = virtualFS.filter(f => f.name === "root.key" || (f.parent === "root" && f.type === "dir" && (f.name === "bin" || f.name === "logs")));
-                if (data && data.length > 0) {
-                    data.forEach(item => {
-                        const ex = virtualFS.find(v => v.name === item.name && v.parent === item.parent);
-                        if (!ex) virtualFS.push({ name: item.name, type: item.type, content: item.content, parent: item.parent });
-                        else ex.content = item.content;
-                    });
-                    addLog(`CLOUD_RESTORE: ${data.length} OBJECTS`, "var(--glow-purple)");
-                } else { addLog("CLOUD_RESTORE: Empty node (0 objects)", "var(--glow-blue)"); }
-                setSyncStatus('idle'); return true;
-            } catch(e) {
-                console.error("Pull:", e); setSyncStatus('error');
-                addLog("SYNC_PULL_FAIL: " + parseDBError(e), "var(--glow-red)");
-                return false;
+        // Layer 2: Slow dim binary (background depth)
+        ctx.font = (fontSize - 2) + 'px monospace';
+        for (var j = 0; j < drops2.length; j++) {
+            if (drops2[j] * fontSize > 0) {
+                var ch2 = charsSlow.charAt(Math.floor(Math.random() * 2));
+                ctx.fillStyle = 'rgba(' + Math.floor(accentColor[0]*0.3) + ',' + Math.floor(accentColor[1]*0.3) + ',' + Math.floor(accentColor[2]*0.3) + ',0.35)';
+                ctx.fillText(ch2, j * fontSize + 3, drops2[j] * fontSize);
             }
+            if (drops2[j] * fontSize > canvas.height && Math.random() > 0.99) drops2[j] = Math.random() * -20;
+            drops2[j] += gravity * 0.35;
         }
 
-        /* =============================================
-           CLOUD SYNC — PUSH (bulk)
-        ============================================= */
-        async function pushVFSToCloud() {
-            if (!activeUUID) return false;
-            setSyncStatus('syncing');
-            try {
-                const rows = virtualFS
-                    .filter(f => f.name !== "root.key" && !(f.parent === "root" && f.type === "dir" && (f.name === "bin" || f.name === "logs")))
-                    .map(f => ({
-                        id: makeFileId(activeUUID, f.name, f.parent),
-                        owner_id: activeUUID, name: f.name, type: f.type,
-                        content: f.content || "", parent: f.parent
-                    }));
-                if (rows.length === 0) { setSyncStatus('idle'); return true; }
-                const { error } = await supabaseClient.from('virtual_fs').upsert(rows, { onConflict: 'id' });
-                if (error) throw error;
-                setSyncStatus('idle'); return true;
-            } catch(e) {
-                console.error("Push:", e); setSyncStatus('error');
-                if (isNameConstraintError(e)) showConstraintFixModal();
-                else addLog("SYNC_PUSH_FAIL: " + parseDBError(e), "var(--glow-red)");
-                return false;
-            }
-        }
+        // HUD updates
+        neuralSync = Math.max(0, neuralSync - 0.08);
+        document.getElementById('syncBar').style.width = neuralSync + '%';
+        document.getElementById('syncBar').setAttribute('aria-valuenow', Math.floor(neuralSync));
+        document.getElementById('syncVal').innerText = Math.floor(neuralSync);
+        document.getElementById('clock').innerText = new Date().toLocaleTimeString();
+        document.getElementById('cpuReadout').innerText = 'CPU: ' + (isStress ? (5+Math.random()).toFixed(1) : (0.9+Math.random()).toFixed(1)) + 'GHz';
+        document.getElementById('memReadout').innerText = 'MEM: ' + Math.floor(Math.random()*18+32) + '%';
+    }
 
-        /* =============================================
-           SINGLE ROW CLOUD SAVE (used by mkdir/rm/write)
-        ============================================= */
-        async function cloudSaveRow(name, type, content, parent) {
-            if (!activeUUID) return false;
-            const row = {
-                id: makeFileId(activeUUID, name, parent),
-                owner_id: activeUUID, name: name, type: type,
-                content: content || "", parent: parent
-            };
-            const { error } = await supabaseClient.from('virtual_fs').upsert(row, { onConflict: 'id' });
-            if (error) {
-                if (isNameConstraintError(error)) { showConstraintFixModal(); return false; }
-                addLog("CLOUD_FAIL: " + parseDBError(error), "var(--glow-red)");
-                return false;
-            }
-            return true;
-        }
+    function heatUp() { currentTemp += 5; }
 
-        async function cloudDeleteRow(name, parent) {
-            if (!activeUUID) return false;
-            const fileId = makeFileId(activeUUID, name, parent);
-            const { error } = await supabaseClient.from('virtual_fs').delete().eq('id', fileId);
-            if (error) { addLog("CLOUD_DEL_FAIL: " + parseDBError(error), "var(--glow-red)"); return false; }
-            return true;
-        }
+    function updateThermal() {
+        var te = document.getElementById('tempReadout');
+        if (currentTemp > 42) currentTemp -= 0.5;
+        var dt = (currentTemp + Math.random() * 0.8).toFixed(1);
+        var s = '[SAFE]', c = 'var(--green)';
+        if (dt > 75) { s = '[CRIT]'; c = 'var(--red)'; }
+        else if (dt > 60) { s = '[WARN]'; c = 'var(--gold)'; }
+        te.innerHTML = 'TEMP: ' + dt + '&#176;C <span style="color:' + c + '">' + s + '</span>';
+    }
 
-        /* =============================================
-           REALTIME
-        ============================================= */
-        function enableRealtimeSync() {
-            if (!activeUUID || realtimeActive) return;
-            realtimeActive = true;
-            supabaseClient.channel('ghost-fs-' + activeUUID)
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'virtual_fs', filter: `owner_id=eq.${activeUUID}` }, (payload) => {
-                    const { eventType, new: nr, old: or } = payload;
-                    setSyncStatus('syncing');
-                    if (eventType === 'INSERT' || eventType === 'UPDATE') {
-                        const i = virtualFS.findIndex(f => f.name === nr.name && f.parent === nr.parent);
-                        if (i !== -1) virtualFS[i].content = nr.content;
-                        else virtualFS.push({ name: nr.name, type: nr.type, content: nr.content, parent: nr.parent });
-                        addLog(`REMOTE: ${nr.name} SYNCED`, "var(--glow-purple)");
-                    } else if (eventType === 'DELETE') {
-                        virtualFS = virtualFS.filter(f => !(f.name === or.name && f.parent === or.parent));
-                        addLog("REMOTE: OBJECT_DELETED", "var(--glow-red)");
+    /* ============================================================
+       LOGGING
+       ============================================================ */
+    function addLog(msg, color) {
+        var lc = document.getElementById('terminalLog');
+        if (!lc) return;
+        var d = document.createElement('div');
+        d.className = 'log-entry';
+        d.style.color = color || 'var(--cyan)';
+        d.style.textShadow = '0 0 6px ' + (color || 'rgba(0,240,255,0.3)');
+        d.innerHTML = '&gt; ' + sanitize(msg);
+        lc.appendChild(d);
+        lc.scrollTop = lc.scrollHeight;
+        setTimeout(function() { d.classList.add('log-fade'); setTimeout(function() { if (d.parentNode) d.remove(); }, 1000); }, 60000);
+    }
+    function addLogRaw(html, color) {
+        var lc = document.getElementById('terminalLog');
+        if (!lc) return;
+        var d = document.createElement('div');
+        d.className = 'log-entry';
+        d.style.color = color || 'var(--cyan)';
+        d.style.textShadow = '0 0 6px ' + (color || 'rgba(0,240,255,0.3)');
+        d.innerHTML = '&gt; ' + html;
+        lc.appendChild(d);
+        lc.scrollTop = lc.scrollHeight;
+        setTimeout(function() { d.classList.add('log-fade'); setTimeout(function() { if (d.parentNode) d.remove(); }, 1000); }, 60000);
+    }
+
+    /* ============================================================
+       THREAT FEED
+       ============================================================ */
+    async function updateThreatFeed() {
+        var tk = document.getElementById('ticker'), ft = document.getElementById('ticker-content');
+        if (!tk) return;
+        try {
+            var r = await fetch('https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent('https://thehackernews.com/rss.xml') + '&t=' + Date.now());
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            var d = await r.json();
+            if (d.status === 'ok' && d.items && d.items.length) {
+                tk.innerHTML = '';
+                var fh = '';
+                d.items.slice(0, 8).forEach(function(item, i) {
+                    var safeTitle = sanitize(item.title).toUpperCase();
+                    var safeLink = isSafeURL(item.link) ? sanitize(item.link) : '#';
+                    if (i < 5) {
+                        var e = document.createElement('div');
+                        e.className = 'intel-alert';
+                        e.setAttribute('role', 'button');
+                        e.setAttribute('tabindex', '0');
+                        e.innerHTML = '<span style="color:var(--red);font-weight:700;font-size:0.58rem;">[ALERT]</span><div style="font-size:0.68rem;color:rgba(255,255,255,0.85);margin-top:2px;">' + safeTitle + '</div><div style="font-size:0.5rem;color:rgba(0,240,255,0.5);margin-top:2px;">THE HACKER NEWS</div>';
+                        (function(link) {
+                            e.addEventListener('click', function() { window.open(link, '_blank', 'noopener,noreferrer'); });
+                            e.addEventListener('keydown', function(ev) { if (ev.key === 'Enter') window.open(link, '_blank', 'noopener,noreferrer'); });
+                        })(safeLink);
+                        tk.appendChild(e);
                     }
-                    setTimeout(() => setSyncStatus('live'), 1000);
-                })
-                .subscribe((st) => {
-                    if (st === 'SUBSCRIBED') { setSyncStatus('live'); addLog("REALTIME: CHANNEL OPEN", "var(--glow-green)"); }
-                    else if (st === 'CHANNEL_ERROR') { setSyncStatus('error'); addLog("REALTIME: FAILED", "var(--glow-red)"); }
+                    fh += '<a href="' + safeLink + '" target="_blank" rel="noopener noreferrer" class="news-item"><span class="source-tag">[THN]</span>' + safeTitle + '</a>';
                 });
-        }
-
-        /* =============================================
-           SYSTEM ACTIONS
-        ============================================= */
-        async function refreshAllSystems() {
-            addLog("INITIATING FULL SYNC...", "var(--glow-purple)");
-            neuralSync = 100; heatUp(); updateThreatFeed();
-            if (activeUUID) { const ok = await syncVFSFromCloud(); if (ok) addLog("SYNC COMPLETE.", "var(--glow-green)"); }
-            else addLog("SYNC SKIPPED: Not authed.", "var(--glow-gold)");
-        }
-
-        function triggerStress() {
-            if (isStress) return;
-            isStress = true; matrixColor = "#ff4444"; gravity = 5.0;
-            document.getElementById('mainBody').classList.add('stress-active');
-            setTimeout(() => { isStress = false; matrixColor = "#00f0ff"; gravity = 0.8; document.getElementById('mainBody').classList.remove('stress-active'); }, 5000);
-        }
-
-        /* =============================================
-           AUTH — LOGIN
-        ============================================= */
-        async function authenticateGhost() {
-            const id = document.getElementById('ghostID').value.trim();
-            const pw = document.getElementById('ghostPass').value.trim();
-            const err = document.getElementById('errorCode');
-            if (!id || !pw) { err.innerText = "MISSING_UPLINK_DATA"; err.style.display = "block"; return; }
-            addLog("HANDSHAKE...", "var(--glow-gold)");
-            try {
-                const { data, error } = await supabaseClient.from('virtual_fs').select('content').eq('id', id).single();
-                if (error) throw error;
-                if (data && data.content === pw) {
-                    activeUUID = id;
-                    addLog("UPLINK ESTABLISHED. WELCOME.", "var(--glow-green)");
-                    document.getElementById('loginOverlay').style.transform = "translateY(-100%)";
-                    err.style.display = "none";
-                    localStorage.setItem('omni_deck_uuid', id);
-                    const ok = await syncVFSFromCloud();
-                    if (ok) enableRealtimeSync();
-                    else addLog("Cloud sync failed. Type 'diag'.", "var(--glow-gold)");
-                } else throw new Error("INVALID_KEY");
-            } catch(e) {
-                err.innerText = "INVALID_GHOST_CREDENTIALS"; err.style.display = "block";
-                addLog("DENIED: " + parseDBError(e), "var(--glow-red)");
-                document.getElementById('ghostPass').value = "";
+                if (ft) ft.innerHTML = fh + fh;
+                updateMobileThreatFeed(tk.innerHTML);
             }
+        } catch(e) {
+            tk.innerHTML = '<div style="color:var(--red);opacity:0.6;">OFFLINE: UPLINK TIMEOUT</div>';
         }
+    }
 
-        /* =============================================
-           AUTH — REGISTER
-        ============================================= */
-        async function registerNewGhost() {
-            const nid = crypto.randomUUID();
-            const npw = prompt("ENTER NEW SECURITY_KEY:"); if (!npw) return;
-            addLog("GENERATING GHOST UPLINK...", "var(--glow-gold)");
-            const { error } = await supabaseClient.from('virtual_fs').insert([{
-                id: nid, owner_id: nid, name: 'new_ghost', type: 'user_node', parent: 'root', content: npw
-            }]);
-            if (error) {
-                addLog("REG_FAIL: " + parseDBError(error), "var(--glow-red)");
-                if (isNameConstraintError(error)) showConstraintFixModal();
-            } else {
-                addLog("GHOST COMMITTED TO DB", "var(--glow-green)");
-                alert("GHOST_REGISTERED\n\nUUID: " + nid + "\nKEY: " + npw + "\n\nCopy the UUID to login.");
-            }
+    /* ============================================================
+       SYNC STATUS
+       ============================================================ */
+    function setSyncStatus(s) {
+        var el = document.getElementById('syncIndicator');
+        if (!el) return;
+        el.className = '';
+        if (s === 'syncing') { el.innerText = 'SYNCING'; el.classList.add('sync-active'); }
+        else if (s === 'error') { el.innerText = 'ERROR'; el.classList.add('sync-error'); }
+        else if (s === 'live') { el.innerText = 'LIVE'; el.classList.add('sync-active'); }
+        else { el.innerText = 'SYNCED'; el.classList.add('sync-idle'); }
+    }
+
+    /* ============================================================
+       DB ERROR PARSER
+       ============================================================ */
+    function parseDBError(err) {
+        var msg = (err && err.message) ? err.message : JSON.stringify(err);
+        if (msg.includes('42703') || (msg.includes('does not exist') && msg.includes('column'))) return 'COLUMN_MISSING: ' + sanitize(msg.split('"')[1] || msg);
+        if (msg.includes('42P01') || (msg.includes('does not exist') && msg.includes('relation'))) return 'TABLE_MISSING: virtual_fs';
+        if (msg.includes('42501')) return 'RLS_DENIED: Row-Level-Security blocking query';
+        if (msg.includes('23505')) {
+            if (msg.includes('virtual_fs_name_key')) return 'BAD_CONSTRAINT: unique(name) blocks sync.';
+            return 'DUPLICATE_KEY violation';
         }
+        if (msg.includes('could not identify a unique constraint')) return 'NO_MATCHING_CONSTRAINT for onConflict target';
+        if (msg.includes('network') || msg.includes('fetch') || msg.includes('Failed') || msg.includes('Load failed')) return 'NETWORK_ERROR';
+        return sanitize(msg.substring(0, 200));
+    }
+    function isNameConstraintError(err) {
+        var msg = (err && err.message) ? err.message : '';
+        return msg.includes('23505') && msg.includes('virtual_fs_name_key');
+    }
 
-        /* =============================================
-           TERMINAL
-        ============================================= */
-        document.getElementById('terminalInput').addEventListener('keydown', async (e) => {
-            if (e.key !== "Enter") return;
-            const raw = e.target.value.trim(); if (!raw) return;
-            
-            // SECURITY: XSS Prevention
-            // Escape user input to prevent script injection via innerHTML
-            const safeRaw = raw.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    /* ============================================================
+       CLOUD SYNC
+       ============================================================ */
+    async function syncVFSFromCloud() {
+        if (!activeUUID) return false;
+        setSyncStatus('syncing');
+        try {
+            var res = await supabaseClient.from('virtual_fs').select('*').eq('owner_id', activeUUID);
+            if (res.error) throw res.error;
+            virtualFS = virtualFS.filter(function(f) { return f.name === 'root.key' || (f.parent === 'root' && f.type === 'dir' && (f.name === 'bin' || f.name === 'logs')); });
+            if (res.data && res.data.length > 0) {
+                res.data.forEach(function(item) {
+                    var ex = virtualFS.find(function(v) { return v.name === item.name && v.parent === item.parent; });
+                    if (!ex) virtualFS.push({ name: item.name, type: item.type, content: item.content, parent: item.parent });
+                    else if (item.content !== undefined) ex.content = item.content;
+                });
+                addLog('CLOUD_RESTORE: ' + res.data.length + ' OBJECTS', 'var(--purple)');
+            } else { addLog('CLOUD_RESTORE: Empty node', 'var(--cyan)'); }
+            setSyncStatus('idle'); return true;
+        } catch(e) { setSyncStatus('error'); addLog('SYNC_PULL_FAIL: ' + parseDBError(e), 'var(--red)'); return false; }
+    }
 
-            const args = raw.split(/\s+/), cmd = args[0].toLowerCase();
-            e.target.value = ""; addLog(`$ ${safeRaw}`, "#fff"); // Use safeRaw for display
-            neuralSync = Math.min(100, neuralSync + 15); heatUp();
+    async function pushVFSToCloud() {
+        if (!activeUUID) return false;
+        setSyncStatus('syncing');
+        try {
+            var rows = virtualFS.filter(function(f) { return f.name !== 'root.key' && !(f.parent === 'root' && f.type === 'dir' && (f.name === 'bin' || f.name === 'logs')); }).map(function(f) {
+                return { id: makeFileId(activeUUID, f.name, f.parent), owner_id: activeUUID, name: f.name, type: f.type, content: f.content || '', parent: f.parent };
+            });
+            if (!rows.length) { setSyncStatus('idle'); return true; }
+            var res = await supabaseClient.from('virtual_fs').upsert(rows, { onConflict: 'id' });
+            if (res.error) throw res.error;
+            setSyncStatus('idle'); return true;
+        } catch(e) {
+            setSyncStatus('error');
+            if (isNameConstraintError(e)) showConstraintFixModal();
+            else addLog('SYNC_PUSH_FAIL: ' + parseDBError(e), 'var(--red)');
+            return false;
+        }
+    }
 
-            switch(cmd) {
-                case "ls": {
-                    const l = virtualFS.filter(f => f.parent === currentDir).map(f => f.type === "dir" ? `<span style="color:var(--glow-gold)">${f.name}/</span>` : f.name).join("  ");
-                    addLog(l || "[EMPTY]"); break;
+    async function cloudSaveRow(name, type, content, parent) {
+        if (!activeUUID) return false;
+        var row = { id: makeFileId(activeUUID, name, parent), owner_id: activeUUID, name: name, type: type, content: content || '', parent: parent };
+        var res = await supabaseClient.from('virtual_fs').upsert(row, { onConflict: 'id' });
+        if (res.error) {
+            if (isNameConstraintError(res.error)) { showConstraintFixModal(); return false; }
+            addLog('CLOUD_FAIL: ' + parseDBError(res.error), 'var(--red)'); return false;
+        }
+        return true;
+    }
+
+    async function cloudDeleteRow(name, parent) {
+        if (!activeUUID) return false;
+        var res = await supabaseClient.from('virtual_fs').delete().eq('id', makeFileId(activeUUID, name, parent));
+        if (res.error) { addLog('CLOUD_DEL_FAIL: ' + parseDBError(res.error), 'var(--red)'); return false; }
+        return true;
+    }
+
+    /* ============================================================
+       REALTIME
+       ============================================================ */
+    function enableRealtimeSync() {
+        if (!activeUUID || realtimeActive) return;
+        realtimeActive = true;
+        supabaseClient.channel('ghost-fs-' + activeUUID)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'virtual_fs', filter: 'owner_id=eq.' + activeUUID }, function(payload) {
+                setSyncStatus('syncing');
+                if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+                    var nr = payload.new, idx = virtualFS.findIndex(function(f) { return f.name === nr.name && f.parent === nr.parent; });
+                    if (idx !== -1) virtualFS[idx].content = nr.content;
+                    else virtualFS.push({ name: nr.name, type: nr.type, content: nr.content, parent: nr.parent });
+                    addLog('REMOTE: ' + sanitize(nr.name) + ' SYNCED', 'var(--purple)');
+                } else if (payload.eventType === 'DELETE' && payload.old) {
+                    virtualFS = virtualFS.filter(function(f) { return !(f.name === payload.old.name && f.parent === payload.old.parent); });
+                    addLog('REMOTE: OBJECT_DELETED', 'var(--red)');
                 }
-                case "cd": {
-                    const t = args[1];
-                    if (!t || t === "~") currentDir = "root";
-                    else if (t === "..") { const s = virtualFS.find(f => f.name === currentDir && f.type === "dir"); currentDir = s ? s.parent : "root"; }
-                    else { const d = virtualFS.find(f => f.name === t && f.type === "dir" && f.parent === currentDir); if (d) currentDir = t; else addLog("ERR: Not found.", "var(--glow-red)"); }
-                    document.getElementById('promptLabel').innerText = `GHOST:~${currentDir === 'root' ? '' : '/' + currentDir}$`; break;
+                setTimeout(function() { setSyncStatus('live'); }, 1000);
+            })
+            .subscribe(function(st) {
+                if (st === 'SUBSCRIBED') { setSyncStatus('live'); addLog('REALTIME: CHANNEL OPEN', 'var(--green)'); }
+                else if (st === 'CHANNEL_ERROR') { setSyncStatus('error'); addLog('REALTIME: FAILED', 'var(--red)'); }
+            });
+    }
+
+    /* ============================================================
+       SYSTEM ACTIONS
+       ============================================================ */
+    async function refreshAllSystems() {
+        addLog('INITIATING FULL SYNC...', 'var(--purple)');
+        neuralSync = 100; heatUp(); updateThreatFeed();
+        if (activeUUID) { var ok = await syncVFSFromCloud(); if (ok) addLog('SYNC COMPLETE.', 'var(--green)'); }
+        else addLog('SYNC SKIPPED: Not authed.', 'var(--gold)');
+    }
+
+    function triggerStress() {
+        if (isStress) return;
+        isStress = true; matrixColor = [255, 60, 60]; gravity = 3.5;
+        document.getElementById('mainBody').classList.add('stress-active');
+        setTimeout(function() { isStress = false; matrixColor = [0, 240, 255]; gravity = 0.6; document.getElementById('mainBody').classList.remove('stress-active'); }, 5000);
+    }
+
+    /* ============================================================
+       AUTH
+       ============================================================ */
+    async function authenticateGhost() {
+        var id = document.getElementById('ghostID').value.trim();
+        var pw = document.getElementById('ghostPass').value.trim();
+        var err = document.getElementById('errorCode');
+        var wait = isRateLimited();
+        if (wait > 0) { err.innerText = 'RATE_LIMIT: Wait ' + wait + 's'; err.style.display = 'block'; return; }
+        if (!id || !pw) { err.innerText = 'MISSING_UPLINK_DATA'; err.style.display = 'block'; return; }
+        if (!/^[a-f0-9\-]{1,64}$/i.test(id)) { err.innerText = 'INVALID_UUID_FORMAT'; err.style.display = 'block'; return; }
+        addLog('HANDSHAKE...', 'var(--gold)');
+        try {
+            var hashed = await hashPassword(pw);
+            var res = await supabaseClient.from('virtual_fs').select('content').eq('id', id).single();
+            if (res.error) throw res.error;
+            var match = false;
+            if (res.data && res.data.content) {
+                if (res.data.content.length === 64 && /^[a-f0-9]+$/.test(res.data.content)) {
+                    match = (res.data.content === hashed);
+                } else {
+                    match = (res.data.content === pw);
+                    if (match) await supabaseClient.from('virtual_fs').update({ content: hashed }).eq('id', id);
                 }
-                case "mkdir": {
-                    if (args[1]) {
-                        virtualFS.push({ name: args[1], type: "dir", parent: currentDir });
-                        addLog(`Created: ${args[1]}`, "var(--glow-green)");
-                        await cloudSaveRow(args[1], 'dir', '', currentDir);
-                    } break;
-                }
-                case "rm": {
-                    const i = virtualFS.findIndex(f => f.name === args[1] && f.parent === currentDir);
-                    if (i !== -1) {
-                        virtualFS.splice(i, 1); addLog(`Removed: ${args[1]}`, "var(--glow-red)");
-                        await cloudDeleteRow(args[1], currentDir);
-                    } else addLog(`ERR: ${args[1]} not found.`, "var(--glow-red)"); break;
-                }
-                case "cat": {
-                    const f = virtualFS.find(f => f.name === args[1] && f.type === "file" && f.parent === currentDir);
-                    if (f) addLog(f.content || "[EMPTY]", "var(--glow-purple)");
-                    else addLog(`ERR: ${args[1]} not found.`, "var(--glow-red)"); break;
-                }
-                case "write": {
-                    const fn = args[1], cm = raw.match(/"([^"]+)"/), fc = cm ? cm[1] : "";
-                    if (fn && cm) {
-                        const ei = virtualFS.findIndex(f => f.name === fn && f.parent === currentDir);
-                        if (ei !== -1) { virtualFS[ei].content = fc; addLog(`UPDATED: ${fn}`, "var(--glow-purple)"); }
-                        else { virtualFS.push({ name: fn, type: "file", content: fc, parent: currentDir }); addLog(`CREATED: ${fn}`, "var(--glow-green)"); }
-                        await cloudSaveRow(fn, 'file', fc, currentDir);
-                    } else addLog("Usage: write [file] \"[content]\"", "var(--glow-red)"); break;
-                }
-                case "site": {
-                    let u = args.includes("--url") ? args[args.indexOf("--url")+1] : args[1];
-                    if (u) { 
-                        try {
-                            // SECURITY: Open Redirect Prevention
-                            const urlObj = new URL(u.startsWith('http') ? u : 'https://' + u);
-                            if (['javascript:', 'data:', 'vbscript:'].includes(urlObj.protocol)) {
-                                addLog("ERR: PROTOCOL_BLOCKED", "var(--glow-red)");
-                                return;
-                            }
-                            window.open(urlObj.href, '_blank');
-                        } catch(err) {
-                            addLog("ERR: INVALID_URL_FORMAT", "var(--glow-red)");
-                        }
-                    } 
-                    break;
-                }
-                case "osint": {
-                    addLog(`SCANNING: ${safeRaw || "ASHRAF_ALI"}...`, "var(--glow-gold)"); // Use safeRaw
-                    setTimeout(() => addLog("MATCH: GitHub/AshrafAli - Active", "var(--glow-blue)"), 1200); break;
-                }
-                case "trace": case "traceroute": {
-                    addLog(`TRACE: ${safeRaw || "127.0.0.1"}...`, "var(--glow-purple)"); // Use safeRaw
-                    let h = 0; const ti = setInterval(() => { h++; addLog(`HOP ${h}: 10.0.${Math.floor(Math.random()*255)}.${h} -- ${(Math.random()*20+10).toFixed(1)}ms`, "rgba(188,19,254,0.7)"); if (h>=5) { clearInterval(ti); addLog("TRACE DONE.", "var(--glow-green)"); } }, 400); break;
-                }
-                case "diag": {
-                    addLog("=== DIAGNOSTICS ===", "var(--glow-gold)");
-                    addLog("UUID: " + (activeUUID || "NONE"), "var(--glow-blue)");
-                    addLog("LOCAL_FILES: " + virtualFS.length, "var(--glow-blue)");
-                    try {
-                        const { data, error } = await supabaseClient.from('virtual_fs').select('*').limit(1);
-                        if (error) throw error;
-                        addLog("TABLE_ACCESS: OK", "var(--glow-green)");
-                        if (data && data.length > 0) {
-                            addLog("COLUMNS: " + Object.keys(data[0]).join(', '), "var(--glow-blue)");
-                            if (!data[0].hasOwnProperty('owner_id')) {
-                                addLog("!!! MISSING: owner_id column !!!", "var(--glow-red)");
-                                addLog("SQL: ALTER TABLE virtual_fs ADD COLUMN owner_id TEXT;", "#fff");
-                            } else addLog("owner_id: EXISTS [OK]", "var(--glow-green)");
-                        } else addLog("TABLE_EMPTY (cannot detect columns)", "var(--glow-gold)");
-                        // Live upsert test
-                        addLog("TESTING_UPSERT...", "var(--glow-gold)");
-                        const tid = '__diag_' + Date.now();
-                        const { error: ue } = await supabaseClient.from('virtual_fs').upsert({
-                            id: makeFileId(activeUUID || tid, tid, 'root'),
-                            owner_id: activeUUID || tid, name: tid, type: 'file', content: '', parent: 'root'
-                        }, { onConflict: 'id' });
-                        if (ue) {
-                            addLog("UPSERT: FAILED — " + parseDBError(ue), "var(--glow-red)");
-                            if (isNameConstraintError(ue)) { addLog(">> unique(name) constraint detected. Popup shown. <<", "var(--glow-red)"); showConstraintFixModal(); }
-                        } else {
-                            addLog("UPSERT: PASSED [OK]", "var(--glow-green)");
-                            await supabaseClient.from('virtual_fs').delete().eq('name', tid);
-                        }
-                    } catch(e) { addLog("DIAG_ERR: " + parseDBError(e), "var(--glow-red)"); }
-                    addLog("=== END DIAG ===", "var(--glow-gold)"); break;
-                }
-                case "help":
-                    addLog("NAV: ls, cd, clear | FILE: cat, rm, mkdir, site, write | SYS: ghost, stress, sync, diag, exit", "var(--glow-gold)"); break;
-                case "sync": refreshAllSystems(); break;
-                case "clear": document.getElementById('terminalLog').innerHTML = ""; break;
-                case "ghost": document.getElementById('mainBody').classList.toggle('cloaked'); break;
-                case "stress": triggerStress(); break;
-                case "exit": case "logout": {
-                    if (realtimeActive) { supabaseClient.removeAllChannels(); realtimeActive = false; }
-                    localStorage.removeItem('omni_deck_uuid'); addLog("PURGING SESSION...", "var(--glow-red)");
-                    setTimeout(() => location.reload(), 1500); break;
-                }
-                default: addLog(`Unknown: '${cmd}'. Type 'help'.`);
             }
+            if (match) {
+                activeUUID = id;
+                addLog('UPLINK ESTABLISHED.', 'var(--green)');
+                document.getElementById('loginOverlay').classList.add('hidden');
+                err.style.display = 'none';
+                try { localStorage.setItem('omni_deck_uuid', id); } catch(e) {}
+                var ok = await syncVFSFromCloud();
+                if (ok) enableRealtimeSync(); else addLog('Cloud sync failed. Type diag.', 'var(--gold)');
+            } else { throw new Error('INVALID_KEY'); }
+        } catch(e) {
+            err.innerText = 'INVALID_GHOST_CREDENTIALS'; err.style.display = 'block';
+            addLog('DENIED: ' + parseDBError(e), 'var(--red)');
+            document.getElementById('ghostPass').value = '';
+        }
+    }
+
+    function openRegisterModal() {
+        document.getElementById('registerModal').classList.add('show');
+        document.getElementById('regKeyInput').value = '';
+        document.getElementById('regError').style.display = 'none';
+        setTimeout(function() { document.getElementById('regKeyInput').focus(); }, 100);
+    }
+    function closeRegisterModal() { document.getElementById('registerModal').classList.remove('show'); }
+
+    async function confirmRegister() {
+        var npw = document.getElementById('regKeyInput').value.trim();
+        var errEl = document.getElementById('regError');
+        if (!npw || npw.length < 4) { errEl.innerText = 'Key must be at least 4 characters'; errEl.style.display = 'block'; return; }
+        if (npw.length > 128) { errEl.innerText = 'Key too long (max 128)'; errEl.style.display = 'block'; return; }
+        var nid = crypto.randomUUID();
+        var hashedPw = await hashPassword(npw);
+        addLog('GENERATING GHOST UPLINK...', 'var(--gold)');
+        var res = await supabaseClient.from('virtual_fs').insert([{ id: nid, owner_id: nid, name: 'new_ghost', type: 'user_node', parent: 'root', content: hashedPw }]);
+        if (res.error) {
+            addLog('REG_FAIL: ' + parseDBError(res.error), 'var(--red)');
+            if (isNameConstraintError(res.error)) showConstraintFixModal();
+            errEl.innerText = 'Registration failed.'; errEl.style.display = 'block';
+        } else {
+            addLog('GHOST COMMITTED.', 'var(--green)');
+            closeRegisterModal();
+            showRegisteredModal(nid, npw);
+        }
+    }
+
+    function showRegisteredModal(uuid, key) {
+        var m = document.createElement('div');
+        m.className = 'modal-overlay show'; m.id = 'regResultModal'; m.setAttribute('role', 'dialog');
+        m.innerHTML = '<div class="modal-box" style="border-color:rgba(0,255,136,0.3);box-shadow:0 0 80px rgba(0,255,136,0.06),0 20px 60px rgba(0,0,0,0.8);"><h2 style="color:var(--green);text-shadow:0 0 15px rgba(0,255,136,0.3);">NODE REGISTERED</h2><p>Save these credentials securely.</p><p><span class="step-num">UUID:</span><br><span style="color:var(--cyan);word-break:break-all;font-size:0.7rem;">' + sanitize(uuid) + '</span></p><p><span class="step-num">KEY:</span><br><span style="color:var(--gold);font-size:0.85rem;">' + sanitize(key) + '</span></p><button class="modal-btn" id="regResultClose">ACKNOWLEDGED</button></div>';
+        document.body.appendChild(m);
+        document.getElementById('regResultClose').addEventListener('click', function() { m.remove(); });
+    }
+
+    /* ============================================================
+       MODALS
+       ============================================================ */
+    var constraintFixShown = false;
+    function showConstraintFixModal() { if (constraintFixShown) return; constraintFixShown = true; document.getElementById('fixModal').classList.add('show'); }
+    function dismissFixModal() { document.getElementById('fixModal').classList.remove('show'); constraintFixShown = false; }
+
+    document.getElementById('fixSQL').addEventListener('click', function() {
+        navigator.clipboard.writeText(this.textContent).then(function() {
+            var h = this.nextElementSibling; h.innerText = '[ COPIED ]'; h.style.color = 'var(--green)';
+            setTimeout(function() { h.innerText = '[ CLICK TO COPY ]'; h.style.color = ''; }, 2000);
+        }.bind(this)).catch(function() {
+            var range = document.createRange(); range.selectNodeContents(this); var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+        }.bind(this));
+    });
+    document.getElementById('dismissFixBtn').addEventListener('click', dismissFixModal);
+    document.getElementById('confirmRegBtn').addEventListener('click', confirmRegister);
+    document.getElementById('cancelRegBtn').addEventListener('click', closeRegisterModal);
+    document.getElementById('regKeyInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') confirmRegister(); if (e.key === 'Escape') closeRegisterModal(); });
+
+    /* ============================================================
+       MOBILE DRAWER
+       ============================================================ */
+    var mobileDrawerOpen = false;
+    function toggleMobileDrawer() {
+        mobileDrawerOpen = !mobileDrawerOpen;
+        document.getElementById('mobileDrawer').classList.toggle('open', mobileDrawerOpen);
+        document.getElementById('drawerOverlay').classList.toggle('open', mobileDrawerOpen);
+        if (mobileDrawerOpen) populateMobileDrawer();
+    }
+    function populateMobileDrawer() {
+        var dr = document.getElementById('mobileDrawer');
+        dr.querySelectorAll('.mobile-clone').forEach(function(el) { el.remove(); });
+        ['navPanel', 'sysWidget', 'dataStream'].forEach(function(id) {
+            var orig = document.getElementById(id); if (!orig) return;
+            var cl = orig.cloneNode(true); cl.classList.add('mobile-clone'); cl.removeAttribute('style'); dr.appendChild(cl);
         });
+    }
+    function updateMobileThreatFeed(html) {
+        if (!mobileDrawerOpen) return;
+        var cl = document.querySelector('#mobileDrawer .mobile-clone#dataStream');
+        if (cl) { var t = cl.querySelector('#ticker'); if (t) t.innerHTML = html; }
+    }
+    document.getElementById('mobileMenuBtn').addEventListener('click', toggleMobileDrawer);
+    document.getElementById('drawerCloseBtn').addEventListener('click', toggleMobileDrawer);
+    document.getElementById('drawerOverlay').addEventListener('click', toggleMobileDrawer);
 
-        /* =============================================
-           INIT
-        ============================================= */
-        window.onload = () => {
-            initMatrix(); setInterval(drawMatrix, 50); setInterval(updateThermal, 1500);
-            updateThreatFeed(); setInterval(updateThreatFeed, 600000);
-            setInterval(() => {
-                const m = document.getElementById('dpi_monitor'); if (!m) return;
-                m.innerHTML += `<div><span style="color:var(--glow-green)">[TCP]</span> 192.168.1.${Math.floor(Math.random()*255)}:80</div>`;
-                m.scrollTop = m.scrollHeight; if (m.children.length > 6) m.removeChild(m.firstChild);
-            }, 2000);
-            window.addEventListener('resize', initMatrix);
-            addLog("DECK SECURED. WELCOME, ASHRAF_ALI.", "var(--glow-green)");
-        };
+    /* ============================================================
+       TERMINAL
+       ============================================================ */
+    document.getElementById('terminalInput').addEventListener('keydown', async function(e) {
+        if (e.key !== 'Enter') return;
+        var raw = e.target.value.trim(); if (!raw) return;
+        addLog(raw, 'rgba(255,255,255,0.5)');
+        var args = raw.split(/\s+/), cmd = args[0].toLowerCase();
+        e.target.value = '';
+        neuralSync = Math.min(100, neuralSync + 15); heatUp();
 
-        document.addEventListener('keydown', (e) => {
-            const o = document.getElementById('loginOverlay');
-            if (e.key === "Enter" && o.style.transform !== "translateY(-100%)") {
-                if (document.activeElement === document.getElementById('ghostID') || document.activeElement === document.getElementById('ghostPass'))
-                    authenticateGhost();
+        switch(cmd) {
+            case 'ls': {
+                var items = virtualFS.filter(function(f) { return f.parent === currentDir; });
+                if (!items.length) { addLog('[EMPTY]'); }
+                else {
+                    var parts = items.map(function(f) {
+                        var n = sanitize(f.name);
+                        return f.type === 'dir' ? '<span style="color:var(--gold);font-weight:700;">' + n + '/</span>' : n;
+                    });
+                    addLogRaw(parts.join('  '));
+                }
+                break;
             }
-        });
+            case 'cd': {
+                var t = args[1];
+                if (!t || t === '~') currentDir = 'root';
+                else if (t === '..') { var s = virtualFS.find(function(f) { return f.name === currentDir && f.type === 'dir'; }); currentDir = s ? s.parent : 'root'; }
+                else { var ct = sanitizeFileName(t); var d = virtualFS.find(function(f) { return f.name === ct && f.type === 'dir' && f.parent === currentDir; }); if (d) currentDir = ct; else addLog('ERR: Not found.', 'var(--red)'); }
+                document.getElementById('promptLabel').innerText = 'GHOST:~' + (currentDir === 'root' ? '' : '/' + currentDir) + '$';
+                break;
+            }
+            case 'mkdir': {
+                if (args[1]) { var dn = sanitizeFileName(args[1]); if (!dn) { addLog('ERR: Invalid name.', 'var(--red)'); break; } virtualFS.push({ name: dn, type: 'dir', parent: currentDir }); addLog('Created: ' + dn, 'var(--green)'); await cloudSaveRow(dn, 'dir', '', currentDir); }
+                break;
+            }
+            case 'rm': {
+                if (args[1]) { var rn = sanitizeFileName(args[1]); var ri = virtualFS.findIndex(function(f) { return f.name === rn && f.parent === currentDir; }); if (ri !== -1) { virtualFS.splice(ri, 1); addLog('Removed: ' + rn, 'var(--red)'); await cloudDeleteRow(rn, currentDir); } else addLog('ERR: ' + rn + ' not found.', 'var(--red)'); }
+                break;
+            }
+            case 'cat': {
+                if (args[1]) { var cn = sanitizeFileName(args[1]); var f = virtualFS.find(function(f) { return f.name === cn && f.type === 'file' && f.parent === currentDir; }); if (f) addLog(f.content || '[EMPTY]', 'var(--purple)'); else addLog('ERR: ' + cn + ' not found.', 'var(--red)'); }
+                break;
+            }
+            case 'write': {
+                var fn = args[1] ? sanitizeFileName(args[1]) : '';
+                var cm = raw.match(/"([^"]*)"/); var fc = cm ? cm[1] : '';
+                if (fn && cm) {
+                    var ei = virtualFS.findIndex(function(f) { return f.name === fn && f.parent === currentDir; });
+                    if (ei !== -1) { virtualFS[ei].content = fc; addLog('UPDATED: ' + fn, 'var(--purple)'); }
+                    else { virtualFS.push({ name: fn, type: 'file', content: fc, parent: currentDir }); addLog('CREATED: ' + fn, 'var(--green)'); }
+                    await cloudSaveRow(fn, 'file', fc, currentDir);
+                } else addLog('Usage: write [file] "[content]"', 'var(--red)');
+                break;
+            }
+            case 'site': {
+                var u = args.includes('--url') ? args[args.indexOf('--url') + 1] : args[1];
+                if (u) {
+                    var urlStr = u; if (!/^https?:\/\//i.test(urlStr)) urlStr = 'https://' + urlStr;
+                    if (isSafeURL(urlStr)) { window.open(urlStr, '_blank', 'noopener,noreferrer'); addLog('OPENED: ' + sanitize(urlStr), 'var(--green)'); }
+                    else addLog('ERR: BLOCKED — unsafe URL', 'var(--red)');
+                } else addLog('Usage: site [url]', 'var(--red)');
+                break;
+            }
+            case 'osint': { addLog('SCANNING: ' + (args[1] || 'ASHRAF_ALI') + '...', 'var(--gold)'); setTimeout(function() { addLog('MATCH: GitHub/AshrafAli - Active', 'var(--cyan)'); }, 1200); break; }
+            case 'trace': case 'traceroute': {
+                addLog('TRACE: ' + (args[1] || '127.0.0.1') + '...', 'var(--purple)');
+                var h = 0; var ti = setInterval(function() { h++; addLog('HOP ' + h + ': 10.0.' + Math.floor(Math.random()*255) + '.' + h + ' -- ' + (Math.random()*20+10).toFixed(1) + 'ms', 'rgba(188,19,254,0.6)'); if (h >= 5) { clearInterval(ti); addLog('TRACE COMPLETE.', 'var(--green)'); } }, 400);
+                break;
+            }
+            case 'diag': {
+                addLog('=== DIAGNOSTICS ===', 'var(--gold)');
+                addLog('UUID: ' + (activeUUID || 'NONE'), 'var(--cyan)');
+                addLog('LOCAL_FILES: ' + virtualFS.length, 'var(--cyan)');
+                try {
+                    var res = await supabaseClient.from('virtual_fs').select('*').limit(1);
+                    if (res.error) throw res.error;
+                    addLog('TABLE_ACCESS: OK', 'var(--green)');
+                    if (res.data && res.data.length > 0) {
+                        addLog('COLUMNS: ' + Object.keys(res.data[0]).join(', '), 'var(--cyan)');
+                        if (!res.data[0].hasOwnProperty('owner_id')) { addLog('!!! MISSING: owner_id !!!', 'var(--red)'); addLog('SQL: ALTER TABLE virtual_fs ADD COLUMN owner_id TEXT;', '#fff'); }
+                        else addLog('owner_id: OK', 'var(--green)');
+                    } else addLog('TABLE_EMPTY', 'var(--gold)');
+                    addLog('TESTING_UPSERT...', 'var(--gold)');
+                    var tid = '__diag_' + Date.now();
+                    var ures = await supabaseClient.from('virtual_fs').upsert({ id: makeFileId(activeUUID || tid, tid, 'root'), owner_id: activeUUID || tid, name: tid, type: 'file', content: '', parent: 'root' }, { onConflict: 'id' });
+                    if (ures.error) { addLog('UPSERT: FAILED — ' + parseDBError(ures.error), 'var(--red)'); if (isNameConstraintError(ures.error)) { showConstraintFixModal(); } }
+                    else { addLog('UPSERT: PASSED', 'var(--green)'); await supabaseClient.from('virtual_fs').delete().eq('name', tid); }
+                } catch(e) { addLog('DIAG_ERR: ' + parseDBError(e), 'var(--red)'); }
+                addLog('=== END DIAG ===', 'var(--gold)');
+                break;
+            }
+            case 'help': addLog('NAV: ls cd clear | FILE: cat rm mkdir site write | SYS: ghost stress sync diag exit', 'var(--gold)'); break;
+            case 'sync': refreshAllSystems(); break;
+            case 'clear': document.getElementById('terminalLog').innerHTML = ''; break;
+            case 'ghost': document.getElementById('mainBody').classList.toggle('cloaked'); break;
+            case 'stress': triggerStress(); break;
+            case 'exit': case 'logout': {
+                if (realtimeActive) { supabaseClient.removeAllChannels(); realtimeActive = false; }
+                try { localStorage.removeItem('omni_deck_uuid'); } catch(e) {}
+                addLog('PURGING SESSION...', 'var(--red)');
+                setTimeout(function() { location.reload(); }, 1500);
+                break;
+            }
+            default: addLog('Unknown: \'' + sanitize(cmd) + '\'. Type help.', 'var(--gold)');
+        }
+    });
+
+    /* ============================================================
+       EVENT LISTENERS
+       ============================================================ */
+    document.getElementById('loginBtn').addEventListener('click', authenticateGhost);
+    document.getElementById('registerBtn').addEventListener('click', openRegisterModal);
+    document.getElementById('refreshBtn').addEventListener('click', refreshAllSystems);
+    document.getElementById('ghostID').addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('ghostPass').focus(); });
+    document.getElementById('ghostPass').addEventListener('keydown', function(e) { if (e.key === 'Enter') authenticateGhost(); });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            if (document.getElementById('fixModal').classList.contains('show')) dismissFixModal();
+            if (document.getElementById('registerModal').classList.contains('show')) closeRegisterModal();
+            var rr = document.getElementById('regResultModal'); if (rr) rr.remove();
+            if (mobileDrawerOpen) toggleMobileDrawer();
+        }
+    });
+
+    /* ============================================================
+       INIT
+       ============================================================ */
+    window.onload = function() {
+        initMatrix();
+        requestAnimationFrame(drawMatrix);
+        setInterval(updateThermal, 1500);
+        updateThreatFeed();
+        setInterval(updateThreatFeed, 600000);
+        setInterval(function() {
+            var m = document.getElementById('dpi_monitor'); if (!m) return;
+            var d = document.createElement('div'); d.className = 'dpi-line';
+            d.innerHTML = '<span class="proto">[TCP]</span> 192.168.1.' + Math.floor(Math.random()*255) + ':80';
+            m.appendChild(d); m.scrollTop = m.scrollHeight;
+            if (m.children.length > 6) m.removeChild(m.firstChild);
+        }, 2500);
+        window.addEventListener('resize', initMatrix);
+        addLog('DECK SECURED. WELCOME, ASHRAF_ALI.', 'var(--green)');
+    };
     </script>
 </body>
 </html>
