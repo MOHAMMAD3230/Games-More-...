@@ -1,745 +1,792 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>TAC/COM-04 | SECURE</title>
-    <!-- PeerJS Library -->
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <style>
-        :root { 
-            --amber: #ffb000; 
-            --bg: #0d0900; 
-            --red: #ff3333; 
-            --blue: #00d4ff; 
-            --green: #39ff14; 
-            --dark-panel: #111;
-        }
-        
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+<meta charset="UTF-8">
+<!--
+  ═══ CONTENT SECURITY POLICY ═══
+  NOTE: 'frame-ancestors' CANNOT be set via <meta> tag.
+  Use the _headers file (see repo root) for full clickjacking protection.
+  'unsafe-inline' is required for single-file apps without a build step.
+-->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline'; connect-src 'self' wss://0.peerjs.com wss://*.peerjs.com; img-src 'self' data: https:; font-src 'self'; form-action 'none'; base-uri 'self'; upgrade-insecure-requests;">
+<!-- Prevent referrer leakage to third parties -->
+<meta name="referrer" content="no-referrer">
+<!-- Responsive viewport — no user-scalable=no to preserve accessibility zoom -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MeshChat — Secure P2P Channel</title>
+<!--
+  SUBRESOURCE INTEGRITY (SRI)
+  Prevents CDN compromise from injecting malicious code.
+  To regenerate after version change:
+  curl -s https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js | openssl dgst -sha384 -binary | openssl base64 -A
+-->
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js" integrity="sha384-1pK5OHxFqG+aOoE95pc51pVjYDAMIG/z4LFn5j3RyDBz9gMT5sHLlGpGe3qrOhQm" crossorigin="anonymous"></script>
+<style>
+    :root {
+        --bg: #0a0a0a;
+        --surface: #111111;
+        --border: #1a1a1a;
+        --accent: #ffb000;
+        --green: #39ff14;
+        --cyan: #00d4ff;
+        --red: #ff3333;
+        --yellow: #ffd700;
+        --muted: #555555;
+        --text: #d0d0d0;
+        --mono: 'Courier New', Courier, monospace;
+    }
 
-        body { 
-            background: #050505; 
-            color: var(--amber); 
-            font-family: 'Courier New', monospace; 
-            margin: 0; 
-            padding: 0;
-            height: 100dvh; /* Dynamic Viewport Height for Mobile */
-            width: 100vw;
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            overflow: hidden;
-            overscroll-behavior: none; /* Prevent Pull-to-Refresh */
-        }
-        
-        .mainframe { 
-            width: 100%; 
-            max-width: 650px; 
-            background: #222; 
-            border: 6px solid #111; 
-            display: flex; 
-            flex-direction: column; 
-            box-shadow: 0 0 40px #000; 
-            height: 100%; 
-            position: relative;
-        }
-        
-        @media (min-width: 768px) {
-            .mainframe { height: 95vh; border-radius: 8px; }
-        }
+    *, *::before, *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
 
-        /* Header */
-        .header-stats {
-            padding: 10px 15px; 
-            font-size: 0.7rem; 
-            display:flex; 
-            justify-content:space-between; 
-            align-items: center;
-            background: #1a1a1a;
-            border-bottom: 1px solid #333;
-            flex-shrink: 0;
-        }
-        .header-left { display:flex; flex-direction:column; gap:2px; }
-        
-        .dist-readout {
-            color: var(--blue);
-            font-weight: bold;
-            font-size: 0.8rem;
-            text-shadow: 0 0 5px rgba(0, 212, 255, 0.5);
-        }
+    html, body {
+        height: 100vh;
+        height: 100dvh;
+        overflow: hidden;
+    }
 
-        /* Signal Meter */
-        .signal-container {
-            display: flex;
-            align-items: flex-end;
-            gap: 2px;
-            height: 16px;
-            width: 20px;
-            margin-right: 10px;
-        }
-        .sig-bar {
-            width: 4px;
-            background: #333;
-            border-radius: 1px;
-            transition: height 0.3s, background-color 0.3s;
-        }
-        .sig-bar:nth-child(1) { height: 25%; }
-        .sig-bar:nth-child(2) { height: 50%; }
-        .sig-bar:nth-child(3) { height: 75%; }
-        .sig-bar:nth-child(4) { height: 100%; }
-        
-        /* Signal Levels */
-        .sig-lvl-1 .sig-bar:nth-child(1) { background: var(--red); box-shadow: 0 0 5px var(--red); }
-        .sig-lvl-2 .sig-bar:nth-child(-n+2) { background: #ffaa00; }
-        .sig-lvl-3 .sig-bar:nth-child(-n+3) { background: var(--blue); }
-        .sig-lvl-4 .sig-bar:nth-child(-n+4) { background: var(--green); box-shadow: 0 0 5px var(--green); }
+    body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--mono);
+        font-size: 14px;
+        line-height: 1.5;
+        display: flex;
+        flex-direction: column;
+        padding-top: env(safe-area-inset-top);
+        padding-right: env(safe-area-inset-right);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+    }
 
-        /* Chat Monitor */
-        .monitor { 
-            background: var(--bg); 
-            flex-grow: 1; 
-            display: flex; 
-            flex-direction: column; 
-            position: relative; 
-            overflow: hidden;
-            border-bottom: 2px solid #111;
-        }
+    .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--accent);
+        flex-shrink: 0;
+        min-height: 48px;
+    }
 
-        #output { 
-            flex-grow: 1; 
-            overflow-y: auto; 
-            overflow-x: hidden;
-            padding: 15px;
-            font-size: 0.95rem; 
-            scrollbar-width: thin; 
-            scrollbar-color: var(--amber) #000;
-            display: flex; flex-direction: column; gap: 8px;
-        }
-        
-        .msg-entry { word-break: break-word; line-height: 1.4; animation: fadeIn 0.2s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        
-        .sys-msg { color: #777; font-size: 0.8rem; border-left: 2px solid #333; padding-left: 8px; }
-        .err-msg { color: var(--red); font-weight: bold; font-size: 0.8rem; }
-        .local-msg { color: var(--green); text-shadow: 0 0 1px rgba(57, 255, 20, 0.5); }
-        .remote-msg { color: var(--blue); text-shadow: 0 0 1px rgba(0, 212, 255, 0.5); }
-        .timestamp { font-size: 0.7rem; color: #555; margin-right: 6px; user-select: none; }
+    .header-title {
+        font-size: 15px;
+        font-weight: bold;
+        color: var(--accent);
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        user-select: none;
+    }
 
-        /* Input Area */
-        .input-deck {
-            background: #111;
-            padding: 10px;
-            display: flex;
-            gap: 8px;
-            border-top: 1px solid #333;
-            flex-shrink: 0; 
-        }
-        
-        input { 
-            flex: 1; 
-            background: #000; 
-            border: 1px solid #444; 
-            color: var(--amber); 
-            padding: 12px; 
-            outline: none; 
-            text-align: left; 
-            font-family: inherit;
-            font-size: 16px; /* Prevents iOS Zoom */
-            border-radius: 4px;
-        }
-        input:focus { border-color: var(--amber); }
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 10px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 5px 10px;
+        border-radius: 3px;
+        background: #1a1a1a;
+        user-select: none;
+    }
 
-        /* Control Panel */
-        .control-panel {
-            background: #1a1a1a;
-            padding: 10px 15px;
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            justify-content: space-between;
-            border-top: 1px solid #333;
-            flex-shrink: 0;
-        }
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--red);
+        flex-shrink: 0;
+    }
 
-        /* LED Indicators */
-        .led-group { display: flex; align-items: center; gap: 15px; }
-        .led-indicator { display: flex; align-items: center; font-size: 0.65rem; color: #666; text-transform: uppercase; }
-        .led {
-            width: 10px; height: 10px; border-radius: 50%; background: #300; margin-right: 6px;
-            box-shadow: inset 0 0 2px #000; transition: background 0.1s, box-shadow 0.1s;
-        }
-        .led.on.green { background: var(--green); box-shadow: 0 0 8px var(--green); }
-        .led.on.red { background: var(--red); box-shadow: 0 0 8px var(--red); }
-        .led.on.blue { background: var(--blue); box-shadow: 0 0 8px var(--blue); }
+    .status-dot.online { background: var(--green); }
+    .status-dot.listening {
+        background: var(--yellow);
+        animation: pulse 1.5s ease-in-out infinite;
+    }
 
-        /* Buttons */
-        .btn-row { display: flex; gap: 8px; }
-        .btn-mini {
-            padding: 8px 12px; background: #222; color: #888; border: 1px solid #444;
-            font-family: inherit; font-weight: bold; font-size: 0.7rem; cursor: pointer;
-            text-transform: uppercase; border-radius: 4px;
-        }
-        .btn-mini:active { transform: scale(0.96); background: #333; }
-        .btn-mini:disabled { opacity: 0.3; cursor: not-allowed; border-color: #333; }
-        
-        .btn-sync:not(:disabled) { color: var(--blue); border-color: var(--blue); }
-        .btn-sync:not(:disabled):hover { background: rgba(0, 212, 255, 0.1); }
-        .btn-reset { color: var(--red); border-color: #553333; }
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.25; }
+    }
 
-        .btn-main { 
-            padding: 0 20px; background: #333; color: var(--amber); border: 1px solid var(--amber); 
-            font-weight: bold; cursor: pointer; text-transform: uppercase; font-family: inherit;
-            border-radius: 4px; font-size: 0.9rem;
-        }
-        .btn-main:hover { background: var(--amber); color: #000; }
+    .console {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px 16px;
+        background: var(--bg);
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+    }
 
-        /* Setup Overlay */
-        #setupPanel {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(5, 5, 5, 0.98); z-index: 20;
-            display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px;
-        }
-        .setup-box {
-            background: #111; border: 1px solid #444; padding: 30px; width: 100%; max-width: 320px; text-align: center; box-shadow: 0 0 20px #000;
-        }
-        .setup-box h2 { margin-top: 0; color: var(--amber); font-size: 1.2rem; }
-        .setup-box input { margin-bottom: 20px; text-align: center; letter-spacing: 2px; }
-        
-        /* Connection Mode Select */
-        .mode-select {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 20px;
-            background: #000;
-            border: 1px solid #444;
-            padding: 4px;
-        }
-        .mode-opt {
-            flex: 1;
-            padding: 8px;
-            font-size: 0.7rem;
-            cursor: pointer;
-            color: #666;
-            text-transform: uppercase;
-        }
-        .mode-opt.active {
-            background: var(--amber);
-            color: #000;
-            font-weight: bold;
-        }
-    </style>
+    .entry {
+        margin-bottom: 2px;
+        padding: 4px 0;
+        border-bottom: 1px solid var(--border);
+        word-break: break-word;
+        overflow-wrap: break-word;
+        font-size: 13px;
+        line-height: 1.65;
+    }
+
+    .ts {
+        color: var(--muted);
+        margin-right: 8px;
+        font-weight: bold;
+        font-size: 10px;
+    }
+
+    .local { color: var(--green); font-weight: bold; }
+    .remote { color: var(--cyan); font-weight: bold; }
+    .warn { color: var(--yellow); font-weight: bold; }
+    .sys { color: var(--muted); font-style: italic; }
+
+    .setup-panel {
+        padding: 20px 16px;
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        flex-shrink: 0;
+    }
+
+    .setup-panel label {
+        display: block;
+        font-size: 10px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        margin-bottom: 10px;
+        font-weight: bold;
+    }
+
+    .setup-row {
+        display: flex;
+        gap: 10px;
+        align-items: stretch;
+    }
+
+    .privacy-notice {
+        margin-top: 14px;
+        padding: 10px 12px;
+        background: #1a1200;
+        border: 1px solid #332600;
+        border-radius: 3px;
+        font-size: 11px;
+        color: #aa8800;
+        line-height: 1.6;
+    }
+
+    .privacy-notice strong {
+        color: var(--yellow);
+    }
+
+    .chat-controls {
+        display: none;
+        padding: 12px 16px;
+        background: var(--surface);
+        border-top: 2px solid var(--accent);
+        gap: 10px;
+        flex-shrink: 0;
+        align-items: center;
+    }
+
+    .chat-controls.active {
+        display: flex;
+    }
+
+    input[type="number"],
+    input[type="text"] {
+        flex: 1;
+        padding: 0 12px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        color: var(--accent);
+        font-family: var(--mono);
+        font-size: 14px;
+        outline: none;
+        border-radius: 2px;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        min-height: 44px;
+    }
+
+    input:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 1px rgba(255, 176, 0, 0.3);
+    }
+
+    input::placeholder {
+        color: #2a2a2a;
+    }
+
+    input:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    input[type="number"] {
+        -moz-appearance: textfield;
+        appearance: textfield;
+    }
+
+    .btn {
+        padding: 0 16px;
+        background: transparent;
+        border: 1px solid var(--accent);
+        color: var(--accent);
+        cursor: pointer;
+        font-family: var(--mono);
+        font-size: 11px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-radius: 2px;
+        transition: background 0.15s, color 0.15s, transform 0.1s;
+        white-space: nowrap;
+        min-height: 44px;
+        min-width: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn:hover {
+        background: var(--accent);
+        color: var(--bg);
+    }
+
+    .btn:active {
+        transform: scale(0.96);
+    }
+
+    .btn-danger {
+        border-color: var(--red);
+        color: var(--red);
+    }
+
+    .btn-danger:hover {
+        background: var(--red);
+        color: #fff;
+    }
+
+    .btn:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
+    .rate-bar {
+        height: 2px;
+        background: var(--border);
+        flex-shrink: 0;
+        overflow: hidden;
+    }
+
+    .rate-fill {
+        height: 100%;
+        width: 0%;
+        background: var(--accent);
+        transition: width 0.3s ease, background 0.3s ease;
+    }
+
+    .rate-fill.warn { background: var(--yellow); }
+    .rate-fill.danger { background: var(--red); }
+
+    .load-overlay {
+        position: fixed;
+        inset: 0;
+        background: var(--bg);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        color: var(--accent);
+        font-family: var(--mono);
+        gap: 16px;
+        transition: opacity 0.3s;
+    }
+
+    .load-overlay.hidden {
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .load-spinner {
+        width: 32px;
+        height: 32px;
+        border: 3px solid var(--border);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 600px) {
+        body { font-size: 13px; }
+        .header { padding: 10px 12px; }
+        .header-title { font-size: 13px; letter-spacing: 1px; }
+        .console { padding: 10px 12px; }
+        .entry { font-size: 12px; }
+        .setup-panel, .chat-controls { padding: 14px 12px; }
+        .btn { padding: 0 12px; font-size: 10px; }
+        .privacy-notice { font-size: 10px; padding: 8px 10px; }
+        .status-badge { font-size: 9px; padding: 4px 8px; }
+    }
+
+    @media (max-width: 360px) {
+        .btn { padding: 0 8px; font-size: 9px; letter-spacing: 0; min-width: 40px; }
+        .header-title { font-size: 12px; }
+    }
+
+    .console::-webkit-scrollbar { width: 5px; }
+    .console::-webkit-scrollbar-track { background: transparent; }
+    .console::-webkit-scrollbar-thumb { background: #1a1a1a; border-radius: 3px; }
+    .console::-webkit-scrollbar-thumb:hover { background: #2a2a2a; }
+    .console { scrollbar-width: thin; scrollbar-color: #1a1a1a transparent; }
+
+    ::selection {
+        background: var(--accent);
+        color: var(--bg);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .status-dot.listening { animation: none; }
+        .console { scroll-behavior: auto; }
+        .btn { transition: none; }
+        input { transition: none; }
+        .rate-fill { transition: none; }
+        .load-spinner { animation: none; }
+    }
+</style>
 </head>
 <body>
 
-<div class="mainframe">
-    <!-- Header -->
-    <div class="header-stats">
-        <div class="header-left">
-            <span>FREQ: <span id="curFreq" style="color:var(--blue)">UNSET</span></span>
-            <span id="distDisplay" class="dist-readout">DIST: ---</span>
-            <span id="netInfo" style="color:#666; font-size:0.6rem;">INIT SYSTEM...</span>
-        </div>
-        
-        <div style="display:flex; align-items:center;">
-            <div class="signal-container sig-lvl-0" id="signalMeter">
-                <div class="sig-bar"></div>
-                <div class="sig-bar"></div>
-                <div class="sig-bar"></div>
-                <div class="sig-bar"></div>
-            </div>
-            <span id="stat">OFFLINE</span>
-        </div>
-    </div>
-
-    <div class="monitor">
-        <div id="output">
-            <div class="msg-entry sys-msg">> SYSTEM READY. SELECT MODE TO START.</div>
-        </div>
-    </div>
-
-    <div class="input-deck">
-        <input type="text" id="msgInput" placeholder="ENTER MESSAGE DATA..." onkeypress="checkEnter(event)" autocomplete="off" disabled>
-        <button class="btn-main" id="sendBtn" onclick="sendMsg()" disabled>TX</button>
-    </div>
-
-    <div class="control-panel">
-        <div class="led-group">
-            <div class="led-indicator"><div class="led" id="ledNet"></div>NET</div>
-            <div class="led-indicator"><div class="led" id="ledTx"></div>TX</div>
-            <div class="led-indicator"><div class="led" id="ledRx"></div>RX</div>
-        </div>
-
-        <div class="btn-row">
-            <button class="btn-mini btn-sync" id="syncBtn" onclick="attemptSync()" disabled>SYNC</button>
-            <button class="btn-mini btn-reset" onclick="hardReset()">RESET</button>
-        </div>
-    </div>
-
-    <!-- Setup Overlay -->
-    <div id="setupPanel">
-        <div class="setup-box">
-            <h2>TAC/COM LINK</h2>
-            <div style="margin-bottom:15px; font-size:0.7rem; color:#666;">CONNECTION STRATEGY</div>
-            
-            <div class="mode-select">
-                <div class="mode-opt active" id="modeAuto" onclick="setMode('auto')">AUTO</div>
-                <div class="mode-opt" id="modeHost" onclick="setMode('host')">HOST</div>
-                <div class="mode-opt" id="modeClient" onclick="setMode('client')">CLIENT</div>
-            </div>
-
-            <div style="margin-bottom:10px; font-size:0.7rem; color:#666;">FREQUENCY (1-999)</div>
-            <input type="number" id="chanInput" value="1" min="1" max="999">
-            <button class="btn-main" id="bootBtn" onclick="initChannel()" style="width:100%; padding: 12px;">CONNECT</button>
-            <div style="margin-top:10px; font-size:0.6rem; color:#444;">
-                TIP: USE 'HOST' ON LAPTOP, 'CLIENT' ON PHONE IF AUTO FAILS.
-            </div>
-        </div>
-    </div>
+<!-- Loading overlay: shown until PeerJS library is confirmed loaded -->
+<div class="load-overlay" id="loadOverlay">
+    <div class="load-spinner"></div>
+    <span style="font-size:12px; letter-spacing:1px;">LOADING MESHCHAT</span>
 </div>
 
+<!-- Clickjacking defense: JS fallback when HTTP headers are unavailable -->
 <script>
-    // --- VARIABLES ---
-    let peer, conn, heartbeatInterval, pingInterval;
-    let lastUsedChannel = null;
-    let connectionMode = 'auto'; // auto, host, client
-    let myCoords = null; // Stores Lat/Lon
-    let remoteCoords = null; // Stores Remote Lat/Lon
-    
-    // CHANGE THIS PREFIX FOR A PRIVATE NETWORK
-    const APP_PREFIX = "TAC-SECURE-"; 
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    
-    // Expanded ICE Servers for better router traversal
-    const PEER_CONFIG = {
-        config: {
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' },
-                { urls: 'stun:global.stun.twilio.com:3478' }
-            ]
-        }
-    };
-
-    // --- GPS & DISTANCE LOGIC ---
-    function getMyLocation() {
-        if (!("geolocation" in navigator)) {
-            document.getElementById('distDisplay').innerText = "DIST: N/A";
-            return;
-        }
-
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                myCoords = {
-                    lat: position.coords.latitude,
-                    lon: position.coords.longitude
-                };
-                if(remoteCoords) updateDistanceDisplay();
-                sendCoords();
-            },
-            (error) => {
-                console.warn("GPS Error:", error);
-                document.getElementById('distDisplay').innerText = "DIST: NO GPS";
-            },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-        );
-    }
-
-    function sendCoords() {
-        if(myCoords && conn && conn.open) {
-            conn.send({ type: 'coords', data: myCoords });
-        }
-    }
-
-    function calculateDistance(lat1, lon1, lat2, lon2) {
-        const R = 6371e3; // Earth radius in meters
-        const φ1 = lat1 * Math.PI/180;
-        const φ2 = lat2 * Math.PI/180;
-        const Δφ = (lat2-lat1) * Math.PI/180;
-        const Δλ = (lon2-lon1) * Math.PI/180;
-
-        const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-                  Math.cos(φ1) * Math.cos(φ2) *
-                  Math.sin(Δλ/2) * Math.sin(Δλ/2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        return R * c; 
-    }
-
-    function updateDistanceDisplay() {
-        if(!myCoords || !remoteCoords) return;
-        
-        const distMeters = calculateDistance(myCoords.lat, myCoords.lon, remoteCoords.lat, remoteCoords.lon);
-        let distText = (distMeters < 1000) 
-            ? Math.round(distMeters) + " m" 
-            : (distMeters / 1000).toFixed(2) + " km";
-            
-        document.getElementById('distDisplay').innerText = "DIST: " + distText;
-    }
-
-
-    // --- UI LOGIC ---
-
-    function setMode(mode) {
-        connectionMode = mode;
-        document.querySelectorAll('.mode-opt').forEach(el => el.classList.remove('active'));
-        document.getElementById('mode' + mode.charAt(0).toUpperCase() + mode.slice(1)).classList.add('active');
-    }
-
-    function getLocalNetworkInfo() {
-        const netEl = document.getElementById('netInfo');
-        const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-        if (connection) {
-            let type = connection.type || "LAN/WIFI";
-            if (connection.effectiveType && !type) type = "DATA";
-            let speed = connection.effectiveType ? connection.effectiveType.toUpperCase() : "UNKNOWN";
-            netEl.innerText = `LINK: ${type.toUpperCase()} | ${speed}`;
-            netEl.style.color = "var(--green)";
-        } else {
-            netEl.innerText = "LINK: LOCAL NETWORK";
-            netEl.style.color = "var(--amber)";
-        }
-    }
-
-    // --- SECURE LOGGING FUNCTION ---
-    // Uses textContent to prevent XSS from incoming messages
-    function log(msg, type="sys") {
-        const out = document.getElementById('output');
-        const div = document.createElement('div');
-        const time = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
-        div.className = `msg-entry ${type}-msg`;
-
-        // Create timestamp safely
-        const timeSpan = document.createElement('span');
-        timeSpan.className = 'timestamp';
-        timeSpan.textContent = `[${time}]`;
-        div.appendChild(timeSpan);
-
-        // Helper to append text safely
-        const appendSafeText = (text, style = {}) => {
-            const span = document.createElement('span');
-            span.textContent = text;
-            Object.assign(span.style, style);
-            div.appendChild(span);
-        };
-
-        if (type === 'sys') {
-            appendSafeText(" " + msg);
-        } else if (type === 'error') {
-            appendSafeText(" " + msg, { color: 'var(--red)', fontWeight: 'bold' });
-        } else if (type === 'local') {
-            appendSafeText("YOU: ", { fontWeight: 'bold' });
-            appendSafeText(msg);
-        } else if (type === 'remote') {
-            appendSafeText("REMOTE: ", { fontWeight: 'bold', color: 'var(--blue)' });
-            appendSafeText(msg);
-        }
-        
-        out.appendChild(div);
-        out.scrollTop = out.scrollHeight;
-    }
-
-    function flashLed(ledId, colorClass, duration=200) {
-        const el = document.getElementById(ledId);
-        el.classList.remove('on', 'green', 'red', 'blue');
-        void el.offsetWidth; 
-        el.classList.add('on', colorClass);
-        setTimeout(() => el.classList.remove('on', colorClass), duration);
-    }
-
-    function setLedState(ledId, isOn, colorClass) {
-        const el = document.getElementById(ledId);
-        el.className = 'led'; 
-        if(isOn) el.classList.add('on', colorClass);
-    }
-
-    function setUIState(connected) {
-        const panel = document.getElementById('setupPanel');
-        const inputs = document.getElementById('msgInput');
-        const sendBtn = document.getElementById('sendBtn');
-        const syncBtn = document.getElementById('syncBtn');
-        const stat = document.getElementById('stat');
-        const bootBtn = document.getElementById('bootBtn');
-        
-        if (connected) {
-            panel.style.opacity = '0';
-            setTimeout(() => panel.style.display = 'none', 200);
-            inputs.disabled = false;
-            sendBtn.disabled = false;
-            syncBtn.disabled = false;
-            if(window.innerWidth > 768) inputs.focus();
-            stat.innerHTML = "ONLINE";
-            stat.style.color = "var(--green)";
-            setLedState('ledNet', true, 'green');
-            startHeartbeat();
-            startPingSystem();
-            getLocalNetworkInfo();
-            getMyLocation(); // Trigger GPS
-        } else {
-            panel.style.display = 'flex';
-            setTimeout(() => panel.style.opacity = '1', 10);
-            inputs.disabled = true;
-            sendBtn.disabled = true;
-            syncBtn.disabled = true; 
-            bootBtn.disabled = false;
-            bootBtn.innerText = "CONNECT";
-            stat.innerText = "OFFLINE";
-            stat.style.color = "#666";
-            setLedState('ledNet', false);
-            stopHeartbeat();
-            stopPingSystem();
-            document.getElementById('signalMeter').className = 'signal-container sig-lvl-0';
-            document.getElementById('distDisplay').innerText = "DIST: ---";
-        }
-    }
-
-    function setDisconnectedState() {
-        const syncBtn = document.getElementById('syncBtn');
-        const stat = document.getElementById('stat');
-        const inputs = document.getElementById('msgInput');
-        const sendBtn = document.getElementById('sendBtn');
-
-        inputs.disabled = true;
-        sendBtn.disabled = true;
-        syncBtn.disabled = false;
-        syncBtn.innerText = "RE-CONNECT";
-        
-        stat.innerText = "SIGNAL LOST";
-        stat.style.color = "var(--red)";
-        setLedState('ledNet', false);
-        
-        log("CONNECTION SEVERED. PRESS SYNC TO RE-CONNECT.", "sys");
-        stopHeartbeat();
-        stopPingSystem();
-        document.getElementById('signalMeter').className = 'signal-container sig-lvl-0';
-    }
-
-    function playBeep(freq, duration) {
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        const osc = audioCtx.createOscillator();
-        const g = audioCtx.createGain();
-        osc.type = 'square';
-        osc.frequency.value = freq; 
-        g.gain.value = 0.05; 
-        osc.connect(g); g.connect(audioCtx.destination);
-        osc.start();
-        g.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
-        osc.stop(audioCtx.currentTime + duration);
-    }
-
-    // --- NETWORK HELPERS ---
-    function startHeartbeat() {
-        stopHeartbeat();
-        heartbeatInterval = setInterval(() => {
-            if(conn && conn.open) conn.send({ type: 'heartbeat' });
-        }, 3000); 
-    }
-    function stopHeartbeat() { if(heartbeatInterval) clearInterval(heartbeatInterval); }
-
-    function startPingSystem() {
-        stopPingSystem();
-        pingInterval = setInterval(() => {
-            if(conn && conn.open) conn.send({ type: 'ping', time: Date.now() });
-        }, 2000);
-    }
-    function stopPingSystem() { if(pingInterval) clearInterval(pingInterval); }
-
-    function updateSignalMeter(pingMs) {
-        const meter = document.getElementById('signalMeter');
-        meter.className = 'signal-container';
-        let level = 1;
-        if (pingMs < 20) level = 4; else if (pingMs < 100) level = 3; else if (pingMs < 300) level = 2; else level = 1;
-        meter.classList.add(`sig-lvl-${level}`);
-    }
-
-    // --- PEERJS CONNECTION LOGIC ---
-
-    function initChannel() {
-        const chanInput = document.getElementById('chanInput');
-        
-        // SECURITY: Input Validation to ensure strictly numeric channel
-        let chanNum = parseInt(chanInput.value);
-        
-        if (isNaN(chanNum) || chanNum < 1 || chanNum > 999) {
-            log("INVALID FREQUENCY. ENTER 1-999.", "error");
-            return;
-        }
-
-        lastUsedChannel = chanNum; 
-        const fullId = APP_PREFIX + chanNum;
-        const btn = document.getElementById('bootBtn');
-        
-        btn.disabled = true;
-        btn.innerText = "LINKING...";
-        
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        getLocalNetworkInfo();
-
-        if (connectionMode === 'host') initPeer(fullId, true);
-        else if (connectionMode === 'client') initPeer(null, false, fullId);
-        else initPeer(fullId, false);
-    }
-
-    function initPeer(myId, isForcedHost, targetIdForClient = null) {
-        if(peer) { try { peer.destroy(); } catch(e){} peer = null; }
-
-        const config = myId ? { ...PEER_CONFIG, debug: 1 } : PEER_CONFIG; // Debug 1 for warnings only
-        peer = new Peer(myId, config);
-
-        if (myId) {
-            peer.on('open', id => { 
-                log(`CHANNEL ${myId.replace(APP_PREFIX, '')} ACTIVE.`, 'sys');
-                document.getElementById('curFreq').innerText = "CH-" + myId.replace(APP_PREFIX, '');
-                document.getElementById('bootBtn').disabled = false;
-                document.getElementById('bootBtn').innerText = "CONNECT";
-            });
-        } else {
-             peer.on('open', id => {
-                log("CLIENT MODE: SEARCHING...", 'sys');
-                if(targetIdForClient) {
-                     conn = peer.connect(targetIdForClient, { reliable: true });
-                     setupHandlers();
-                }
-            });
-        }
-
-        peer.on('connection', c => { 
-            if(conn && conn.open) { c.close(); return; }
-            conn = c; 
-            setupHandlers(); 
-        });
-
-        peer.on('error', (err) => {
-            console.error(err);
-            if (isForcedHost) {
-                log(`HOST ERROR: ${err.type}. ID TAKEN.`, 'error');
-                document.getElementById('bootBtn').disabled = false;
-            } else if (err.type === 'unavailable-id') {
-                log("ID TAKEN. SWITCHING TO CLIENT...", 'sys');
-                document.getElementById('curFreq').innerText = "CH-" + myId.replace(APP_PREFIX, '') + " [RX]";
-                if(peer) { peer.destroy(); peer = null; }
-                initPeer(null, false, myId);
-            } else {
-                log("CONN ERROR: " + err.type, 'error');
-                document.getElementById('bootBtn').disabled = false;
-            }
-        });
-    }
-
-    function setupHandlers() {
-        const connectionTimer = setTimeout(() => {
-            if(conn && !conn.open) {
-                log("TIMEOUT. CHECK MODES.", 'error');
-                conn.close();
-                document.getElementById('bootBtn').disabled = false;
-            }
-        }, 10000);
-
-        conn.on('open', () => {
-            clearTimeout(connectionTimer);
-            setUIState(true);
-            log("DATA LINK SECURE.", 'sys');
-            conn.send({ type: 'join' });
-        });
-
-        conn.on('data', data => {
-            // Handle Ping/Pong for Signal Meter
-            if(data.type === 'ping') {
-                conn.send({ type: 'pong', time: data.time });
-                return;
-            }
-            if(data.type === 'pong') {
-                updateSignalMeter(Date.now() - data.time);
-                return;
-            }
-            
-            // Handle GPS
-            if(data.type === 'coords') {
-                remoteCoords = data.data;
-                updateDistanceDisplay();
-                if(myCoords) sendCoords(); // Reply with our coords
-                return;
-            }
-
-            if (data.type !== 'heartbeat') flashLed('ledRx', 'blue', 300);
-
-            if (typeof data === 'string') {
-                log(data, 'remote');
-            } else {
-                if (data.type === 'join') {
-                    log("REMOTE LINKED.", 'sys');
-                    sendCoords();
-                } 
-                else if (data.type === 'msg') {
-                    // SECURITY: The log function handles this content safely via textContent
-                    log(data.content, 'remote');
-                } 
-                else if (data.type === 'sync') {
-                    conn.send({ type: 'sync_ack' });
-                    playBeep(600, 0.1);
-                }
-                else if (data.type === 'sync_ack') {
-                    playBeep(1000, 0.1);
-                }
-            }
-        });
-
-        conn.on('close', () => {
-            clearTimeout(connectionTimer);
-            conn = null;
-            setDisconnectedState();
-        });
-        
-        conn.on('error', (err) => {
-            clearTimeout(connectionTimer);
-            log("LINK ERROR.", 'error');
-        });
-    }
-
-    // --- ACTIONS ---
-
-    function attemptSync() {
-        if(conn && conn.open) {
-            flashLed('ledTx', 'red', 100);
-            conn.send({ type: 'sync' });
-            getMyLocation();
-        } else {
-            if(lastUsedChannel) {
-                log("RE-CONNECTING...", 'sys');
-                document.getElementById('syncBtn').disabled = true;
-                document.getElementById('syncBtn').innerText = "SCANNING...";
-                setTimeout(() => {
-                    const fullId = APP_PREFIX + lastUsedChannel;
-                    if(peer) peer.destroy();
-                    peer = null;
-                    initChannel(); 
-                }, 500);
-            }
-        }
-    }
-
-    function sendMsg() {
-        const input = document.getElementById('msgInput');
-        const val = input.value.trim();
-        if(!val || !conn || !conn.open) return;
-        flashLed('ledTx', 'red', 200);
-        conn.send({ type: 'msg', content: val });
-        log(val, 'local');
-        input.value = '';
-        input.focus();
-    }
-
-    function checkEnter(e) { if(e.key === 'Enter') sendMsg(); }
-    
-    function hardReset() {
-        if(confirm("REBOOT SYSTEM?")) {
-            if(conn) conn.close();
-            if(peer) peer.destroy();
-            stopHeartbeat();
-            stopPingSystem();
-            location.reload();
-        }
-    }
+if (window.top !== window.self) {
+    try { window.top.location = self.location; } catch(e) {}
+}
 </script>
+
+<header class="header" role="banner">
+    <span class="header-title" aria-label="MeshChat application">⟨ MeshChat ⟩</span>
+    <span class="status-badge" role="status" aria-live="polite">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Offline</span>
+    </span>
+</header>
+
+<main class="console" id="console" role="log" aria-label="Chat messages"></main>
+
+<div class="rate-bar" role="presentation"><div class="rate-fill" id="rateFill"></div></div>
+
+<section class="setup-panel" id="setupPanel" aria-label="Channel setup">
+    <label for="chanInput">Channel (1 – 99)</label>
+    <div class="setup-row">
+        <input type="number" id="chanInput" placeholder="1" min="1" max="99"
+               inputmode="numeric" autocomplete="off" aria-describedby="privacyNote">
+        <button class="btn" id="initBtn" aria-label="Connect to channel">Connect</button>
+    </div>
+    <div class="privacy-notice" id="privacyNote" role="alert">
+        <strong>⚠ P2P Direct Link</strong> — Your IP address may be visible to peers.
+        No data passes through any server. Never share passwords or sensitive info.
+    </div>
+</section>
+
+<section class="chat-controls" id="chatControls" aria-label="Chat input">
+    <input type="text" id="msgInput" placeholder="Type a message..."
+           autocomplete="off" aria-label="Message input">
+    <button class="btn" id="sendBtn" aria-label="Send message">Send</button>
+    <button class="btn btn-danger" id="disconnectBtn" aria-label="Disconnect">✕</button>
+</section>
+
+<!--
+  ═══ APPLICATION SCRIPT ═══
+  Placed in a SEPARATE <script> tag AFTER the PeerJS <script src>.
+  HTML spec guarantees sequential blocking execution, so `Peer`
+  is guaranteed to be defined by the time this runs.
+  The window.onload check is an additional safety net for edge cases
+  (e.g., if the SRI hash is wrong and the browser silently blocks the CDN file).
+-->
+<script>
+(function() {
+    'use strict';
+
+    // ─── Wait for full page load (safety net for CDN failures) ───
+    function boot() {
+        // CRITICAL: Verify PeerJS actually loaded
+        if (typeof Peer === 'undefined') {
+            var overlay = document.getElementById('loadOverlay');
+            if (overlay) {
+                overlay.innerHTML = '<span style="color:#ff3333;font-size:13px;text-align:center;max-width:80%;font-family:monospace;">Failed to load PeerJS library.<br>Check your connection or disable ad-blockers for unpkg.com, then reload.</span>';
+            }
+            return; // Halt — nothing can work without PeerJS
+        }
+
+        // Hide loading overlay
+        var overlay = document.getElementById('loadOverlay');
+        if (overlay) overlay.classList.add('hidden');
+        setTimeout(function() { if (overlay) overlay.remove(); }, 400);
+
+        // ─── Configuration Constants ────────────────────────
+        var PREFIX       = 'MESH-';
+        var MAX_MSG_LEN  = 500;
+        var RATE_WINDOW  = 5000;
+        var RATE_MAX     = 10;
+        var RATE_COOLDOWN = 800;
+
+        // ─── DOM References ─────────────────────────────────
+        var consoleEl     = document.getElementById('console');
+        var setupPanel    = document.getElementById('setupPanel');
+        var chatControls  = document.getElementById('chatControls');
+        var chanInput     = document.getElementById('chanInput');
+        var msgInput      = document.getElementById('msgInput');
+        var initBtn       = document.getElementById('initBtn');
+        var sendBtn       = document.getElementById('sendBtn');
+        var disconnectBtn = document.getElementById('disconnectBtn');
+        var statusDot     = document.getElementById('statusDot');
+        var statusText    = document.getElementById('statusText');
+        var rateFill      = document.getElementById('rateFill');
+
+        // ─── State ──────────────────────────────────────────
+        var peer          = null;
+        var conn          = null;
+        var msgTimestamps = [];
+        var lastSendTime  = 0;
+        var isDestroyed   = false;
+
+        // ─── Utility: Safe error → string ───────────────────
+        function safeErrStr(err) {
+            if (!err) return 'Unknown error';
+            if (typeof err === 'string') return err;
+            if (typeof err.type === 'string') return err.type;
+            if (err instanceof Error) return err.message || 'Error';
+            try { return String(err); } catch(e) { return 'Error'; }
+        }
+
+        // ─── Logging (XSS-safe via textContent) ─────────────
+        function log(msg, cls) {
+            var div     = document.createElement('div');
+            div.className = 'entry' + (cls ? ' ' + cls : '');
+            var time    = new Date().toLocaleTimeString([], { hour12: false });
+
+            var tsSpan  = document.createElement('span');
+            tsSpan.className   = 'ts';
+            tsSpan.textContent = '[' + time + ']';
+
+            var msgSpan = document.createElement('span');
+            msgSpan.textContent = msg;
+
+            div.appendChild(tsSpan);
+            div.appendChild(msgSpan);
+            consoleEl.appendChild(div);
+
+            while (consoleEl.children.length > 500) {
+                consoleEl.removeChild(consoleEl.firstChild);
+            }
+
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+
+        // ─── Status Indicator ───────────────────────────────
+        function setStatus(text, state) {
+            statusText.textContent = text;
+            statusDot.className = 'status-dot';
+            if (state === 'online')    statusDot.classList.add('online');
+            if (state === 'listening') statusDot.classList.add('listening');
+        }
+
+        // ─── Rate Limiting ──────────────────────────────────
+        function updateRateBar() {
+            var now = Date.now();
+            msgTimestamps = msgTimestamps.filter(function(t) { return now - t < RATE_WINDOW; });
+            var ratio = msgTimestamps.length / RATE_MAX;
+            rateFill.style.width = (ratio * 100) + '%';
+            rateFill.className = 'rate-fill';
+            if (ratio > 0.8)      rateFill.classList.add('danger');
+            else if (ratio > 0.5) rateFill.classList.add('warn');
+        }
+
+        function checkRateLimit() {
+            var now = Date.now();
+            if (now - lastSendTime < RATE_COOLDOWN) return false;
+            msgTimestamps = msgTimestamps.filter(function(t) { return now - t < RATE_WINDOW; });
+            if (msgTimestamps.length >= RATE_MAX) return false;
+            msgTimestamps.push(now);
+            lastSendTime = now;
+            updateRateBar();
+            return true;
+        }
+
+        setInterval(updateRateBar, 500);
+
+        // ─── Input Validation ───────────────────────────────
+        function validateChannel(val) {
+            var str = String(val).trim();
+            if (!/^\d+$/.test(str)) return false;
+            var num = parseInt(str, 10);
+            return num >= 1 && num <= 99 && String(num) === str;
+        }
+
+        // ─── Reset Setup UI ─────────────────────────────────
+        function resetSetup() {
+            chanInput.disabled = false;
+            initBtn.disabled  = false;
+        }
+
+        // ─── Initialize Connection ──────────────────────────
+        function initLink() {
+            var raw = chanInput.value;
+            if (!validateChannel(raw)) {
+                log('Invalid channel. Enter a whole number between 1 and 99.', 'warn');
+                return;
+            }
+
+            var chan = parseInt(raw, 10);
+            var myId = PREFIX + chan;
+
+            initBtn.disabled   = true;
+            chanInput.disabled = true;
+
+            log('Tuning to channel ' + chan + ' (ID: ' + myId + ')...', 'sys');
+
+            try {
+                peer = new Peer(myId, {
+                    config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
+                });
+            } catch(e) {
+                log('Failed to create peer: ' + safeErrStr(e), 'warn');
+                resetSetup();
+                return;
+            }
+
+            peer.on('open', function(id) {
+                if (isDestroyed) return;
+                log('Listening on channel ' + chan + '. Waiting for peer...', 'sys');
+                setStatus('Listening', 'listening');
+            });
+
+            peer.on('connection', function(c) {
+                if (isDestroyed) return;
+                if (conn && conn.open) {
+                    c.close();
+                    log('Rejected additional connection attempt.', 'warn');
+                    return;
+                }
+                conn = c;
+                bindConnEvents();
+            });
+
+            peer.on('error', function(err) {
+                if (isDestroyed) return;
+                var errType = safeErrStr(err);
+
+                if (errType === 'unavailable-id') {
+                    log('Channel ' + chan + ' is occupied. Joining as client...', 'warn');
+                    try { peer.destroy(); } catch(e) {}
+                    peer = null;
+                    joinChannel(myId);
+                } else if (errType === 'peer-unavailable') {
+                    log('No host found on channel ' + chan + '.', 'warn');
+                    setStatus('No Host', '');
+                    resetSetup();
+                } else if (errType === 'network' || errType === 'server-error') {
+                    log('Network error: cannot reach signaling server.', 'warn');
+                    setStatus('Network Err', '');
+                    resetSetup();
+                } else {
+                    log('Error: ' + errType, 'warn');
+                    setStatus('Error', '');
+                    resetSetup();
+                }
+            });
+
+            peer.on('disconnected', function() {
+                if (isDestroyed) return;
+                log('Signaling disconnected. Reconnecting...', 'warn');
+                if (peer && !peer.destroyed) {
+                    try { peer.reconnect(); } catch(e) {}
+                }
+            });
+        }
+
+        // ─── Join Existing Channel ──────────────────────────
+        function joinChannel(targetId) {
+            try {
+                peer = new Peer();
+            } catch(e) {
+                log('Failed to create client peer.', 'warn');
+                resetSetup();
+                return;
+            }
+
+            peer.on('open', function() {
+                if (isDestroyed) return;
+                log('Connecting to host ' + targetId + '...', 'sys');
+                try {
+                    conn = peer.connect(targetId, { reliable: true });
+                    bindConnEvents();
+                } catch(e) {
+                    log('Connection attempt failed.', 'warn');
+                    resetSetup();
+                }
+            });
+
+            peer.on('error', function(err) {
+                if (isDestroyed) return;
+                log('Join failed: ' + safeErrStr(err), 'warn');
+                setStatus('Failed', '');
+                resetSetup();
+            });
+        }
+
+        // ─── Bind DataConnection Events ─────────────────────
+        function bindConnEvents() {
+            conn.on('open', function() {
+                if (isDestroyed) return;
+                log('Secure link established. You can now chat.', 'local');
+                setStatus('Connected', 'online');
+                setupPanel.style.display = 'none';
+                chatControls.classList.add('active');
+                setTimeout(function() { msgInput.focus(); }, 100);
+            });
+
+            conn.on('data', function(data) {
+                if (isDestroyed) return;
+                if (typeof data !== 'string') {
+                    log('Blocked non-text payload from peer.', 'warn');
+                    return;
+                }
+                var safeData = data.substring(0, MAX_MSG_LEN);
+                log('\u00AB ' + safeData, 'remote');
+            });
+
+            conn.on('close', function() {
+                if (isDestroyed) return;
+                conn = null;
+                log('Peer disconnected.', 'warn');
+                setStatus('Disconnected', '');
+                chatControls.classList.remove('active');
+                setupPanel.style.display = '';
+                resetSetup();
+            });
+
+            conn.on('error', function(err) {
+                if (isDestroyed) return;
+                log('Link error: ' + safeErrStr(err), 'warn');
+            });
+        }
+
+        // ─── Send Message ───────────────────────────────────
+        function sendMsg() {
+            if (!conn || !conn.open) {
+                log('Not connected to a peer.', 'warn');
+                return;
+            }
+
+            if (!checkRateLimit()) {
+                log('Rate limited. Wait a moment.', 'warn');
+                return;
+            }
+
+            var val = msgInput.value;
+            val = val.replace(/^\s+|\s+$/g, '');
+
+            if (!val) return;
+
+            if (val.length > MAX_MSG_LEN) {
+                val = val.substring(0, MAX_MSG_LEN);
+                log('Message truncated to ' + MAX_MSG_LEN + ' characters.', 'warn');
+            }
+
+            try {
+                conn.send(val);
+            } catch(e) {
+                log('Send failed. Connection may be broken.', 'warn');
+                return;
+            }
+
+            log('\u00BB ' + val, 'local');
+            msgInput.value = '';
+        }
+
+        // ─── Disconnect ─────────────────────────────────────
+        function disconnect() {
+            isDestroyed = true;
+
+            if (conn) { try { conn.close(); } catch(e) {} conn = null; }
+            if (peer) { try { peer.destroy(); } catch(e) {} peer = null; }
+
+            log('Link terminated by user.', 'warn');
+            setStatus('Offline', '');
+
+            chatControls.classList.remove('active');
+            setupPanel.style.display = '';
+            resetSetup();
+            chanInput.value = '';
+
+            setTimeout(function() { isDestroyed = false; }, 50);
+        }
+
+        // ─── Cleanup on Page Unload ─────────────────────────
+        function cleanup() {
+            isDestroyed = true;
+            if (conn) { try { conn.close(); } catch(e) {} }
+            if (peer) { try { peer.destroy(); } catch(e) {} }
+        }
+
+        window.addEventListener('beforeunload', cleanup);
+        window.addEventListener('pagehide', cleanup);
+
+        // ─── Event Listeners ────────────────────────────────
+        initBtn.addEventListener('click', initLink);
+        sendBtn.addEventListener('click', sendMsg);
+        disconnectBtn.addEventListener('click', disconnect);
+
+        chanInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); initLink(); }
+        });
+
+        msgInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); sendMsg(); }
+        });
+
+        // ─── Boot Messages ──────────────────────────────────
+        log('Mesh Chat Node Initializing...', 'sys');
+        log('Protocols: XSS-filter active | P2P encrypted | CSP enforced | Rate-limited', 'sys');
+        log('Enter a channel number (1\u201399) to begin.', 'sys');
+    }
+
+    // ─── Kickoff ────────────────────────────────────────────
+    // window.onload guarantees all external scripts (PeerJS) have
+    // finished loading and executing before we try to use `Peer`.
+    if (document.readyState === 'complete') {
+        boot();
+    } else {
+        window.addEventListener('load', boot);
+    }
+
+})();
+</script>
+
 </body>
 </html>
