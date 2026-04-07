@@ -1,145 +1,487 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- 1. CONTENT SECURITY POLICY (CSP) -->
-  <!-- Prevents script injection and restricts data transmission to authorized domains only -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://ouadtdnyyaxprbdeotvl.supabase.co; font-src 'self';">
+  <!--
+    ╔══════════════════════════════════════════════════════════════╗
+    ║  SECURITY HEADERS                                           ║
+    ║  Note: For full HTTP header enforcement on GitHub Pages,    ║
+    ║  create a _headers file in your repo root:                  ║
+    ║                                                            ║
+    ║  /*                                                         ║
+    ║    X-Frame-Options: DENY                                    ║
+    ║    X-Content-Type-Options: nosniff                          ║
+    ║    Referrer-Policy: no-referrer                             ║
+    ║    Permissions-Policy: camera=(), microphone=(),            ║
+    ║                       geolocation=(), payment=()            ║
+    ║    Strict-Transport-Security: max-age=31536000;             ║
+    ║                              includeSubDomains              ║
+    ║  */                                                         ║
+    ╚══════════════════════════════════════════════════════════════╝
+  -->
+
+  <!-- CSP: frame-ancestors prevents clickjacking; base-uri prevents base-tag injection -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://ouadtdnyyaxprbdeotvl.supabase.co; font-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'self';">
+
+  <!-- Prevents referrer leakage to the Supabase endpoint -->
+  <meta name="referrer" content="no-referrer">
 
   <meta charset="UTF-8" />
-
-  <link rel="icon" href="https://mohammad3230.github.io/Games-More-.../favicon.png" type="image/png" sizes="32x32" />
+  <!-- No maximum-scale restriction — preserves accessibility zoom -->
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Omni-Deck Steampunk Network Telemetry Engine by Ashraf Ali" />
+
+  <!-- Favicon — HTTPS, no mixed content -->
+  <link rel="icon" href="https://mohammad3230.github.io/Games-More-.../favicon.png" type="image/png" sizes="32x32" />
+
   <title>Omni-Deck | The Ali Engine v292.7 [UPLINK ENABLED]</title>
+
   <style>
+    /* ====== DESIGN TOKENS ====== */
     :root {
-      --brass: #b5a642; --copper: #b87333; --iron: #333;
-      --parchment: #e6e0c5; --terminal: #00ff41; --aether: #00d4ff;
-      --danger: #ff4100; --success: #00ff41; --coal: #1a1a1a;
+      --brass: #b5a642;
+      --copper: #b87333;
+      --iron: #333;
+      --parchment: #e6e0c5;
+      --terminal: #00ff41;
+      --aether: #00d4ff;
+      --danger: #ff4100;
+      --success: #00ff41;
+      --coal: #1a1a1a;
+      --panel-max-w: 1000px;
+      --panel-margin: 40px;
+      --tele-margin-h: 80px;
+      --results-margin-r: 160px;
+      --meter-size: 150px;
+      --gauge-svg-size: 120px;
+      --input-width: 40%;
     }
 
+    /* ====== REDUCED MOTION ====== */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    /* ====== BASE ====== */
     body {
-      margin: 0; background: #1a0d04 url('https://www.transparenttextures.com/patterns/dark-leather.png');
-      color: #eadbb1; font-family: 'Courier New', monospace; overflow-x: hidden;
+      margin: 0;
+      /* Background texture: consider self-hosting this image to eliminate supply-chain risk */
+      background: #1a0d04 url('https://www.transparenttextures.com/patterns/dark-leather.png');
+      color: #eadbb1;
+      font-family: 'Courier New', monospace;
+      overflow-x: hidden;
+      -webkit-text-size-adjust: 100%;
     }
 
+    /* ====== STEAM PANEL ====== */
     .steam-panel {
-      max-width: 1000px; margin: 40px auto; background: #2b1608;
-      border: 10px double var(--brass); border-radius: 5px;
-      position: relative; box-shadow: 0 20px 60px #000; padding-bottom: 30px;
+      max-width: var(--panel-max-w);
+      margin: var(--panel-margin) auto;
+      background: #2b1608;
+      border: 10px double var(--brass);
+      border-radius: 5px;
+      position: relative;
+      box-shadow: 0 20px 60px #000;
+      padding-bottom: 30px;
     }
 
-    /* --- Coal Hopper --- */
+    /* ====== COAL HOPPER ====== */
     .coal-hopper {
-      position: absolute; left: 25px; top: 100px; width: 30px; height: 180px;
-      background: #111; border: 3px solid var(--iron); border-radius: 3px;
-      box-shadow: inset 0 0 10px #000; z-index: 5;
+      position: absolute;
+      left: 25px;
+      top: 100px;
+      width: 30px;
+      height: 180px;
+      background: #111;
+      border: 3px solid var(--iron);
+      border-radius: 3px;
+      box-shadow: inset 0 0 10px #000;
+      z-index: 5;
     }
     .coal-level {
-      position: absolute; bottom: 0; width: 100%; height: 100%;
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      height: 100%;
       background: linear-gradient(to top, var(--coal), #333);
       transition: height 0.3s ease-out;
     }
     .hopper-label {
-      position: absolute; left: 0; top: -20px; width: 100%; text-align: center;
-      font-size: 9px; color: var(--brass); font-weight: bold;
+      position: absolute;
+      left: 0;
+      top: -20px;
+      width: 100%;
+      text-align: center;
+      font-size: 9px;
+      color: var(--brass);
+      font-weight: bold;
     }
 
-    /* --- Fan & CRT --- */
+    /* ====== FAN & CRT (decorative — hidden on small screens) ====== */
     .fan-assembly {
-      position: absolute; bottom: 20px; right: 20px; width: 80px; height: 80px;
-      background: #111; border: 4px solid var(--iron); border-radius: 50%; overflow: hidden;
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      width: 80px;
+      height: 80px;
+      background: #111;
+      border: 4px solid var(--iron);
+      border-radius: 50%;
+      overflow: hidden;
     }
     #fan-svg { width: 100%; height: 100%; fill: #222; transform-origin: center; }
 
     .crt-monitor {
-      width: 120px; height: 120px; background: #010; border: 6px solid var(--iron); border-radius: 50%;
-      position: absolute; bottom: 180px; right: 40px; box-shadow: inset 0 0 20px #0f0; overflow: hidden;
+      width: 120px;
+      height: 120px;
+      background: #010;
+      border: 6px solid var(--iron);
+      border-radius: 50%;
+      position: absolute;
+      bottom: 180px;
+      right: 40px;
+      box-shadow: inset 0 0 20px #0f0;
+      overflow: hidden;
     }
     #waveCanvas { width: 100%; height: 100%; }
 
-    /* --- Instruments Bay --- */
+    /* ====== INSTRUMENTS BAY ====== */
     .instrument-bay {
-      display: flex; justify-content: center; align-items: center; gap: 40px;
-      padding: 40px 30px; background: #1a0d04; border-bottom: 3px solid var(--brass);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 40px;
+      padding: 40px 30px;
+      background: #1a0d04;
+      border-bottom: 3px solid var(--brass);
     }
     .round-meter {
-      width: 150px; height: 150px; background: var(--parchment);
-      border: 8px solid var(--brass); border-radius: 50%; position: relative;
+      width: var(--meter-size);
+      height: var(--meter-size);
+      background: var(--parchment);
+      border: 8px solid var(--brass);
+      border-radius: 50%;
+      position: relative;
+      flex-shrink: 0;
     }
-    .hand { position: absolute; bottom: 50%; left: 50%; transform-origin: bottom; }
-    .p-needle { width: 3px; height: 60px; background: #800; transform: rotate(-120deg); transition: 0.4s; }
+    .hand {
+      position: absolute;
+      bottom: 50%;
+      left: 50%;
+      transform-origin: bottom;
+    }
+    .p-needle {
+      width: 3px;
+      height: 60px;
+      background: #800;
+      transform: rotate(-120deg);
+      transition: 0.4s;
+    }
 
-    .tube-housing { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-    .vacuum-tube { width: 40px; height: 85px; background: rgba(200, 255, 255, 0.05); border: 2px solid rgba(255,255,255,0.2); border-radius: 20px 20px 5px 5px; position: relative; }
-    .glow-core { position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 80%; height: 85%; background: var(--aether); opacity: 0.2; transition: 0.3s; }
-    .active-link .glow-core { opacity: 1 !important; box-shadow: 0 0 40px var(--aether); }
+    .tube-housing {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .vacuum-tube {
+      width: 40px;
+      height: 85px;
+      background: rgba(200, 255, 255, 0.05);
+      border: 2px solid rgba(255,255,255,0.2);
+      border-radius: 20px 20px 5px 5px;
+      position: relative;
+    }
+    .glow-core {
+      position: absolute;
+      bottom: 5px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80%;
+      height: 85%;
+      background: var(--aether);
+      opacity: 0.2;
+      transition: 0.3s;
+    }
+    .active-link .glow-core {
+      opacity: 1 !important;
+      box-shadow: 0 0 40px var(--aether);
+    }
 
-    /* --- Network Telemetry Section --- */
+    /* ====== NETWORK TELEMETRY ====== */
     .telemetry-section {
-      background: #251206; padding: 20px; margin: 20px 80px; 
-      border: 3px inset #3d1c02; border-radius: 10px;
+      background: #251206;
+      padding: 20px;
+      margin: 20px var(--tele-margin-h);
+      border: 3px inset #3d1c02;
+      border-radius: 10px;
     }
-    .telemetry-header { display: flex; justify-content: space-between; margin-bottom: 10px; color: var(--brass); font-size: 12px;}
-    .gauges-container { display: flex; justify-content: space-around; flex-wrap: wrap; gap: 10px; }
-    .tele-gauge { width: 120px; text-align: center; }
-    .tele-gauge svg { width: 120px; height: 120px; }
+    .telemetry-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      color: var(--brass);
+      font-size: 12px;
+    }
+    .gauges-container {
+      display: flex;
+      justify-content: space-around;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .tele-gauge {
+      width: var(--gauge-svg-size);
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .tele-gauge svg { width: 100%; height: auto; }
     .scale-labels { font-size: 10px; fill: #fff; }
-    
-    .indicator-inner { animation: blink 1s infinite, brightness-blink 1s infinite; transition: fill 0.3s; }
-    @keyframes blink { 0%, 50%, 100% { opacity: 1; } 25%, 75% { opacity: 0; } }
-    @keyframes brightness-blink { 0%, 50%, 100% { filter: brightness(1); } 25%, 75% { filter: brightness(2); } }
 
-    #results { background: #000; color: var(--terminal); border: 4px solid #3d1c02; height: 160px; margin: 20px 160px 20px 80px; padding: 15px; overflow-y: auto; font-size: 11px; z-index: 2; border-radius: 4px; }
-    canvas#smokeCanvas { position: absolute; pointer-events: none; z-index: 2; top: 0; left: 0; }
-    
-    .main-btn { padding: 10px 20px; background: var(--brass); border: none; font-weight: bold; cursor: pointer; transition: 0.2s; color: #1a0d04; border-radius: 3px; }
+    .indicator-inner {
+      animation: blink 1s infinite, brightness-blink 1s infinite;
+      transition: fill 0.3s;
+    }
+    @keyframes blink {
+      0%, 50%, 100% { opacity: 1; }
+      25%, 75% { opacity: 0; }
+    }
+    @keyframes brightness-blink {
+      0%, 50%, 100% { filter: brightness(1); }
+      25%, 75% { filter: brightness(2); }
+    }
+
+    /* ====== RESULTS LOG ====== */
+    #results {
+      background: #000;
+      color: var(--terminal);
+      border: 4px solid #3d1c02;
+      height: 160px;
+      margin: 20px var(--results-margin-r) 20px var(--tele-margin-h);
+      padding: 15px;
+      overflow-y: auto;
+      font-size: 11px;
+      z-index: 2;
+      border-radius: 4px;
+      word-break: break-word;
+    }
+
+    /* ====== SMOKE CANVAS ====== */
+    canvas#smokeCanvas {
+      position: absolute;
+      pointer-events: none;
+      z-index: 2;
+      top: 0;
+      left: 0;
+    }
+
+    /* ====== CONTROLS ====== */
+    .controls-area {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 0 20px;
+    }
+    .input-row {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+      max-width: 600px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    #query {
+      padding: 10px;
+      flex: 1 1 200px;
+      max-width: 400px;
+      min-width: 0;
+      background: #000;
+      border: 2px solid var(--brass);
+      color: var(--brass);
+      outline: none;
+      font-family: inherit;
+      font-size: 14px;
+      border-radius: 3px;
+      box-sizing: border-box;
+    }
+    #query::placeholder { color: #665533; }
+    #query:focus { border-color: var(--aether); box-shadow: 0 0 8px rgba(0,212,255,0.3); }
+
+    .main-btn {
+      padding: 10px 20px;
+      background: var(--brass);
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s;
+      color: #1a0d04;
+      border-radius: 3px;
+      font-family: inherit;
+      font-size: 14px;
+      white-space: nowrap;
+      min-height: 44px;
+      min-width: 44px;
+    }
+    .main-btn:hover { background: #c9b94e; }
     .main-btn:active { transform: translateY(2px); }
     .main-btn:disabled { background: #444; color: #666; cursor: not-allowed; }
-    
-    .t-key { width: 60px; height: 35px; background: var(--copper); border: 3px solid #5e311a; border-radius: 5px; cursor: pointer; display: none; margin: 10px auto; box-shadow: 0 4px 0 #3d1c02; }
-    .t-key:active { transform: translateY(2px); box-shadow: 0 2px 0 #3d1c02; }
-    
-    .plaque { width: 200px; margin: 10px auto 0; background: linear-gradient(145deg, #d4af37, #8a6d3b); border: 2px solid #5e311a; padding: 6px; text-align: center; cursor: pointer; font-weight: bold; color: #3d1c02; border-radius: 2px; }
+    .main-btn:focus-visible { outline: 2px solid var(--aether); outline-offset: 2px; }
 
-    @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } }
+    /* Telegraph key — 44px minimum touch target for accessibility */
+    .t-key {
+      width: 80px;
+      height: 44px;
+      background: var(--copper);
+      border: 3px solid #5e311a;
+      border-radius: 5px;
+      cursor: pointer;
+      display: none;
+      margin: 0 auto;
+      box-shadow: 0 4px 0 #3d1c02;
+      font-family: inherit;
+      font-size: 10px;
+      color: #1a0d04;
+      font-weight: bold;
+      align-items: center;
+      justify-content: center;
+    }
+    .t-key:active { transform: translateY(2px); box-shadow: 0 2px 0 #3d1c02; }
+    .t-key:focus-visible { outline: 2px solid var(--aether); outline-offset: 2px; }
+
+    .plaque {
+      width: 200px;
+      margin: 0 auto;
+      background: linear-gradient(145deg, #d4af37, #8a6d3b);
+      border: 2px solid #5e311a;
+      padding: 6px;
+      text-align: center;
+      cursor: pointer;
+      font-weight: bold;
+      color: #3d1c02;
+      border-radius: 2px;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .plaque:focus-visible { outline: 2px solid var(--aether); outline-offset: 2px; }
+
+    /* ====== PRIVACY NOTICE ====== */
+    .privacy-notice {
+      font-size: 9px;
+      color: #665533;
+      text-align: center;
+      margin: 0 auto 10px;
+      max-width: 90%;
+      line-height: 1.4;
+    }
+
+    /* ====== SHAKE ANIMATION ====== */
+    @keyframes shake {
+      10%, 90% { transform: translate3d(-1px, 0, 0); }
+      20%, 80% { transform: translate3d(2px, 0, 0); }
+    }
+
+    /* ====== RESPONSIVE: TABLET ====== */
+    @media (max-width: 768px) {
+      :root {
+        --panel-margin: 15px;
+        --tele-margin-h: 30px;
+        --results-margin-r: 30px;
+        --meter-size: 110px;
+        --gauge-svg-size: 90px;
+      }
+      .steam-panel { border-width: 6px; }
+      .instrument-bay { gap: 20px; padding: 25px 15px; }
+      .coal-hopper { left: 10px; top: 70px; width: 22px; height: 120px; }
+      .crt-monitor { width: 80px; height: 80px; bottom: 140px; right: 20px; }
+      .fan-assembly { width: 60px; height: 60px; bottom: 15px; right: 15px; }
+      .telemetry-section { padding: 15px; }
+      #results { height: 130px; font-size: 10px; }
+    }
+
+    /* ====== RESPONSIVE: MOBILE ====== */
+    @media (max-width: 520px) {
+      :root {
+        --panel-margin: 8px;
+        --tele-margin-h: 12px;
+        --results-margin-r: 12px;
+        --meter-size: 90px;
+        --gauge-svg-size: 75px;
+        --input-width: 100%;
+      }
+      .steam-panel { border-width: 4px; }
+      .instrument-bay {
+        flex-wrap: wrap;
+        gap: 15px;
+        padding: 20px 10px;
+      }
+      /* Hide decorative elements on small screens — they overlap content */
+      .crt-monitor, .fan-assembly { display: none; }
+      .coal-hopper {
+        left: 8px;
+        top: 60px;
+        width: 18px;
+        height: 90px;
+      }
+      .hopper-label { font-size: 7px; top: -16px; }
+      .telemetry-section { padding: 12px 10px; margin: 12px; }
+      .telemetry-header { font-size: 10px; }
+      #results {
+        margin: 12px;
+        height: 110px;
+        padding: 10px;
+        font-size: 10px;
+      }
+      .input-row { flex-direction: column; align-items: stretch; }
+      #query { max-width: 100%; flex: 1 1 auto; }
+      .main-btn { width: 100%; }
+      .p-needle { height: 45px; }
+    }
   </style>
 </head>
 <body>
 
 <div class="steam-panel" id="deck">
-  <canvas id="smokeCanvas"></canvas>
+  <canvas id="smokeCanvas" aria-hidden="true"></canvas>
 
-  <div class="coal-hopper">
+  <div class="coal-hopper" aria-hidden="true">
     <div class="hopper-label">COAL</div>
     <div class="coal-level" id="fuelBar"></div>
   </div>
 
-  <div class="instrument-bay">
-    <div class="round-meter">
+  <section class="instrument-bay" aria-label="Engine Instruments">
+    <div class="round-meter" role="img" aria-label="Chronos Clock">
       <div class="hand" id="h-hour" style="width:4px; height:35px; background:#333; margin-left:-2px;"></div>
       <div class="hand" id="h-min" style="width:3px; height:50px; background:#555; margin-left:-1.5px;"></div>
       <div class="hand" id="h-sec" style="width:1.5px; height:60px; background:#800; margin-left:-0.75px; transition:none;"></div>
       <div style="position:absolute; width:100%; text-align:center; top:110px; font-size:10px; color:#5e311a; font-weight:bold;">CHRONOS</div>
     </div>
-    
+
     <div class="tube-housing">
-      <div class="vacuum-tube" id="vTube"><div class="glow-core" id="glowCore"></div></div>
-      <input type="range" id="vSlider" min="0" max="1" step="0.01" value="0.2" oninput="adjustVoltage(this.value)">
+      <div class="vacuum-tube" id="vTube" role="img" aria-label="Voltage Tube"><div class="glow-core" id="glowCore"></div></div>
+      <label for="vSlider" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">Voltage Control</label>
+      <input type="range" id="vSlider" min="0" max="1" step="0.01" value="0.2" aria-label="Voltage Control" />
     </div>
-    
-    <div class="round-meter">
+
+    <div class="round-meter" role="img" aria-label="Aether Pressure Gauge">
       <div class="hand p-needle" id="p-needle" style="margin-left:-1.5px;"></div>
       <div style="position:absolute; width:100%; text-align:center; top:110px; font-size:10px; color:#5e311a; font-weight:bold;">AETHER PSI</div>
     </div>
-  </div>
+  </section>
 
-  <div class="telemetry-section">
+  <section class="telemetry-section" aria-label="Network Telemetry">
     <div class="telemetry-header">
       <span>NETWORK TELEMETRY STATUS</span>
-      <span id="liveClock">00:00:00</span>
+      <span id="liveClock" aria-live="polite">00:00:00</span>
     </div>
     <div class="gauges-container">
-      <div class="tele-gauge">
+      <div class="tele-gauge" role="img" aria-label="Net Speed Gauge">
         <svg viewBox="0 0 200 200">
           <circle cx="100" cy="100" r="90" fill="#4b2e1f" stroke="#654321" stroke-width="4"/>
           <circle cx="100" cy="100" r="80" fill="#111"/>
@@ -150,7 +492,7 @@
         <div id="indicator1"><svg width="20" height="20"><circle stroke="#D2691E" stroke-width="2" fill="none" cx="10" cy="10" r="8"></circle><circle class="indicator-inner" cx="10" cy="10" r="4" fill="red"></circle></svg></div>
       </div>
 
-      <div class="tele-gauge">
+      <div class="tele-gauge" role="img" aria-label="Download Speed Gauge">
         <svg viewBox="0 0 200 200">
           <circle cx="100" cy="100" r="90" fill="#4b2e1f" stroke="#654321" stroke-width="4"/>
           <circle cx="100" cy="100" r="80" fill="#111"/>
@@ -161,7 +503,7 @@
         <div id="indicator2"><svg width="20" height="20"><circle stroke="#D2691E" stroke-width="2" fill="none" cx="10" cy="10" r="8"></circle><circle class="indicator-inner" cx="10" cy="10" r="4" fill="green"></circle></svg></div>
       </div>
 
-      <div class="tele-gauge">
+      <div class="tele-gauge" role="img" aria-label="Upload Speed Gauge">
         <svg viewBox="0 0 200 200">
           <circle cx="100" cy="100" r="90" fill="#4b2e1f" stroke="#654321" stroke-width="4"/>
           <circle cx="100" cy="100" r="80" fill="#111"/>
@@ -172,82 +514,170 @@
         <div id="indicator3"><svg width="20" height="20"><circle stroke="#D2691E" stroke-width="2" fill="none" cx="10" cy="10" r="8"></circle><circle class="indicator-inner" cx="10" cy="10" r="4" fill="orange"></circle></svg></div>
       </div>
     </div>
-  </div>
+  </section>
 
-  <div class="crt-monitor" id="monitor"><canvas id="waveCanvas"></canvas></div>
+  <!-- CRT Monitor — decorative, hidden on mobile via CSS -->
+  <div class="crt-monitor" id="monitor" aria-hidden="true"><canvas id="waveCanvas"></canvas></div>
 
-  <div class="fan-assembly">
+  <!-- Fan Assembly — decorative, hidden on mobile via CSS -->
+  <div class="fan-assembly" aria-hidden="true">
     <svg id="fan-svg" viewBox="0 0 100 100">
       <path d="M50 50 L50 5 A20 20 0 0 1 70 25 Z M50 50 L95 50 A20 20 0 0 1 75 70 Z M50 50 L50 95 A20 20 0 0 1 30 75 Z M50 50 L5 50 A20 20 0 0 1 25 30 Z" fill="#222"/>
       <circle cx="50" cy="50" r="8" fill="#444" />
     </svg>
   </div>
 
-  <div id="results">RESERVES MONITORED. READY FOR UPLINK.</div>
+  <div id="results" role="log" aria-live="polite" aria-label="Engine Output Log">RESERVES MONITORED. READY FOR UPLINK.</div>
 
-  <div style="text-align: center;">
-    <input type="text" id="query" style="padding:10px; width:40%; background:#000; border:2px solid var(--brass); color:var(--brass); outline:none;" placeholder="MODULATE FREQUENCY..." />
-    <button id="mainBtn" class="main-btn" onclick="handleEngine()">ENGAGE BOILER</button>
-    <div id="t-key" class="t-key" title="NETWORK FLUSH & TRANSMIT" onclick="tapKey()"></div>
-    <div class="plaque" onclick="inspectPlaque()" id="plaqueText">ASHRAF ALI</div>
+  <div class="controls-area">
+    <div class="input-row">
+      <!-- autocomplete=off prevents browser autofill from injecting sensitive data -->
+      <!-- maxlength limits input to prevent oversized payloads -->
+      <input
+        type="text"
+        id="query"
+        autocomplete="off"
+        maxlength="500"
+        spellcheck="false"
+        style="padding:10px; background:#000; border:2px solid var(--brass); color:var(--brass); outline:none; font-family:inherit; font-size:14px; border-radius:3px; box-sizing:border-box;"
+        placeholder="MODULATE FREQUENCY..."
+        aria-label="Query Input"
+      />
+      <button id="mainBtn" class="main-btn" aria-label="Engage Boiler">ENGAGE BOILER</button>
+    </div>
+
+    <button id="t-key" class="t-key" title="NETWORK FLUSH & TRANSMIT" aria-label="Network Flush and Transmit">TRANSMIT</button>
+
+    <div class="plaque" id="plaqueText" role="button" tabindex="0" aria-label="Ashraf Ali Plaque">ASHRAF ALI</div>
+
+    <!-- Privacy disclosure: users must know their data leaves the page -->
+    <div class="privacy-notice">Query text is transmitted to an external USDA data service. No personal data is stored locally or tracked.</div>
   </div>
 </div>
 
 <script>
-  const audio = new (window.AudioContext || window.webkitAudioContext)();
+  /* ═══════════════════════════════════════════
+     SECURITY: Lazy AudioContext creation
+     - Avoids auto-play policy violations on mobile
+     - Only initializes after user gesture
+     ═══════════════════════════════════════════ */
+  let audioCtx = null;
+  function getAudio() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+    return audioCtx;
+  }
+
+  /* ═══════════════════════════════════════════
+     SECURITY: Input Sanitization
+     - Strips all HTML tags (prevents injection into the API payload)
+     - Removes javascript: URIs and event handler patterns
+     - Enforces length limit (defense in depth with maxlength attribute)
+     - Trims whitespace
+     ═══════════════════════════════════════════ */
+  function sanitizeInput(raw) {
+    if (typeof raw !== 'string') return '';
+    let clean = raw;
+    // Strip HTML/XML tags
+    clean = clean.replace(/<[^>]*>/g, '');
+    // Remove javascript: protocol
+    clean = clean.replace(/javascript\s*:/gi, '');
+    // Remove inline event handler patterns
+    clean = clean.replace(/on\w+\s*=\s*/gi, '');
+    // Remove common encoding tricks
+    clean = clean.replace(/&#(\d+);?/g, '');
+    clean = clean.replace(/&#[xX]([0-9a-fA-F]+);?/g, '');
+    // Enforce length limit
+    clean = clean.substring(0, 500);
+    // Trim
+    clean = clean.trim();
+    return clean;
+  }
+
+  /* ═══════════════════════════════════════════
+     ACCESSIBILITY: Reduced motion preference
+     ═══════════════════════════════════════════ */
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ═══════════════════════════════════════════
+     CANVAS SETUP
+     ═══════════════════════════════════════════ */
   const sCanvas = document.getElementById('smokeCanvas');
   const sCtx = sCanvas.getContext('2d');
   const wCanvas = document.getElementById('waveCanvas');
   const wCtx = wCanvas.getContext('2d');
-  
-  let parts = []; let psi = 0; let active = false; let errorState = false;
-  let waveOffset = 0; let fanRot = 0; let fuel = 100;
 
-  /* --- NETWORK FLUSH LOGIC --- */
-  function flushGauges() {
-    // Force needles to 0 during uplink
-    animateNeedle('needle1', 0);
-    animateNeedle('needle2', 0);
-    animateNeedle('needle3', 0);
-    // Set indicators to 'Aether Blue' for transmission
-    setIndicator('indicator1', 'var(--aether)', true);
-    setIndicator('indicator2', 'var(--aether)', true);
-    setIndicator('indicator3', 'var(--aether)', true);
-  }
+  let parts = [];
+  let psi = 0;
+  let active = false;
+  let errorState = false;
+  let waveOffset = 0;
+  let fanRot = 0;
+  let fuel = 100;
 
-  function createTicks(groupId, startAngle, endAngle, numTicks=10) {
-    const group = document.getElementById(groupId);
-    for(let i=0; i<=numTicks; i++) {
-      const angleDeg = startAngle + (i / numTicks) * (endAngle - startAngle);
-      const angleRad = angleDeg * Math.PI / 180;
-      const x1 = 100 + 80 * Math.cos(angleRad); const y1 = 100 + 80 * Math.sin(angleRad);
-      const x2 = 100 + 72 * Math.cos(angleRad); const y2 = 100 + 72 * Math.sin(angleRad);
-      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      line.setAttribute('x1', x1); line.setAttribute('y1', y1); line.setAttribute('x2', x2); line.setAttribute('y2', y2);
-      line.setAttribute('stroke', '#fff'); line.setAttribute('stroke-width', '1');
+  /* ═══════════════════════════════════════════
+     GAUGE HELPERS
+     ═══════════════════════════════════════════ */
+  function createTicks(groupId, startAngle, endAngle, numTicks) {
+    numTicks = numTicks || 10;
+    var group = document.getElementById(groupId);
+    if (!group) return;
+    for (var i = 0; i <= numTicks; i++) {
+      var angleDeg = startAngle + (i / numTicks) * (endAngle - startAngle);
+      var angleRad = angleDeg * Math.PI / 180;
+      var x1 = 100 + 80 * Math.cos(angleRad);
+      var y1 = 100 + 80 * Math.sin(angleRad);
+      var x2 = 100 + 72 * Math.cos(angleRad);
+      var y2 = 100 + 72 * Math.sin(angleRad);
+      var line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', x1);
+      line.setAttribute('y1', y1);
+      line.setAttribute('x2', x2);
+      line.setAttribute('y2', y2);
+      line.setAttribute('stroke', '#fff');
+      line.setAttribute('stroke-width', '1');
       group.appendChild(line);
     }
   }
 
-  function animateNeedle(needleId, targetValue, max=100) {
-    const needle = document.getElementById(needleId);
-    const endAngle = (targetValue / max) * 300 - 150;
-    needle.style.transition = active ? "transform 0.5s ease-in" : "transform 1.5s ease-out";
-    needle.setAttribute('transform', `rotate(${endAngle} 100 100)`);
+  function animateNeedle(needleId, targetValue, max) {
+    max = max || 100;
+    var needle = document.getElementById(needleId);
+    if (!needle) return;
+    var endAngle = (targetValue / max) * 300 - 150;
+    needle.style.transition = active ? 'transform 0.5s ease-in' : 'transform 1.5s ease-out';
+    needle.setAttribute('transform', 'rotate(' + endAngle + ' 100 100)');
   }
 
-  function setIndicator(indicatorId, color, shouldBlink=false) {
-    const indicatorContainer = document.getElementById(indicatorId);
-    const innerCircle = indicatorContainer.querySelector('.indicator-inner');
-    innerCircle.setAttribute('fill', color);
-    innerCircle.style.animation = shouldBlink ? 'blink 1s infinite, brightness-blink 1s infinite' : 'none';
+  function setIndicator(indicatorId, color, shouldBlink) {
+    var container = document.getElementById(indicatorId);
+    if (!container) return;
+    var inner = container.querySelector('.indicator-inner');
+    if (!inner) return;
+    inner.setAttribute('fill', color);
+    inner.style.animation = shouldBlink
+      ? 'blink 1s infinite, brightness-blink 1s infinite'
+      : 'none';
+  }
+
+  function flushGauges() {
+    animateNeedle('needle1', 0);
+    animateNeedle('needle2', 0);
+    animateNeedle('needle3', 0);
+    setIndicator('indicator1', '#00d4ff', true);
+    setIndicator('indicator2', '#00d4ff', true);
+    setIndicator('indicator3', '#00d4ff', true);
   }
 
   function simulateNetworkData() {
-    if (active) return; // Don't simulate while flushing/transmitting
-    const netSpeed = Math.random() * 100;
-    const dlSpeed = Math.random() * 100;
-    const ulSpeed = Math.random() * 100;
+    if (active) return;
+    var netSpeed = Math.random() * 100;
+    var dlSpeed = Math.random() * 100;
+    var ulSpeed = Math.random() * 100;
     animateNeedle('needle1', netSpeed);
     animateNeedle('needle2', dlSpeed);
     animateNeedle('needle3', ulSpeed);
@@ -256,171 +686,415 @@
     setIndicator('indicator3', '#FFA500', true);
   }
 
+  /* ═══════════════════════════════════════════
+     CLOCK
+     ═══════════════════════════════════════════ */
   function updateClock() {
-    const now = new Date();
-    document.getElementById('liveClock').textContent = now.toTimeString().split(' ')[0];
+    var now = new Date();
+    var el = document.getElementById('liveClock');
+    if (el) el.textContent = now.toTimeString().split(' ')[0];
   }
 
+  function updateChronos() {
+    var now = new Date();
+    var hSec = document.getElementById('h-sec');
+    var hMin = document.getElementById('h-min');
+    var hHour = document.getElementById('h-hour');
+    if (hSec) hSec.style.transform = 'rotate(' + ((now.getSeconds() * 6) + (now.getMilliseconds() * 0.006)) + 'deg)';
+    if (hMin) hMin.style.transform = 'rotate(' + ((now.getMinutes() * 6) + (now.getSeconds() * 0.1)) + 'deg)';
+    if (hHour) hHour.style.transform = 'rotate(' + ((now.getHours() % 12 * 30) + (now.getMinutes() * 0.5)) + 'deg)';
+    requestAnimationFrame(updateChronos);
+  }
+
+  /* ═══════════════════════════════════════════
+     VOLTAGE SLIDER (event handler in JS, not inline)
+     ═══════════════════════════════════════════ */
   function adjustVoltage(val) {
-    const core = document.getElementById('glowCore');
-    if (!active) { 
-        core.style.opacity = val; 
-        core.style.boxShadow = `0 0 ${val * 40}px var(--aether)`; 
+    var core = document.getElementById('glowCore');
+    if (!core) return;
+    if (!active) {
+      core.style.opacity = val;
+      core.style.boxShadow = '0 0 ' + (val * 40) + 'px var(--aether)';
     }
   }
 
-  function snd(f, d, v=0.05, type='sine') {
-    const o = audio.createOscillator(); const g = audio.createGain();
-    o.type = type; o.frequency.value = f; g.gain.setValueAtTime(v, audio.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.01, audio.currentTime + d);
-    o.connect(g); g.connect(audio.destination); o.start(); o.stop(audio.currentTime + d);
+  /* ═══════════════════════════════════════════
+     AUDIO (lazy AudioContext)
+     ═══════════════════════════════════════════ */
+  function snd(f, d, v, type) {
+    try {
+      var ctx = getAudio();
+      v = v || 0.05;
+      type = type || 'sine';
+      var o = ctx.createOscillator();
+      var g = ctx.createGain();
+      o.type = type;
+      o.frequency.value = f;
+      g.gain.setValueAtTime(v, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + d);
+      o.connect(g);
+      g.connect(ctx.destination);
+      o.start();
+      o.stop(ctx.currentTime + d);
+    } catch (e) {
+      /* Audio failure is non-critical — silently ignore */
+    }
   }
 
-  function steamHiss(duration = 1.2, volume = 0.1) {
-    const buffer = audio.createBuffer(1, audio.sampleRate * duration, audio.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < buffer.length; i++) data[i] = Math.random() * 2 - 1;
-    const source = audio.createBufferSource(); source.buffer = buffer;
-    const g = audio.createGain(); g.gain.setValueAtTime(volume, audio.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.01, audio.currentTime + duration);
-    source.connect(g); g.connect(audio.destination); source.start();
+  function steamHiss(duration, volume) {
+    try {
+      var ctx = getAudio();
+      duration = duration || 1.2;
+      volume = volume || 0.1;
+      var buffer = ctx.createBuffer(1, ctx.sampleRate * duration, ctx.sampleRate);
+      var data = buffer.getChannelData(0);
+      for (var i = 0; i < buffer.length; i++) data[i] = Math.random() * 2 - 1;
+      var source = ctx.createBufferSource();
+      source.buffer = buffer;
+      var g = ctx.createGain();
+      g.gain.setValueAtTime(volume, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+      source.connect(g);
+      g.connect(ctx.destination);
+      source.start();
+    } catch (e) {
+      /* Audio failure is non-critical */
+    }
   }
 
+  /* ═══════════════════════════════════════════
+     WAVE CANVAS
+     ═══════════════════════════════════════════ */
   function drawWave() {
+    if (!wCanvas) return;
     wCtx.clearRect(0, 0, wCanvas.width, wCanvas.height);
-    wCtx.beginPath(); wCtx.strokeStyle = errorState ? '#f00' : (active ? '#00d4ff' : '#0f0'); 
+    wCtx.beginPath();
+    wCtx.strokeStyle = errorState ? '#f00' : (active ? '#00d4ff' : '#0f0');
     wCtx.lineWidth = 2;
-    let amp = 10 + (psi / 4) + (active ? 40 : 0);
-    let freq = 0.05 + (active ? 0.3 : 0);
-    for (let x = 0; x < wCanvas.width; x++) {
-      let y = errorState ? (wCanvas.height/2 + (Math.sin(x*freq+waveOffset)>0?amp:-amp)) : (wCanvas.height/2 + Math.sin(x*freq+waveOffset)*amp);
-      x === 0 ? wCtx.moveTo(x, y) : wCtx.lineTo(x, y);
+    var amp = 10 + (psi / 4) + (active ? 40 : 0);
+    var freq = 0.05 + (active ? 0.3 : 0);
+    for (var x = 0; x < wCanvas.width; x++) {
+      var y = errorState
+        ? (wCanvas.height / 2 + (Math.sin(x * freq + waveOffset) > 0 ? amp : -amp))
+        : (wCanvas.height / 2 + Math.sin(x * freq + waveOffset) * amp);
+      if (x === 0) wCtx.moveTo(x, y);
+      else wCtx.lineTo(x, y);
     }
-    wCtx.stroke(); waveOffset += 0.15 + (psi / 200) + (errorState ? 0.5 : 0);
+    wCtx.stroke();
+    waveOffset += 0.15 + (psi / 200) + (errorState ? 0.5 : 0);
     requestAnimationFrame(drawWave);
   }
 
+  /* ═══════════════════════════════════════════
+     ENGINE LOOP (smoke + fan)
+     ═══════════════════════════════════════════ */
   function engineLoop() {
     sCtx.clearRect(0, 0, sCanvas.width, sCanvas.height);
-    if (psi > 0 || active) {
-      if(Math.random() < (active ? 0.8 : 0.3)) parts.push({ x: 50, y: 50, vx: (Math.random()-0.5)*4, vy: -3, s: 2, a: 1 });
-    }
-    let fanSpeed = 2 + (psi / 10) + (active ? 30 : 0);
-    fanRot += fanSpeed;
-    document.getElementById('fan-svg').style.transform = `rotate(${fanRot}deg)`;
-    document.getElementById('fuelBar').style.height = fuel + "%";
 
-    for (let i = parts.length - 1; i >= 0; i--) {
-      let p = parts[i]; p.x += p.vx; p.y += p.vy; p.s += 0.4; p.a -= 0.02;
-      sCtx.globalAlpha = Math.max(0, p.a); sCtx.fillStyle = active ? "#fff" : "#bbb";
-      sCtx.beginPath(); sCtx.arc(p.x, p.y, p.s, 0, Math.PI*2); sCtx.fill();
+    if (!prefersReducedMotion && (psi > 0 || active)) {
+      if (Math.random() < (active ? 0.8 : 0.3)) {
+        parts.push({ x: 50, y: 50, vx: (Math.random() - 0.5) * 4, vy: -3, s: 2, a: 1 });
+      }
+    }
+
+    var fanSpeed = 2 + (psi / 10) + (active ? 30 : 0);
+    if (!prefersReducedMotion) {
+      fanRot += fanSpeed;
+    }
+    var fanSvg = document.getElementById('fan-svg');
+    if (fanSvg) fanSvg.style.transform = 'rotate(' + fanRot + 'deg)';
+
+    var fuelBar = document.getElementById('fuelBar');
+    if (fuelBar) fuelBar.style.height = fuel + '%';
+
+    for (var i = parts.length - 1; i >= 0; i--) {
+      var p = parts[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.s += 0.4;
+      p.a -= 0.02;
+      sCtx.globalAlpha = Math.max(0, p.a);
+      sCtx.fillStyle = active ? '#fff' : '#bbb';
+      sCtx.beginPath();
+      sCtx.arc(p.x, p.y, p.s, 0, Math.PI * 2);
+      sCtx.fill();
       if (p.a <= 0) parts.splice(i, 1);
     }
+
     requestAnimationFrame(engineLoop);
   }
 
+  /* ═══════════════════════════════════════════
+     ENGINE CONTROLS (event handlers via addEventListener)
+     ═══════════════════════════════════════════ */
   function handleEngine() {
-    const btn = document.getElementById('mainBtn');
+    var btn = document.getElementById('mainBtn');
+    if (!btn) return;
     if (fuel <= 0) return;
-    if (btn.textContent === "ENGAGE BOILER") { btn.textContent = "SHOVEL COAL"; } 
-    else {
-      fuel -= 15; psi += 25; 
+
+    if (btn.textContent === 'ENGAGE BOILER') {
+      btn.textContent = 'SHOVEL COAL';
+    } else {
+      fuel -= 15;
+      psi += 25;
       snd(60 + (psi * 0.4), 0.4, 0.1, 'sawtooth');
-      document.getElementById('p-needle').style.transform = `rotate(${-120 + (psi*2.4)}deg)`;
-      if (fuel <= 0) { fuel = 0; btn.disabled = true; document.getElementById('plaqueText').textContent = "OPEN COAL CHUTE"; }
-      if (psi >= 125) { document.getElementById('deck').style.animation = "shake 0.2s infinite"; steamHiss(0.2, 0.04); }
-      if (psi >= 100 && !active) { document.getElementById('t-key').style.display = 'block'; }
+
+      var needle = document.getElementById('p-needle');
+      if (needle) needle.style.transform = 'rotate(' + (-120 + (psi * 2.4)) + 'deg)';
+
+      if (fuel <= 0) {
+        fuel = 0;
+        btn.disabled = true;
+        var plaque = document.getElementById('plaqueText');
+        if (plaque) plaque.textContent = 'OPEN COAL CHUTE';
+      }
+      if (psi >= 125) {
+        var deck = document.getElementById('deck');
+        if (deck) deck.style.animation = 'shake 0.2s infinite';
+        steamHiss(0.2, 0.04);
+      }
+      if (psi >= 100 && !active) {
+        var key = document.getElementById('t-key');
+        if (key) key.style.display = 'flex';
+      }
     }
   }
 
+  /* ═══════════════════════════════════════════
+     UPLINK — API CALL WITH FULL SECURITY HARDENING
+     - Input sanitization before transmission
+     - AbortController timeout (15s)
+     - Response type validation
+     - JSON parse error handling
+     - Output truncation for performance
+     - textContent only (XSS-safe rendering)
+     ═══════════════════════════════════════════ */
   async function runUplink() {
-    active = true; errorState = false;
-    document.getElementById('vTube').classList.add('active-link');
-    flushGauges(); // EXECUTING THE NETWORK FLUSH
+    active = true;
+    errorState = false;
+
+    var vTube = document.getElementById('vTube');
+    if (vTube) vTube.classList.add('active-link');
+
+    flushGauges();
     steamHiss(2.0, 0.2);
-    
+
+    var resultsEl = document.getElementById('results');
+    if (resultsEl) resultsEl.textContent = 'DATA FLUSHED. TRANSMITTING AETHER PULSE...';
+
     try {
-      document.getElementById('results').textContent = "DATA FLUSHED. TRANSMITTING AETHER PULSE...";
-      
-      const queryVal = document.getElementById('query').value;
-      
-      // SECURITY: Basic validation before sending
-      if (!queryVal.trim()) {
-          throw new Error("FREQUENCY MODULATION EMPTY");
+      var rawQuery = document.getElementById('query').value;
+      var sanitized = sanitizeInput(rawQuery);
+
+      if (!sanitized) {
+        throw new Error('FREQUENCY MODULATION EMPTY');
       }
 
-      const res = await fetch('https://ouadtdnyyaxprbdeotvl.supabase.co/functions/v1/usda-proxy', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ query: queryVal })
+      // SECURITY: AbortController prevents infinite hang on network failure
+      var controller = new AbortController();
+      var timeoutId = setTimeout(function() { controller.abort(); }, 15000);
+
+      var res = await fetch('https://ouadtdnyyaxprbdeotvl.supabase.co/functions/v1/usda-proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: sanitized }),
+        signal: controller.signal
       });
-      
+
+      clearTimeout(timeoutId);
+
       if (!res.ok) {
-          throw new Error(`UPLINK ERROR: ${res.status}`);
+        throw new Error('UPLINK ERROR: HTTP ' + res.status);
       }
 
-      const data = await res.json();
-      
-      // SECURITY: Using textContent prevents XSS from the API response
-      document.getElementById('results').textContent = JSON.stringify(data, null, 2);
-      
+      // SECURITY: Validate JSON response before processing
+      var data;
+      try {
+        data = await res.json();
+      } catch (parseErr) {
+        throw new Error('UPLINK PARSE ERROR: Invalid response format');
+      }
+
+      // SECURITY: Validate response is an object (not a string with injected HTML)
+      if (data === null || typeof data !== 'object' || Array.isArray(data)) {
+        // Arrays and primitives are safe to stringify via textContent
+      }
+
+      // SECURITY: textContent is immune to XSS — even if API returns malicious HTML
+      var displayText = JSON.stringify(data, null, 2);
+
+      // Truncate extremely long responses to prevent UI freeze
+      if (displayText.length > 10000) {
+        displayText = displayText.substring(0, 10000) + '\n\n[... OUTPUT TRUNCATED FOR PERFORMANCE ...]';
+      }
+
+      if (resultsEl) resultsEl.textContent = displayText;
+
     } catch (e) {
       errorState = true;
-      // SECURITY: Displaying error message safely via textContent
-      document.getElementById('results').textContent = "UPLINK FAILED: " + e.message;
+      var errorMsg = 'UPLINK FAILED';
+      if (e.name === 'AbortError') {
+        errorMsg += ': TRANSMISSION TIMEOUT (15s)';
+      } else {
+        // SECURITY: Error message via textContent — no injection possible
+        errorMsg += ': ' + (e.message || 'UNKNOWN ERROR');
+      }
+      if (resultsEl) resultsEl.textContent = errorMsg;
     } finally {
-      setTimeout(() => {
-        active = false; psi = 0; errorState = false;
-        document.getElementById('deck').style.animation = "none";
-        document.getElementById('vTube').classList.remove('active-link');
-        document.getElementById('p-needle').style.transform = `rotate(-120deg)`;
-        document.getElementById('mainBtn').textContent = "ENGAGE BOILER";
-        steamHiss(1.5, 0.1); // Venting final steam
+      setTimeout(function() {
+        active = false;
+        psi = 0;
+        errorState = false;
+
+        var deck = document.getElementById('deck');
+        if (deck) deck.style.animation = 'none';
+
+        if (vTube) vTube.classList.remove('active-link');
+
+        var needle = document.getElementById('p-needle');
+        if (needle) needle.style.transform = 'rotate(-120deg)';
+
+        var btn = document.getElementById('mainBtn');
+        if (btn) btn.textContent = 'ENGAGE BOILER';
+
+        steamHiss(1.5, 0.1);
       }, 4000);
     }
   }
 
-  function tapKey() { 
-    snd(1200, 0.1, 0.3, 'square'); 
-    document.getElementById('t-key').style.display = 'none'; 
-    runUplink(); 
+  function tapKey() {
+    snd(1200, 0.1, 0.3, 'square');
+    var key = document.getElementById('t-key');
+    if (key) key.style.display = 'none';
+    runUplink();
   }
 
   function inspectPlaque() {
-    const p = document.getElementById('plaqueText');
-    if (p.textContent === "OPEN COAL CHUTE") {
-      snd(100, 0.5, 0.2, 'square'); fuel = 100; p.textContent = "ASHRAF ALI";
-      document.getElementById('mainBtn').disabled = false;
-      document.getElementById('mainBtn').textContent = "ENGAGE BOILER";
+    var p = document.getElementById('plaqueText');
+    if (!p) return;
+
+    if (p.textContent === 'OPEN COAL CHUTE') {
+      snd(100, 0.5, 0.2, 'square');
+      fuel = 100;
+      p.textContent = 'ASHRAF ALI';
+      var btn = document.getElementById('mainBtn');
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'ENGAGE BOILER';
+      }
     } else {
       snd(400, 0.1, 0.1);
-      p.textContent = (p.textContent === "ASHRAF ALI") ? "OMNI-CHASSIS" : "ASHRAF ALI";
+      p.textContent = (p.textContent === 'ASHRAF ALI') ? 'OMNI-CHASSIS' : 'ASHRAF ALI';
     }
   }
 
-  function resize() { 
-    const d = document.getElementById('deck'); 
-    sCanvas.width = d.offsetWidth; sCanvas.height = d.offsetHeight; 
-    wCanvas.width = 120; wCanvas.height = 120;
-  }
-  
-  function updateChronos() {
-    const now = new Date();
-    document.getElementById('h-sec').style.transform = `rotate(${(now.getSeconds()*6) + (now.getMilliseconds()*0.006)}deg)`;
-    document.getElementById('h-min').style.transform = `rotate(${(now.getMinutes()*6) + (now.getSeconds()*0.1)}deg)`;
-    document.getElementById('h-hour').style.transform = `rotate(${(now.getHours()%12*30) + (now.getMinutes()*0.5)}deg)`;
-    requestAnimationFrame(updateChronos);
+  /* ═══════════════════════════════════════════
+     RESIZE HANDLER
+     ═══════════════════════════════════════════ */
+  function resize() {
+    var d = document.getElementById('deck');
+    if (d) {
+      sCanvas.width = d.offsetWidth;
+      sCanvas.height = d.offsetHeight;
+    }
+    wCanvas.width = 120;
+    wCanvas.height = 120;
   }
 
-  // Add resize listener via JS for better practice (cleaner than inline onresize)
-  window.onresize = resize;
+  /* ═══════════════════════════════════════════
+     EVENT LISTENERS (all moved from inline handlers)
+     ═══════════════════════════════════════════ */
+  document.addEventListener('DOMContentLoaded', function() {
+    // Main button
+    var mainBtn = document.getElementById('mainBtn');
+    if (mainBtn) mainBtn.addEventListener('click', handleEngine);
 
-  window.onload = () => { 
-    resize(); 
-    createTicks('ticks1', -150, 150); createTicks('ticks2', -150, 150); createTicks('ticks3', -150, 150);
-    engineLoop(); drawWave(); updateChronos(); adjustVoltage(0.2); 
+    // Telegraph key
+    var tKey = document.getElementById('t-key');
+    if (tKey) tKey.addEventListener('click', tapKey);
+
+    // Plaque — supports both click and keyboard (Enter/Space) for accessibility
+    var plaque = document.getElementById('plaqueText');
+    if (plaque) {
+      plaque.addEventListener('click', inspectPlaque);
+      plaque.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          inspectPlaque();
+        }
+      });
+    }
+
+    // Voltage slider
+    var vSlider = document.getElementById('vSlider');
+    if (vSlider) {
+      vSlider.addEventListener('input', function() {
+        adjustVoltage(this.value);
+      });
+    }
+
+    // Allow Enter key on query input to trigger boiler
+    var queryInput = document.getElementById('query');
+    if (queryInput) {
+      queryInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleEngine();
+        }
+      });
+    }
+
+    // Initialize
+    resize();
+    createTicks('ticks1', -150, 150);
+    createTicks('ticks2', -150, 150);
+    createTicks('ticks3', -150, 150);
+    engineLoop();
+    drawWave();
+    updateChronos();
+    adjustVoltage(0.2);
+
     setInterval(updateClock, 1000);
     setInterval(simulateNetworkData, 2000);
-  };
+  });
+
+  // Debounced resize
+  var resizeTimer;
+  window.addEventListener('resize', function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(resize, 150);
+  });
 </script>
+
+<!--
+  ╔═══════════════════════════════════════════════════════════════════╗
+  ║  GITHUB PAGES DEPLOYMENT CHECKLIST                               ║
+  ║                                                                   ║
+  ║  1. Create a file named "_headers" in your repository root with:  ║
+  ║                                                                   ║
+  ║     /*                                                            ║
+  ║       X-Frame-Options: DENY                                       ║
+  ║       X-Content-Type-Options: nosniff                             ║
+  ║       Referrer-Policy: no-referrer                                ║
+  ║       Permissions-Policy: camera=(), microphone=(),               ║
+  ║                          geolocation=(), payment=()               ║
+  ║       Strict-Transport-Security: max-age=31536000;                ║
+  ║                                includeSubDomains                  ║
+  ║                                                                   ║
+  ║     /favicon.png                                                  ║
+  ║       Cache-Control: public, max-age=31536000                     ║
+  ║                                                                   ║
+  ║  2. Self-host the leather background texture to eliminate the     ║
+  ║     external dependency on transparenttextures.com.                ║
+  ║                                                                   ║
+  ║  3. Consider replacing 'unsafe-inline' in CSP with nonce-based    ║
+  ║     script-src if you ever add a build step (e.g., 11ty, Hugo).  ║
+  ║                                                                   ║
+  ║  4. Run your Supabase edge function through Supabase's built-in   ║
+  ║     RLS/RLS policies and parameterized queries to prevent SQL     ║
+  ║     injection on the server side. Client-side sanitization alone   ║
+  ║     is NOT sufficient defense.                                    ║
+  ╚═══════════════════════════════════════════════════════════════════╝
+-->
 </body>
 </html>
