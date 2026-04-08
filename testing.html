@@ -4,38 +4,31 @@
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline'; connect-src 'self' wss://*.peerjs.com https://*.peerjs.com; img-src 'self' data: https:; font-src 'self';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OMNI-LINK | P2P RELAY</title>
+<title>OMNI-LINK | DIAGNOSTIC</title>
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <style>
     :root {
-        --bg: #050505;
-        --surface: #0f0f0f;
-        --border: #1a1a1a;
-        --accent: #39ff14;
-        --text: #d0d0d0;
+        --bg: #050505; --surface: #0f0f0f; --border: #1a1a1a;
+        --accent: #39ff14; --text: #d0d0d0; --warn: #ff3333;
+        --cyan: #00d4ff; --gold: #ffd700;
         --mono: 'Courier New', Courier, monospace;
     }
-
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { 
         background: var(--bg); color: var(--text); font-family: var(--mono); 
-        height: 100vh;
-        height: 100dvh;
-        display: flex; flex-direction: column; overflow: hidden;
-        padding-top: env(safe-area-inset-top);
-        padding-bottom: env(safe-area-inset-bottom);
-        padding-left: env(safe-area-inset-left);
-        padding-right: env(safe-area-inset-right);
+        height: 100vh; height: 100dvh; display: flex; flex-direction: column; 
+        overflow: hidden;
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) 
+                 env(safe-area-inset-bottom) env(safe-area-inset-left);
     }
-
     .header {
         display: flex; align-items: center; justify-content: space-between;
         padding: 10px 15px; background: var(--surface); border-bottom: 1px solid var(--border);
-        flex-shrink: 0;
+        flex-shrink: 0; gap: 10px; flex-wrap: wrap;
     }
-    .header-title { color: var(--accent); font-weight: bold; font-size: 14px; letter-spacing: 2px; }
+    .header-title { color: var(--accent); font-weight: bold; font-size: 13px; letter-spacing: 2px; }
+    .header-sub { color: #555; font-size: 9px; letter-spacing: 1px; }
     .header-badges { display: flex; align-items: center; gap: 8px; }
-
     .net-indicator {
         display: inline-flex; align-items: center; gap: 5px;
         font-size: 9px; font-weight: bold; text-transform: uppercase;
@@ -43,81 +36,72 @@
         background: #111; opacity: 0.3; transition: opacity 0.4s;
     }
     .net-indicator.active { opacity: 1; }
-
     .net-dot {
         width: 6px; height: 6px; border-radius: 50%; background: #333;
         transition: background 0.4s, box-shadow 0.4s;
     }
-    .net-dot.lan { background: #39ff14; box-shadow: 0 0 6px #39ff14; }
-    .net-dot.p2p { background: #00d4ff; box-shadow: 0 0 6px #00d4ff; }
-    .net-dot.relay { background: #ffd700; box-shadow: 0 0 6px #ffd700; }
-
+    .net-dot.lan { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+    .net-dot.p2p { background: var(--cyan); box-shadow: 0 0 6px var(--cyan); }
+    .net-dot.relay { background: var(--gold); box-shadow: 0 0 6px var(--gold); }
     #netText { color: #444; transition: color 0.4s; }
-
-    .status-badge { display: flex; align-items: center; gap: 8px; font-size: 10px; text-transform: uppercase; }
-    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #444; transition: background 0.4s, box-shadow 0.4s; }
+    .status-badge { display: flex; align-items: center; gap: 6px; font-size: 10px; text-transform: uppercase; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #444; transition: background 0.3s; }
     .status-dot.online { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
-    .status-dot.listening { background: #ffd700; animation: blink 1s infinite; }
-    .status-dot.connecting { background: #00d4ff; animation: pulse 0.6s infinite; }
-
-    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-    @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.7); } }
+    .status-dot.listening { background: var(--gold); animation: blink 1s infinite; }
+    .status-dot.connecting { background: var(--cyan); animation: pulse 0.6s infinite; }
+    @keyframes blink { 0%,100%{opacity:1}50%{opacity:.3} }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)} }
 
     .console { 
-        flex: 1; min-height: 0; overflow-y: auto; padding: 15px; 
-        background: rgba(0,0,0,0.5); font-size: 13px; line-height: 1.5;
+        flex: 1; min-height: 0; overflow-y: auto; padding: 12px; 
+        background: rgba(0,0,0,0.6); font-size: 12px; line-height: 1.6;
         -webkit-overflow-scrolling: touch;
     }
-    .entry { margin-bottom: 5px; word-break: break-all; border-left: 2px solid transparent; padding-left: 8px; }
-    .ts { color: #555; margin-right: 8px; }
-    .sys { color: #777; font-style: italic; }
+    .entry { margin-bottom: 3px; word-break: break-all; border-left: 2px solid transparent; padding-left: 8px; }
+    .ts { color: #444; margin-right: 6px; user-select: none; }
+    .sys { color: #666; font-style: italic; }
     .local { color: var(--accent); border-left-color: var(--accent); }
-    .remote { color: #00d4ff; border-left-color: #00d4ff; }
-    .warn { color: #ff3333; }
-    .route-log { color: #666; font-size: 11px; }
-    .ok { color: #39ff14; }
+    .remote { color: var(--cyan); border-left-color: var(--cyan); }
+    .warn { color: var(--warn); border-left-color: var(--warn); }
+    .ok { color: var(--accent); }
+    .route-log { color: #555; font-size: 11px; }
+    .diag { color: var(--gold); font-size: 11px; }
+    .diag-bad { color: var(--warn); font-size: 11px; font-weight: bold; }
 
     .panel { 
-        padding: 15px; background: var(--surface); border-top: 1px solid var(--border);
+        padding: 12px; background: var(--surface); border-top: 1px solid var(--border);
         flex-shrink: 0;
     }
-    .setup-row, .chat-row { display: flex; gap: 10px; }
-    .chat-row { display: none; }
-    .chat-row.active { display: flex; }
-    .dead-row { display: none; }
-    .dead-row.active { display: flex; }
-
+    .row { display: none; gap: 8px; }
+    .row.active { display: flex; }
     input { 
         flex: 1; background: #000; border: 1px solid var(--border); 
         color: var(--accent); padding: 10px; font-family: var(--mono); outline: none;
-        min-height: 44px;
+        min-height: 44px; font-size: 13px;
     }
     input:focus { border-color: var(--accent); }
     input::placeholder { color: #222; }
-
     .btn { 
         background: transparent; border: 1px solid var(--accent); color: var(--accent);
-        padding: 0 15px; cursor: pointer; font-family: var(--mono); font-size: 11px;
-        text-transform: uppercase; transition: 0.2s; min-height: 44px; min-width: 44px;
+        padding: 0 14px; cursor: pointer; font-family: var(--mono); font-size: 10px;
+        text-transform: uppercase; transition: 0.15s; min-height: 44px; min-width: 44px;
         -webkit-tap-highlight-color: transparent; white-space: nowrap;
     }
     .btn:hover { background: var(--accent); color: #000; }
     .btn:active { transform: scale(0.97); }
     .btn:disabled { opacity: 0.3; cursor: not-allowed; }
-    .btn.btn-warn { border-color: #ff3333; color: #ff3333; }
-    .btn.btn-warn:hover { background: #ff3333; color: #000; }
+    .btn-warn { border-color: var(--warn); color: var(--warn); }
+    .btn-warn:hover { background: var(--warn); color: #000; }
 
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-thumb { background: var(--border); }
 
     @media (max-width: 420px) {
-        .header { padding: 8px 12px; }
-        .header-title { font-size: 12px; letter-spacing: 1px; }
-        .net-indicator { padding: 3px 6px; font-size: 8px; }
-        .panel { padding: 12px; }
-        .btn { padding: 0 12px; font-size: 10px; }
+        .header { padding: 8px 10px; }
+        .header-title { font-size: 11px; }
+        .console { font-size: 11px; padding: 8px; }
+        .btn { padding: 0 10px; font-size: 9px; }
     }
-
     @media (prefers-reduced-motion: reduce) {
         .status-dot.listening, .status-dot.connecting { animation: none; }
         .btn { transition: none; }
@@ -127,7 +111,10 @@
 <body>
 
 <header class="header">
-    <div class="header-title">OMNI-LINK v3.1</div>
+    <div>
+        <div class="header-title">OMNI-LINK v3.2 DIAG</div>
+        <div class="header-sub">ICE VERBOSE MODE</div>
+    </div>
     <div class="header-badges">
         <div class="net-indicator" id="netIndicator">
             <span class="net-dot" id="netDot"></span>
@@ -143,19 +130,17 @@
 <main class="console" id="console"></main>
 
 <section class="panel">
-    <div class="setup-row" id="setupRow">
-        <input type="number" id="chanInput" placeholder="CHANNEL (1-99)" min="1" max="99" inputmode="numeric" autocomplete="off">
-        <button class="btn" id="initBtn">Initialize Link</button>
+    <div class="row active" id="setupRow">
+        <input type="number" id="chanInput" placeholder="CHANNEL 1-99" min="1" max="99" inputmode="numeric" autocomplete="off">
+        <button class="btn" id="initBtn">Init</button>
     </div>
-
-    <div class="chat-row" id="chatRow">
-        <input type="text" id="msgInput" placeholder="Type message..." maxlength="500" autocomplete="off">
+    <div class="row" id="chatRow">
+        <input type="text" id="msgInput" placeholder="Message..." maxlength="500" autocomplete="off">
         <button class="btn" id="sendBtn">Send</button>
         <button class="btn btn-warn" id="discBtn">End</button>
     </div>
-
-    <div class="dead-row" id="deadRow">
-        <button class="btn" id="retryBtn" style="flex:1;">Retry Connection</button>
+    <div class="row" id="deadRow">
+        <button class="btn" id="retryBtn" style="flex:1">Retry</button>
     </div>
 </section>
 
@@ -163,22 +148,13 @@
 (function() {
     'use strict';
 
-    var peer = null;
-    var conn = null;
-    var connTimeout = null;
-    var failTimeout = null;
-    var iceRestarted = false;
-    var channel = '';
-    var isHost = false;
-    var PREFIX = 'OMNI-P2P-PRO-';
+    var peer = null, conn = null, channel = '', isHost = false;
+    var connTimeout = null, failTimeout = null, iceRestarted = false;
+    var iceCandidates = { host: 0, srflx: 0, relay: 0 };
+    var PREFIX = 'OMNI-DIAG-';
     var logEl = document.getElementById('console');
 
-    /* 
-     * STUN-only: fast local/public IP discovery.
-     * NO custom TURN — PeerJS cloud (0.peerjs.com) provides its own
-     * working TURN relay via Xirsys. Adding broken TURN servers here
-     * would OVERRIDE PeerJS's built-in relay and kill cross-network connectivity.
-     */
+    /* STUN only — let PeerJS supply TURN from cloud */
     var PEER_OPTS = {
         debug: 0,
         secure: true,
@@ -188,160 +164,48 @@
         config: {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' },
-                { urls: 'stun:stun3.l.google.com:19302' },
-                { urls: 'stun:stun4.l.google.com:19302' }
+                { urls: 'stun:stun1.l.google.com:19302' }
             ]
         }
     };
+
+    /* ── Helpers ────────────────────────────── */
 
     function getPC(c) {
         if (!c) return null;
         return c.peerConnection || c._pc || null;
     }
 
-    function attachIceTracker(c) {
-        var pc = getPC(c);
-        if (!pc) {
-            /* PeerJS may not have set up the RTCPeerConnection yet — retry */
-            if (c._iceRetries < 15) {
-                c._iceRetries = (c._iceRetries || 0) + 1;
-                setTimeout(function() { attachIceTracker(c); }, 400);
-            } else {
-                log('Warning: Could not access WebRTC layer.', 'warn');
-            }
-            return;
-        }
-
-        pc.addEventListener('icecandidate', function(e) {
-            if (!e.candidate) return log('ICE: Gathering complete.', 'route-log');
-            var t = e.candidate.type;
-            if (t === 'host')  log('ICE: Local candidate (LAN).', 'route-log');
-            if (t === 'srflx') log('ICE: STUN candidate (Public IP).', 'route-log');
-            if (t === 'relay') log('ICE: TURN candidate (Relay).', 'route-log');
-        });
-
-        pc.addEventListener('iceconnectionstatechange', function() {
-            var s = pc.iceConnectionState;
-            log('ICE state: ' + s, 'route-log');
-
-            if (s === 'connected' || s === 'completed') {
-                clearAllTimeouts();
-                detectRoute(pc);
-            }
-            if (s === 'disconnected') {
-                log('ICE disconnected — may recover...', 'warn');
-            }
-            if (s === 'failed') {
-                if (!iceRestarted) {
-                    iceRestarted = true;
-                    log('ICE failed. Attempting restart...', 'warn');
-                    try { pc.restartIce(); } catch(e) {
-                        log('ICE restart not supported. Connection lost.', 'warn');
-                        handleDead();
-                    }
-                } else {
-                    log('ICE restart failed. Connection dead.', 'warn');
-                    handleDead();
-                }
-            }
-            if (s === 'closed') {
-                clearAllTimeouts();
-            }
-        });
+    function log(msg, type) {
+        var d = document.createElement('div');
+        d.className = 'entry ' + (type || '');
+        var ts = new Date().toLocaleTimeString([], { hour12: false });
+        d.innerHTML = '<span class="ts">[' + ts + ']</span><span></span>';
+        d.lastElementChild.textContent = msg;
+        logEl.appendChild(d);
+        logEl.scrollTop = logEl.scrollHeight;
     }
 
-    function detectRoute(pc) {
-        pc.getStats(null).then(function(stats) {
-            var done = false;
-            stats.forEach(function(r) {
-                if (done) return;
-                if (r.type === 'candidate-pair' && r.state === 'succeeded') {
-                    done = true;
-                    var local = stats.get(r.localCandidateId);
-                    if (local) {
-                        var t = local.candidateType || 'unknown';
-                        showRoute(t);
-                        if (t === 'host')      log('Route: LAN — Same network.', 'ok');
-                        else if (t === 'srflx') log('Route: P2P — Direct across networks.', 'ok');
-                        else if (t === 'relay') log('Route: RELAY — Routed through TURN server.', 'ok');
-                        else                    log('Route: Unknown type.', 'route-log');
-                    }
-                }
-            });
-            if (!done) showRoute('unknown');
-        }).catch(function() { showRoute('unknown'); });
+    function setStatus(t, cls) {
+        document.getElementById('statusText').textContent = t;
+        document.getElementById('statusDot').className = 'status-dot ' + (cls || '');
     }
 
-    function showRoute(type) {
-        var el  = document.getElementById('netIndicator');
-        var dot = document.getElementById('netDot');
-        var txt = document.getElementById('netText');
-        el.className = 'net-indicator active';
-        dot.className = 'net-dot';
-        txt.style.color = '';
-        if (type === 'host') { dot.classList.add('lan'); txt.textContent = 'LAN'; txt.style.color = '#39ff14'; }
-        else if (type === 'srflx') { dot.classList.add('p2p'); txt.textContent = 'P2P'; txt.style.color = '#00d4ff'; }
-        else if (type === 'relay') { dot.classList.add('relay'); txt.textContent = 'RELAY'; txt.style.color = '#ffd700'; }
-        else { txt.textContent = '---'; }
+    function showRow(name) {
+        ['setupRow', 'chatRow', 'deadRow'].forEach(function(id) {
+            document.getElementById(id).classList.remove('active');
+        });
+        if (name) document.getElementById(name + 'Row').classList.add('active');
     }
 
     function resetRoute() {
         document.getElementById('netIndicator').className = 'net-indicator';
         document.getElementById('netDot').className = 'net-dot';
-        var txt = document.getElementById('netText');
-        txt.textContent = '---';
-        txt.style.color = '';
+        var t = document.getElementById('netText');
+        t.textContent = '---'; t.style.color = '';
     }
 
-    function log(msg, type) {
-        var div = document.createElement('div');
-        div.className = 'entry ' + (type || '');
-        var ts = new Date().toLocaleTimeString([], {hour12:false});
-        div.innerHTML = '<span class="ts">[' + ts + ']</span><span></span>';
-        div.querySelector('span:last-child').textContent = msg;
-        logEl.appendChild(div);
-        logEl.scrollTop = logEl.scrollHeight;
-    }
-
-    function setStatus(text, dotClass) {
-        document.getElementById('statusText').textContent = text;
-        document.getElementById('statusDot').className = 'status-dot ' + (dotClass || '');
-    }
-
-    function clearAllTimeouts() {
-        clearTimeout(connTimeout);
-        clearTimeout(failTimeout);
-    }
-
-    function startConnTimeouts() {
-        clearAllTimeouts();
-        connTimeout = setTimeout(function() {
-            log('Connection slow — checking ICE...', 'warn');
-        }, 10000);
-        failTimeout = setTimeout(function() {
-            log('Connection timed out.', 'warn');
-            handleDead();
-        }, 30000);
-    }
-
-    function showRow(name) {
-        document.getElementById('setupRow').style.display = 'none';
-        document.getElementById('chatRow').classList.remove('active');
-        document.getElementById('deadRow').classList.remove('active');
-        if (name === 'setup') document.getElementById('setupRow').style.display = 'flex';
-        if (name === 'chat')  document.getElementById('chatRow').classList.add('active');
-        if (name === 'dead')  document.getElementById('deadRow').classList.add('active');
-    }
-
-    function handleDead() {
-        clearAllTimeouts();
-        setStatus('Failed', '');
-        resetRoute();
-        showRow('dead');
-        destroyPeer();
-    }
+    function clearAllTimeouts() { clearTimeout(connTimeout); clearTimeout(failTimeout); }
 
     function destroyPeer() {
         if (conn) { try { conn.close(); } catch(e) {} }
@@ -352,113 +216,258 @@
     }
 
     function fullReset() {
-        clearAllTimeouts();
-        destroyPeer();
-        channel = '';
-        isHost = false;
-        setStatus('Offline', '');
-        resetRoute();
+        clearAllTimeouts(); destroyPeer();
+        channel = ''; isHost = false;
+        setStatus('Offline', ''); resetRoute();
         showRow('setup');
         document.getElementById('initBtn').disabled = false;
     }
+
+    function handleDead() {
+        clearAllTimeouts(); setStatus('Failed', ''); resetRoute();
+        showRow('dead'); destroyPeer();
+    }
+
+    /* ── ICE Tracking (verbose) ─────────────── */
+
+    function attachIceTracker(c) {
+        var pc = getPC(c);
+        if (!pc) {
+            c._iceRetries = (c._iceRetries || 0) + 1;
+            if (c._iceRetries < 20) setTimeout(function() { attachIceTracker(c); }, 300);
+            else log('FATAL: Cannot access RTCPeerConnection after 6s.', 'diag-bad');
+            return;
+        }
+
+        log('RTCPeerConnection acquired. ICE gathering starting...', 'diag');
+
+        pc.addEventListener('icecandidate', function(e) {
+            if (!e.candidate) {
+                log('── ICE GATHERING COMPLETE ──', 'diag');
+                log('Summary: host=' + iceCandidates.host + 
+                    '  srflx=' + iceCandidates.srflx + 
+                    '  relay=' + iceCandidates.relay, 'diag');
+                
+                if (iceCandidates.relay === 0 && iceCandidates.srflx > 0) {
+                    log('NO TURN RELAY FOUND. Cross-network will fail if P2P blocked.', 'diag-bad');
+                    log('Diagnosis: PeerJS cloud TURN is not responding for this session.', 'diag-bad');
+                    log('Fix needed: Add your own TURN server (coturn / Twilio / Metered).', 'diag-bad');
+                }
+                return;
+            }
+
+            var cand = e.candidate;
+            var type = cand.type;
+            var addr = cand.address || cand.candidate.split(' ')[4] || '?';
+            var proto = cand.protocol || '?';
+
+            if (type === 'host') {
+                iceCandidates.host++;
+                log('ICE [LOCAL]:   ' + addr + ' (' + proto + ')', 'route-log');
+            }
+            if (type === 'srflx') {
+                iceCandidates.srflx++;
+                log('ICE [STUN]:    ' + addr + ' (' + proto + ')', 'route-log');
+            }
+            if (type === 'relay') {
+                iceCandidates.relay++;
+                log('ICE [TURN]:    ' + addr + ' (' + proto + ')', 'diag');
+            }
+            if (type === 'prflx') {
+                log('ICE [PEER]:    ' + addr + ' (peer reflexive)', 'route-log');
+            }
+        });
+
+        pc.addEventListener('iceconnectionstatechange', function() {
+            var s = pc.iceConnectionState;
+            log('ICE state → ' + s, s === 'failed' || s === 'disconnected' ? 'diag-bad' : 'diag');
+
+            if (s === 'connected' || s === 'completed') {
+                clearAllTimeouts();
+                detectRoute(pc);
+            }
+            if (s === 'disconnected') {
+                log('Link disrupted — may auto-recover...', 'warn');
+            }
+            if (s === 'failed') {
+                if (!iceRestarted) {
+                    iceRestarted = true;
+                    log('Attempting ICE restart...', 'diag');
+                    try { pc.restartIce(); } catch(e) {
+                        log('ICE restart unsupported. Dead.', 'diag-bad');
+                        handleDead();
+                    }
+                } else {
+                    log('ICE restart failed. Connection cannot be established.', 'diag-bad');
+                    if (iceCandidates.relay === 0) {
+                        log('ROOT CAUSE: No TURN relay available.', 'diag-bad');
+                        log('Your networks block direct P2P and there is no relay fallback.', 'diag-bad');
+                    }
+                    handleDead();
+                }
+            }
+            if (s === 'closed') clearAllTimeouts();
+        });
+
+        /* Also monitor data channel directly */
+        pc.addEventListener('datachannel', function(e) {
+            log('DataChannel created: "' + e.channel.label + '" state=' + e.channel.readyState, 'diag');
+            e.channel.addEventListener('open', function() {
+                log('DataChannel OPEN — binary transport ready.', 'ok');
+            });
+            e.channel.addEventListener('close', function() {
+                log('DataChannel CLOSED.', 'warn');
+            });
+            e.channel.addEventListener('error', function(ev) {
+                log('DataChannel ERROR: ' + ev.error, 'diag-bad');
+            });
+        });
+    }
+
+    function detectRoute(pc) {
+        pc.getStats(null).then(function(stats) {
+            var done = false;
+            stats.forEach(function(r) {
+                if (done) return;
+                if (r.type === 'candidate-pair' && (r.state === 'succeeded' || r.nominated)) {
+                    done = true;
+                    var local = stats.get(r.localCandidateId);
+                    var remote = stats.get(r.remoteCandidateId);
+                    var t = local ? (local.candidateType || '?') : '?';
+                    var rAddr = remote ? (remote.address || remote.candidate || '?') : '?';
+                    
+                    showRoute(t);
+                    log('── ROUTE ESTABLISHED ──', 'ok');
+                    log('Local type: ' + t + '  →  Remote: ' + rAddr, 'ok');
+                    if (t === 'host')      log('Mode: LAN (same network)', 'ok');
+                    else if (t === 'srflx') log('Mode: P2P (direct, cross-network)', 'ok');
+                    else if (t === 'relay') log('Mode: RELAY (routed via TURN)', 'ok');
+                    else                    log('Mode: Unknown', 'diag');
+                }
+            });
+            if (!done) showRoute('unknown');
+        }).catch(function(e) {
+            log('getStats failed: ' + e, 'diag-bad');
+            showRoute('unknown');
+        });
+    }
+
+    function showRoute(type) {
+        var el = document.getElementById('netIndicator');
+        var dot = document.getElementById('netDot');
+        var txt = document.getElementById('netText');
+        el.className = 'net-indicator active';
+        dot.className = 'net-dot';
+        txt.style.color = '';
+        if (type === 'host') { dot.classList.add('lan'); txt.textContent = 'LAN'; txt.style.color = '#39ff14'; }
+        else if (type === 'srflx') { dot.classList.add('p2p'); txt.textContent = 'P2P'; txt.style.color = '#00d4ff'; }
+        else if (type === 'relay') { dot.classList.add('relay'); txt.textContent = 'RELAY'; txt.style.color = '#ffd700'; }
+        else { txt.textContent = '???'; }
+    }
+
+    /* ── Connection Logic ───────────────────── */
 
     function initLink() {
         var chan = document.getElementById('chanInput').value.trim();
         if (!chan || chan < 1 || chan > 99) return log('Enter channel 1-99.', 'warn');
         channel = chan;
+        iceCandidates = { host: 0, srflx: 0, relay: 0 };
 
         var targetId = PREFIX + chan;
         document.getElementById('initBtn').disabled = true;
         log('Creating node on CH-' + chan + '...', 'sys');
+        log('Peer ID will be: ' + targetId, 'diag');
 
         try { peer = new Peer(targetId, PEER_OPTS); }
-        catch(e) { log('Failed: ' + e.message, 'warn'); fullReset(); return; }
+        catch(e) { log('Peer creation failed: ' + e.message, 'diag-bad'); fullReset(); return; }
 
         var sigTimeout = setTimeout(function() {
-            if (peer && !peer.destroyed) { log('Signaling timeout.', 'warn'); fullReset(); }
+            if (peer && !peer.destroyed) { log('Signaling server timeout (12s).', 'diag-bad'); fullReset(); }
         }, 12000);
 
         peer.on('open', function() {
             clearTimeout(sigTimeout);
             isHost = true;
-            log('Node registered as HOST. Waiting for peer...', 'sys');
+            log('Registered as HOST. Listening for connections...', 'sys');
             setStatus('Listening', 'listening');
         });
 
         peer.on('connection', function(incoming) {
-            log('Incoming connection detected.', 'sys');
+            log('Incoming connection from peer.', 'sys');
             setStatus('Connecting', 'connecting');
             conn = incoming;
             conn._iceRetries = 0;
             attachIceTracker(conn);
-            startConnTimeouts();
-            wireDataConn();
+            startTimeouts();
+            wireData();
         });
 
         peer.on('error', function(err) {
-            clearTimeout(sigTimeout);
-            clearAllTimeouts();
+            clearTimeout(sigTimeout); clearAllTimeouts();
             if (err.type === 'unavailable-id') {
-                log('Channel occupied — joining as CLIENT...', 'sys');
+                log('Channel taken. Switching to CLIENT mode...', 'sys');
                 peer.removeAllListeners();
-                peer.destroy();
-                peer = null;
+                peer.destroy(); peer = null;
                 isHost = false;
-                setTimeout(function() { joinExisting(targetId); }, 1500);
+                setTimeout(function() { joinExisting(targetId); }, 1200);
             } else {
-                log('Error: ' + err.type, 'warn');
+                log('Peer error: ' + err.type + ' — ' + (err.message || ''), 'diag-bad');
                 fullReset();
             }
         });
     }
 
     function joinExisting(targetId) {
-        log('Creating client node...', 'sys');
+        log('Creating anonymous client node...', 'sys');
 
         try { peer = new Peer(PEER_OPTS); }
-        catch(e) { log('Failed to create client node.', 'warn'); fullReset(); return; }
+        catch(e) { log('Client peer creation failed.', 'diag-bad'); fullReset(); return; }
 
         var sigTimeout = setTimeout(function() {
-            if (peer && !peer.destroyed) { log('Signaling timeout.', 'warn'); fullReset(); }
+            if (peer && !peer.destroyed) { log('Signaling timeout.', 'diag-bad'); fullReset(); }
         }, 12000);
 
         peer.on('open', function() {
             clearTimeout(sigTimeout);
-            log('Connecting to HOST...', 'sys');
+            log('Connecting to HOST: ' + targetId, 'sys');
             setStatus('Connecting', 'connecting');
 
             try {
                 conn = peer.connect(targetId, { reliable: true });
                 conn._iceRetries = 0;
                 attachIceTracker(conn);
-                startConnTimeouts();
-                wireDataConn();
+                startTimeouts();
+                wireData();
             } catch(e) {
-                log('Connect failed: ' + e.message, 'warn');
+                log('peer.connect() failed: ' + e.message, 'diag-bad');
                 fullReset();
             }
         });
 
         peer.on('error', function(err) {
-            clearTimeout(sigTimeout);
-            clearAllTimeouts();
-            log('Join error: ' + err.type, 'warn');
+            clearTimeout(sigTimeout); clearAllTimeouts();
+            log('Client error: ' + err.type + ' — ' + (err.message || ''), 'diag-bad');
             fullReset();
         });
     }
 
-    function wireDataConn() {
+    function startTimeouts() {
+        clearAllTimeouts();
+        connTimeout = setTimeout(function() { log('Slow connection (10s)... waiting for ICE...', 'warn'); }, 10000);
+        failTimeout = setTimeout(function() { log('CONNECTION TIMED OUT (30s).', 'diag-bad'); handleDead(); }, 30000);
+    }
+
+    function wireData() {
         conn.on('open', function() {
             clearAllTimeouts();
-            log('Data stream ESTABLISHED. Ready to communicate.', 'ok');
+            log('PeerJS conn.open — DATA STREAM LIVE.', 'ok');
             setStatus('Connected', 'online');
             showRow('chat');
             document.getElementById('msgInput').focus();
         });
 
         conn.on('data', function(data) {
-            if (typeof data === 'string') log(data, 'remote');
-            else log('[binary data]', 'remote');
+            log(typeof data === 'string' ? data : '[binary]', 'remote');
         });
 
         conn.on('close', function() {
@@ -467,48 +476,35 @@
             handleDead();
         });
 
-        conn.on('error', function(err) {
-            log('Data error: ' + err, 'warn');
-        });
+        conn.on('error', function(err) { log('Conn error: ' + err, 'diag-bad'); });
     }
 
     function sendMessage() {
-        var input = document.getElementById('msgInput');
-        var msg = input.value.trim();
+        var inp = document.getElementById('msgInput');
+        var msg = inp.value.trim();
         if (!msg) return;
         if (conn && conn.open) {
-            try {
-                conn.send(msg);
-                log(msg, 'local');
-                input.value = '';
-            } catch(e) {
-                log('Send failed.', 'warn');
-            }
-        } else {
-            log('Link not active.', 'warn');
-        }
+            try { conn.send(msg); log(msg, 'local'); inp.value = ''; }
+            catch(e) { log('Send failed.', 'diag-bad'); }
+        } else { log('Not connected.', 'warn'); }
     }
 
-    /* Wire UI */
+    /* ── UI Wiring ──────────────────────────── */
+
     document.getElementById('initBtn').onclick = initLink;
     document.getElementById('sendBtn').onclick = sendMessage;
+    document.getElementById('msgInput').onkeydown = function(e) { if (e.key === 'Enter') sendMessage(); };
     document.getElementById('discBtn').onclick = function() {
-        log('Link terminated by user.', 'sys');
-        fullReset();
+        log('Disconnected by user.', 'sys'); fullReset();
     };
     document.getElementById('retryBtn').onclick = function() {
         fullReset();
-        if (channel) {
-            document.getElementById('chanInput').value = channel;
-            setTimeout(initLink, 300);
-        }
-    };
-    document.getElementById('msgInput').onkeydown = function(e) {
-        if (e.key === 'Enter') sendMessage();
+        if (channel) { document.getElementById('chanInput').value = channel; setTimeout(initLink, 200); }
     };
 
-    log('OMNI-LINK v3.1 Online.', 'sys');
-    log('STUN-only ICE — PeerJS cloud provides TURN relay.', 'sys');
+    log('OMNI-LINK v3.2 — DIAGNOSTIC MODE', 'sys');
+    log('All ICE candidates will be logged.', 'diag');
+    log('Watch for TURN entries. If none appear → no relay fallback.', 'diag');
 
 })();
 </script>
