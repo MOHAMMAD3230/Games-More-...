@@ -3,628 +3,208 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
-    <!-- ===== SECURITY HEADERS (Defense-in-Depth for GitHub Pages) ===== -->
-    <!-- Clickjacking: prevent embedding in iframes -->
     <meta http-equiv="X-Frame-Options" content="DENY">
-    <!-- Privacy: strip Referer header on all outgoing links -->
     <meta name="referrer" content="no-referrer">
-    <!-- Restrict browser APIs: only microphone from same origin, block everything else -->
-    <meta name="permissions-policy" content="microphone=(self), camera=(), geolocation=(), payment=(), usb=(), midi=(), magnetometer=()">
-    <!--
-        Content Security Policy (CSP)
-        - default-src 'none'     : block everything by default
-        - script-src             : allow only self + PeerJS CDN
-        - connect-src            : allow PeerJS signaling (wss + https)
-        - media-src              : allow audio streams
-        - style-src              : allow inline styles (required for single-file)
-        - base-uri 'self'        : prevent <base> tag injection
-        - form-action 'none'     : no form submission allowed
-        - object-src 'none'      : block Flash/Java/plugin embeds
-        NOTE: frame-ancestors cannot be set via meta tag; relies on X-Frame-Options above
-              which GitHub Pages also sets at server level.
-    -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://unpkg.com; connect-src 'self' wss://0.peerjs.com https://0.peerjs.com; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; base-uri 'self'; form-action 'none'; object-src 'none';">
-
+    <meta name="permissions-policy" content="microphone=(self), camera=(), geolocation=()">
     <title>TAC/COM-04 | SECURE NET</title>
-
-    <!--
-        PeerJS v1.5.2 — pinned version to prevent supply-chain drift
-        TODO (Production): Generate SRI hash and add integrity attribute:
-        1. Download the file
-        2. Run: openssl dgst -sha384 -binary <file> | openssl base64 -A
-        3. Add: integrity="sha384-<HASH>" to this tag
-        crossorigin="anonymous" is set for SRI readiness + credential isolation
-    -->
+    
+    <!-- PeerJS pinned version -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js" crossorigin="anonymous"></script>
 
     <style>
         :root {
-            --amber: #ffb000;
-            --amber-dim: #8c6600;
-            --bg: #0d0900;
-            --red: #ff3333;
-            --red-dim: #8c1818;
-            --blue: #00d4ff;
-            --green: #39ff14;
-            --panel-bg: #1a1a1a;
+            --amber: #ffb000; --amber-dim: #8c6600; --bg: #0d0900;
+            --red: #ff3333; --red-dim: #8c1818; --blue: #00d4ff;
+            --green: #39ff14; --panel-bg: #1a1a1a;
         }
-
-        *, *::before, *::after {
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        html {
-            overscroll-behavior: none; /* Prevent pull-to-refresh on mobile */
-        }
-
+        *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html { overscroll-behavior: none; }
         body {
-            background: #050505;
-            color: var(--amber);
+            background: #050505; color: var(--amber);
             font-family: 'Courier New', Courier, monospace;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            min-height: 100dvh; /* Dynamic viewport height for mobile */
-            margin: 0;
-            touch-action: manipulation;
-            overflow: hidden;
-            -webkit-touch-callout: none; /* Prevent iOS callout menus */
-            -webkit-user-select: none;
-            user-select: none;
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh; min-height: 100dvh; margin: 0;
+            touch-action: manipulation; overflow: hidden;
+            -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
         }
-
-        /* CRT Scanline Overlay */
         .scanlines {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background:
-                linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
-                linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-            background-size: 100% 2px, 3px 100%;
-            pointer-events: none;
-            z-index: 999;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.25) 50%), linear-gradient(90deg, rgba(255,0,0,0.06), rgba(0,255,0,0.02), rgba(0,0,255,0.06));
+            background-size: 100% 2px, 3px 100%; pointer-events: none; z-index: 999;
         }
-
-        /* ===== MAIN LAYOUT ===== */
         .mainframe {
-            width: 95%;
-            max-width: 900px;
-            background: #222;
-            border: 4px solid #333;
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 0 40px #000;
-            position: relative;
-            z-index: 10;
-            height: 100vh;
-            height: 100dvh;
-            overflow: hidden;
+            width: 95%; max-width: 900px; background: #222; border: 4px solid #333;
+            padding: 10px; display: flex; flex-direction: column;
+            box-shadow: 0 0 40px #000; position: relative; z-index: 10;
+            height: 100vh; height: 100dvh; overflow: hidden;
         }
-
         @media (min-width: 768px) {
-            .mainframe {
-                display: grid;
-                grid-template-columns: 1fr 300px;
-                grid-template-rows: 1fr;
-                gap: 15px;
-                height: 650px;
-                max-height: 90vh;
-            }
+            .mainframe { display: grid; grid-template-columns: 1fr 300px; gap: 15px; height: 650px; max-height: 90vh; }
         }
-
-        /* ===== MONITOR PANEL ===== */
         .monitor {
-            background: var(--bg);
-            border: 2px solid #333;
-            padding: 12px;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-            box-shadow: inset 0 0 20px #000;
-            overflow: hidden;
-            min-height: 0; /* Flexbox shrink fix */
+            background: var(--bg); border: 2px solid #333; padding: 12px;
+            display: flex; flex-direction: column; position: relative;
+            box-shadow: inset 0 0 20px #000; overflow: hidden; min-height: 0;
         }
-
-        @media (max-width: 767px) {
-            .monitor {
-                flex: 0 0 42vh;
-                min-height: 200px;
-            }
-        }
-
+        @media (max-width: 767px) { .monitor { flex: 0 0 40vh; min-height: 180px; } }
         .status-bar {
-            font-size: 0.7rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #333;
-            padding-bottom: 6px;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            flex-shrink: 0;
-            flex-wrap: wrap;
-            gap: 4px;
+            font-size: 0.7rem; display: flex; justify-content: space-between;
+            border-bottom: 1px solid #333; padding-bottom: 6px; margin-bottom: 8px;
+            text-transform: uppercase; letter-spacing: 1px; flex-shrink: 0;
         }
-
         #output {
-            flex: 1;
-            overflow-y: auto;
-            font-size: 0.8rem;
-            line-height: 1.4;
-            scrollbar-width: thin;
-            scrollbar-color: var(--amber-dim) #000;
-            margin-bottom: 8px;
-            word-break: break-word;
-            overscroll-behavior: contain;
-            -webkit-user-select: text;
-            user-select: text;
+            flex: 1; overflow-y: auto; font-size: 0.8rem; line-height: 1.4;
+            scrollbar-width: thin; scrollbar-color: var(--amber-dim) #000;
+            margin-bottom: 8px; word-break: break-word; overscroll-behavior: contain;
+            -webkit-user-select: text; user-select: text;
         }
-
-        @media (max-width: 767px) {
-            #output { font-size: 0.72rem; }
-        }
-
+        @media (max-width: 767px) { #output { font-size: 0.7rem; } }
         #output::-webkit-scrollbar { width: 5px; }
         #output::-webkit-scrollbar-thumb { background: var(--amber-dim); border-radius: 3px; }
-
-        .log-entry {
-            padding: 2px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.03);
-        }
-
-        /* ===== CONTROLS PANEL ===== */
+        .log-entry { padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
+        .log-error { color: var(--red) !important; }
+        .log-success { color: var(--green) !important; }
+        .log-sys { color: #888 !important; }
+        
         .side-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            overflow-y: auto;
-            overscroll-behavior: contain;
-            scrollbar-width: none;
-            min-height: 0;
+            display: flex; flex-direction: column; gap: 10px;
+            overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; min-height: 0;
         }
-
         .side-panel::-webkit-scrollbar { display: none; }
-
-        @media (min-width: 768px) {
-            .side-panel {
-                overflow: visible;
-            }
-        }
-
+        @media (min-width: 768px) { .side-panel { overflow: visible; } }
+        
         .module {
-            background: var(--panel-bg);
-            padding: 14px;
-            border: 1px solid #444;
-            position: relative;
-            flex-shrink: 0;
+            background: var(--panel-bg); padding: 14px; border: 1px solid #444;
+            position: relative; flex-shrink: 0;
         }
-
-        .module::before {
-            content: '';
-            position: absolute;
-            top: 2px; left: 2px; right: 2px; height: 1px;
-            background: #444;
-        }
-
-        /* ===== CHANNEL INPUT ===== */
-        .channel-label {
-            font-size: 0.6rem;
-            color: #999;
-            margin-bottom: 8px;
-            text-align: center;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
-
+        .module::before { content: ''; position: absolute; top: 2px; left: 2px; right: 2px; height: 1px; background: #444; }
+        
         input[type="text"] {
-            width: 100%;
-            background: #000;
-            border: 2px solid #444;
-            color: var(--blue);
-            padding: 12px;
-            outline: none;
-            text-align: center;
-            font-size: 1.5rem;
-            font-family: 'Courier New', Courier, monospace;
-            font-weight: bold;
-            letter-spacing: 3px;
-            border-radius: 0;
-            -webkit-appearance: none;
-            appearance: none;
+            width: 100%; background: #000; border: 2px solid #444; color: var(--blue);
+            padding: 12px; outline: none; text-align: center; font-size: 1.5rem;
+            font-family: 'Courier New', monospace; font-weight: bold; letter-spacing: 3px;
+            -webkit-appearance: none; appearance: none;
         }
-
-        input[type="text"]:focus {
-            border-color: var(--blue);
-            box-shadow: 0 0 8px rgba(0, 212, 255, 0.2);
-        }
-
-        input[type="text"].input-error {
-            border-color: var(--red);
-            box-shadow: 0 0 8px rgba(255, 51, 51, 0.3);
-            animation: input-shake 0.4s ease;
-        }
-
-        @keyframes input-shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-6px); }
-            75% { transform: translateX(6px); }
-        }
-
-        /* ===== BUTTONS ===== */
+        input[type="text"]:focus { border-color: var(--blue); }
+        input[type="text"].input-error { border-color: var(--red); animation: shake 0.4s ease; }
+        @keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+        
         .btn-action {
-            width: 100%;
-            padding: 12px;
-            background: #222;
-            color: var(--amber);
-            border: 1px solid var(--amber-dim);
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 0.75rem;
-            font-family: 'Courier New', Courier, monospace;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            transition: background 0.2s, color 0.2s;
-            border-radius: 0;
-            -webkit-appearance: none;
-            appearance: none;
-            min-height: 44px; /* Minimum touch target */
+            width: 100%; padding: 12px; background: #222; color: var(--amber);
+            border: 1px solid var(--amber-dim); cursor: pointer; font-weight: bold;
+            font-size: 0.75rem; font-family: 'Courier New', monospace; text-transform: uppercase;
+            letter-spacing: 1px; transition: 0.2s; min-height: 44px;
+            -webkit-appearance: none; appearance: none;
         }
-
-        .btn-action:hover:not(:disabled) {
-            background: var(--amber-dim);
-            color: #000;
-        }
-
-        .btn-action:active:not(:disabled) {
-            transform: scale(0.98);
-        }
-
-        .btn-action:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-
-        .btn-action:focus-visible {
-            outline: 2px solid var(--amber);
-            outline-offset: 2px;
-        }
-
-        .btn-reset {
-            background: #1a0808;
-            border-color: #500;
-            color: #f55;
-        }
-
-        .btn-reset:hover:not(:disabled) {
-            background: #300;
-            color: #fff;
-        }
-
-        /* ===== PTT BUTTON ===== */
-        .ptt-wrapper {
-            text-align: center;
-        }
-
+        .btn-action:hover:not(:disabled) { background: var(--amber-dim); color: #000; }
+        .btn-action:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-reset { background: #1a0808; border-color: #500; color: #f55; }
+        
         .btn-ptt {
-            width: 100%;
-            height: 110px;
-            background: repeating-linear-gradient(
-                45deg,
-                var(--red-dim),
-                var(--red-dim) 10px,
-                #601010 10px,
-                #601010 20px
-            );
-            color: white;
-            border: 4px solid #442222;
-            font-weight: bold;
-            font-size: 1.4rem;
-            font-family: 'Courier New', Courier, monospace;
-            cursor: pointer;
-            transition: transform 0.05s, box-shadow 0.1s, background 0.1s;
-            text-shadow: 0 2px 0 #000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            gap: 4px;
-            border-radius: 0;
-            -webkit-appearance: none;
-            appearance: none;
-            min-height: 80px; /* Ensure large touch target */
+            width: 100%; height: 110px;
+            background: repeating-linear-gradient(45deg, var(--red-dim), var(--red-dim) 10px, #601010 10px, #601010 20px);
+            color: white; border: 4px solid #442222; font-weight: bold; font-size: 1.4rem;
+            font-family: 'Courier New', monospace; cursor: pointer; transition: 0.05s;
+            text-shadow: 0 2px 0 #000; display: flex; align-items: center;
+            justify-content: center; flex-direction: column; gap: 4px; min-height: 80px;
+            -webkit-appearance: none; appearance: none;
         }
-
-        .btn-ptt .ptt-sub {
-            font-size: 0.7rem;
-            font-weight: normal;
-            opacity: 0.7;
-        }
-
-        .btn-ptt:active:not(:disabled) {
-            background: var(--red);
-            transform: scale(0.97);
-            box-shadow: 0 0 20px var(--red), inset 0 0 20px rgba(0,0,0,0.3);
-            border-color: #fff;
-        }
-
-        .btn-ptt:disabled {
-            background: #181818;
-            color: #444;
-            border-color: #2a2a2a;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-
-        .btn-ptt:focus-visible {
-            outline: 2px solid var(--red);
-            outline-offset: 2px;
-        }
-
-        @media (max-width: 767px) {
-            .btn-ptt {
-                height: 90px;
-                font-size: 1.2rem;
-            }
-        }
-
-        /* ===== LED INDICATORS ===== */
-        .led-group {
-            display: flex;
-            justify-content: space-around;
-            margin-top: 14px;
-        }
-
-        .indicator {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            font-size: 0.55rem;
-            color: #999;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-        }
-
-        .status-led {
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background: #250000;
-            border: 1px solid #400;
-            margin-bottom: 5px;
-            transition: background 0.3s, box-shadow 0.3s;
-        }
-
-        .status-led.led-online {
-            background: var(--blue);
-            box-shadow: 0 0 8px var(--blue);
-            border-color: #fff;
-        }
-
-        .status-led.led-tx {
-            background: var(--red);
-            box-shadow: 0 0 12px var(--red);
-            border-color: #fff;
-        }
-
-        .status-led.led-host {
-            background: var(--green);
-            box-shadow: 0 0 8px var(--green);
-            border-color: #fff;
-        }
-
-        /* ===== AUDIO METER ===== */
-        .meter-wrapper {
-            margin-top: auto;
-            flex-shrink: 0;
-        }
-
-        .meter-header {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.6rem;
-            margin-bottom: 3px;
-            color: #999;
-        }
-
-        #meter-container {
-            width: 100%;
-            height: 8px;
-            background: #000;
-            border: 1px solid #444;
-        }
-
-        #meter-fill {
-            width: 0%;
-            height: 100%;
-            background: var(--green);
-            transition: width 0.06s linear;
-            box-shadow: 0 0 4px var(--green);
-        }
-
-        /* ===== PRIVACY NOTICE ===== */
-        .privacy-notice {
-            font-size: 0.55rem;
-            color: #555;
-            text-align: center;
-            padding: 8px 4px;
-            line-height: 1.4;
-            border-top: 1px solid #2a2a2a;
-            flex-shrink: 0;
-        }
-
-        .privacy-notice a {
-            color: #777;
-            text-decoration: underline;
-        }
-
-        /* ===== CONNECTION STATE BANNER ===== */
-        .state-banner {
-            font-size: 0.6rem;
-            text-align: center;
-            padding: 4px;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            flex-shrink: 0;
-        }
-
-        .state-banner.state-idle { color: #555; }
-        .state-banner.state-connecting { color: var(--amber); animation: blink-text 1s infinite; }
-        .state-banner.state-hosting { color: var(--green); }
-        .state-banner.state-connected { color: var(--blue); }
-        .state-banner.state-error { color: var(--red); }
-
-        @keyframes blink-text {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-        }
-
-        /* ===== REDUCED MOTION ===== */
-        @media (prefers-reduced-motion: reduce) {
-            *, *::before, *::after {
-                animation-duration: 0.01ms !important;
-                transition-duration: 0.01ms !important;
-            }
-        }
+        .btn-ptt:active:not(:disabled) { background: var(--red); transform: scale(0.97); box-shadow: 0 0 20px var(--red); border-color: #fff; }
+        .btn-ptt:disabled { background: #181818; color: #444; border-color: #2a2a2a; cursor: not-allowed; }
+        .ptt-sub { font-size: 0.7rem; font-weight: normal; opacity: 0.7; }
+        
+        .led-group { display: flex; justify-content: space-around; margin-top: 14px; }
+        .indicator { display: flex; flex-direction: column; align-items: center; font-size: 0.55rem; color: #999; }
+        .status-led { width: 14px; height: 14px; border-radius: 50%; background: #250000; border: 1px solid #400; margin-bottom: 5px; transition: 0.3s; }
+        .led-online { background: var(--blue); box-shadow: 0 0 8px var(--blue); border-color: #fff; }
+        .led-tx { background: var(--red); box-shadow: 0 0 12px var(--red); border-color: #fff; }
+        .led-host { background: var(--green); box-shadow: 0 0 8px var(--green); border-color: #fff; }
+        
+        .meter-wrapper { margin-top: auto; flex-shrink: 0; }
+        .meter-header { display: flex; justify-content: space-between; font-size: 0.6rem; margin-bottom: 3px; color: #999; }
+        #meter-container { width: 100%; height: 8px; background: #000; border: 1px solid #444; }
+        #meter-fill { width: 0%; height: 100%; background: var(--green); transition: width 0.06s linear; }
+        .state-banner { font-size: 0.6rem; text-align: center; padding: 4px; letter-spacing: 1px; text-transform: uppercase; flex-shrink: 0; color: #555; }
+        .privacy-notice { font-size: 0.5rem; color: #444; text-align: center; padding: 6px; line-height: 1.3; border-top: 1px solid #222; flex-shrink: 0; }
+        @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
     </style>
 </head>
 <body>
 
 <div class="scanlines" aria-hidden="true"></div>
-
-<!-- Hidden audio element for remote stream playback -->
 <audio id="remoteAudio" autoplay playsinline style="display:none;"></audio>
 
 <div class="mainframe">
-    <!-- Left: Monitor -->
-    <div class="monitor" role="log" aria-label="Communication log">
+    <div class="monitor" role="log" aria-label="Comm log">
         <div class="status-bar">
             <span>FREQ: <span id="curFreq" style="color:var(--blue)">--.--</span> MHz</span>
-            <span id="netStat">NET: DISCONNECTED</span>
+            <span id="netStat">NET: OFFLINE</span>
         </div>
-
         <div id="output">
-            <div class="log-entry" style="color:#888">> SYSTEM STANDBY...</div>
-            <div class="log-entry" style="color:#555; font-size:0.7em; margin-top:4px;">WAITING FOR FREQUENCY ALLOCATION</div>
+            <div class="log-entry log-sys">> TAC/COM-04 TERMINAL READY</div>
         </div>
-
         <div class="meter-wrapper">
-            <div class="meter-header">
-                <span>RX LEVEL</span>
-                <span id="dbVal">-inf dB</span>
-            </div>
+            <div class="meter-header"><span>RX LEVEL</span><span id="dbVal">-inf dB</span></div>
             <div id="meter-container"><div id="meter-fill"></div></div>
         </div>
     </div>
 
-    <!-- Right: Controls -->
     <div class="side-panel">
-        <!-- Channel Selection -->
         <div class="module">
-            <div class="channel-label">Set Secure Channel (01-99)</div>
-            <!--
-                type="text" + inputmode="numeric" + pattern:
-                Gives numeric keypad on ALL mobile browsers without
-                the spinner arrows that type="number" adds.
-                Pattern enforces 1-2 digit input for validation UX.
-            -->
-            <input
-                type="text"
-                id="chanInput"
-                value="1"
-                inputmode="numeric"
-                pattern="[0-9]{1,2}"
-                maxlength="2"
-                autocomplete="off"
-                autocorrect="off"
-                autocapitalize="off"
-                spellcheck="false"
-                aria-label="Channel number"
-            >
-            <button class="btn-action" id="bootBtn" style="margin-top:10px;" aria-label="Initialize connection">
-                INITIALIZE LINK
-            </button>
+            <div style="font-size:0.6rem; color:#999; margin-bottom:8px; text-align:center;">SET CHANNEL (01-99)</div>
+            <input type="text" id="chanInput" value="1" inputmode="numeric" maxlength="2" autocomplete="off" aria-label="Channel">
+            <button class="btn-action" id="bootBtn" style="margin-top:10px;">INITIALIZE LINK</button>
         </div>
+        
+        <div class="state-banner" id="stateBanner">STANDBY</div>
 
-        <!-- Connection State -->
-        <div class="state-banner state-idle" id="stateBanner">STANDBY</div>
-
-        <!-- PTT -->
-        <div class="module ptt-wrapper">
-            <button class="btn-ptt" id="pttBtn" disabled aria-label="Push to talk, hold to transmit">
+        <div class="module" style="text-align:center;">
+            <button class="btn-ptt" id="pttBtn" disabled aria-label="Push to talk">
                 <span>PUSH TO TALK</span>
                 <span class="ptt-sub">(HOLD)</span>
             </button>
             <div class="led-group">
-                <div class="indicator">
-                    <div class="status-led" id="ledNet" aria-hidden="true"></div>
-                    <span>DATA LINK</span>
-                </div>
-                <div class="indicator">
-                    <div class="status-led" id="ledTx" aria-hidden="true"></div>
-                    <span>TX</span>
-                </div>
+                <div class="indicator"><div class="status-led" id="ledNet"></div><span>LINK</span></div>
+                <div class="indicator"><div class="status-led" id="ledTx"></div><span>TX</span></div>
             </div>
         </div>
 
-        <!-- Reset -->
-        <button class="btn-action btn-reset" id="resetBtn" aria-label="System reset">
-            SYSTEM RESET
-        </button>
-
-        <!-- Privacy Notice -->
-        <div class="privacy-notice">
-            Uses PeerJS public signaling server.<br>
-            Audio is encrypted via WebRTC DTLS-SRTP.<br>
-            No data is stored. IP is visible to signaling peer.
-        </div>
+        <button class="btn-action btn-reset" id="resetBtn">SYSTEM RESET</button>
+        <div class="privacy-notice">WebRTC Encrypted. No data stored.<br>If stuck on "LINKING", your network/firewall is blocking WebRTC.</div>
     </div>
 </div>
 
 <script>
-    /* ====================================================================
-       TAC/COM-04 — Secure Walkie-Talkie
-       ====================================================================
-       SECURITY ARCHITECTURE:
-       - No server-side code; all logic runs in browser
-       - WebRTC media encrypted with DTLS-SRTP (mandatory in spec)
-       - Data channel uses DTLS (encrypted by default)
-       - Signaling goes through PeerJS public server (0.peerjs.com)
-         → IP addresses are visible to the signaling server
-         → Peer IDs are predictable (by design — like radio channels)
-       - No cookies, no localStorage, no tracking, no analytics
-       - No user accounts, no passwords, no PII collected
-       ==================================================================== */
+    // ====================================================================
+    // HARDCORE NETWORK CONFIGURATION
+    // ====================================================================
+    var APP_PREFIX = "TACCOM04-";
+    
+    // Robust ICE Config (Google STUN + Free Metered TURN fallback)
+    var ICE_CONFIG = {
+        iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            // Open Relay Project (Free TURN fallback for strict NATs/Firewalls)
+            { urls: 'stun:openrelay.metered.ca:80' },
+            { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+            { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+            { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+        ]
+    };
 
-    // --- Application Constants ---
-    const APP_PREFIX = "TAC-COM-SECURE-";
-    const PEER_HOST = "0.peerjs.com";
-    const PEER_PORT = 443;
-    const PEER_PATH = "/";
-    const PEER_SECURE = true;
+    // ====================================================================
+    // STATE
+    // ====================================================================
+    var peer = null, conn = null, localStream = null, audioCtx = null;
+    var delayNode = null, analyser = null, speakerGain = null, currentCall = null;
+    var isTransmitting = false, isConnected = false, isHost = false;
+    var remoteAudioSource = null, meterRAF = null;
 
-    // --- State Variables ---
-    let peer = null;
-    let conn = null;
-    let localStream = null;
-    let audioCtx = null;
-    let delayNode = null;
-    let analyser = null;
-    let speakerGain = null;
-    let currentCall = null;
-    let isTransmitting = false;
-    let isConnected = false;
-    let isHost = false;
-    let remoteAudioSource = null; // Track for cleanup
-    let meterRAF = null;
-
-    // --- DOM References (cached for performance) ---
-    const dom = {
+    // ====================================================================
+    // DOM CACHE
+    // ====================================================================
+    var dom = {
         output: document.getElementById('output'),
         chanInput: document.getElementById('chanInput'),
         bootBtn: document.getElementById('bootBtn'),
@@ -637,640 +217,258 @@
         meterFill: document.getElementById('meter-fill'),
         dbVal: document.getElementById('dbVal'),
         remoteAudio: document.getElementById('remoteAudio'),
-        stateBanner: document.getElementById('stateBanner'),
+        stateBanner: document.getElementById('stateBanner')
     };
 
-    // --- Input Filter: allow only digits in channel input ---
-    dom.chanInput.addEventListener('input', function() {
-        // Strip non-digit characters
-        this.value = this.value.replace(/[^0-9]/g, '');
-        // Remove error state on new input
-        this.classList.remove('input-error');
-    });
+    dom.chanInput.addEventListener('input', function() { this.value = this.value.replace(/[^0-9]/g, ''); this.classList.remove('input-error'); });
 
-    // --- Logging (XSS-SAFE: uses textContent, never innerHTML) ---
+    // ====================================================================
+    // LOGGING
+    // ====================================================================
     function log(msg, type) {
-        type = type || 'info';
-        const div = document.createElement('div');
-        div.className = 'log-entry';
-
-        const ts = new Date().toLocaleTimeString('en-US', {
-            hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit'
-        });
-
-        // textContent is immune to XSS — any HTML entities render as text
+        var div = document.createElement('div');
+        div.className = 'log-entry' + (type ? ' log-' + type : '');
+        var ts = new Date().toLocaleTimeString('en-US', {hour12:false, hour:"2-digit", minute:"2-digit", second:"2-digit"});
         div.textContent = '[' + ts + '] > ' + msg;
-
-        switch (type) {
-            case 'error':   div.style.color = 'var(--red)'; break;
-            case 'success': div.style.color = 'var(--green)'; break;
-            case 'sys':     div.style.color = '#888'; break;
-            default:        div.style.color = 'var(--amber)'; break;
-        }
-
         dom.output.appendChild(div);
-
-        // Keep log manageable — remove oldest entries if too many
-        while (dom.output.children.length > 200) {
-            dom.output.removeChild(dom.output.firstChild);
-        }
-
+        if (dom.output.children.length > 150) dom.output.removeChild(dom.output.firstChild);
         dom.output.scrollTop = dom.output.scrollHeight;
     }
 
-    // --- State Banner Update ---
-    function setState(state, text) {
-        dom.stateBanner.className = 'state-banner state-' + state;
-        dom.stateBanner.textContent = text;
-    }
-
-    // --- Input Validation (Defensive) ---
-    function validateChannel(val) {
-        // Force numeric interpretation
-        var num = parseInt(val, 10);
-
-        // Guard: parseInt can return NaN for non-numeric input
-        if (isNaN(num)) return null;
-
-        // Enforce integer range
-        num = Math.floor(num);
-        if (num < 1 || num > 99) return null;
-
-        return num;
-    }
-
-    // --- Main Connection Entry Point ---
+    // ====================================================================
+    // INITIALIZATION
+    // ====================================================================
     async function initChannel() {
-        // Prevent double-click / rapid reconnection
-        if (peer || isConnected) return;
-
-        // Validate input
-        var channelNum = validateChannel(dom.chanInput.value);
-
-        if (channelNum === null) {
-            log('ERROR: INVALID FREQUENCY. RANGE 01-99.', 'error');
+        if (peer) return;
+        var num = parseInt(dom.chanInput.value, 10);
+        if (isNaN(num) || num < 1 || num > 99) {
+            log('INVALID CHANNEL. RANGE 01-99.', 'error');
             dom.chanInput.classList.add('input-error');
-            setTimeout(function() { dom.chanInput.classList.remove('input-error'); }, 800);
             return;
         }
-
-        var chanStr = channelNum.toString().padStart(2, '0');
+        var chanStr = num.toString().padStart(2, '0');
         var targetId = APP_PREFIX + chanStr;
 
-        // Update UI to connecting state
-        dom.bootBtn.disabled = true;
-        dom.bootBtn.textContent = 'LINKING...';
-        dom.chanInput.disabled = true;
-        setState('connecting', 'ESTABLISHING LINK...');
-        log('ATTEMPTING CONNECTION ON CHANNEL ' + chanStr + '...', 'sys');
+        dom.bootBtn.disabled = true; dom.bootBtn.textContent = 'LINKING...'; dom.chanInput.disabled = true;
+        dom.stateBanner.textContent = 'CONNECTING...'; dom.stateBanner.style.color = 'var(--amber)';
+        log('CONNECTING TO CH ' + chanStr + '...', 'sys');
 
         try {
-            // Request microphone access
-            localStream = await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true,
-                    // No video requested
-                }
-            });
-
-            // Mute mic immediately (half-duplex default)
+            localStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
             setMicState(false);
-
-            // Initialize Web Audio graph
             initAudioGraph();
-
-            // Resume AudioContext if suspended (iOS/Safari requirement)
-            if (audioCtx.state === 'suspended') {
-                await audioCtx.resume();
-            }
-
-            // Update frequency display
+            if (audioCtx.state === 'suspended') await audioCtx.resume();
             dom.curFreq.textContent = '462.' + chanStr;
-
-            // Attempt connection
-            connectToPeer(targetId);
-
-        } catch (err) {
-            console.error('Init error:', err);
-
-            if (err.name === 'NotAllowedError') {
-                log('HARDWARE ERROR: MICROPHONE PERMISSION DENIED', 'error');
-                log('Enable mic access in browser settings and retry.', 'error');
-            } else if (err.name === 'NotFoundError') {
-                log('HARDWARE ERROR: NO MICROPHONE DETECTED', 'error');
-            } else {
-                log('HARDWARE ERROR: ' + err.message, 'error');
-            }
-
+            connectAsClient(targetId);
+        } catch(e) {
+            log('MIC ERROR: ' + e.message, 'error');
             resetUI();
         }
     }
 
-    // --- Web Audio Graph Setup ---
     function initAudioGraph() {
-        var AudioContext = window.AudioContext || window.webkitAudioContext;
-        audioCtx = new AudioContext();
-
-        speakerGain = audioCtx.createGain();
-        speakerGain.gain.value = 1.0; // Speakers ON by default (RX mode)
-
-        delayNode = audioCtx.createDelay(5.0);
-        delayNode.delayTime.value = 0.05;
-
-        analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 64;
-        analyser.smoothingTimeConstant = 0.8;
-
-        // Chain: Delay → Analyser → Speaker Gain → Output
-        delayNode.connect(analyser);
-        analyser.connect(speakerGain);
-        speakerGain.connect(audioCtx.destination);
-
+        var AC = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AC();
+        speakerGain = audioCtx.createGain(); speakerGain.gain.value = 1;
+        delayNode = audioCtx.createDelay(5); delayNode.delayTime.value = 0.05;
+        analyser = audioCtx.createAnalyser(); analyser.fftSize = 64;
+        delayNode.connect(analyser); analyser.connect(speakerGain); speakerGain.connect(audioCtx.destination);
         startMeter();
     }
 
-    // --- Audio Level Meter ---
     function startMeter() {
         if (meterRAF) cancelAnimationFrame(meterRAF);
-
-        function update() {
+        (function loop() {
             if (!analyser) return;
-
-            var dataArray = new Uint8Array(analyser.frequencyBinCount);
-            analyser.getByteFrequencyData(dataArray);
-
-            var sum = 0;
-            for (var i = 0; i < dataArray.length; i++) {
-                sum += dataArray[i];
-            }
-            var average = sum / dataArray.length;
-            var pct = Math.min(100, average * 3);
-
+            var arr = new Uint8Array(analyser.frequencyBinCount);
+            analyser.getByteFrequencyData(arr);
+            var sum = 0; for(var i=0; i<arr.length; i++) sum += arr[i];
+            var pct = Math.min(100, (sum/arr.length) * 3);
             dom.meterFill.style.width = pct + '%';
-
-            if (pct > 5) {
-                dom.dbVal.textContent = '-' + (100 - pct).toFixed(0) + ' dB';
-            } else {
-                dom.dbVal.textContent = '-inf dB';
-            }
-
-            meterRAF = requestAnimationFrame(update);
-        }
-
-        update();
+            dom.dbVal.textContent = pct > 5 ? '-' + (100-pct).toFixed(0) + ' dB' : '-inf dB';
+            meterRAF = requestAnimationFrame(loop);
+        })();
     }
 
-    // --- PeerJS Connection Logic ---
-    function connectToPeer(targetId) {
-        // Create a temporary peer with random ID to probe the channel
-        peer = new Peer(undefined, {
-            host: PEER_HOST,
-            port: PEER_PORT,
-            path: PEER_PATH,
-            secure: PEER_SECURE,
-            config: {
-                iceServers: [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' }
-                ]
-            }
+    // ====================================================================
+    // PEERJS CONNECTION LOGIC (ROBUST)
+    // ====================================================================
+    
+    // Create Peer with explicit config to avoid GitHub Pages WSS blocks
+    function createPeer(id) {
+        return new Peer(id, {
+            debug: 1, // Set to 0 for production, 1 for basic logging
+            config: ICE_CONFIG,
+            // secure: true forces WSS. If GH Pages blocks it, PeerJS falls back to HTTP polling automatically.
+            secure: true 
         });
+    }
 
-        peer.on('open', function(myId) {
-            log('LOCAL HANDSHAKE ESTABLISHED. ID: ' + myId.substring(0, 6) + '...', 'sys');
+    function connectAsClient(targetId) {
+        peer = createPeer(); 
+        var timeout = setTimeout(function() {
+            log('SIGNAL TIMEOUT. ASSUMING CHANNEL CLEAR.', 'sys');
+            if(peer) peer.destroy();
+            peer = null; becomeHost(targetId);
+        }, 6000); // 6 second timeout
 
-            // Attempt data connection to target
+        peer.on('open', function() {
+            clearTimeout(timeout);
+            log('SIGNAL ONLINE. PROBING TARGET...', 'sys');
             conn = peer.connect(targetId, { reliable: true });
-
-            // Attempt media call to target
-            try {
-                currentCall = peer.call(targetId, localStream);
-            } catch (e) {
-                console.warn('Call initiation failed:', e);
-            }
-
-            bindConnectionHandlers(conn, currentCall);
+            try { currentCall = peer.call(targetId, localStream); } catch(e) {}
+            bindHandlers(conn, currentCall);
         });
 
         peer.on('error', function(err) {
+            clearTimeout(timeout);
             if (err.type === 'peer-unavailable') {
-                // No one on this channel — become the host
-                log('CHANNEL CLEAR. ESTABLISHING HOST NODE...', 'sys');
-                peer.destroy();
-                peer = null;
-                conn = null;
-                currentCall = null;
+                log('CHANNEL CLEAR. BECOMING HOST.', 'sys');
+                if(peer) peer.destroy(); peer = null; conn = null; currentCall = null;
                 becomeHost(targetId);
             } else if (err.type === 'unavailable-id') {
-                // Race condition: another peer claimed host while we tried
-                log('CHANNEL CONFLICT. RETRYING IN 2s...', 'error');
-                peer.destroy();
-                peer = null;
-                conn = null;
-                currentCall = null;
-                setTimeout(function() {
-                    if (!isConnected) connectToPeer(targetId);
-                }, 2000);
+                log('CHANNEL OCCUPIED. RETRYING...', 'error');
+                if(peer) peer.destroy(); peer = null;
+                setTimeout(function() { if(!isConnected) connectAsClient(targetId); }, 2000);
             } else {
-                log('CONNECTION ERROR: ' + err.type, 'error');
+                log('NETWORK ERROR: ' + err.type, 'error');
                 cleanupAndReset();
-            }
-        });
-
-        peer.on('disconnected', function() {
-            log('SIGNAL INTERRUPTED. RECONNECTING...', 'error');
-            if (peer && !peer.destroyed) {
-                // peer.reconnect() attempts to re-establish signaling
-                try { peer.reconnect(); } catch (e) { /* ignore */ }
             }
         });
     }
 
     function becomeHost(hostId) {
-        setState('connecting', 'CLAIMING CHANNEL...');
-        log('CLAIMING CHANNEL ' + hostId.substring(hostId.length - 2) + '...', 'sys');
-
-        peer = new Peer(hostId, {
-            host: PEER_HOST,
-            port: PEER_PORT,
-            path: PEER_PATH,
-            secure: PEER_SECURE,
-            config: {
-                iceServers: [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' }
-                ]
-            }
-        });
+        dom.stateBanner.textContent = 'CLAIMING CHANNEL...'; dom.stateBanner.style.color = 'var(--amber)';
+        peer = createPeer(hostId);
 
         peer.on('open', function(id) {
             isHost = true;
-            log('NODE ' + id.substring(id.length - 2) + ' ONLINE. LISTENING FOR INCOMING...', 'success');
-            dom.netStat.textContent = 'NET: HOSTING';
-            dom.netStat.style.color = 'var(--green)';
+            log('HOSTING CH ' + id.substring(id.length-2) + '. WAITING FOR INCOMING.', 'success');
+            dom.netStat.textContent = 'NET: HOSTING'; dom.netStat.style.color = 'var(--green)';
             dom.ledNet.classList.add('led-host');
-            setState('hosting', 'HOSTING CH ' + id.substring(id.length - 2));
+            dom.stateBanner.textContent = 'HOSTING'; dom.stateBanner.style.color = 'var(--green)';
             enablePTT();
         });
 
-        peer.on('connection', function(incomingConn) {
-            // Reject additional connections if already paired
-            if (isConnected) {
-                incomingConn.close();
-                log('REJECTED EXTRA HANDSHAKE (CHANNEL FULL).', 'error');
-                return;
-            }
-
-            log('INCOMING HANDSHAKE DETECTED.', 'sys');
-            conn = incomingConn;
-            bindConnectionHandlers(conn, null);
+        peer.on('connection', function(c) {
+            if (isConnected) { c.close(); return; }
+            log('INCOMING HANDSHAKE.', 'sys'); conn = c; bindHandlers(c, null);
         });
 
-        peer.on('call', function(incomingCall) {
-            // Reject additional calls if already paired
-            if (isConnected) {
-                incomingCall.close();
-                log('REJECTED EXTRA VOICE LINK (CHANNEL FULL).', 'error');
-                return;
-            }
-
-            log('INCOMING VOICE LINK.', 'sys');
-            incomingCall.answer(localStream);
-            currentCall = incomingCall;
-            bindConnectionHandlers(null, incomingCall);
+        peer.on('call', function(call) {
+            if (isConnected) { call.close(); return; }
+            log('INCOMING VOICE LINK.', 'sys'); call.answer(localStream); currentCall = call; bindHandlers(null, call);
         });
 
         peer.on('error', function(err) {
             if (err.type === 'unavailable-id') {
-                // Someone else is already hosting — switch to client mode
-                log('CHANNEL OCCUPIED. SWITCHING TO CLIENT MODE...', 'sys');
-                peer.destroy();
-                peer = null;
-                isHost = false;
-                setTimeout(function() {
-                    if (!isConnected) connectToPeer(hostId);
-                }, 1500);
+                log('CHANNEL TAKEN. SWITCHING TO CLIENT.', 'sys');
+                if(peer) peer.destroy(); peer = null; isHost = false;
+                setTimeout(function() { if(!isConnected) connectAsClient(hostId); }, 1500);
             } else {
-                log('HOST ERROR: ' + err.type, 'error');
-                cleanupAndReset();
-            }
-        });
-
-        peer.on('disconnected', function() {
-            log('HOST SIGNAL LOST. RECONNECTING...', 'error');
-            if (peer && !peer.destroyed) {
-                try { peer.reconnect(); } catch (e) { /* ignore */ }
+                log('HOST ERROR: ' + err.type, 'error'); cleanupAndReset();
             }
         });
     }
 
-    function bindConnectionHandlers(connection, call) {
-        // --- Data Channel ---
+    function bindHandlers(connection, call) {
         if (connection) {
             connection.on('open', function() {
                 isConnected = true;
-                dom.ledNet.classList.remove('led-host');
-                dom.ledNet.classList.add('led-online');
-                dom.netStat.textContent = 'NET: CONNECTED';
-                dom.netStat.style.color = 'var(--blue)';
-                setState('connected', 'LINK ACTIVE');
-                enablePTT();
-                log('DATA LINK ESTABLISHED.', 'success');
+                dom.ledNet.className = 'status-led led-online';
+                dom.netStat.textContent = 'NET: CONNECTED'; dom.netStat.style.color = 'var(--blue)';
+                dom.stateBanner.textContent = 'LINK ACTIVE'; dom.stateBanner.style.color = 'var(--blue)';
+                enablePTT(); log('DATA LINK ESTABLISHED.', 'success');
             });
-
             connection.on('data', function(data) {
-                // Validate incoming data — only accept known command strings
                 if (typeof data !== 'string') return;
-
-                if (data === 'TX_ON') {
-                    // Remote is transmitting → mute local speakers to prevent feedback
-                    dom.ledTx.classList.add('led-tx');
-                    if (speakerGain && audioCtx) {
-                        speakerGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
-                    }
-                } else if (data === 'TX_OFF') {
-                    // Remote stopped transmitting → unmute speakers
-                    dom.ledTx.classList.remove('led-tx');
-                    if (speakerGain && audioCtx) {
-                        speakerGain.gain.setTargetAtTime(1, audioCtx.currentTime, 0.3);
-                    }
-                    playTone(600, 0.08, 'sine');
-                }
-                // Unknown data strings are silently ignored (defense against injection)
+                if (data === 'TX_ON') { dom.ledTx.classList.add('led-tx'); if(speakerGain) speakerGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05); }
+                if (data === 'TX_OFF') { dom.ledTx.classList.remove('led-tx'); if(speakerGain) speakerGain.gain.setTargetAtTime(1, audioCtx.currentTime, 0.3); playTone(600, 0.08); }
             });
-
-            connection.on('close', function() {
-                log('DATA LINK LOST.', 'error');
-                handleDisconnect();
-            });
-
-            connection.on('error', function(err) {
-                log('DATA CHANNEL ERROR: ' + err, 'error');
-                handleDisconnect();
-            });
+            connection.on('close', function() { log('LINK LOST.', 'error'); handleDisconnect(); });
         }
-
-        // --- Media Channel ---
         if (call) {
-            call.on('stream', function(remoteStream) {
-                // Set remote audio source
-                dom.remoteAudio.srcObject = remoteStream;
-
-                // Connect to Web Audio graph for meter visualization
-                try {
-                    remoteAudioSource = audioCtx.createMediaStreamSource(remoteStream);
-                    remoteAudioSource.connect(delayNode);
-                } catch (e) {
-                    console.warn('Could not connect remote stream to audio graph:', e);
-                }
-
+            call.on('stream', function(stream) {
+                dom.remoteAudio.srcObject = stream;
+                try { remoteAudioSource = audioCtx.createMediaStreamSource(stream); remoteAudioSource.connect(delayNode); } catch(e) {}
                 log('REMOTE AUDIO SYNCED.', 'success');
             });
-
-            call.on('close', function() {
-                log('VOICE LINK TERMINATED.', 'error');
-                handleDisconnect();
-            });
-
-            call.on('error', function(err) {
-                log('CALL ERROR: ' + err, 'error');
-                handleDisconnect();
-            });
+            call.on('close', function() { log('CALL ENDED.', 'error'); handleDisconnect(); });
         }
     }
 
-    function handleDisconnect() {
-        isConnected = false;
-        isTransmitting = false;
-        dom.ledTx.classList.remove('led-tx');
-        log('CONNECTION LOST. RESET TO RECONNECT.', 'error');
-        setState('error', 'LINK LOST');
-        setTimeout(function() {
-            cleanupAndReset();
-        }, 2000);
-    }
+    function handleDisconnect() { isConnected = false; isTransmitting = false; dom.ledTx.classList.remove('led-tx'); setTimeout(cleanupAndReset, 2000); }
 
-    // --- PTT Controls ---
-    function enablePTT() {
-        dom.pttBtn.disabled = false;
-        dom.bootBtn.textContent = 'LINK ACTIVE';
-        dom.curFreq.style.color = 'var(--green)';
-    }
-
-    function setMicState(enable) {
-        if (localStream) {
-            var tracks = localStream.getAudioTracks();
-            for (var i = 0; i < tracks.length; i++) {
-                tracks[i].enabled = enable;
-            }
-        }
-    }
-
+    // ====================================================================
+    // PTT CONTROLS
+    // ====================================================================
+    function enablePTT() { dom.pttBtn.disabled = false; dom.bootBtn.textContent = 'LINK ACTIVE'; dom.curFreq.style.color = 'var(--green)'; }
+    function setMicState(en) { if(localStream) localStream.getAudioTracks().forEach(function(t){ t.enabled = en; }); }
+    
     function pttDown() {
         if (!conn || !conn.open || isTransmitting) return;
-
-        isTransmitting = true;
-        setMicState(true);
-
-        try { conn.send('TX_ON'); } catch (e) { /* ignore if data channel not ready */ }
-
+        isTransmitting = true; setMicState(true);
+        try { conn.send('TX_ON'); } catch(e) {}
         dom.ledTx.classList.add('led-tx');
-
-        // Mute speakers to prevent hearing yourself
-        if (speakerGain && audioCtx) {
-            speakerGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.01);
-        }
-
+        if(speakerGain) speakerGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.01);
         playTone(1200, 0.04, 'square');
     }
-
     function pttUp() {
         if (!isTransmitting) return;
-
-        isTransmitting = false;
-        setMicState(false);
-
-        try { conn.send('TX_OFF'); } catch (e) { /* ignore */ }
-
+        isTransmitting = false; setMicState(false);
+        try { conn.send('TX_OFF'); } catch(e) {}
         dom.ledTx.classList.remove('led-tx');
-
-        // Gradually unmute speakers
-        if (speakerGain && audioCtx) {
-            speakerGain.gain.setTargetAtTime(1, audioCtx.currentTime, 0.4);
-        }
-
-        playTone(450, 0.08, 'sine');
+        if(speakerGain) speakerGain.gain.setTargetAtTime(1, audioCtx.currentTime, 0.4);
+        playTone(450, 0.08);
     }
 
-    // Mouse events
-    dom.pttBtn.addEventListener('mousedown', function(e) {
-        e.preventDefault();
-        pttDown();
-    });
-    window.addEventListener('mouseup', function() {
-        pttUp();
-    });
+    dom.pttBtn.addEventListener('mousedown', function(e){ e.preventDefault(); pttDown(); });
+    window.addEventListener('mouseup', pttUp);
+    dom.pttBtn.addEventListener('touchstart', function(e){ e.preventDefault(); pttDown(); }, {passive:false});
+    dom.pttBtn.addEventListener('touchend', function(e){ e.preventDefault(); pttUp(); }, {passive:false});
+    dom.pttBtn.addEventListener('touchcancel', function(e){ e.preventDefault(); pttUp(); }, {passive:false});
+    dom.pttBtn.addEventListener('contextmenu', function(e){ e.preventDefault(); });
 
-    // Touch events (prevent default to avoid scroll/zoom/callout)
-    dom.pttBtn.addEventListener('touchstart', function(e) {
-        e.preventDefault();
-        pttDown();
-    }, { passive: false });
-
-    dom.pttBtn.addEventListener('touchend', function(e) {
-        e.preventDefault();
-        pttUp();
-    }, { passive: false });
-
-    dom.pttBtn.addEventListener('touchcancel', function(e) {
-        e.preventDefault();
-        pttUp();
-    }, { passive: false });
-
-    // Context menu prevention on PTT
-    dom.pttBtn.addEventListener('contextmenu', function(e) {
-        e.preventDefault();
-    });
-
-    // --- Utility: Beep Tone ---
-    function playTone(freq, duration, waveType) {
-        if (!audioCtx || audioCtx.state !== 'running') return;
-
-        try {
-            var osc = audioCtx.createOscillator();
-            var gain = audioCtx.createGain();
-
-            osc.type = waveType || 'sine';
-            osc.frequency.value = freq;
-            gain.gain.value = 0.08;
-
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-
-            osc.start();
-            gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
-            osc.stop(audioCtx.currentTime + duration + 0.01);
-        } catch (e) {
-            // Silently fail — tones are non-critical UX
-        }
+    function playTone(f, d, t) {
+        if(!audioCtx) return;
+        try { var o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type=t||'sine'; o.frequency.value=f; g.gain.value=0.08; o.connect(g); g.connect(audioCtx.destination); o.start(); g.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime+d); o.stop(audioCtx.currentTime+d+0.01); } catch(e){}
     }
 
-    // --- Cleanup Functions ---
+    // ====================================================================
+    // CLEANUP & RESET
+    // ====================================================================
     function resetUI() {
-        dom.bootBtn.disabled = false;
-        dom.bootBtn.textContent = 'INITIALIZE LINK';
-        dom.chanInput.disabled = false;
-        dom.pttBtn.disabled = true;
-        dom.curFreq.textContent = '--.--';
-        dom.curFreq.style.color = 'var(--blue)';
-        dom.netStat.textContent = 'NET: DISCONNECTED';
-        dom.netStat.style.color = 'var(--amber)';
-        dom.ledNet.className = 'status-led';
-        dom.ledTx.className = 'status-led';
-        dom.meterFill.style.width = '0%';
-        dom.dbVal.textContent = '-inf dB';
-        setState('idle', 'STANDBY');
-    }
-
-    function cleanupAudioResources() {
-        // Stop meter animation
-        if (meterRAF) {
-            cancelAnimationFrame(meterRAF);
-            meterRAF = null;
-        }
-
-        // Disconnect remote audio source
-        if (remoteAudioSource) {
-            try { remoteAudioSource.disconnect(); } catch (e) { /* ignore */ }
-            remoteAudioSource = null;
-        }
-
-        // Disconnect audio graph nodes
-        if (delayNode) { try { delayNode.disconnect(); } catch (e) { /* ignore */ } }
-        if (analyser) { try { analyser.disconnect(); } catch (e) { /* ignore */ } }
-        if (speakerGain) { try { speakerGain.disconnect(); } catch (e) { /* ignore */ } }
-
-        // Close AudioContext
-        if (audioCtx) {
-            try { audioCtx.close(); } catch (e) { /* ignore */ }
-            audioCtx = null;
-        }
-
-        delayNode = null;
-        analyser = null;
-        speakerGain = null;
+        dom.bootBtn.disabled = false; dom.bootBtn.textContent = 'INITIALIZE LINK'; dom.chanInput.disabled = false;
+        dom.pttBtn.disabled = true; dom.curFreq.textContent = '--.--'; dom.curFreq.style.color = 'var(--blue)';
+        dom.netStat.textContent = 'NET: OFFLINE'; dom.netStat.style.color = 'var(--amber)';
+        dom.ledNet.className = 'status-led'; dom.ledTx.className = 'status-led';
+        dom.meterFill.style.width = '0%'; dom.dbVal.textContent = '-inf dB';
+        dom.stateBanner.textContent = 'STANDBY'; dom.stateBanner.style.color = '#555';
     }
 
     function cleanupAndReset() {
-        // Destroy PeerJS connection
-        if (peer) {
-            try { peer.destroy(); } catch (e) { /* ignore */ }
-            peer = null;
-        }
-
-        // Stop local media tracks
-        if (localStream) {
-            var tracks = localStream.getTracks();
-            for (var i = 0; i < tracks.length; i++) {
-                tracks[i].stop();
-            }
-            localStream = null;
-        }
-
-        // Clear remote audio
-        if (dom.remoteAudio) {
-            dom.remoteAudio.srcObject = null;
-        }
-
-        // Clean up audio graph
-        cleanupAudioResources();
-
-        // Reset state
-        conn = null;
-        currentCall = null;
-        isConnected = false;
-        isTransmitting = false;
-        isHost = false;
-
-        // Reset UI
-        resetUI();
-
-        log('SYSTEM RESET COMPLETE.', 'sys');
+        if (peer) { try { peer.destroy(); } catch(e){} peer = null; }
+        if (localStream) { localStream.getTracks().forEach(function(t){ t.stop(); }); localStream = null; }
+        dom.remoteAudio.srcObject = null;
+        if (meterRAF) cancelAnimationFrame(meterRAF);
+        if (remoteAudioSource) { try{remoteAudioSource.disconnect();}catch(e){} remoteAudioSource = null; }
+        if (delayNode) { try{delayNode.disconnect();}catch(e){} }
+        if (analyser) { try{analyser.disconnect();}catch(e){} }
+        if (speakerGain) { try{speakerGain.disconnect();}catch(e){} }
+        if (audioCtx) { try{audioCtx.close();}catch(e){} audioCtx = null; }
+        delayNode = null; analyser = null; speakerGain = null;
+        conn = null; currentCall = null; isConnected = false; isTransmitting = false; isHost = false;
+        resetUI(); log('SYSTEM RESET.', 'sys');
     }
 
-    function hardReset() {
-        cleanupAndReset();
-        // No full page reload needed — all state is cleaned up
-    }
-
-    // --- Event Bindings ---
+    // ====================================================================
+    // EVENT LISTENERS
+    // ====================================================================
     dom.bootBtn.addEventListener('click', initChannel);
-    dom.resetBtn.addEventListener('click', hardReset);
+    dom.resetBtn.addEventListener('click', cleanupAndReset);
+    dom.chanInput.addEventListener('keydown', function(e) { if(e.key==='Enter') initChannel(); });
+    window.addEventListener('beforeunload', function(e) { if(isConnected) { e.preventDefault(); e.returnValue=''; } });
 
-    // Allow Enter key to trigger connection from channel input
-    dom.chanInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            initChannel();
-        }
-    });
-
-    // Warn before leaving while connected
-    window.addEventListener('beforeunload', function(e) {
-        if (isConnected) {
-            e.preventDefault();
-            e.returnValue = '';
-        }
-    });
-
-    // --- Boot Messages ---
-    log('TAC/COM-04 SECURE TERMINAL v4.0', 'sys');
-    log('WEBRTC ENCRYPTION: DTLS-SRTP ACTIVE', 'sys');
-    setTimeout(function() {
-        log('SELECT CHANNEL AND PRESS INITIALIZE LINK.', 'sys');
-    }, 400);
 </script>
 </body>
 </html>
