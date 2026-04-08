@@ -2,145 +2,336 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline'; connect-src 'self' wss://*.peerjs.com https://*.peerjs.com; img-src 'self' data: https:; font-src 'self';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline'; connect-src 'self' wss://*.peerjs.com https://*.peerjs.com; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
+<meta name="permissions-policy" content="camera=(), microphone=(), geolocation=(), payment=()">
 <title>OMNI-LINK | DIAGNOSTIC</title>
-<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js" crossorigin="anonymous"></script>
 <style>
     :root {
-        --bg: #050505; --surface: #0f0f0f; --border: #1a1a1a;
-        --accent: #39ff14; --text: #d0d0d0; --warn: #ff3333;
-        --cyan: #00d4ff; --gold: #ffd700;
-        --mono: 'Courier New', Courier, monospace;
+        --bg: #06080a;
+        --surface: #0c1014;
+        --surface-2: #111820;
+        --border: #1a2230;
+        --border-hover: #2a3848;
+        --accent: #39ff14;
+        --accent-dim: rgba(57,255,20,0.08);
+        --accent-mid: rgba(57,255,20,0.2);
+        --text: #b8c4d0;
+        --text-dim: #556270;
+        --text-bright: #e8edf2;
+        --warn: #ff4444;
+        --warn-dim: rgba(255,68,68,0.08);
+        --cyan: #00cfff;
+        --cyan-dim: rgba(0,207,255,0.08);
+        --gold: #ffc830;
+        --gold-dim: rgba(255,200,48,0.08);
+        --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Courier New', Courier, monospace;
+        --radius: 6px;
+        --radius-sm: 4px;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { 
-        background: var(--bg); color: var(--text); font-family: var(--mono); 
-        height: 100vh; height: 100dvh; display: flex; flex-direction: column; 
+    body {
+        background: var(--bg); color: var(--text); font-family: var(--mono);
+        height: 100vh; height: 100dvh; display: flex; flex-direction: column;
         overflow: hidden;
-        padding: env(safe-area-inset-top) env(safe-area-inset-right) 
+        padding: env(safe-area-inset-top) env(safe-area-inset-right)
                  env(safe-area-inset-bottom) env(safe-area-inset-left);
     }
+
+    /* ── Header ── */
     .header {
         display: flex; align-items: center; justify-content: space-between;
-        padding: 10px 15px; background: var(--surface); border-bottom: 1px solid var(--border);
-        flex-shrink: 0; gap: 10px; flex-wrap: wrap;
+        padding: 0 16px; background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0; height: 54px; gap: 12px;
     }
-    .header-title { color: var(--accent); font-weight: bold; font-size: 13px; letter-spacing: 2px; }
-    .header-sub { color: #555; font-size: 9px; letter-spacing: 1px; }
-    .header-badges { display: flex; align-items: center; gap: 8px; }
-    .net-indicator {
-        display: inline-flex; align-items: center; gap: 5px;
-        font-size: 9px; font-weight: bold; text-transform: uppercase;
-        letter-spacing: 0.5px; padding: 4px 8px; border-radius: 3px;
-        background: #111; opacity: 0.3; transition: opacity 0.4s;
+    .header-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .brand-icon {
+        width: 28px; height: 28px; border-radius: var(--radius-sm);
+        background: linear-gradient(135deg, var(--accent) 0%, #1a8a0a 100%);
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0; position: relative;
     }
-    .net-indicator.active { opacity: 1; }
-    .net-dot {
-        width: 6px; height: 6px; border-radius: 50%; background: #333;
-        transition: background 0.4s, box-shadow 0.4s;
+    .brand-icon svg { width: 16px; height: 16px; }
+    .brand-text { display: flex; flex-direction: column; gap: 0; min-width: 0; }
+    .brand-name {
+        color: var(--text-bright); font-weight: 700; font-size: 12px;
+        letter-spacing: 1.5px; text-transform: uppercase; line-height: 1.3;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .net-dot.lan { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
-    .net-dot.p2p { background: var(--cyan); box-shadow: 0 0 6px var(--cyan); }
-    .net-dot.relay { background: var(--gold); box-shadow: 0 0 6px var(--gold); }
-    #netText { color: #444; transition: color 0.4s; }
-    .status-badge { display: flex; align-items: center; gap: 6px; font-size: 10px; text-transform: uppercase; }
-    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #444; transition: background 0.3s; }
-    .status-dot.online { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
-    .status-dot.listening { background: var(--gold); animation: blink 1s infinite; }
-    .status-dot.connecting { background: var(--cyan); animation: pulse 0.6s infinite; }
-    @keyframes blink { 0%,100%{opacity:1}50%{opacity:.3} }
-    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)} }
+    .brand-version {
+        color: var(--text-dim); font-size: 8px; letter-spacing: 1.2px;
+        text-transform: uppercase; font-weight: 500;
+    }
+    .header-status { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
-    .console { 
-        flex: 1; min-height: 0; overflow-y: auto; padding: 12px; 
-        background: rgba(0,0,0,0.6); font-size: 12px; line-height: 1.6;
+    /* ── Pill Badges ── */
+    .pill {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 5px 10px; border-radius: 100px;
+        font-size: 9px; font-weight: 600; text-transform: uppercase;
+        letter-spacing: 0.8px; border: 1px solid var(--border);
+        background: var(--surface-2); color: var(--text-dim);
+        transition: all 0.35s ease; white-space: nowrap;
+    }
+    .pill-dot {
+        width: 6px; height: 6px; border-radius: 50%;
+        background: var(--text-dim); transition: all 0.35s ease; flex-shrink: 0;
+    }
+    .pill--active { border-color: var(--border-hover); color: var(--text); }
+
+    .pill--lan .pill-dot { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+    .pill--lan { border-color: var(--accent-mid); color: var(--accent); background: var(--accent-dim); }
+
+    .pill--p2p .pill-dot { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+    .pill--p2p { border-color: rgba(0,207,255,0.2); color: var(--cyan); background: var(--cyan-dim); }
+
+    .pill--relay .pill-dot { background: var(--gold); box-shadow: 0 0 8px var(--gold); }
+    .pill--relay { border-color: rgba(255,200,48,0.2); color: var(--gold); background: var(--gold-dim); }
+
+    .pill--online .pill-dot { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+    .pill--online { border-color: var(--accent-mid); color: var(--accent); background: var(--accent-dim); }
+
+    .pill--listening .pill-dot { background: var(--gold); animation: blink 1.2s ease infinite; }
+    .pill--listening { border-color: rgba(255,200,48,0.2); color: var(--gold); background: var(--gold-dim); }
+
+    .pill--connecting .pill-dot { background: var(--cyan); animation: pulse 0.7s ease infinite; }
+    .pill--connecting { border-color: rgba(0,207,255,0.2); color: var(--cyan); background: var(--cyan-dim); }
+
+    .pill--offline { opacity: 0.6; }
+    .pill--failed { border-color: rgba(255,68,68,0.25); color: var(--warn); background: var(--warn-dim); }
+    .pill--failed .pill-dot { background: var(--warn); }
+
+    @keyframes blink { 0%,100%{opacity:1}50%{opacity:.25} }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.65)} }
+
+    /* ── Privacy Banner ── */
+    .privacy-banner {
+        display: flex; align-items: center; gap: 10px;
+        padding: 0 16px; height: 34px; flex-shrink: 0;
+        background: linear-gradient(90deg, rgba(255,200,48,0.06) 0%, rgba(255,200,48,0.02) 100%);
+        border-bottom: 1px solid rgba(255,200,48,0.1);
+        font-size: 9px; letter-spacing: 0.3px; color: #8a7a40;
+        overflow: hidden; transition: height 0.3s ease, opacity 0.3s ease;
+    }
+    .privacy-banner.collapsed { height: 0; opacity: 0; border-bottom-color: transparent; }
+    .privacy-icon { flex-shrink: 0; color: var(--gold); font-size: 11px; }
+    .privacy-text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .privacy-dismiss {
+        flex-shrink: 0; background: none; border: 1px solid rgba(255,200,48,0.15);
+        color: #8a7a40; padding: 0 10px; height: 22px; border-radius: 100px;
+        cursor: pointer; font-family: var(--mono); font-size: 8px;
+        text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600;
+        -webkit-tap-highlight-color: transparent; transition: all 0.15s;
+    }
+    .privacy-dismiss:hover { background: rgba(255,200,48,0.08); border-color: rgba(255,200,48,0.3); color: var(--gold); }
+
+    /* ── Console ── */
+    .console {
+        flex: 1; min-height: 0; overflow-y: auto; padding: 14px 16px;
+        background: var(--bg); font-size: 11.5px; line-height: 1.7;
         -webkit-overflow-scrolling: touch;
+        transition: border-color 0.5s ease;
+        border-left: 2px solid transparent;
     }
-    .entry { margin-bottom: 3px; word-break: break-all; border-left: 2px solid transparent; padding-left: 8px; }
-    .ts { color: #444; margin-right: 6px; user-select: none; }
-    .sys { color: #666; font-style: italic; }
-    .local { color: var(--accent); border-left-color: var(--accent); }
-    .remote { color: var(--cyan); border-left-color: var(--cyan); }
-    .warn { color: var(--warn); border-left-color: var(--warn); }
+    .console.linked-lan { border-left-color: rgba(57,255,20,0.3); }
+    .console.linked-p2p { border-left-color: rgba(0,207,255,0.3); }
+    .console.linked-relay { border-left-color: rgba(255,200,48,0.3); }
+    .entry { margin-bottom: 2px; word-break: break-all; padding-left: 10px; border-left: 2px solid transparent; }
+    .ts { color: #2e3a48; margin-right: 8px; user-select: none; font-size: 10px; }
+    .sys { color: #44505e; font-style: italic; }
+    .local { color: var(--accent); border-left-color: rgba(57,255,20,0.3); }
+    .remote { color: var(--cyan); border-left-color: rgba(0,207,255,0.3); }
+    .warn { color: var(--warn); border-left-color: rgba(255,68,68,0.3); }
     .ok { color: var(--accent); }
-    .route-log { color: #555; font-size: 11px; }
-    .diag { color: var(--gold); font-size: 11px; }
-    .diag-bad { color: var(--warn); font-size: 11px; font-weight: bold; }
+    .route-log { color: #384858; font-size: 10.5px; }
+    .diag { color: var(--gold); font-size: 10.5px; }
+    .diag-bad { color: var(--warn); font-size: 10.5px; font-weight: 700; }
+    .privacy-log { color: #4a4020; font-size: 10px; }
+    .section-divider { color: #1e2838; font-size: 9px; margin: 6px 0 4px -12px; letter-spacing: 1px; text-transform: uppercase; }
 
-    .panel { 
-        padding: 12px; background: var(--surface); border-top: 1px solid var(--border);
-        flex-shrink: 0;
+    /* ── Panel ── */
+    .panel {
+        padding: 12px 16px; background: var(--surface);
+        border-top: 1px solid var(--border); flex-shrink: 0;
     }
-    .row { display: none; gap: 8px; }
+    .row { display: none; gap: 8px; align-items: stretch; }
     .row.active { display: flex; }
-    input { 
-        flex: 1; background: #000; border: 1px solid var(--border); 
-        color: var(--accent); padding: 10px; font-family: var(--mono); outline: none;
-        min-height: 44px; font-size: 13px;
-    }
-    input:focus { border-color: var(--accent); }
-    input::placeholder { color: #222; }
-    .btn { 
-        background: transparent; border: 1px solid var(--accent); color: var(--accent);
-        padding: 0 14px; cursor: pointer; font-family: var(--mono); font-size: 10px;
-        text-transform: uppercase; transition: 0.15s; min-height: 44px; min-width: 44px;
-        -webkit-tap-highlight-color: transparent; white-space: nowrap;
-    }
-    .btn:hover { background: var(--accent); color: #000; }
-    .btn:active { transform: scale(0.97); }
-    .btn:disabled { opacity: 0.3; cursor: not-allowed; }
-    .btn-warn { border-color: var(--warn); color: var(--warn); }
-    .btn-warn:hover { background: var(--warn); color: #000; }
 
-    ::-webkit-scrollbar { width: 4px; }
-    ::-webkit-scrollbar-thumb { background: var(--border); }
+    /* ── Inputs ── */
+    .input {
+        flex: 1; background: var(--bg); border: 1px solid var(--border);
+        color: var(--text-bright); padding: 0 14px; font-family: var(--mono);
+        outline: none; min-height: 44px; font-size: 13px;
+        border-radius: var(--radius); transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .input:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-dim);
+    }
+    .input::placeholder { color: #2a3444; font-weight: 400; }
+    .input::-webkit-inner-spin-button,
+    .input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    .input[type=number] { -moz-appearance: textfield; }
 
-    @media (max-width: 420px) {
-        .header { padding: 8px 10px; }
-        .header-title { font-size: 11px; }
-        .console { font-size: 11px; padding: 8px; }
-        .btn { padding: 0 10px; font-size: 9px; }
+    /* ── Buttons ── */
+    .btn {
+        display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+        border: none; border-radius: var(--radius);
+        font-family: var(--mono); font-size: 10px; font-weight: 700;
+        text-transform: uppercase; letter-spacing: 1px;
+        cursor: pointer; min-height: 44px; min-width: 44px;
+        padding: 0 18px; white-space: nowrap;
+        -webkit-tap-highlight-color: transparent;
+        transition: all 0.15s ease; position: relative; overflow: hidden;
+    }
+    .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .btn:disabled { opacity: 0.25; cursor: not-allowed; pointer-events: none; }
+
+    /* Primary */
+    .btn--primary {
+        background: var(--accent); color: #050505;
+    }
+    .btn--primary:hover { background: #4dff2e; box-shadow: 0 2px 16px rgba(57,255,20,0.2); }
+    .btn--primary:active { transform: scale(0.97); background: #30e010; }
+
+    /* Ghost */
+    .btn--ghost {
+        background: var(--surface-2); color: var(--text);
+        border: 1px solid var(--border);
+    }
+    .btn--ghost:hover { background: var(--border); border-color: var(--border-hover); color: var(--text-bright); }
+    .btn--ghost:active { transform: scale(0.97); }
+
+    /* Danger */
+    .btn--danger {
+        background: var(--warn-dim); color: var(--warn);
+        border: 1px solid rgba(255,68,68,0.15);
+    }
+    .btn--danger:hover { background: rgba(255,68,68,0.15); border-color: rgba(255,68,68,0.3); box-shadow: 0 2px 12px rgba(255,68,68,0.1); }
+    .btn--danger:active { transform: scale(0.97); }
+    .btn--danger:focus-visible { outline-color: var(--warn); }
+
+    /* Icon-only button */
+    .btn--icon {
+        padding: 0; width: 44px; background: var(--surface-2);
+        border: 1px solid var(--border); color: var(--text-dim);
+    }
+    .btn--icon:hover { background: var(--border); color: var(--text); }
+    .btn--icon svg { width: 16px; height: 16px; }
+
+    /* ── Dead State ── */
+    .dead-state {
+        display: flex; flex-direction: column; gap: 12px; flex: 1;
+        padding: 4px 0;
+    }
+    .dead-meta { display: flex; align-items: baseline; gap: 8px; }
+    .dead-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+    .dead-channel { font-size: 13px; color: var(--text-bright); font-weight: 700; letter-spacing: 0.5px; }
+    .dead-hint { font-size: 9px; color: var(--text-dim); line-height: 1.5; }
+    .dead-actions { display: flex; gap: 8px; }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
+
+    /* ── Mobile ── */
+    @media (max-width: 520px) {
+        .header { padding: 0 12px; height: 48px; gap: 8px; }
+        .brand-icon { width: 24px; height: 24px; border-radius: 3px; }
+        .brand-icon svg { width: 14px; height: 14px; }
+        .brand-name { font-size: 10.5px; letter-spacing: 1px; }
+        .brand-version { font-size: 7px; }
+        .pill { padding: 4px 8px; font-size: 8px; gap: 5px; letter-spacing: 0.5px; }
+        .pill-dot { width: 5px; height: 5px; }
+        .privacy-banner { padding: 0 12px; height: 30px; font-size: 8px; }
+        .console { font-size: 10.5px; padding: 10px 12px; line-height: 1.65; }
+        .panel { padding: 10px 12px; }
+        .input { font-size: 16px; min-height: 48px; border-radius: var(--radius); }
+        .btn { min-height: 48px; min-width: 48px; font-size: 9px; padding: 0 14px; border-radius: var(--radius); letter-spacing: 0.8px; }
+        .dead-state { gap: 10px; }
+    }
+    @media (max-width: 360px) {
+        .brand-version { display: none; }
+        .pill span:last-child:not(.pill-dot) { font-size: 7px; }
     }
     @media (prefers-reduced-motion: reduce) {
-        .status-dot.listening, .status-dot.connecting { animation: none; }
-        .btn { transition: none; }
+        .pill--listening .pill-dot,
+        .pill--connecting .pill-dot { animation: none; }
+        .btn, .pill, .input, .privacy-banner, .console { transition: none; }
     }
 </style>
 </head>
 <body>
 
-<header class="header">
-    <div>
-        <div class="header-title">OMNI-LINK v3.2 DIAG</div>
-        <div class="header-sub">ICE VERBOSE MODE</div>
-    </div>
-    <div class="header-badges">
-        <div class="net-indicator" id="netIndicator">
-            <span class="net-dot" id="netDot"></span>
-            <span id="netText">---</span>
+<header class="header" role="banner">
+    <div class="header-brand">
+        <div class="brand-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#050505" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                <path d="M2 17l10 5 10-5"/>
+                <path d="M2 12l10 5 10-5"/>
+            </svg>
         </div>
-        <div class="status-badge">
-            <div class="status-dot" id="statusDot"></div>
-            <span id="statusText">Offline</span>
+        <div class="brand-text">
+            <span class="brand-name">Omni-Link</span>
+            <span class="brand-version">v3.2 &middot; Diagnostic</span>
+        </div>
+    </div>
+    <div class="header-status">
+        <div class="pill pill--offline" id="routePill" aria-label="Connection route">
+            <span class="pill-dot"></span>
+            <span id="routeText">Offline</span>
+        </div>
+        <div class="pill pill--offline" id="statusPill" aria-label="Connection status">
+            <span class="pill-dot"></span>
+            <span id="statusText">Idle</span>
         </div>
     </div>
 </header>
 
-<main class="console" id="console"></main>
+<aside class="privacy-banner" id="privacyBanner" role="alert" aria-label="Privacy notice">
+    <span class="privacy-icon" aria-hidden="true">&#9888;</span>
+    <span class="privacy-text">ICE candidates expose local IPs. Channel numbers are not secret. Messages travel P2P but may route through TURN relays. Use on trusted networks only.</span>
+    <button class="privacy-dismiss" id="dismissPrivacy" aria-label="Dismiss">Dismiss</button>
+</aside>
 
-<section class="panel">
+<main class="console" id="console" role="log" aria-live="polite" aria-label="Diagnostic console"></main>
+
+<section class="panel" role="form" aria-label="Connection controls">
     <div class="row active" id="setupRow">
-        <input type="number" id="chanInput" placeholder="CHANNEL 1-99" min="1" max="99" inputmode="numeric" autocomplete="off">
-        <button class="btn" id="initBtn">Init</button>
+        <input type="number" class="input" id="chanInput" placeholder="Channel (1–99)" min="1" max="99"
+               inputmode="numeric" autocomplete="off" aria-label="Channel number">
+        <button class="btn btn--primary" id="initBtn" aria-label="Initialize">Connect</button>
     </div>
     <div class="row" id="chatRow">
-        <input type="text" id="msgInput" placeholder="Message..." maxlength="500" autocomplete="off">
-        <button class="btn" id="sendBtn">Send</button>
-        <button class="btn btn-warn" id="discBtn">End</button>
+        <input type="text" class="input" id="msgInput" placeholder="Type a message..." maxlength="500"
+               autocomplete="off" aria-label="Chat message">
+        <button class="btn btn--primary" id="sendBtn" aria-label="Send message">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            Send
+        </button>
+        <button class="btn btn--danger" id="discBtn" aria-label="Disconnect">End</button>
     </div>
     <div class="row" id="deadRow">
-        <button class="btn" id="retryBtn" style="flex:1">Retry</button>
+        <div class="dead-state">
+            <div class="dead-meta">
+                <span class="dead-label">Lost</span>
+                <span class="dead-channel" id="deadChannel"></span>
+            </div>
+            <span class="dead-hint" id="deadHint">Connection could not be established or was dropped.</span>
+            <div class="dead-actions">
+                <button class="btn btn--ghost" id="retryBtn" aria-label="Retry connection" style="flex:1">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                    Retry
+                </button>
+                <button class="btn btn--ghost" id="newBtn" aria-label="New channel">New</button>
+            </div>
+        </div>
     </div>
 </section>
 
@@ -148,18 +339,29 @@
 (function() {
     'use strict';
 
+    if (typeof Peer === 'undefined') {
+        document.getElementById('initBtn').disabled = true;
+        document.getElementById('initBtn').textContent = 'Error';
+        var errEl = document.createElement('div');
+        errEl.className = 'entry diag-bad';
+        errEl.textContent = 'FATAL: PeerJS library failed to load. Check your network or try again later.';
+        document.getElementById('console').appendChild(errEl);
+        return;
+    }
+
     var peer = null, conn = null, channel = '', isHost = false;
     var connTimeout = null, failTimeout = null, iceRestarted = false;
     var iceCandidates = { host: 0, srflx: 0, relay: 0 };
     var PREFIX = 'OMNI-DIAG-';
     var logEl = document.getElementById('console');
+    var msgTimestamps = [];
+    var MAX_MSG_RATE = 5;
+    var RATE_WINDOW_MS = 1000;
+    var MAX_RECV_SIZE = 10240;
 
-    /* STUN only — let PeerJS supply TURN from cloud */
     var PEER_OPTS = {
-        debug: 0,
-        secure: true,
-        host: '0.peerjs.com',
-        port: 443,
+        debug: 0, secure: true,
+        host: '0.peerjs.com', port: 443,
         transports: ['websocket'],
         config: {
             iceServers: [
@@ -169,28 +371,68 @@
         }
     };
 
-    /* ── Helpers ────────────────────────────── */
-
-    function getPC(c) {
-        if (!c) return null;
-        return c.peerConnection || c._pc || null;
+    /* ── Sanitization ── */
+    function sanitizeMsg(raw) {
+        if (typeof raw !== 'string') return '';
+        return raw.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\uFFFE\uFFFF]/g, '').substring(0, 500);
+    }
+    function parseChannel(raw) {
+        if (typeof raw !== 'string') return NaN;
+        var t = raw.trim();
+        if (t === '') return NaN;
+        var n = parseInt(t, 10);
+        if (isNaN(n) || n < 1 || n > 99 || t !== String(n)) return NaN;
+        return n;
+    }
+    function checkRateLimit() {
+        var now = Date.now();
+        msgTimestamps = msgTimestamps.filter(function(t) { return now - t < RATE_WINDOW_MS; });
+        if (msgTimestamps.length >= MAX_MSG_RATE) return false;
+        msgTimestamps.push(now);
+        return true;
     }
 
+    /* ── Safe Logging ── */
     function log(msg, type) {
-        var d = document.createElement('div');
-        d.className = 'entry ' + (type || '');
-        var ts = new Date().toLocaleTimeString([], { hour12: false });
-        d.innerHTML = '<span class="ts">[' + ts + ']</span><span></span>';
-        d.lastElementChild.textContent = msg;
-        logEl.appendChild(d);
+        var entry = document.createElement('div');
+        entry.className = 'entry ' + (type || '');
+        var ts = document.createElement('span');
+        ts.className = 'ts';
+        ts.textContent = new Date().toLocaleTimeString([], { hour12: false });
+        var ms = document.createElement('span');
+        ms.textContent = msg;
+        entry.appendChild(ts);
+        entry.appendChild(ms);
+        logEl.appendChild(entry);
+        logEl.scrollTop = logEl.scrollHeight;
+    }
+    function logSection(title) {
+        var el = document.createElement('div');
+        el.className = 'section-divider';
+        el.textContent = '\u2500\u2500 ' + title + ' \u2500\u2500';
+        logEl.appendChild(el);
         logEl.scrollTop = logEl.scrollHeight;
     }
 
-    function setStatus(t, cls) {
-        document.getElementById('statusText').textContent = t;
-        document.getElementById('statusDot').className = 'status-dot ' + (cls || '');
+    /* ── Pill Badge Updates ── */
+    function setStatus(text, variant) {
+        var pill = document.getElementById('statusPill');
+        var txt = document.getElementById('statusText');
+        pill.className = 'pill pill--' + (variant || 'offline');
+        txt.textContent = text;
+    }
+    function setRoute(text, variant) {
+        var pill = document.getElementById('routePill');
+        var txt = document.getElementById('routeText');
+        pill.className = 'pill pill--' + (variant || 'offline');
+        txt.textContent = text;
+    }
+    function resetRoute() {
+        setRoute('Offline', 'offline');
+        logEl.className = 'console';
     }
 
+    /* ── Row Management ── */
     function showRow(name) {
         ['setupRow', 'chatRow', 'deadRow'].forEach(function(id) {
             document.getElementById(id).classList.remove('active');
@@ -198,15 +440,8 @@
         if (name) document.getElementById(name + 'Row').classList.add('active');
     }
 
-    function resetRoute() {
-        document.getElementById('netIndicator').className = 'net-indicator';
-        document.getElementById('netDot').className = 'net-dot';
-        var t = document.getElementById('netText');
-        t.textContent = '---'; t.style.color = '';
-    }
-
+    /* ── Cleanup ── */
     function clearAllTimeouts() { clearTimeout(connTimeout); clearTimeout(failTimeout); }
-
     function destroyPeer() {
         if (conn) { try { conn.close(); } catch(e) {} }
         conn = null;
@@ -214,21 +449,24 @@
         peer = null;
         iceRestarted = false;
     }
-
     function fullReset() {
         clearAllTimeouts(); destroyPeer();
-        channel = ''; isHost = false;
-        setStatus('Offline', ''); resetRoute();
+        channel = ''; isHost = false; msgTimestamps = [];
+        setStatus('Idle', 'offline'); resetRoute();
         showRow('setup');
         document.getElementById('initBtn').disabled = false;
+        document.getElementById('chanInput').value = '';
     }
-
-    function handleDead() {
-        clearAllTimeouts(); setStatus('Failed', ''); resetRoute();
+    function handleDead(reason) {
+        clearAllTimeouts();
+        setStatus('Failed', 'failed'); resetRoute();
+        document.getElementById('deadChannel').textContent = channel ? 'CH-' + channel : '';
+        document.getElementById('deadHint').textContent = reason || 'Connection could not be established or was dropped.';
         showRow('dead'); destroyPeer();
     }
 
-    /* ── ICE Tracking (verbose) ─────────────── */
+    /* ── ICE Tracking ── */
+    function getPC(c) { return c ? (c.peerConnection || c._pc || null) : null; }
 
     function attachIceTracker(c) {
         var pc = getPC(c);
@@ -238,88 +476,54 @@
             else log('FATAL: Cannot access RTCPeerConnection after 6s.', 'diag-bad');
             return;
         }
-
         log('RTCPeerConnection acquired. ICE gathering starting...', 'diag');
 
         pc.addEventListener('icecandidate', function(e) {
             if (!e.candidate) {
-                log('── ICE GATHERING COMPLETE ──', 'diag');
-                log('Summary: host=' + iceCandidates.host + 
-                    '  srflx=' + iceCandidates.srflx + 
-                    '  relay=' + iceCandidates.relay, 'diag');
-                
+                logSection('ICE Gathering Complete');
+                log('Host: ' + iceCandidates.host + '  |  STUN: ' + iceCandidates.srflx + '  |  TURN: ' + iceCandidates.relay, 'diag');
                 if (iceCandidates.relay === 0 && iceCandidates.srflx > 0) {
-                    log('NO TURN RELAY FOUND. Cross-network will fail if P2P blocked.', 'diag-bad');
-                    log('Diagnosis: PeerJS cloud TURN is not responding for this session.', 'diag-bad');
-                    log('Fix needed: Add your own TURN server (coturn / Twilio / Metered).', 'diag-bad');
+                    log('No TURN relay found. Cross-network will fail if P2P is blocked.', 'diag-bad');
+                    log('Add your own TURN server (coturn / Twilio / Metered) for reliability.', 'diag-bad');
                 }
                 return;
             }
-
-            var cand = e.candidate;
-            var type = cand.type;
-            var addr = cand.address || cand.candidate.split(' ')[4] || '?';
+            var cand = e.candidate, type = cand.type;
+            var addr = cand.address || '';
+            if (!addr && cand.candidate) { var p = cand.candidate.split(' '); if (p.length > 4) addr = p[4]; }
+            if (!addr) addr = '(hidden)';
             var proto = cand.protocol || '?';
-
-            if (type === 'host') {
-                iceCandidates.host++;
-                log('ICE [LOCAL]:   ' + addr + ' (' + proto + ')', 'route-log');
-            }
-            if (type === 'srflx') {
-                iceCandidates.srflx++;
-                log('ICE [STUN]:    ' + addr + ' (' + proto + ')', 'route-log');
-            }
-            if (type === 'relay') {
-                iceCandidates.relay++;
-                log('ICE [TURN]:    ' + addr + ' (' + proto + ')', 'diag');
-            }
-            if (type === 'prflx') {
-                log('ICE [PEER]:    ' + addr + ' (peer reflexive)', 'route-log');
-            }
+            if (type === 'host')        { iceCandidates.host++;  log('LOCAL   ' + addr + '  (' + proto + ')', 'route-log'); }
+            else if (type === 'srflx')   { iceCandidates.srflx++; log('STUN    ' + addr + '  (' + proto + ')', 'route-log'); }
+            else if (type === 'relay')   { iceCandidates.relay++; log('TURN    ' + addr + '  (' + proto + ')', 'diag'); }
+            else if (type === 'prflx')   { log('PEER    ' + addr + '  (reflexive)', 'route-log'); }
         });
 
         pc.addEventListener('iceconnectionstatechange', function() {
             var s = pc.iceConnectionState;
-            log('ICE state → ' + s, s === 'failed' || s === 'disconnected' ? 'diag-bad' : 'diag');
-
-            if (s === 'connected' || s === 'completed') {
-                clearAllTimeouts();
-                detectRoute(pc);
-            }
-            if (s === 'disconnected') {
-                log('Link disrupted — may auto-recover...', 'warn');
-            }
+            log('ICE state \u2192 ' + s, (s === 'failed' || s === 'disconnected') ? 'diag-bad' : 'diag');
+            if (s === 'connected' || s === 'completed') { clearAllTimeouts(); detectRoute(pc); }
+            if (s === 'disconnected') log('Link disrupted \u2014 may auto-recover...', 'warn');
             if (s === 'failed') {
                 if (!iceRestarted) {
-                    iceRestarted = true;
-                    log('Attempting ICE restart...', 'diag');
-                    try { pc.restartIce(); } catch(e) {
-                        log('ICE restart unsupported. Dead.', 'diag-bad');
-                        handleDead();
-                    }
+                    iceRestarted = true; log('Attempting ICE restart...', 'diag');
+                    try { pc.restartIce(); } catch(e) { log('ICE restart unsupported.', 'diag-bad'); handleDead('ICE restart not supported by browser.'); }
                 } else {
-                    log('ICE restart failed. Connection cannot be established.', 'diag-bad');
-                    if (iceCandidates.relay === 0) {
-                        log('ROOT CAUSE: No TURN relay available.', 'diag-bad');
-                        log('Your networks block direct P2P and there is no relay fallback.', 'diag-bad');
-                    }
-                    handleDead();
+                    var reason = 'ICE restart failed.';
+                    if (iceCandidates.relay === 0) reason = 'No TURN relay available. Direct P2P is blocked by network.';
+                    log(reason, 'diag-bad');
+                    handleDead(reason);
                 }
             }
             if (s === 'closed') clearAllTimeouts();
         });
 
-        /* Also monitor data channel directly */
         pc.addEventListener('datachannel', function(e) {
-            log('DataChannel created: "' + e.channel.label + '" state=' + e.channel.readyState, 'diag');
-            e.channel.addEventListener('open', function() {
-                log('DataChannel OPEN — binary transport ready.', 'ok');
-            });
-            e.channel.addEventListener('close', function() {
-                log('DataChannel CLOSED.', 'warn');
-            });
+            log('DataChannel "' + e.channel.label + '" \u2192 ' + e.channel.readyState, 'diag');
+            e.channel.addEventListener('open', function() { log('DataChannel open \u2014 transport ready.', 'ok'); });
+            e.channel.addEventListener('close', function() { log('DataChannel closed.', 'warn'); });
             e.channel.addEventListener('error', function(ev) {
-                log('DataChannel ERROR: ' + ev.error, 'diag-bad');
+                log('DataChannel error: ' + (ev.error && ev.error.message ? ev.error.message : 'unknown'), 'diag-bad');
             });
         });
     }
@@ -335,48 +539,34 @@
                     var remote = stats.get(r.remoteCandidateId);
                     var t = local ? (local.candidateType || '?') : '?';
                     var rAddr = remote ? (remote.address || remote.candidate || '?') : '?';
-                    
-                    showRoute(t);
-                    log('── ROUTE ESTABLISHED ──', 'ok');
-                    log('Local type: ' + t + '  →  Remote: ' + rAddr, 'ok');
-                    if (t === 'host')      log('Mode: LAN (same network)', 'ok');
-                    else if (t === 'srflx') log('Mode: P2P (direct, cross-network)', 'ok');
-                    else if (t === 'relay') log('Mode: RELAY (routed via TURN)', 'ok');
-                    else                    log('Mode: Unknown', 'diag');
+                    logSection('Route Established');
+                    log('Type: ' + t + '  \u2192  Remote: ' + rAddr, 'ok');
+                    if (t === 'host')       { setRoute('LAN', 'lan');   log('Mode: Local Area Network (same subnet)', 'ok'); }
+                    else if (t === 'srflx') { setRoute('P2P', 'p2p');   log('Mode: Direct peer-to-peer (cross-network)', 'ok'); }
+                    else if (t === 'relay') { setRoute('Relay', 'relay'); log('Mode: TURN relay (routed through server)', 'ok'); }
+                    else                    { setRoute('P2P', 'p2p');    log('Mode: Unknown candidate type', 'diag'); }
+                    logEl.className = 'console linked-' + (t === 'host' ? 'lan' : t === 'srflx' ? 'p2p' : t === 'relay' ? 'relay' : 'p2p');
                 }
             });
-            if (!done) showRoute('unknown');
+            if (!done) setRoute('P2P', 'p2p');
         }).catch(function(e) {
             log('getStats failed: ' + e, 'diag-bad');
-            showRoute('unknown');
+            setRoute('P2P', 'p2p');
         });
     }
 
-    function showRoute(type) {
-        var el = document.getElementById('netIndicator');
-        var dot = document.getElementById('netDot');
-        var txt = document.getElementById('netText');
-        el.className = 'net-indicator active';
-        dot.className = 'net-dot';
-        txt.style.color = '';
-        if (type === 'host') { dot.classList.add('lan'); txt.textContent = 'LAN'; txt.style.color = '#39ff14'; }
-        else if (type === 'srflx') { dot.classList.add('p2p'); txt.textContent = 'P2P'; txt.style.color = '#00d4ff'; }
-        else if (type === 'relay') { dot.classList.add('relay'); txt.textContent = 'RELAY'; txt.style.color = '#ffd700'; }
-        else { txt.textContent = '???'; }
-    }
-
-    /* ── Connection Logic ───────────────────── */
-
+    /* ── Connection Logic ── */
     function initLink() {
-        var chan = document.getElementById('chanInput').value.trim();
-        if (!chan || chan < 1 || chan > 99) return log('Enter channel 1-99.', 'warn');
+        var chan = parseChannel(document.getElementById('chanInput').value);
+        if (isNaN(chan)) { log('Enter a valid channel: 1 to 99.', 'warn'); return; }
         channel = chan;
         iceCandidates = { host: 0, srflx: 0, relay: 0 };
+        msgTimestamps = [];
 
         var targetId = PREFIX + chan;
         document.getElementById('initBtn').disabled = true;
-        log('Creating node on CH-' + chan + '...', 'sys');
-        log('Peer ID will be: ' + targetId, 'diag');
+        logSection('Initializing CH-' + chan);
+        log('Peer ID: ' + targetId, 'diag');
 
         try { peer = new Peer(targetId, PEER_OPTS); }
         catch(e) { log('Peer creation failed: ' + e.message, 'diag-bad'); fullReset(); return; }
@@ -388,38 +578,34 @@
         peer.on('open', function() {
             clearTimeout(sigTimeout);
             isHost = true;
-            log('Registered as HOST. Listening for connections...', 'sys');
+            log('Registered as HOST. Waiting for peer...', 'sys');
             setStatus('Listening', 'listening');
         });
 
         peer.on('connection', function(incoming) {
-            log('Incoming connection from peer.', 'sys');
+            log('Incoming connection detected.', 'sys');
             setStatus('Connecting', 'connecting');
-            conn = incoming;
-            conn._iceRetries = 0;
-            attachIceTracker(conn);
-            startTimeouts();
-            wireData();
+            conn = incoming; conn._iceRetries = 0;
+            attachIceTracker(conn); startTimeouts(); wireData();
         });
 
         peer.on('error', function(err) {
             clearTimeout(sigTimeout); clearAllTimeouts();
             if (err.type === 'unavailable-id') {
-                log('Channel taken. Switching to CLIENT mode...', 'sys');
-                peer.removeAllListeners();
-                peer.destroy(); peer = null;
-                isHost = false;
+                log('Channel occupied. Switching to CLIENT mode...', 'sys');
+                try { peer.removeAllListeners(); } catch(e) {}
+                peer.destroy(); peer = null; isHost = false;
                 setTimeout(function() { joinExisting(targetId); }, 1200);
             } else {
-                log('Peer error: ' + err.type + ' — ' + (err.message || ''), 'diag-bad');
+                log('Error: ' + err.type + ' \u2014 ' + (err.message || ''), 'diag-bad');
                 fullReset();
             }
         });
     }
 
     function joinExisting(targetId) {
-        log('Creating anonymous client node...', 'sys');
-
+        logSection('Client Mode');
+        log('Creating anonymous node...', 'sys');
         try { peer = new Peer(PEER_OPTS); }
         catch(e) { log('Client peer creation failed.', 'diag-bad'); fullReset(); return; }
 
@@ -429,82 +615,95 @@
 
         peer.on('open', function() {
             clearTimeout(sigTimeout);
-            log('Connecting to HOST: ' + targetId, 'sys');
+            log('Connecting to ' + targetId + '...', 'sys');
             setStatus('Connecting', 'connecting');
-
             try {
                 conn = peer.connect(targetId, { reliable: true });
                 conn._iceRetries = 0;
-                attachIceTracker(conn);
-                startTimeouts();
-                wireData();
-            } catch(e) {
-                log('peer.connect() failed: ' + e.message, 'diag-bad');
-                fullReset();
-            }
+                attachIceTracker(conn); startTimeouts(); wireData();
+            } catch(e) { log('Connect failed: ' + e.message, 'diag-bad'); fullReset(); }
         });
 
         peer.on('error', function(err) {
             clearTimeout(sigTimeout); clearAllTimeouts();
-            log('Client error: ' + err.type + ' — ' + (err.message || ''), 'diag-bad');
+            log('Error: ' + err.type + ' \u2014 ' + (err.message || ''), 'diag-bad');
             fullReset();
         });
     }
 
     function startTimeouts() {
         clearAllTimeouts();
-        connTimeout = setTimeout(function() { log('Slow connection (10s)... waiting for ICE...', 'warn'); }, 10000);
-        failTimeout = setTimeout(function() { log('CONNECTION TIMED OUT (30s).', 'diag-bad'); handleDead(); }, 30000);
+        connTimeout = setTimeout(function() { log('Still waiting for ICE... (10s)', 'warn'); }, 10000);
+        failTimeout = setTimeout(function() { log('Connection timed out (30s).', 'diag-bad'); handleDead('Connection timed out after 30 seconds.'); }, 30000);
     }
 
     function wireData() {
         conn.on('open', function() {
             clearAllTimeouts();
-            log('PeerJS conn.open — DATA STREAM LIVE.', 'ok');
+            logSection('Connected');
+            log('Data stream is live.', 'ok');
             setStatus('Connected', 'online');
             showRow('chat');
-            document.getElementById('msgInput').focus();
+            setTimeout(function() { document.getElementById('msgInput').focus(); }, 120);
         });
-
         conn.on('data', function(data) {
-            log(typeof data === 'string' ? data : '[binary]', 'remote');
+            if (typeof data === 'string') {
+                if (data.length > MAX_RECV_SIZE) { log('[blocked: payload ' + data.length + 'B exceeds limit]', 'warn'); return; }
+                log(data, 'remote');
+            } else if (data instanceof ArrayBuffer || (data && data.byteLength !== undefined)) {
+                log('[binary: ' + (data.byteLength || data.size || '?') + ' bytes]', 'remote');
+            } else {
+                log('[unknown data type]', 'remote');
+            }
         });
-
-        conn.on('close', function() {
-            clearAllTimeouts();
-            log('Peer disconnected.', 'warn');
-            handleDead();
-        });
-
-        conn.on('error', function(err) { log('Conn error: ' + err, 'diag-bad'); });
+        conn.on('close', function() { clearAllTimeouts(); log('Peer disconnected.', 'warn'); handleDead('Peer closed the connection.'); });
+        conn.on('error', function(err) { log('Conn error: ' + (err && err.message ? err.message : err), 'diag-bad'); });
     }
 
     function sendMessage() {
         var inp = document.getElementById('msgInput');
-        var msg = inp.value.trim();
+        var msg = sanitizeMsg(inp.value);
         if (!msg) return;
+        if (!checkRateLimit()) { log('Rate limited \u2014 max ' + MAX_MSG_RATE + '/sec.', 'warn'); return; }
         if (conn && conn.open) {
             try { conn.send(msg); log(msg, 'local'); inp.value = ''; }
             catch(e) { log('Send failed.', 'diag-bad'); }
         } else { log('Not connected.', 'warn'); }
     }
 
-    /* ── UI Wiring ──────────────────────────── */
-
-    document.getElementById('initBtn').onclick = initLink;
-    document.getElementById('sendBtn').onclick = sendMessage;
-    document.getElementById('msgInput').onkeydown = function(e) { if (e.key === 'Enter') sendMessage(); };
-    document.getElementById('discBtn').onclick = function() {
+    /* ── Events ── */
+    document.getElementById('initBtn').addEventListener('click', initLink);
+    document.getElementById('sendBtn').addEventListener('click', sendMessage);
+    document.getElementById('msgInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); sendMessage(); }
+    });
+    document.getElementById('discBtn').addEventListener('click', function() {
         log('Disconnected by user.', 'sys'); fullReset();
-    };
-    document.getElementById('retryBtn').onclick = function() {
-        fullReset();
-        if (channel) { document.getElementById('chanInput').value = channel; setTimeout(initLink, 200); }
-    };
+    });
+    document.getElementById('retryBtn').addEventListener('click', function() {
+        var prev = channel; fullReset();
+        if (prev) { document.getElementById('chanInput').value = prev; setTimeout(initLink, 200); }
+    });
+    document.getElementById('newBtn').addEventListener('click', function() { fullReset(); });
+    document.getElementById('dismissPrivacy').addEventListener('click', function() {
+        document.getElementById('privacyBanner').classList.add('collapsed');
+    });
 
-    log('OMNI-LINK v3.2 — DIAGNOSTIC MODE', 'sys');
-    log('All ICE candidates will be logged.', 'diag');
-    log('Watch for TURN entries. If none appear → no relay fallback.', 'diag');
+    window.addEventListener('beforeunload', function() {
+        if (conn) try { conn.close(); } catch(e) {}
+        if (peer) try { peer.destroy(); } catch(e) {}
+    });
+    document.addEventListener('contextmenu', function(e) {
+        if (e.target.tagName === 'INPUT') return;
+        e.preventDefault();
+    });
+
+    /* ── Boot ── */
+    logSection('Omni-Link v3.2');
+    log('Diagnostic mode active. ICE candidates will be logged.', 'sys');
+    log('', '');
+    log('\u26A0  Privacy: ICE exposes local IPs. Channels are not secret.', 'privacy-log');
+    log('   Use on trusted networks only.', 'privacy-log');
 
 })();
 </script>
