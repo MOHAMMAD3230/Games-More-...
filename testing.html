@@ -153,30 +153,40 @@
 
     let peer = null;
     let conn = null;
+    let connTimeout = null;
     const PREFIX = 'OMNI-P2P-PRO-'; 
     const logEl = document.getElementById('console');
 
-    const ICE_CONFIG = {
-        iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' },
-            {
-                urls: 'turn:openrelay.metered.ca:80',
-                username: 'openrelayproject',
-                credential: 'openrelayproject'
-            },
-            {
-                urls: 'turn:openrelay.metered.ca:443',
-                username: 'openrelayproject',
-                credential: 'openrelayproject'
-            },
-            {
-                urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-                username: 'openrelayproject',
-                credential: 'openrelayproject'
-            }
-        ]
+    const PEER_OPTS = {
+        debug: 0,
+        secure: true,
+        host: '0.peerjs.com',
+        port: 443,
+        transports: ['websocket'],
+        config: {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun4.l.google.com:19302' },
+                {
+                    urls: 'turn:openrelay.metered.ca:80',
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject'
+                },
+                {
+                    urls: 'turn:openrelay.metered.ca:443',
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject'
+                },
+                {
+                    urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject'
+                }
+            ]
+        }
     };
 
     function getPC(c) {
@@ -189,17 +199,19 @@
         if (!pc) return;
 
         pc.addEventListener('icecandidate', function(e) {
-            if (!e.candidate) return;
+            if (!e.candidate) return log('ICE: Gathering complete.', 'route-log');
             var t = e.candidate.type;
-            if (t === 'host')     log('ICE: Local candidate found (LAN).', 'route-log');
-            if (t === 'srflx')    log('ICE: Public IP discovered (STUN).', 'route-log');
-            if (t === 'relay')    log('ICE: TURN relay allocated.', 'route-log');
+            if (t === 'host')  log('ICE: Local (LAN).', 'route-log');
+            if (t === 'srflx') log('ICE: STUN (Public).', 'route-log');
+            if (t === 'relay') log('ICE: TURN (Relay).', 'route-log');
         });
 
         pc.addEventListener('iceconnectionstatechange', function() {
             var s = pc.iceConnectionState;
-            if (s === 'connected' || s === 'completed') {
-                detectRoute(pc);
+            if (s === 'connected' || s === 'completed') { clearTimeout(connTimeout); detectRoute(pc); }
+            if (s === 'failed') {
+                clearTimeout(connTimeout);
+                log('ICE failed: NAT blocked or TURN unreachable.', 'warn');
             }
         });
     }
@@ -215,11 +227,10 @@
                     if (local) {
                         var t = local.candidateType || 'unknown';
                         showRoute(t);
-                        if (t === 'host')        log('Route: Same network — direct LAN link.', 'route-log');
-                        else if (t === 'srflx')   log('Route: Different networks — direct P2P via STUN.', 'route-log');
-                        else if (t === 'relay')   log('Route: Different networks — relayed via TURN.', 'route-log');
-                        else if (t === 'prflx')   log('Route: Different networks — peer reflexive.', 'route-log');
-                        else                       log('Route: Unknown path.', 'route-log');
+                        if (t === 'host')      log('Route: LAN (Same Network).', 'route-log');
+                        else if (t === 'srflx') log('Route: P2P (Different Networks).', 'route-log');
+                        else if (t === 'relay') log('Route: RELAY (Different Networks).', 'route-log');
+                        else                    log('Route: Unknown.', 'route-log');
                     }
                 }
             });
@@ -228,29 +239,16 @@
     }
 
     function showRoute(type) {
-        var el   = document.getElementById('netIndicator');
-        var dot  = document.getElementById('netDot');
-        var txt  = document.getElementById('netText');
-
+        var el  = document.getElementById('netIndicator');
+        var dot = document.getElementById('netDot');
+        var txt = document.getElementById('netText');
         el.className = 'net-indicator active';
         dot.className = 'net-dot';
         txt.style.color = '';
-
-        if (type === 'host') {
-            dot.classList.add('lan');
-            txt.textContent = 'LAN';
-            txt.style.color = '#39ff14';
-        } else if (type === 'srflx' || type === 'prflx') {
-            dot.classList.add('p2p');
-            txt.textContent = 'P2P';
-            txt.style.color = '#00d4ff';
-        } else if (type === 'relay') {
-            dot.classList.add('relay');
-            txt.textContent = 'RELAY';
-            txt.style.color = '#ffd700';
-        } else {
-            txt.textContent = '---';
-        }
+        if (type === 'host') { dot.classList.add('lan'); txt.textContent = 'LAN'; txt.style.color = '#39ff14'; }
+        else if (type === 'srflx') { dot.classList.add('p2p'); txt.textContent = 'P2P'; txt.style.color = '#00d4ff'; }
+        else if (type === 'relay') { dot.classList.add('relay'); txt.textContent = 'RELAY'; txt.style.color = '#ffd700'; }
+        else { txt.textContent = '---'; }
     }
 
     function resetRoute() {
@@ -265,7 +263,7 @@
         const div = document.createElement('div');
         div.className = 'entry ' + (type || '');
         const ts = new Date().toLocaleTimeString([], {hour12:false});
-        div.innerHTML = `<span class="ts">[${ts}]</span><span></span>`;
+        div.innerHTML = '<span class="ts">[' + ts + ']</span><span></span>';
         div.querySelector('span:last-child').textContent = msg;
         logEl.appendChild(div);
         logEl.scrollTop = logEl.scrollHeight;
@@ -276,6 +274,13 @@
         document.getElementById('statusDot').className = 'status-dot ' + (dotClass || '');
     }
 
+    function startConnTimeout() {
+        clearTimeout(connTimeout);
+        connTimeout = setTimeout(function() {
+            log('Warning: Connection taking too long.', 'warn');
+        }, 15000);
+    }
+
     function initLink() {
         const chan = document.getElementById('chanInput').value;
         if (!chan) return log('Enter channel ID', 'warn');
@@ -284,36 +289,35 @@
         document.getElementById('initBtn').disabled = true;
         log('System: Creating node on CH-' + chan + '...', 'sys');
 
-        peer = new Peer(targetId, {
-            debug: 1,
-            config: ICE_CONFIG
-        });
+        try { peer = new Peer(targetId, PEER_OPTS); } 
+        catch(e) { log('Failed: ' + e.message, 'warn'); resetUI(); return; }
+
+        var sigTimeout = setTimeout(function() {
+            if (peer && !peer.destroyed) { log('Signaling timeout.', 'warn'); resetUI(); }
+        }, 10000);
 
         peer.on('open', function(id) {
-            log('System: Node registered. Waiting for peer connection...', 'sys');
+            clearTimeout(sigTimeout);
+            log('System: Node registered. Waiting for peer...', 'sys');
             setStatus('Listening', 'listening');
         });
 
         peer.on('connection', function(incoming) {
-            log('System: Incoming connection detected...', 'sys');
+            log('System: Incoming connection...', 'sys');
             conn = incoming;
             attachIceTracker(conn);
+            startConnTimeout();
             setupDataListeners();
         });
 
         peer.on('error', function(err) {
+            clearTimeout(sigTimeout);
             if (err.type === 'unavailable-id') {
-                log('System: Channel occupied. Joining existing node...', 'sys');
-
+                log('System: Channel occupied. Joining...', 'sys');
                 peer.removeAllListeners();
                 peer.destroy();
                 peer = null;
-
                 setTimeout(function() { joinExisting(targetId); }, 2000);
-
-            } else if (err.type === 'ice-failed') {
-                log('Error: NAT traversal failed. TURN relay unreachable.', 'warn');
-                resetUI();
             } else {
                 log('Error: ' + err.type, 'warn');
                 resetUI();
@@ -322,19 +326,27 @@
     }
 
     function joinExisting(targetId) {
-        peer = new Peer({
-            debug: 1,
-            config: ICE_CONFIG
-        });
+        try { peer = new Peer(PEER_OPTS); } 
+        catch(e) { log('Failed to create client peer.', 'warn'); resetUI(); return; }
+
+        var sigTimeout = setTimeout(function() {
+            if (peer && !peer.destroyed) { log('Signaling timeout.', 'warn'); resetUI(); }
+        }, 10000);
 
         peer.on('open', function() {
-            log('System: Guest node ready. Connecting to host...', 'sys');
-            conn = peer.connect(targetId, { reliable: true });
-            attachIceTracker(conn);
-            setupDataListeners();
+            clearTimeout(sigTimeout);
+            log('System: Connecting to host...', 'sys');
+            try {
+                conn = peer.connect(targetId, { reliable: true });
+                attachIceTracker(conn);
+                startConnTimeout();
+                setupDataListeners();
+            } catch(e) { log('Connection failed.', 'warn'); resetUI(); }
         });
 
         peer.on('error', function(err) {
+            clearTimeout(sigTimeout);
+            clearTimeout(connTimeout);
             log('Join error: ' + err.type, 'warn');
             resetUI();
         });
@@ -342,6 +354,7 @@
 
     function setupDataListeners() {
         conn.on('open', function() {
+            clearTimeout(connTimeout);
             log('System: P2P Data Stream Established.', 'sys');
             setStatus('Connected', 'online');
             document.getElementById('setupRow').style.display = 'none';
@@ -349,42 +362,32 @@
             document.getElementById('msgInput').focus();
         });
 
-        conn.on('data', function(data) {
-            log(data, 'remote');
-        });
+        conn.on('data', function(data) { log(data, 'remote'); });
 
         conn.on('close', function() {
-            log('System: Connection closed by peer.', 'warn');
+            clearTimeout(connTimeout);
+            log('System: Connection closed.', 'warn');
             resetRoute();
             location.reload();
         });
 
-        conn.on('error', function(err) {
-            log('Data Error: ' + err, 'warn');
-        });
+        conn.on('error', function(err) { log('Data Error: ' + err, 'warn'); });
     }
 
     function sendMessage() {
         const input = document.getElementById('msgInput');
         const msg = input.value.trim();
-        
         if (!msg) return;
-        
         if (conn && conn.open) {
-            try {
-                conn.send(msg);
-                log(msg, 'local');
-                input.value = '';
-            } catch (e) {
-                log('System: Send failed. Peer may be unreachable.', 'warn');
-            }
-        } else {
-            log('System: Link not active. Cannot send.', 'warn');
-        }
+            try { conn.send(msg); log(msg, 'local'); input.value = ''; } 
+            catch (e) { log('Send failed.', 'warn'); }
+        } else { log('Link not active.', 'warn'); }
     }
 
     function resetUI() {
-        if (peer) peer.destroy();
+        clearTimeout(connTimeout);
+        if (peer) { try { peer.destroy(); } catch(e) {} }
+        peer = null; conn = null;
         document.getElementById('initBtn').disabled = false;
         setStatus('Offline', '');
         resetRoute();
@@ -392,12 +395,10 @@
 
     document.getElementById('initBtn').onclick = initLink;
     document.getElementById('sendBtn').onclick = sendMessage;
-    document.getElementById('msgInput').onkeydown = function(e) {
-        if (e.key === 'Enter') sendMessage();
-    };
+    document.getElementById('msgInput').onkeydown = function(e) { if (e.key === 'Enter') sendMessage(); };
 
     log('System: OMNI-LINK Online.', 'sys');
-    log('System: STUN + TURN active — cross-network enabled.', 'sys');
+    log('System: WebSocket + STUN/TURN — cross-network ready.', 'sys');
 
 })();
 </script>
