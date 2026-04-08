@@ -8,7 +8,6 @@
     <meta name="permissions-policy" content="microphone=(self), camera=(), geolocation=()">
     <title>TAC/COM-04 | SECURE NET</title>
     
-    <!-- PeerJS pinned version -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js" crossorigin="anonymous"></script>
 
     <style>
@@ -58,7 +57,6 @@
             margin-bottom: 8px; word-break: break-word; overscroll-behavior: contain;
             -webkit-user-select: text; user-select: text;
         }
-        @media (max-width: 767px) { #output { font-size: 0.7rem; } }
         #output::-webkit-scrollbar { width: 5px; }
         #output::-webkit-scrollbar-thumb { background: var(--amber-dim); border-radius: 3px; }
         .log-entry { padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
@@ -170,22 +168,17 @@
         </div>
 
         <button class="btn-action btn-reset" id="resetBtn">SYSTEM RESET</button>
-        <div class="privacy-notice">WebRTC Encrypted. No data stored.<br>If stuck on "LINKING", your network/firewall is blocking WebRTC.</div>
+        <div class="privacy-notice">WebRTC Encrypted P2P. No data stored.<br>If stuck, try a different channel number.</div>
     </div>
 </div>
 
 <script>
-    // ====================================================================
-    // HARDCORE NETWORK CONFIGURATION
-    // ====================================================================
     var APP_PREFIX = "TACCOM04-";
     
-    // Robust ICE Config (Google STUN + Free Metered TURN fallback)
     var ICE_CONFIG = {
         iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' },
-            // Open Relay Project (Free TURN fallback for strict NATs/Firewalls)
             { urls: 'stun:openrelay.metered.ca:80' },
             { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
             { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
@@ -193,38 +186,24 @@
         ]
     };
 
-    // ====================================================================
-    // STATE
-    // ====================================================================
     var peer = null, conn = null, localStream = null, audioCtx = null;
     var delayNode = null, analyser = null, speakerGain = null, currentCall = null;
     var isTransmitting = false, isConnected = false, isHost = false;
     var remoteAudioSource = null, meterRAF = null;
+    var heartbeatInterval = null;
 
-    // ====================================================================
-    // DOM CACHE
-    // ====================================================================
     var dom = {
-        output: document.getElementById('output'),
-        chanInput: document.getElementById('chanInput'),
-        bootBtn: document.getElementById('bootBtn'),
-        pttBtn: document.getElementById('pttBtn'),
-        resetBtn: document.getElementById('resetBtn'),
-        curFreq: document.getElementById('curFreq'),
-        netStat: document.getElementById('netStat'),
-        ledNet: document.getElementById('ledNet'),
-        ledTx: document.getElementById('ledTx'),
-        meterFill: document.getElementById('meter-fill'),
-        dbVal: document.getElementById('dbVal'),
-        remoteAudio: document.getElementById('remoteAudio'),
+        output: document.getElementById('output'), chanInput: document.getElementById('chanInput'),
+        bootBtn: document.getElementById('bootBtn'), pttBtn: document.getElementById('pttBtn'),
+        resetBtn: document.getElementById('resetBtn'), curFreq: document.getElementById('curFreq'),
+        netStat: document.getElementById('netStat'), ledNet: document.getElementById('ledNet'),
+        ledTx: document.getElementById('ledTx'), meterFill: document.getElementById('meter-fill'),
+        dbVal: document.getElementById('dbVal'), remoteAudio: document.getElementById('remoteAudio'),
         stateBanner: document.getElementById('stateBanner')
     };
 
     dom.chanInput.addEventListener('input', function() { this.value = this.value.replace(/[^0-9]/g, ''); this.classList.remove('input-error'); });
 
-    // ====================================================================
-    // LOGGING
-    // ====================================================================
     function log(msg, type) {
         var div = document.createElement('div');
         div.className = 'log-entry' + (type ? ' log-' + type : '');
@@ -235,23 +214,20 @@
         dom.output.scrollTop = dom.output.scrollHeight;
     }
 
-    // ====================================================================
-    // INITIALIZATION
-    // ====================================================================
+    // --- INIT ---
     async function initChannel() {
         if (peer) return;
         var num = parseInt(dom.chanInput.value, 10);
         if (isNaN(num) || num < 1 || num > 99) {
             log('INVALID CHANNEL. RANGE 01-99.', 'error');
-            dom.chanInput.classList.add('input-error');
-            return;
+            dom.chanInput.classList.add('input-error'); return;
         }
         var chanStr = num.toString().padStart(2, '0');
         var targetId = APP_PREFIX + chanStr;
 
         dom.bootBtn.disabled = true; dom.bootBtn.textContent = 'LINKING...'; dom.chanInput.disabled = true;
         dom.stateBanner.textContent = 'CONNECTING...'; dom.stateBanner.style.color = 'var(--amber)';
-        log('CONNECTING TO CH ' + chanStr + '...', 'sys');
+        log('SCANNING CHANNEL ' + chanStr + '...', 'sys');
 
         try {
             localStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
@@ -290,34 +266,60 @@
         })();
     }
 
-    // ====================================================================
-    // PEERJS CONNECTION LOGIC (ROBUST)
-    // ====================================================================
-    
-    // Create Peer with explicit config to avoid GitHub Pages WSS blocks
+    // --- PEER LOGIC (FIXED RACE CONDITION) ---
     function createPeer(id) {
-        return new Peer(id, {
-            debug: 1, // Set to 0 for production, 1 for basic logging
-            config: ICE_CONFIG,
-            // secure: true forces WSS. If GH Pages blocks it, PeerJS falls back to HTTP polling automatically.
-            secure: true 
-        });
+        return new Peer(id, { debug: 0, config: ICE_CONFIG, secure: true });
+    }
+
+    function startHeartbeat() {
+        stopHeartbeat();
+        heartbeatInterval = setInterval(function() {
+            if (conn && conn.open) {
+                try { conn.send('PING'); } catch(e) { handleDisconnect(); }
+            } else {
+                handleDisconnect();
+            }
+        }, 2000);
+    }
+
+    function stopHeartbeat() {
+        if (heartbeatInterval) { clearInterval(heartbeatInterval); heartbeatInterval = null; }
     }
 
     function connectAsClient(targetId) {
         peer = createPeer(); 
         var timeout = setTimeout(function() {
-            log('SIGNAL TIMEOUT. ASSUMING CHANNEL CLEAR.', 'sys');
-            if(peer) peer.destroy();
-            peer = null; becomeHost(targetId);
-        }, 6000); // 6 second timeout
+            log('CHANNEL CLEAR. BECOMING HOST.', 'sys');
+            if(peer) peer.destroy(); peer = null; conn = null; currentCall = null;
+            becomeHost(targetId);
+        }, 5000);
 
         peer.on('open', function() {
             clearTimeout(timeout);
-            log('SIGNAL ONLINE. PROBING TARGET...', 'sys');
+            log('PROBING TARGET...', 'sys');
+            // ONLY establish data connection first. DO NOT call yet.
             conn = peer.connect(targetId, { reliable: true });
-            try { currentCall = peer.call(targetId, localStream); } catch(e) {}
-            bindHandlers(conn, currentCall);
+            
+            conn.on('open', function() {
+                log('DATA LINK OPEN. REQUESTING AUDIO...', 'sys');
+                // NOW that data is open, trigger the audio call
+                try {
+                    currentCall = peer.call(targetId, localStream);
+                    if (!currentCall) {
+                        log('ERROR: FAILED TO INITIATE CALL.', 'error');
+                        handleDisconnect();
+                    } else {
+                        bindMediaHandlers(currentCall);
+                    }
+                } catch(e) {
+                    log('CALL EXCEPTION: ' + e.message, 'error');
+                    handleDisconnect();
+                }
+            });
+
+            conn.on('data', handleIncomingData);
+            conn.on('close', function() { log('DATA LINK CLOSED.', 'error'); handleDisconnect(); });
+            conn.on('error', function(err) { log('DATA ERROR: ' + err, 'error'); handleDisconnect(); });
         });
 
         peer.on('error', function(err) {
@@ -327,7 +329,7 @@
                 if(peer) peer.destroy(); peer = null; conn = null; currentCall = null;
                 becomeHost(targetId);
             } else if (err.type === 'unavailable-id') {
-                log('CHANNEL OCCUPIED. RETRYING...', 'error');
+                log('CHANNEL TAKEN. RETRYING...', 'error');
                 if(peer) peer.destroy(); peer = null;
                 setTimeout(function() { if(!isConnected) connectAsClient(targetId); }, 2000);
             } else {
@@ -343,7 +345,7 @@
 
         peer.on('open', function(id) {
             isHost = true;
-            log('HOSTING CH ' + id.substring(id.length-2) + '. WAITING FOR INCOMING.', 'success');
+            log('HOSTING CH ' + id.substring(id.length-2) + '. WAITING...', 'success');
             dom.netStat.textContent = 'NET: HOSTING'; dom.netStat.style.color = 'var(--green)';
             dom.ledNet.classList.add('led-host');
             dom.stateBanner.textContent = 'HOSTING'; dom.stateBanner.style.color = 'var(--green)';
@@ -352,12 +354,25 @@
 
         peer.on('connection', function(c) {
             if (isConnected) { c.close(); return; }
-            log('INCOMING HANDSHAKE.', 'sys'); conn = c; bindHandlers(c, null);
+            log('CLIENT DETECTED. SYNCING...', 'sys');
+            conn = c;
+            
+            conn.on('open', function() {
+                // Host waits for client to send the call. Host does NOT call client.
+                log('HANDSHAKE COMPLETE.', 'success');
+                finalizeConnection();
+            });
+
+            conn.on('data', handleIncomingData);
+            conn.on('close', function() { log('CLIENT LOST.', 'error'); handleDisconnect(); });
         });
 
         peer.on('call', function(call) {
             if (isConnected) { call.close(); return; }
-            log('INCOMING VOICE LINK.', 'sys'); call.answer(localStream); currentCall = call; bindHandlers(null, call);
+            log('RECEIVING AUDIO STREAM...', 'sys');
+            call.answer(localStream);
+            currentCall = call;
+            bindMediaHandlers(call);
         });
 
         peer.on('error', function(err) {
@@ -371,37 +386,43 @@
         });
     }
 
-    function bindHandlers(connection, call) {
-        if (connection) {
-            connection.on('open', function() {
-                isConnected = true;
-                dom.ledNet.className = 'status-led led-online';
-                dom.netStat.textContent = 'NET: CONNECTED'; dom.netStat.style.color = 'var(--blue)';
-                dom.stateBanner.textContent = 'LINK ACTIVE'; dom.stateBanner.style.color = 'var(--blue)';
-                enablePTT(); log('DATA LINK ESTABLISHED.', 'success');
-            });
-            connection.on('data', function(data) {
-                if (typeof data !== 'string') return;
-                if (data === 'TX_ON') { dom.ledTx.classList.add('led-tx'); if(speakerGain) speakerGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05); }
-                if (data === 'TX_OFF') { dom.ledTx.classList.remove('led-tx'); if(speakerGain) speakerGain.gain.setTargetAtTime(1, audioCtx.currentTime, 0.3); playTone(600, 0.08); }
-            });
-            connection.on('close', function() { log('LINK LOST.', 'error'); handleDisconnect(); });
-        }
-        if (call) {
-            call.on('stream', function(stream) {
-                dom.remoteAudio.srcObject = stream;
-                try { remoteAudioSource = audioCtx.createMediaStreamSource(stream); remoteAudioSource.connect(delayNode); } catch(e) {}
-                log('REMOTE AUDIO SYNCED.', 'success');
-            });
-            call.on('close', function() { log('CALL ENDED.', 'error'); handleDisconnect(); });
-        }
+    function bindMediaHandlers(call) {
+        call.on('stream', function(stream) {
+            dom.remoteAudio.srcObject = stream;
+            try { remoteAudioSource = audioCtx.createMediaStreamSource(stream); remoteAudioSource.connect(delayNode); } catch(e) {}
+            log('AUDIO STREAM SYNCED.', 'success');
+            finalizeConnection();
+        });
+        call.on('close', function() { log('AUDIO STREAM ENDED.', 'error'); handleDisconnect(); });
+        call.on('error', function(err) { log('WEBRTC ERROR: ' + err, 'error'); handleDisconnect(); });
     }
 
-    function handleDisconnect() { isConnected = false; isTransmitting = false; dom.ledTx.classList.remove('led-tx'); setTimeout(cleanupAndReset, 2000); }
+    function finalizeConnection() {
+        if (isConnected) return; // Prevent double-firing
+        isConnected = true;
+        dom.ledNet.className = 'status-led led-online';
+        dom.netStat.textContent = 'NET: CONNECTED'; dom.netStat.style.color = 'var(--blue)';
+        dom.stateBanner.textContent = 'LINK ACTIVE'; dom.stateBanner.style.color = 'var(--blue)';
+        enablePTT();
+        startHeartbeat();
+    }
 
-    // ====================================================================
-    // PTT CONTROLS
-    // ====================================================================
+    function handleIncomingData(data) {
+        if (typeof data !== 'string') return;
+        if (data === 'PING') return; // Ignore heartbeat pings from log
+        if (data === 'TX_ON') { dom.ledTx.classList.add('led-tx'); if(speakerGain) speakerGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05); }
+        if (data === 'TX_OFF') { dom.ledTx.classList.remove('led-tx'); if(speakerGain) speakerGain.gain.setTargetAtTime(1, audioCtx.currentTime, 0.3); playTone(600, 0.08); }
+    }
+
+    function handleDisconnect() {
+        if (!isConnected && !peer) return; // Prevent looping resets
+        isConnected = false; isTransmitting = false;
+        stopHeartbeat();
+        dom.ledTx.classList.remove('led-tx');
+        setTimeout(cleanupAndReset, 1500);
+    }
+
+    // --- PTT ---
     function enablePTT() { dom.pttBtn.disabled = false; dom.bootBtn.textContent = 'LINK ACTIVE'; dom.curFreq.style.color = 'var(--green)'; }
     function setMicState(en) { if(localStream) localStream.getAudioTracks().forEach(function(t){ t.enabled = en; }); }
     
@@ -434,9 +455,7 @@
         try { var o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type=t||'sine'; o.frequency.value=f; g.gain.value=0.08; o.connect(g); g.connect(audioCtx.destination); o.start(); g.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime+d); o.stop(audioCtx.currentTime+d+0.01); } catch(e){}
     }
 
-    // ====================================================================
-    // CLEANUP & RESET
-    // ====================================================================
+    // --- CLEANUP ---
     function resetUI() {
         dom.bootBtn.disabled = false; dom.bootBtn.textContent = 'INITIALIZE LINK'; dom.chanInput.disabled = false;
         dom.pttBtn.disabled = true; dom.curFreq.textContent = '--.--'; dom.curFreq.style.color = 'var(--blue)';
@@ -447,6 +466,7 @@
     }
 
     function cleanupAndReset() {
+        stopHeartbeat();
         if (peer) { try { peer.destroy(); } catch(e){} peer = null; }
         if (localStream) { localStream.getTracks().forEach(function(t){ t.stop(); }); localStream = null; }
         dom.remoteAudio.srcObject = null;
@@ -461,14 +481,10 @@
         resetUI(); log('SYSTEM RESET.', 'sys');
     }
 
-    // ====================================================================
-    // EVENT LISTENERS
-    // ====================================================================
     dom.bootBtn.addEventListener('click', initChannel);
     dom.resetBtn.addEventListener('click', cleanupAndReset);
     dom.chanInput.addEventListener('keydown', function(e) { if(e.key==='Enter') initChannel(); });
     window.addEventListener('beforeunload', function(e) { if(isConnected) { e.preventDefault(); e.returnValue=''; } });
-
 </script>
 </body>
 </html>
