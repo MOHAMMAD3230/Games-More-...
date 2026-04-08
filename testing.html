@@ -2,25 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<!--
-  ═══ CONTENT SECURITY POLICY ═══
-  NOTE: 'frame-ancestors' CANNOT be set via <meta> tag.
-  Use the _headers file (see repo root) for full clickjacking protection.
-  'unsafe-inline' is required for single-file apps without a build step.
--->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline'; connect-src 'self' wss://0.peerjs.com wss://*.peerjs.com; img-src 'self' data: https:; font-src 'self'; form-action 'none'; base-uri 'self'; upgrade-insecure-requests;">
-<!-- Prevent referrer leakage to third parties -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline'; connect-src 'self' wss://*.peerjs.com https://*.peerjs.com; img-src 'self' data: https:; font-src 'self'; form-action 'none'; base-uri 'self'; upgrade-insecure-requests;">
 <meta name="referrer" content="no-referrer">
-<!-- Responsive viewport — no user-scalable=no to preserve accessibility zoom -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MeshChat — Secure P2P Channel</title>
-<!--
-  SUBRESOURCE INTEGRITY (SRI)
-  Prevents CDN compromise from injecting malicious code.
-  To regenerate after version change:
-  curl -s https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js | openssl dgst -sha384 -binary | openssl base64 -A
--->
-<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js" integrity="sha384-1pK5OHxFqG+aOoE95pc51pVjYDAMIG/z4LFn5j3RyDBz9gMT5sHLlGpGe3qrOhQm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <style>
     :root {
         --bg: #0a0a0a;
@@ -374,13 +360,11 @@
 </head>
 <body>
 
-<!-- Loading overlay: shown until PeerJS library is confirmed loaded -->
 <div class="load-overlay" id="loadOverlay">
     <div class="load-spinner"></div>
     <span style="font-size:12px; letter-spacing:1px;">LOADING MESHCHAT</span>
 </div>
 
-<!-- Clickjacking defense: JS fallback when HTTP headers are unavailable -->
 <script>
 if (window.top !== window.self) {
     try { window.top.location = self.location; } catch(e) {}
@@ -388,7 +372,7 @@ if (window.top !== window.self) {
 </script>
 
 <header class="header" role="banner">
-    <span class="header-title" aria-label="MeshChat application">⟨ MeshChat ⟩</span>
+    <span class="header-title" aria-label="MeshChat application">&#10216; MeshChat &#10217;</span>
     <span class="status-badge" role="status" aria-live="polite">
         <span class="status-dot" id="statusDot"></span>
         <span id="statusText">Offline</span>
@@ -407,7 +391,7 @@ if (window.top !== window.self) {
         <button class="btn" id="initBtn" aria-label="Connect to channel">Connect</button>
     </div>
     <div class="privacy-notice" id="privacyNote" role="alert">
-        <strong>⚠ P2P Direct Link</strong> — Your IP address may be visible to peers.
+        <strong>&#9888; P2P Direct Link</strong> — Your IP address may be visible to peers.
         No data passes through any server. Never share passwords or sensitive info.
     </div>
 </section>
@@ -416,45 +400,32 @@ if (window.top !== window.self) {
     <input type="text" id="msgInput" placeholder="Type a message..."
            autocomplete="off" aria-label="Message input">
     <button class="btn" id="sendBtn" aria-label="Send message">Send</button>
-    <button class="btn btn-danger" id="disconnectBtn" aria-label="Disconnect">✕</button>
+    <button class="btn btn-danger" id="disconnectBtn" aria-label="Disconnect">&#10005;</button>
 </section>
 
-<!--
-  ═══ APPLICATION SCRIPT ═══
-  Placed in a SEPARATE <script> tag AFTER the PeerJS <script src>.
-  HTML spec guarantees sequential blocking execution, so `Peer`
-  is guaranteed to be defined by the time this runs.
-  The window.onload check is an additional safety net for edge cases
-  (e.g., if the SRI hash is wrong and the browser silently blocks the CDN file).
--->
 <script>
 (function() {
     'use strict';
 
-    // ─── Wait for full page load (safety net for CDN failures) ───
     function boot() {
-        // CRITICAL: Verify PeerJS actually loaded
         if (typeof Peer === 'undefined') {
             var overlay = document.getElementById('loadOverlay');
             if (overlay) {
                 overlay.innerHTML = '<span style="color:#ff3333;font-size:13px;text-align:center;max-width:80%;font-family:monospace;">Failed to load PeerJS library.<br>Check your connection or disable ad-blockers for unpkg.com, then reload.</span>';
             }
-            return; // Halt — nothing can work without PeerJS
+            return;
         }
 
-        // Hide loading overlay
         var overlay = document.getElementById('loadOverlay');
         if (overlay) overlay.classList.add('hidden');
         setTimeout(function() { if (overlay) overlay.remove(); }, 400);
 
-        // ─── Configuration Constants ────────────────────────
-        var PREFIX       = 'MESH-';
-        var MAX_MSG_LEN  = 500;
-        var RATE_WINDOW  = 5000;
-        var RATE_MAX     = 10;
+        var PREFIX        = 'MESH-';
+        var MAX_MSG_LEN   = 500;
+        var RATE_WINDOW   = 5000;
+        var RATE_MAX      = 10;
         var RATE_COOLDOWN = 800;
 
-        // ─── DOM References ─────────────────────────────────
         var consoleEl     = document.getElementById('console');
         var setupPanel    = document.getElementById('setupPanel');
         var chatControls  = document.getElementById('chatControls');
@@ -467,14 +438,52 @@ if (window.top !== window.self) {
         var statusText    = document.getElementById('statusText');
         var rateFill      = document.getElementById('rateFill');
 
-        // ─── State ──────────────────────────────────────────
         var peer          = null;
         var conn          = null;
         var msgTimestamps = [];
         var lastSendTime  = 0;
         var isDestroyed   = false;
 
-        // ─── Utility: Safe error → string ───────────────────
+        /*
+         * ICE SERVER CONFIGURATION
+         * ========================
+         * STUN servers discover your public IP for direct P2P.
+         * This works on same-network and simple NATs.
+         *
+         * TURN servers act as a relay fallback when both peers
+         * are behind symmetric NATs (mobile data, corporate Wi-Fi).
+         * Without TURN, cross-network connections silently fail.
+         *
+         * Using Open Relay Project (metered.ca) free tier.
+         * All traffic is still DTLS-encrypted end-to-end —
+         * the TURN server sees encrypted packets, not plaintext.
+         */
+        var ICE_CONFIG = {
+            iceServers: [
+                // STUN — public IP discovery
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+
+                // TURN — relay fallback for symmetric NATs
+                {
+                    urls: 'turn:openrelay.metered.ca:80',
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject'
+                },
+                {
+                    urls: 'turn:openrelay.metered.ca:443',
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject'
+                },
+                {
+                    urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject'
+                }
+            ]
+        };
+
         function safeErrStr(err) {
             if (!err) return 'Unknown error';
             if (typeof err === 'string') return err;
@@ -483,7 +492,6 @@ if (window.top !== window.self) {
             try { return String(err); } catch(e) { return 'Error'; }
         }
 
-        // ─── Logging (XSS-safe via textContent) ─────────────
         function log(msg, cls) {
             var div     = document.createElement('div');
             div.className = 'entry' + (cls ? ' ' + cls : '');
@@ -507,7 +515,6 @@ if (window.top !== window.self) {
             consoleEl.scrollTop = consoleEl.scrollHeight;
         }
 
-        // ─── Status Indicator ───────────────────────────────
         function setStatus(text, state) {
             statusText.textContent = text;
             statusDot.className = 'status-dot';
@@ -515,7 +522,6 @@ if (window.top !== window.self) {
             if (state === 'listening') statusDot.classList.add('listening');
         }
 
-        // ─── Rate Limiting ──────────────────────────────────
         function updateRateBar() {
             var now = Date.now();
             msgTimestamps = msgTimestamps.filter(function(t) { return now - t < RATE_WINDOW; });
@@ -539,7 +545,6 @@ if (window.top !== window.self) {
 
         setInterval(updateRateBar, 500);
 
-        // ─── Input Validation ───────────────────────────────
         function validateChannel(val) {
             var str = String(val).trim();
             if (!/^\d+$/.test(str)) return false;
@@ -547,13 +552,11 @@ if (window.top !== window.self) {
             return num >= 1 && num <= 99 && String(num) === str;
         }
 
-        // ─── Reset Setup UI ─────────────────────────────────
         function resetSetup() {
             chanInput.disabled = false;
             initBtn.disabled  = false;
         }
 
-        // ─── Initialize Connection ──────────────────────────
         function initLink() {
             var raw = chanInput.value;
             if (!validateChannel(raw)) {
@@ -570,9 +573,7 @@ if (window.top !== window.self) {
             log('Tuning to channel ' + chan + ' (ID: ' + myId + ')...', 'sys');
 
             try {
-                peer = new Peer(myId, {
-                    config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
-                });
+                peer = new Peer(myId, { config: ICE_CONFIG });
             } catch(e) {
                 log('Failed to create peer: ' + safeErrStr(e), 'warn');
                 resetSetup();
@@ -602,9 +603,16 @@ if (window.top !== window.self) {
 
                 if (errType === 'unavailable-id') {
                     log('Channel ' + chan + ' is occupied. Joining as client...', 'warn');
-                    try { peer.destroy(); } catch(e) {}
+
+                    peer.removeAllListeners();
+                    peer.destroy();
                     peer = null;
-                    joinChannel(myId);
+
+                    setTimeout(function() {
+                        if (isDestroyed) return;
+                        joinChannel(myId);
+                    }, 2000);
+
                 } else if (errType === 'peer-unavailable') {
                     log('No host found on channel ' + chan + '.', 'warn');
                     setStatus('No Host', '');
@@ -613,26 +621,21 @@ if (window.top !== window.self) {
                     log('Network error: cannot reach signaling server.', 'warn');
                     setStatus('Network Err', '');
                     resetSetup();
+                } else if (errType === 'ice-failed') {
+                    log('ICE failed: NAT traversal blocked. If on mobile data or corporate Wi-Fi, a TURN server is required.', 'warn');
+                    setStatus('NAT Blocked', '');
+                    resetSetup();
                 } else {
                     log('Error: ' + errType, 'warn');
                     setStatus('Error', '');
                     resetSetup();
                 }
             });
-
-            peer.on('disconnected', function() {
-                if (isDestroyed) return;
-                log('Signaling disconnected. Reconnecting...', 'warn');
-                if (peer && !peer.destroyed) {
-                    try { peer.reconnect(); } catch(e) {}
-                }
-            });
         }
 
-        // ─── Join Existing Channel ──────────────────────────
         function joinChannel(targetId) {
             try {
-                peer = new Peer();
+                peer = new Peer({ config: ICE_CONFIG });
             } catch(e) {
                 log('Failed to create client peer.', 'warn');
                 resetSetup();
@@ -653,13 +656,13 @@ if (window.top !== window.self) {
 
             peer.on('error', function(err) {
                 if (isDestroyed) return;
-                log('Join failed: ' + safeErrStr(err), 'warn');
+                var errType = safeErrStr(err);
+                log('Join failed: ' + errType, 'warn');
                 setStatus('Failed', '');
                 resetSetup();
             });
         }
 
-        // ─── Bind DataConnection Events ─────────────────────
         function bindConnEvents() {
             conn.on('open', function() {
                 if (isDestroyed) return;
@@ -696,7 +699,6 @@ if (window.top !== window.self) {
             });
         }
 
-        // ─── Send Message ───────────────────────────────────
         function sendMsg() {
             if (!conn || !conn.open) {
                 log('Not connected to a peer.', 'warn');
@@ -729,7 +731,6 @@ if (window.top !== window.self) {
             msgInput.value = '';
         }
 
-        // ─── Disconnect ─────────────────────────────────────
         function disconnect() {
             isDestroyed = true;
 
@@ -747,7 +748,6 @@ if (window.top !== window.self) {
             setTimeout(function() { isDestroyed = false; }, 50);
         }
 
-        // ─── Cleanup on Page Unload ─────────────────────────
         function cleanup() {
             isDestroyed = true;
             if (conn) { try { conn.close(); } catch(e) {} }
@@ -757,7 +757,6 @@ if (window.top !== window.self) {
         window.addEventListener('beforeunload', cleanup);
         window.addEventListener('pagehide', cleanup);
 
-        // ─── Event Listeners ────────────────────────────────
         initBtn.addEventListener('click', initLink);
         sendBtn.addEventListener('click', sendMsg);
         disconnectBtn.addEventListener('click', disconnect);
@@ -770,15 +769,12 @@ if (window.top !== window.self) {
             if (e.key === 'Enter') { e.preventDefault(); sendMsg(); }
         });
 
-        // ─── Boot Messages ──────────────────────────────────
         log('Mesh Chat Node Initializing...', 'sys');
         log('Protocols: XSS-filter active | P2P encrypted | CSP enforced | Rate-limited', 'sys');
+        log('NAT: STUN discovery + TURN relay (cross-network enabled)', 'sys');
         log('Enter a channel number (1\u201399) to begin.', 'sys');
     }
 
-    // ─── Kickoff ────────────────────────────────────────────
-    // window.onload guarantees all external scripts (PeerJS) have
-    // finished loading and executing before we try to use `Peer`.
     if (document.readyState === 'complete') {
         boot();
     } else {
