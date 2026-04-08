@@ -3,101 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OMNI-LINK v15.0</title>
+    <title>OMNI-LINK v16.0</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        :root { --accent: #39ff14; --bg: #050505; --panel: #0f0f0f; --border: #222; --warn: #ffcc00; }
+        :root { --accent: #39ff14; --bg: #050505; --panel: #111; --border: #222; }
+        
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
         body { 
-            background: var(--bg); color: #f0f0f0; font-family: 'Segoe UI', system-ui, sans-serif; 
-            margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+            background: var(--bg); color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0; height: 100vh; height: -webkit-fill-available; 
+            display: flex; flex-direction: column; overflow: hidden;
         }
 
         /* Responsive Header */
-        .header { padding: 15px 20px; background: #000; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-        .brand { color: var(--accent); font-weight: bold; font-size: 14px; letter-spacing: 2px; }
-        
-        .status-container { display: flex; gap: 12px; }
-        .stat-box { display: flex; flex-direction: column; align-items: center; }
-        .stat-label { font-size: 8px; color: #555; text-transform: uppercase; margin-bottom: 4px; }
-        .indicator { width: 10px; height: 10px; border-radius: 50%; background: #222; transition: 0.3s; }
-        
-        /* Dynamic States */
-        .sig-on { background: var(--warn); box-shadow: 0 0 10px var(--warn); }
-        .net-on { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
-        .pulse { animation: pulse-kf 1.5s infinite; }
-        @keyframes pulse-kf { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+        .header { 
+            padding: 15px 20px; background: #000; border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+        }
+        .logo { color: var(--accent); font-weight: 800; font-size: 14px; letter-spacing: 1px; }
 
-        /* User-Friendly Chat Area */
-        .console { flex: 1; overflow-y: auto; padding: 20px; background: #000; display: flex; flex-direction: column; gap: 8px; }
-        .msg { max-width: 85%; padding: 10px 14px; border-radius: 12px; font-size: 14px; line-height: 1.4; word-wrap: break-word; }
-        .msg.sys { background: none; color: #666; font-size: 11px; align-self: center; text-align: center; border: none; }
-        .msg.local { background: #1a1a1a; color: var(--accent); align-self: flex-end; border-bottom-right-radius: 2px; border: 1px solid #333; }
-        .msg.remote { background: #002b36; color: #00d4ff; align-self: flex-start; border-bottom-left-radius: 2px; border: 1px solid #004d61; }
+        /* Status Indicators */
+        .indicators { display: flex; gap: 12px; }
+        .ind-group { display: flex; flex-direction: column; align-items: center; }
+        .ind-label { font-size: 8px; color: #555; text-transform: uppercase; margin-bottom: 4px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; background: #222; transition: 0.3s; }
+        .dot.ready { background: #ffcc00; box-shadow: 0 0 10px #ffcc00; }
+        .dot.active { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
 
-        /* Controls */
-        .footer { padding: 15px; background: var(--panel); border-top: 1px solid var(--border); display: flex; gap: 10px; }
-        input { flex: 1; background: #000; border: 1px solid var(--border); color: #fff; padding: 14px; outline: none; border-radius: 10px; font-size: 16px; transition: 0.2s; }
+        /* Chat Display - Auto-scrolls */
+        .chat-area { 
+            flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px;
+            background-image: radial-gradient(#111 1px, transparent 1px); background-size: 20px 20px;
+        }
+        .bubble { max-width: 80%; padding: 12px 16px; border-radius: 15px; font-size: 15px; line-height: 1.4; position: relative; }
+        .sys-msg { align-self: center; background: none; color: #666; font-size: 12px; text-align: center; }
+        .my-msg { align-self: flex-end; background: var(--accent); color: #000; font-weight: 500; border-bottom-right-radius: 2px; }
+        .peer-msg { align-self: flex-start; background: #222; color: #fff; border-bottom-left-radius: 2px; }
+
+        /* Footer Input Area */
+        .controls { 
+            padding: 15px; background: var(--panel); border-top: 1px solid var(--border);
+            display: flex; gap: 10px; flex-shrink: 0; padding-bottom: calc(15px + env(safe-area-inset-bottom));
+        }
+        input { 
+            flex: 1; background: #000; border: 1px solid var(--border); color: #fff; 
+            padding: 14px; border-radius: 12px; font-size: 16px; outline: none; transition: 0.2s;
+        }
         input:focus { border-color: var(--accent); }
-        .btn { background: var(--accent); color: #000; border: none; padding: 0 20px; cursor: pointer; border-radius: 10px; font-weight: bold; font-size: 13px; transition: 0.2s; }
-        .btn:active { transform: scale(0.95); opacity: 0.8; }
+        .send-btn { 
+            background: var(--accent); border: none; color: #000; padding: 0 20px; 
+            border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.2s;
+        }
+        .send-btn:active { transform: scale(0.9); }
+
         .hidden { display: none !important; }
-        
-        @media (min-width: 768px) { .console { padding: 30px 25%; } .footer { padding: 20px 25%; } }
+
+        /* Desktop Optimization */
+        @media (min-width: 768px) {
+            .chat-area, .controls { padding-left: 25%; padding-right: 25%; }
+            .logo { font-size: 18px; }
+        }
     </style>
 </head>
 <body>
 
 <header class="header">
-    <div class="brand">OMNI-LINK v15</div>
-    <div class="status-container">
-        <div class="stat-box">
-            <span class="stat-label">Network</span>
-            <div id="sigInd" class="indicator"></div>
-        </div>
-        <div class="stat-box">
-            <span class="stat-label">Peer</span>
-            <div id="netInd" class="indicator"></div>
-        </div>
+    <div class="logo">OMNI-LINK // v16</div>
+    <div class="indicators">
+        <div class="ind-group"><span class="ind-label">Signal</span><div id="sig" class="dot"></div></div>
+        <div class="ind-group"><span class="ind-label">Link</span><div id="lnk" class="dot"></div></div>
     </div>
 </header>
 
-<main class="console" id="log">
-    <div class="msg sys">Welcome. Enter a channel ID to start a global P2P link.</div>
+<main class="chat-area" id="display">
+    <div class="bubble sys-msg">Ready for deployment. Enter Channel ID.</div>
 </main>
 
-<div class="footer" id="setupSection">
-    <input type="number" id="chanId" placeholder="Channel ID (e.g. 88)" inputmode="numeric">
-    <button class="btn" onclick="connect()">CONNECT</button>
+<div class="controls" id="setupUI">
+    <input type="number" id="chan" placeholder="Channel (e.g. 77)" inputmode="numeric">
+    <button class="send-btn" onclick="init()">CONNECT</button>
 </div>
 
-<div class="footer hidden" id="chatSection">
-    <input type="text" id="chatInput" placeholder="Message..." autocomplete="off">
-    <button class="btn" onclick="sendMessage()">SEND</button>
+<div class="controls hidden" id="chatUI">
+    <input type="text" id="textIn" placeholder="Type a message..." autocomplete="off">
+    <button class="send-btn" onclick="push()">SEND</button>
 </div>
 
 <script>
-    let peer = null, conn = null;
-    const PREFIX = 'OMNI-V15-SECURE-';
+    let p = null, c = null;
+    const PFX = 'OMNI-V16-';
 
-    function addLog(text, type) {
-        const div = document.createElement('div');
-        div.className = `msg ${type}`;
-        div.textContent = text;
-        const log = document.getElementById('log');
-        log.appendChild(div);
-        log.scrollTop = log.scrollHeight;
+    function post(txt, cls) {
+        const d = document.createElement('div');
+        d.className = `bubble ${cls}`;
+        d.textContent = txt;
+        const area = document.getElementById('display');
+        area.appendChild(d);
+        area.scrollTop = area.scrollHeight;
     }
 
-    function connect() {
-        const val = document.getElementById('chanId').value;
-        if(!val) return;
+    function init() {
+        const id = document.getElementById('chan').value;
+        if(!id) return;
         
-        document.getElementById('setupSection').classList.add('hidden');
-        addLog("Initializing global discovery...", "sys");
-        document.getElementById('sigInd').classList.add('pulse', 'sig-on');
+        document.getElementById('setupUI').classList.add('hidden');
+        post("Establishing global signal...", "sys-msg");
+        document.getElementById('sig').classList.add('ready');
 
-        peer = new Peer(PREFIX + val, {
+        p = new Peer(PFX + id, {
             config: { 'iceServers': [
                 { 'urls': 'stun:stun.l.google.com:19302' },
                 { 'urls': 'stun:stun1.l.google.com:19302' },
@@ -105,66 +119,60 @@
             ]}
         });
 
-        peer.on('open', () => {
-            document.getElementById('sigInd').classList.remove('pulse');
-            addLog("Signal active. Waiting for your friend on CH-" + val, "sys");
+        p.on('open', () => post("Signal Active. Waiting for peer...", "sys-msg"));
+        
+        p.on('connection', (conn) => {
+            c = conn;
+            handleStream();
         });
 
-        peer.on('connection', (c) => {
-            conn = c;
-            initHandlers();
-        });
-
-        peer.on('error', (err) => {
-            if(err.type === 'unavailable-id') {
-                addLog("Channel found. Establishing P2P tunnel...", "sys");
-                peer.destroy();
-                const guest = new Peer({ config: peer.options.config });
-                guest.on('open', () => {
-                    document.getElementById('sigInd').classList.add('sig-on');
-                    conn = guest.connect(PREFIX + val, { reliable: true });
-                    initHandlers();
+        p.on('error', (e) => {
+            if(e.type === 'unavailable-id') {
+                post("Syncing with existing channel...", "sys-msg");
+                p.destroy();
+                const g = new Peer({ config: p.options.config });
+                g.on('open', () => {
+                    c = g.connect(PFX + id, { reliable: true });
+                    handleStream();
                 });
             } else {
-                addLog("Connection failed. Please refresh.", "sys");
-                document.getElementById('setupSection').classList.remove('hidden');
+                post("Error: " + e.type, "sys-msg");
+                document.getElementById('setupUI').classList.remove('hidden');
             }
         });
     }
 
-    function initHandlers() {
-        document.getElementById('netInd').classList.add('pulse', 'net-on');
-
-        conn.on('open', () => {
-            document.getElementById('netInd').classList.remove('pulse');
-            addLog("Link established! You can now chat across networks.", "sys");
-            document.getElementById('chatSection').classList.remove('hidden');
+    function handleStream() {
+        c.on('open', () => {
+            document.getElementById('lnk').classList.add('active');
+            document.getElementById('chatUI').classList.remove('hidden');
+            post("Secure P2P Link Established.", "sys-msg");
+            
+            // Keep-alive to prevent mobile sleep
+            setInterval(() => { if(c.open) c.send('::keepalive::'); }, 10000);
         });
 
-        conn.on('data', (data) => {
-            if(data === '_ping_') return;
-            addLog(data, "remote");
+        c.on('data', (data) => {
+            if(data === '::keepalive::') return;
+            post(data, "peer-msg");
         });
 
-        conn.on('close', () => {
-            addLog("Connection lost.", "sys");
+        c.on('close', () => {
+            post("Connection closed.", "sys-msg");
             setTimeout(() => location.reload(), 2000);
         });
-
-        // Keep-alive heartbeat
-        setInterval(() => { if(conn && conn.open) conn.send('_ping_'); }, 15000);
     }
 
-    function sendMessage() {
-        const input = document.getElementById('chatInput');
-        if(input.value && conn && conn.open) {
-            conn.send(input.value);
-            addLog(input.value, "local");
-            input.value = "";
+    function push() {
+        const el = document.getElementById('textIn');
+        if(el.value && c && c.open) {
+            c.send(el.value);
+            post(el.value, "my-msg");
+            el.value = "";
         }
     }
 
-    window.onkeydown = (e) => { if(e.key === 'Enter') sendMessage(); };
+    window.onkeydown = (e) => { if(e.key === 'Enter') push(); };
 </script>
 </body>
 </html>
