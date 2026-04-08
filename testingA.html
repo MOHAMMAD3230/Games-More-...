@@ -3,142 +3,132 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OMNI-LINK v17</title>
+    <title>OMNI-LINK v18</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        :root { --accent: #39ff14; --bg: #050505; --panel: #111; }
+        :root { --accent: #39ff14; --bg: #050505; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { 
-            background: var(--bg); color: #fff; font-family: system-ui, sans-serif;
-            margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden;
-        }
-        .header { padding: 15px 20px; background: #000; border-bottom: 1px solid #222; display: flex; justify-content: space-between; align-items: center; }
-        .logo { color: var(--accent); font-weight: 800; font-size: 14px; }
-        
-        /* Signal Indicators */
-        .status-ui { display: flex; gap: 15px; }
-        .stat-item { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-        .dot { width: 10px; height: 10px; border-radius: 50%; background: #222; transition: 0.3s; }
-        .dot.active { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
-        .dot.wait { background: #ffcc00; animation: blink 1s infinite; }
-        @keyframes blink { 50% { opacity: 0.3; } }
-
-        /* Chat Layout */
-        .chat-box { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
-        .bubble { max-width: 85%; padding: 12px 16px; border-radius: 18px; font-size: 15px; line-height: 1.4; }
-        .msg-in { align-self: flex-start; background: #222; color: #fff; border-bottom-left-radius: 2px; }
-        .msg-out { align-self: flex-end; background: var(--accent); color: #000; font-weight: 600; border-bottom-right-radius: 2px; }
-        .msg-sys { align-self: center; color: #666; font-size: 11px; text-align: center; max-width: 100%; }
-
-        /* Input Bar */
-        .footer { padding: 15px; background: var(--panel); border-top: 1px solid #222; display: flex; gap: 10px; padding-bottom: calc(15px + env(safe-area-inset-bottom)); }
-        input { flex: 1; background: #000; border: 1px solid #333; color: #fff; padding: 14px; border-radius: 12px; font-size: 16px; outline: none; }
-        input:focus { border-color: var(--accent); }
-        .btn { background: var(--accent); border: none; color: #000; padding: 0 20px; border-radius: 12px; font-weight: bold; cursor: pointer; }
+        body { background: var(--bg); color: #fff; font-family: sans-serif; margin: 0; height: 100vh; display: flex; flex-direction: column; }
+        .header { padding: 15px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; align-items: center; }
+        .indicator-wrap { display: flex; gap: 10px; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; background: #222; }
+        .dot.on { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+        .dot.searching { background: #ffcc00; animation: pulse 1s infinite; }
+        @keyframes pulse { 50% { opacity: 0.3; } }
+        .chat { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .msg { max-width: 80%; padding: 12px; border-radius: 12px; font-size: 14px; }
+        .in { align-self: flex-start; background: #222; }
+        .out { align-self: flex-end; background: var(--accent); color: #000; font-weight: bold; }
+        .sys { align-self: center; font-size: 10px; color: #555; }
+        .footer { padding: 15px; background: #111; display: flex; gap: 10px; padding-bottom: env(safe-area-inset-bottom); }
+        input { flex: 1; background: #000; border: 1px solid #333; color: #fff; padding: 12px; border-radius: 8px; outline: none; font-size: 16px; }
+        .btn { background: var(--accent); border: none; padding: 0 20px; border-radius: 8px; font-weight: bold; }
         .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
 <header class="header">
-    <div class="logo">OMNI-LINK // v17</div>
-    <div class="status-ui">
-        <div class="stat-item"><span style="font-size:8px;color:#555">SIGNAL</span><div id="sig" class="dot"></div></div>
-        <div class="stat-item"><span style="font-size:8px;color:#555">LINK</span><div id="lnk" class="dot"></div></div>
+    <div style="color:var(--accent); font-weight:bold;">OMNI-LINK v18</div>
+    <div class="indicator-wrap">
+        <div id="dot1" class="dot"></div>
+        <div id="dot2" class="dot"></div>
     </div>
 </header>
 
-<main class="chat-box" id="log"></main>
+<main class="chat" id="log"></main>
 
-<div class="footer" id="setup">
-    <input type="number" id="chId" placeholder="CHANNEL ID" inputmode="numeric">
-    <button class="btn" onclick="boot()">START</button>
+<div class="footer" id="login">
+    <input type="number" id="cid" placeholder="Channel ID" inputmode="numeric">
+    <button class="btn" onclick="join()">JOIN</button>
 </div>
 
-<div class="footer hidden" id="main">
-    <input type="text" id="input" placeholder="Message..." autocomplete="off">
-    <button class="btn" onclick="send()">SEND</button>
+<div class="footer hidden" id="sender">
+    <input type="text" id="min" placeholder="Message..." autocomplete="off">
+    <button class="btn" onclick="transmit()">SEND</button>
 </div>
 
 <script>
     let p = null, c = null;
-    const PFX = 'OMNI-V17-GLO-';
+    const PFX = 'OMNI-X18-';
 
-    function addLog(t, type) {
+    function log(t, s) {
         const d = document.createElement('div');
-        d.className = `bubble ${type}`;
+        d.className = `msg ${s}`;
         d.textContent = t;
-        const l = document.getElementById('log');
-        l.appendChild(d);
-        l.scrollTop = l.scrollHeight;
+        const box = document.getElementById('log');
+        box.appendChild(d);
+        box.scrollTop = box.scrollHeight;
     }
 
-    function boot() {
-        const val = document.getElementById('chId').value;
-        if(!val) return;
-        document.getElementById('setup').classList.add('hidden');
-        addLog("DIAGNOSTIC: Searching for ICE Candidates...", "msg-sys");
-        document.getElementById('sig').classList.add('wait');
+    function join() {
+        const id = document.getElementById('cid').value;
+        if(!id) return;
+        document.getElementById('login').classList.add('hidden');
+        document.getElementById('dot1').className = 'dot searching';
+        log("System: Requesting Global Route...", "sys");
 
-        p = new Peer(PFX + val, {
-            config: { 'iceServers': [
-                { 'urls': 'stun:stun.l.google.com:19302' },
-                { 'urls': 'stun:stun1.l.google.com:19302' },
-                { 'urls': 'stun:stun2.l.google.com:19302' },
-                { 'urls': 'stun:stun3.l.google.com:19302' },
-                { 'urls': 'stun:stun4.l.google.com:19302' }
-            ], 'iceCandidatePoolSize': 10 }
+        // Use aggressive ICE configuration
+        p = new Peer(PFX + id, {
+            config: {
+                'iceServers': [
+                    { 'urls': 'stun:stun.l.google.com:19302' },
+                    { 'urls': 'stun:stun1.l.google.com:19302' },
+                    { 'urls': 'stun:stun2.l.google.com:19302' },
+                    { 'urls': 'stun:stun3.l.google.com:19302' },
+                    { 'urls': 'stun:stun4.l.google.com:19302' }
+                ],
+                'iceCandidatePoolSize': 10
+            }
         });
 
         p.on('open', () => {
-            document.getElementById('sig').className = 'dot active';
-            addLog("SIGNAL: Online. Waiting for Peer...", "msg-sys");
+            document.getElementById('dot1').className = 'dot on';
+            log("Signal: Listening on CH-" + id, "sys");
         });
 
         p.on('connection', (conn) => {
             c = conn;
-            setup();
+            bind();
         });
 
         p.on('error', (err) => {
             if(err.type === 'unavailable-id') {
-                addLog("SIGNAL: Found host. Attempting tunnel...", "msg-sys");
                 p.destroy();
                 const g = new Peer({ config: p.options.config });
                 g.on('open', () => {
-                    document.getElementById('sig').className = 'dot active';
-                    c = g.connect(PFX + val, { reliable: true });
-                    setup();
+                    document.getElementById('dot1').className = 'dot on';
+                    c = g.connect(PFX + id, { reliable: true });
+                    bind();
                 });
             } else {
-                addLog("CRITICAL: " + err.type, "msg-sys");
-                document.getElementById('setup').classList.remove('hidden');
+                log("Error: " + err.type, "sys");
+                document.getElementById('login').classList.remove('hidden');
             }
         });
     }
 
-    function setup() {
-        document.getElementById('lnk').classList.add('wait');
+    function bind() {
+        document.getElementById('dot2').className = 'dot searching';
         c.on('open', () => {
-            document.getElementById('lnk').className = 'dot active';
-            document.getElementById('main').classList.remove('hidden');
-            addLog("LINK: Secure connection established.", "msg-sys");
-            // Heartbeat
-            setInterval(() => { if(c.open) c.send('_ping_'); }, 10000);
+            document.getElementById('dot2').className = 'dot on';
+            document.getElementById('sender').classList.remove('hidden');
+            log("Link: GLOBAL TUNNEL ACTIVE", "sys");
+            setInterval(() => { if(c.open) c.send('_h_'); }, 5000);
         });
-        c.on('data', (d) => { if(d !== '_ping_') addLog(d, "msg-in"); });
-        c.on('close', () => { location.reload(); });
+        c.on('data', (d) => { if(d !== '_h_') log(d, "in"); });
+        c.on('close', () => location.reload());
     }
 
-    function send() {
-        const i = document.getElementById('input');
+    function transmit() {
+        const i = document.getElementById('min');
         if(i.value && c && c.open) {
             c.send(i.value);
-            addLog(i.value, "msg-out");
+            log(i.value, "out");
             i.value = "";
         }
     }
-    window.onkeydown = (e) => { if(e.key === 'Enter') send(); };
+    window.onkeydown = (e) => { if(e.key === 'Enter') transmit(); };
 </script>
 </body>
 </html>
