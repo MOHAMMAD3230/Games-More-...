@@ -1,52 +1,117 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- 1. CONTENT SECURITY POLICY (CSP) -->
-    <!-- This prevents malicious scripts from running unless they are from trusted sources -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://pagead2.googlesyndication.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; font-src 'self' data:; connect-src 'self' https://www.google-analytics.com;">
+    <!-- 
+        CONTENT SECURITY POLICY (CSP)
+        - frame-ancestors 'none'  → prevents clickjacking via iframes
+        - form-action 'self'      → blocks form submission to external domains
+        - base-uri 'self'         → prevents <base> tag hijacking
+        - object-src 'none'       → blocks Flash/plugin embedding
+        - upgrade-insecure-requests → auto-upgrades HTTP to HTTPS
+        NOTE: 'unsafe-inline' is required for a single-file setup with inline <script>.
+              Move scripts to external .js files to remove this and gain full XSS protection.
+    -->
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self';
+                   script-src 'self' 'unsafe-inline' https://pagead2.googlesyndication.com https://www.googletagmanager.com;
+                   style-src 'self' 'unsafe-inline';
+                   img-src 'self' https: data:;
+                   font-src 'self' data:;
+                   connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net https://stats.g.doubleclick.net;
+                   object-src 'none';
+                   frame-ancestors 'none';
+                   form-action 'self';
+                   base-uri 'self';
+                   upgrade-insecure-requests;">
 
+    <!-- Referrer Policy: only send origin on cross-origin requests, never full URL -->
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+
+    <!-- AdSense (your existing publisher ID) -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4592970036066688"
-     crossorigin="anonymous"></script>
-    
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=GT-NC6T5LRJ"></script>
+            crossorigin="anonymous"></script>
+
+    <!-- Google Tag Manager -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=GT-NC6T5LRJ"
+            crossorigin="anonymous"></script>
     <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'GT-NC6T5LRJ');
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){ dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', 'GT-NC6T5LRJ');
     </script>
-    
-    <link rel="icon" href="https://mohammad3230.github.io/Games-More-.../favicon.png" type="image/png" sizes="32x32" />
+
+    <!-- NOTE: Fix your favicon path — the "..." below is likely a mistake -->
+    <link rel="icon" href="https://mohammad3230.github.io/Games-More-.../favicon.png"
+          type="image/png" sizes="32x32" />
+
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MY_STUFF_AIO</title>
-    
+
     <style>
-        /* --- GLOBAL & MATRIX STYLES --- */
-        html, body { margin: 0; padding: 0; height: 100%; overflow-x: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        
+        /* ==================== RESET & BASE ==================== */
+        *, *::before, *::after { box-sizing: border-box; }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow-x: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        /* Focus-visible for keyboard navigation */
+        :focus-visible {
+            outline: 2px solid #00eaff;
+            outline-offset: 2px;
+        }
+
+        /* Reduced motion preference */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* ==================== MATRIX CANVAS ==================== */
         #matrix {
             position: fixed;
             top: 0; left: 0;
-            width: 100%;
-            height: 100%;
+            width: 100%; height: 100%;
             z-index: -1;
             background: #000010;
             display: block;
             transition: opacity 1s ease;
         }
 
+        /* ==================== PAGE TITLE ==================== */
         .page-title {
-            text-align: center; color: #00eaff; font-family: 'Segoe UI', sans-serif; font-size: 3em;
-            text-transform: uppercase; letter-spacing: 4px; margin-top: 30px; margin-bottom: 20px; user-select: none;
+            text-align: center;
+            color: #00eaff;
+            font-family: 'Segoe UI', sans-serif;
+            font-size: clamp(1.4rem, 5vw, 3em);
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            margin-top: 30px;
+            margin-bottom: 20px;
+            user-select: none;
             text-shadow: 0 0 5px #f9fbfb, 0 0 15px #f4f5f6;
-            padding: 0 80px; 
+            padding: 0 clamp(16px, 5vw, 80px);
+            line-height: 1.2;
+        }
+        .page-title .version {
+            font-size: 0.55em;
+            color: #00e5ff;
+            letter-spacing: 1px;
+            margin-left: 8px;
+            font-weight: 400;
         }
 
-        .page-title .version { font-size: 0.55em; color: #00e5ff; letter-spacing: 1px; margin-left: 8px; font-weight: 400; }
-
-        /* --- GENERIC LEVER STYLES --- */
+        /* ==================== LEVER (Desktop) ==================== */
         .lever-container {
             width: 70px;
             height: 160px;
@@ -58,20 +123,19 @@
             align-items: center;
             justify-content: space-around;
             box-shadow: 0 0 20px rgba(0,0,0,0.8), inset 0 0 10px #000;
-            z-index: 100;
+            z-index: 30;
             cursor: pointer;
-            transition: border-color 0.4s;
+            transition: border-color 0.4s, box-shadow 0.4s;
+            -webkit-tap-highlight-color: transparent;
         }
-
-        .lever-label { 
-            font-size: 0.65em; 
-            color: #555; 
-            font-family: monospace; 
-            text-transform: uppercase; 
-            letter-spacing: 2px; 
-            pointer-events: none; 
+        .lever-label {
+            font-size: 0.65em;
+            color: #555;
+            font-family: monospace;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            pointer-events: none;
         }
-
         .lever-track {
             width: 16px;
             height: 90px;
@@ -80,7 +144,6 @@
             position: relative;
             border: 1px solid #222;
         }
-
         .lever-handle {
             width: 34px;
             height: 44px;
@@ -89,21 +152,19 @@
             border-radius: 6px;
             position: absolute;
             left: -10px;
-            top: 0; /* UP Position */
-            transition: top 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.3s;
+            top: 0;
+            transition: top 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.3s, box-shadow 0.3s;
             box-shadow: 0 5px 15px rgba(0,0,0,0.6);
         }
 
-        /* --- RIGHT SIDE LEVERS --- */
-
-        /* 1. MATRIX LEVER (Rightmost) */
+        /* Lever: Matrix (rightmost) */
         #lever-matrix {
             position: fixed;
             top: 50%;
             right: 40px;
             transform: translateY(-50%);
         }
-        #lever-matrix.active { border-color: #00bfff; box-shadow: 0 0 25px rgba(0, 191, 255, 0.4); }
+        #lever-matrix.active { border-color: #00bfff; box-shadow: 0 0 25px rgba(0,191,255,0.4); }
         #lever-matrix.active .lever-handle {
             top: 46px;
             background: linear-gradient(145deg, #00bfff, #005f7f);
@@ -111,14 +172,14 @@
             border-color: #e0f7ff;
         }
 
-        /* 2. SECURITY LEVER (Next to Matrix) */
+        /* Lever: Security/HUD (inner right) */
         #lever-security {
             position: fixed;
             top: 50%;
-            right: 130px; 
+            right: 130px;
             transform: translateY(-50%);
         }
-        #lever-security.active { border-color: #ff0055; box-shadow: 0 0 25px rgba(255, 0, 85, 0.4); }
+        #lever-security.active { border-color: #ff0055; box-shadow: 0 0 25px rgba(255,0,85,0.4); }
         #lever-security.active .lever-handle {
             top: 46px;
             background: linear-gradient(145deg, #ff0055, #80002a);
@@ -126,70 +187,31 @@
             border-color: #ffe0e7;
         }
 
-        /* --- UI PANELS --- */
+        /* ==================== TOP-LEFT CATEGORIES PANEL ==================== */
         .top-left-container {
             position: fixed;
             top: 30px;
             left: 30px;
-            z-index: 10;
+            z-index: 20;
         }
-
-        .bottom-left-panel {
-            position: fixed;
-            bottom: 30px;
-            left: 30px;
-            width: 160px;
-            height: 220px;
-            background: rgba(0, 0, 0, 0.1);
-            border-radius: 12px;
-            padding: 16px 20px;
-            box-shadow: 0 0 25px rgba(0, 255, 127, 0.5);
-            color: white;
-            font-family: monospace, monospace;
-            z-index: 5;
-        }
-
-        .bottom-right-panel {
-            position: fixed;
-            bottom: 30px;
-            right: 230px; 
-            width: 220px;
-            height: 40px; 
-            background: rgba(0, 0, 0, 0.7);
-            border-radius: 12px;
-            padding: 15px 20px;
-            box-shadow: 0 0 25px rgba(255, 165, 0, 0.5);
-            border: 1px solid rgba(0, 240, 255, 0.2);
-            color: white;
-            font-family: monospace, monospace;
-            z-index: 5;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            overflow: hidden;
-        }
-
-        .bottom-right-panel.expanded { height: 520px; }
-
-        /* Categories Panel */
         .categories-panel {
             width: 180px;
             height: 100px;
             background: rgba(0, 0, 0, 0.0);
             border-radius: 12px;
             padding: 20px;
-            box-shadow: 0 0 25px rgba(0, 191, 255, 0.5);
+            box-shadow: 0 0 25px rgba(0,191,255,0.5);
             overflow: hidden;
             color: white;
             font-family: monospace, monospace;
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
         }
-
         .categories-panel.expanded {
             width: 220px;
             height: 420px;
-            box-shadow: 0 0 35px rgba(0, 191, 255, 0.8);
+            box-shadow: 0 0 35px rgba(0,191,255,0.8);
         }
-
         .dropdown-content { display: none; }
         .dropdown-content.show { display: block !important; }
 
@@ -198,68 +220,110 @@
             overflow-y: auto;
             overscroll-behavior: contain;
             scrollbar-width: thin;
-            scrollbar-color: #00bfff rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(0, 191, 255, 0.3);
+            scrollbar-color: #00bfff rgba(0,0,0,0.3);
+            border: 1px solid rgba(0,191,255,0.3);
             border-radius: 6px;
             margin-top: 10px;
-            background: rgba(0, 0, 0, 0.6);
+            background: rgba(0,0,0,0.6);
         }
-
         .filter-container::-webkit-scrollbar { width: 8px; }
-        .filter-container::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.5); border-radius: 4px; }
+        .filter-container::-webkit-scrollbar-track { background: rgba(0,0,0,0.5); border-radius: 4px; }
         .filter-container::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #00bfff, #0080ff); border-radius: 4px; }
 
         .categories-panel h3 { color: #00bfff; font-weight: 600; font-size: 1.2em; margin: 0 0 10px 0; }
-        .bottom-left-panel h5, .bottom-right-panel h5 { color: #00f0ff; font-weight: 600; font-size: 1.1em; margin: 0 0 15px 0; }
-
-        .categories-panel a:not(.dropbtn), .bottom-left-panel a, .bottom-right-panel a {
-            color: #ffffff; font-weight: bold; text-decoration: none; transition: color 0.3s ease;
-        }
-        .categories-panel a:not(.dropbtn):hover, .bottom-left-panel a:hover, .bottom-right-panel a:hover { color: #00e5ff; }
-        .categories-panel small, .bottom-left-panel small, .bottom-right-panel small { color: #bbbbff; font-weight: normal; font-style: italic; }
 
         .dropbtn {
-            background: rgba(0, 191, 255, 0.3); color: #ffffff; padding: 12px; font-size: 0.9em;
-            border: 1px solid rgba(0, 191, 255, 0.5); border-radius: 6px; cursor: pointer;
-            font-family: monospace; font-weight: bold; width: 100%; text-align: left; box-sizing: border-box;
+            background: rgba(0,191,255,0.3);
+            color: #ffffff;
+            padding: 12px;
+            font-size: 0.9em;
+            border: 1px solid rgba(0,191,255,0.5);
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: monospace;
+            font-weight: bold;
+            width: 100%;
+            text-align: left;
         }
+        .dropbtn:hover { background: rgba(0,191,255,0.5); }
 
         #categoryFilter {
-            width: 100%; padding: 10px 12px; border: none; border-bottom: 1px solid rgba(0, 191, 255, 0.5);
-            background: rgba(0, 0, 0, 0.8); color: #e0f7ff; font-family: monospace; font-size: 0.9em; box-sizing: border-box;
+            width: 100%;
+            padding: 10px 12px;
+            border: none;
+            border-bottom: 1px solid rgba(0,191,255,0.5);
+            background: rgba(0,0,0,0.8);
+            color: #e0f7ff;
+            font-family: monospace;
+            font-size: 0.9em;
         }
+        #categoryFilter::placeholder { color: #556; }
 
-        .dropdown-content a { color: #e0f7ff; padding: 12px 14px; text-decoration: none; display: block; font-size: 0.9em; border-bottom: 1px solid rgba(0, 191, 255, 0.2); }
-        .dropdown-content a:hover { background: rgba(0, 191, 255, 0.4); color: #ffffff; padding-left: 18px; }
+        .dropdown-content a {
+            color: #e0f7ff;
+            padding: 12px 14px;
+            text-decoration: none;
+            display: block;
+            font-size: 0.9em;
+            border-bottom: 1px solid rgba(0,191,255,0.2);
+            transition: background 0.2s, padding-left 0.2s, color 0.2s;
+        }
+        .dropdown-content a:hover { background: rgba(0,191,255,0.4); color: #ffffff; padding-left: 18px; }
 
-        .main-category .main-link { color: #00e5ff; font-weight: bold; padding: 10px 12px; display: block; border-bottom: 1px solid rgba(0, 191, 255, 0.2); }
+        .main-category .main-link {
+            color: #00e5ff;
+            font-weight: bold;
+            padding: 10px 12px;
+            display: block;
+            border-bottom: 1px solid rgba(0,191,255,0.2);
+            cursor: pointer;
+        }
         .main-category .submenu a { color: #bbbbff; padding: 8px 20px; display: block; font-size: 0.85em; }
 
-        .site-footer {
-            background-color: rgba(0, 0, 0, 0.1);
-            color: #e0f7ff;
-            font-size: 0.9rem;
-            text-align: center;
-            padding: 3px 7px;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        .link-placeholder {
+            color: #556 !important;
+            font-style: italic;
+            cursor: default !important;
+        }
+        .link-placeholder:hover { background: transparent !important; padding-left: 14px !important; }
+
+        /* ==================== CYBER DECK PANEL ==================== */
+        .bottom-right-panel {
             position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            user-select: none;
-            box-shadow: inset 0 1px 3px rgba(255, 255, 255, 0.08);
-            border-top: 1px solid rgba(0, 191, 255, 0.3);
-            z-index: 10;
+            bottom: 30px;
+            right: 230px;
+            width: 220px;
+            height: 40px;
+            background: rgba(0,0,0,0.7);
+            border-radius: 12px;
+            padding: 15px 20px;
+            box-shadow: 0 0 25px rgba(255,165,0,0.5);
+            border: 1px solid rgba(0,240,255,0.2);
+            color: white;
+            font-family: monospace, monospace;
+            z-index: 15;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+        .bottom-right-panel.expanded { height: 520px; }
+
+        .bottom-right-panel h5 {
+            color: #00f0ff;
+            font-weight: 600;
+            font-size: 1.1em;
+            margin: 0 0 15px 0;
         }
 
-        .site-footer small { display: inline-block; letter-spacing: 1px; color: #00e5ff; }
-
-        /* Cyber Deck Specifics */
-        .network-pulse { width: 8px; height: 8px; border-radius: 50%; background-color: #00f0ff; box-shadow: 0 0 8px #00f0ff; }
+        .network-pulse {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background-color: #00f0ff;
+            box-shadow: 0 0 8px #00f0ff;
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
         #terminalLog { display: flex; flex-direction: column-reverse; overflow-y: hidden; }
         #graphSvg { overflow: visible !important; }
 
-        /* Custom UI Power Switch */
         .power-switch {
             font-size: 0.8em;
             padding: 4px 8px;
@@ -270,506 +334,848 @@
             font-weight: bold;
             border: 1px solid rgba(255,255,255,0.2);
             transition: all 0.3s ease;
+            font-family: monospace;
         }
-        .power-switch.on {
-            background: #00ff88;
-            box-shadow: 0 0 10px #00ff88;
-            color: #000;
-        }
+        .power-switch.on { background: #00ff88; box-shadow: 0 0 10px #00ff88; color: #000; }
 
-        /* Hidden class for HUD toggle */
         .hud-element { transition: opacity 0.3s; }
         .hud-hidden { opacity: 0; pointer-events: none; }
+
+        /* ==================== FOOTER ==================== */
+        .site-footer {
+            background-color: rgba(0,0,0,0.1);
+            color: #e0f7ff;
+            font-size: 0.9rem;
+            text-align: center;
+            padding: 3px 7px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            position: fixed;
+            bottom: 0; left: 0;
+            width: 100%;
+            user-select: none;
+            box-shadow: inset 0 1px 3px rgba(255,255,255,0.08);
+            border-top: 1px solid rgba(0,191,255,0.3);
+            z-index: 25;
+        }
+        .site-footer small { display: inline-block; letter-spacing: 1px; color: #00e5ff; }
+
+        /* ==================== NOSCRIPT ==================== */
+        .noscript-msg {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            background: #000;
+            color: #00eaff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: monospace;
+            font-size: 1.2rem;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        /* ==================== MOBILE: TABLET (<=768px) ==================== */
+        @media (max-width: 768px) {
+            .page-title { margin-top: 16px; margin-bottom: 12px; }
+
+            /* Levers become compact circular buttons */
+            .lever-container {
+                width: 44px;
+                height: 44px;
+                border-radius: 50%;
+                flex-direction: row;
+                justify-content: center;
+                align-items: center;
+                padding: 0;
+            }
+            .lever-track { display: none; }
+            .lever-handle { display: none; }
+            .lever-label:first-child { display: none; }
+            .lever-label:last-child {
+                font-size: 0.45em;
+                letter-spacing: 0;
+                display: block;
+                text-align: center;
+                line-height: 1;
+            }
+            #lever-matrix.active .lever-label:last-child { color: #00bfff; }
+            #lever-security.active .lever-label:last-child { color: #ff0055; }
+
+            #lever-matrix {
+                position: fixed;
+                bottom: 48px;
+                right: 16px;
+                top: auto;
+                transform: none;
+            }
+            #lever-security {
+                position: fixed;
+                bottom: 48px;
+                right: 68px;
+                top: auto;
+                transform: none;
+            }
+
+            /* Categories panel */
+            .top-left-container { top: 10px; left: 10px; }
+            .categories-panel { width: 160px; padding: 14px; }
+            .categories-panel.expanded {
+                width: calc(100vw - 20px);
+                max-width: 300px;
+                height: calc(100vh - 120px);
+                max-height: 70vh;
+            }
+            .filter-container { height: calc(100% - 90px); }
+
+            /* Cyber Deck panel */
+            .bottom-right-panel {
+                right: 10px;
+                left: 10px;
+                width: auto;
+                bottom: 100px;
+            }
+            .bottom-right-panel.expanded { height: calc(100vh - 160px); }
+
+            /* Footer smaller */
+            .site-footer { font-size: 0.75rem; padding: 2px 4px; }
+        }
+
+        /* ==================== MOBILE: PHONE (<=480px) ==================== */
+        @media (max-width: 480px) {
+            .page-title { margin-top: 10px; margin-bottom: 8px; letter-spacing: 2px; }
+            .page-title .version { display: block; margin-left: 0; margin-top: 4px; }
+
+            .lever-container { width: 38px; height: 38px; }
+            .lever-label:last-child { font-size: 0.4em; }
+            #lever-matrix { right: 10px; bottom: 42px; }
+            #lever-security { right: 56px; bottom: 42px; }
+
+            .top-left-container { top: 6px; left: 6px; }
+            .categories-panel { width: 140px; padding: 10px; }
+            .categories-panel h3 { font-size: 1em; margin-bottom: 6px; }
+            .dropbtn { padding: 8px; font-size: 0.8em; }
+            .categories-panel.expanded {
+                width: calc(100vw - 12px);
+                height: calc(100vh - 90px);
+                max-height: 75vh;
+            }
+            #categoryFilter { padding: 8px; font-size: 0.8em; }
+            .dropdown-content a { padding: 10px 12px; font-size: 0.8em; }
+
+            .bottom-right-panel {
+                padding: 10px 14px;
+                bottom: 86px;
+                left: 6px;
+                right: 6px;
+                height: 36px;
+            }
+            .bottom-right-panel.expanded { height: calc(100vh - 130px); }
+
+            .site-footer { font-size: 0.65rem; }
+        }
     </style>
 </head>
 <body>
-  
-   <canvas id="matrix"></canvas>
-  
-  <h1 class="page-title">
-  MY_STUFF_AIO
-  <span class="version">v2.0 [SECURE]</span>
-</h1>
 
-  <!-- LEVER 2: SECURITY / HUD (Right Side, Inner) -->
-  <div id="lever-security" class="lever-container" onclick="toggleHUD()">
-      <span class="lever-label">HUD</span>
-      <div class="lever-track">
-          <div class="lever-handle"></div>
-      </div>
-      <span class="lever-label">SEC</span>
-  </div>
-
-  <!-- LEVER 1: MATRIX (Right Side, Outer) -->
-  <div id="lever-matrix" class="lever-container" onclick="toggleMatrix()">
-      <span class="lever-label">OFF</span>
-      <div class="lever-track">
-          <div class="lever-handle"></div>
-      </div>
-      <span class="lever-label">MATRIX</span>
-  </div>
-
-  <div class="top-left-container">
-    <div class="categories-panel" id="categoriesPanel">
-      <h3>Categories</h3>
-      <div class="dropdown">
-        <button onclick="toggleCategoryPanel()" class="dropbtn">☰ Filter Categories</button>
-        <div id="categoryDropdown" class="dropdown-content filter-container">
-          <input type="text" id="categoryFilter" placeholder="🔍 Search categories..." onkeyup="filterCategories()" autocomplete="off">
-           
-            <div class="main-category">
-            <a href="#" class="main-link" onclick="toggleSubmenu(event)">📁 Food</a>
-            <div class="submenu" style="display: none;">
-              <a href="USDA FOOD SEARCH cyberpunk oldstyle.html">USDA FOOD SEARCH</a>
-            </div>
-          </div>
-
-             <div class="main-category">
-            <a href="#" class="main-link" onclick="toggleSubmenu(event)">📁 HEALTH</a>
-            <div class="submenu" style="display: none;">
-              <a href="Health scanner & Guidance.html">Health scanner & Guidance</a>
-            </div>
-          </div>
-
-            <div class="main-category">
-            <a href="#" class="main-link" onclick="toggleSubmenu(event)">📁 Messages</a>
-            <div class="submenu" style="display: none;">
-              <a href="messages receives and responds.html">Message Receiver</a>
-            </div>
-          </div>
-
-          <div class="main-category">
-            <a href="#" class="main-link" onclick="toggleSubmenu(event)">📁 MY_STUFF v1.0</a>
-            <div class="submenu" style="display: none;">
-              <a href="https://mohammad3230.github.io/PROJECT/">MY_STUFF v1.0</a>
-            </div>
-          </div>
-
-            <div class="main-category">
-            <a href="#" class="main-link" onclick="toggleSubmenu(event)">📁 MY_STUFF v3.0</a>
-            <div class="submenu" style="display: none;">
-                <a href="https://mohammad3230.github.io/PROJECT/">MY_STUFF v1.0</a>
-                <a href="linux.html">GHOST_TAC_v80.8</a>
-            </div>
-          </div>
-
-            <div class="main-category">
-            <a href="#" class="main-link" onclick="toggleSubmenu(event)">📁 News</a>
-            <div class="submenu" style="display: none;">
-                <a href="https://www.aljazeera.com/news/" target="_blank" rel="noopener noreferrer">Aljazeera News</a>
-                <a href="https://www.bbc.com/news" target="_blank" rel="noopener noreferrer">BBC</a>
-                <a href="https://news.google.com/home?hl=en-IN&gl=IN&ceid=IN%3Aen" target="_blank" rel="noopener noreferrer">Google News</a>
-                <a href="https://news.un.org/en/" target="_blank" rel="noopener noreferrer">UN Org</a>
-                <a href="https://www.thehindu.com/latest-news/" target="_blank" rel="noopener noreferrer">The Hindu</a>
-                <a href="https://timesofindia.indiatimes.com/" target="_blank" rel="noopener noreferrer">The Times of India</a>
-            </div>
-          </div>
-
-
-            <div class="main-category">
-            <a href="#" class="main-link" onclick="toggleSubmenu(event)">📁 Omni-Deck</a>
-            <div class="submenu" style="display: none;">
-              <a href="OMNI-DECK.html">OMNi - DeCk</a>
-            </div>
-          </div>
-
-          <div class="main-category">
-            <a href="#" class="main-link" onclick="toggleSubmenu(event)">📁 Online Games</a>
-            <div class="submenu" style="display: none;">
-              <a href="snake.html">Snake Game</a>
-            </div>
-          </div>
-
-              <div class="main-category">
-            <a href="#" class="main-link" onclick="toggleSubmenu(event)">📁 Page Capture</a>
-            <div class="submenu" style="display: none;">
-              <a href="Page Capture.html">Page Capture</a>
-            </div>
-          </div>
-
-            <div class="main-category">
-            <a href="#" class="main-link" onclick="toggleSubmenu(event)">📁 ToolHub</a>
-            <div class="submenu" style="display: none;">
-              <a href="Toolhub.html">ToOl_HuB</a>
-            </div>
-          </div>
-
-                <div class="main-category">
-            <a href="#" class="main-link" onclick="toggleSubmenu(event)">📁 Walkie Talkie</a>
-            <div class="submenu" style="display: none;">
-              <a href="testing.html">Testing-Z</a>
-                <a href="testingA.html">Testing-A</a>
-              <a href="receiver.html">Walkie Talkie Receiver</a>
-            </div>
-          </div>
-
-        <div class="main-category">
-            <a href="#" class="main-link" onclick="toggleSubmenu(event)">📁 Documentation</a>
-            <div class="submenu" style="display: none;">
-              <a href="#">User Guides</a>
-              <a href="#">API Docs</a>
-              <a href="#">Changelogs</a>
-            </div>
-          </div>
-
-          <a href="music.html">🎵 My_Music</a>
-          <a href="https://in.pinterest.com/" target="_blank" rel="noopener noreferrer">📌 Pinterest</a>
-          <a href="radio.html">📡 Live Radio</a>
-          <a href="https://www.zedge.net/ringtones" target="_blank" rel="noopener noreferrer">🖼️ Zedge Wallpapers</a> 
-          <a href="#">⚙️ Settings</a>
-          <a href="#">🎨 Templates</a>
-          <a href="#">📤 Exports</a>
-          <a href="#">📊 Analytics</a>
-          <a href="#">💾 Backup</a>
-
+    <!-- Graceful degradation when JS is disabled -->
+    <noscript>
+        <div class="noscript-msg" role="alert">
+            JavaScript is required to use MY_STUFF_AIO.<br>
+            Please enable JavaScript in your browser settings and reload.
         </div>
-      </div>
+    </noscript>
+
+    <canvas id="matrix" aria-hidden="true"></canvas>
+
+    <h1 class="page-title">
+        MY_STUFF_AIO
+        <span class="version">v2.0 [SECURE]</span>
+    </h1>
+
+    <!-- LEVER: Security / HUD toggle -->
+    <div id="lever-security" class="lever-container" role="button" tabindex="0"
+         aria-label="Toggle HUD elements on or off" aria-pressed="true">
+        <span class="lever-label">HUD</span>
+        <div class="lever-track"><div class="lever-handle"></div></div>
+        <span class="lever-label">SEC</span>
     </div>
-  </div>
 
-    <div class="bottom-right-panel hud-element" id="systemPanel">
-        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px;">
-            <h5 onclick="toggleDeckExpand()" style="font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #ffa500; margin: 0; cursor:pointer;" title="Minimize / Maximize Deck (Right click to purge stats)">Cyber Deck ⬍</h5>
-            <div style="display: flex; gap: 8px; align-items: center;">
-                <span id="powerBtn" onclick="togglePower(event)" class="power-switch on">PWR: ON</span>
-                <span id="muteBtn" onclick="toggleMute()" style="cursor: pointer; font-size: 0.8em; color: #00f0ff; user-select: none;">🔊</span>
-                <span id="autoResponse" onclick="toggleAutoResponse()" style="cursor: pointer; font-size: 0.8em; color: #00ff88; user-select: none; margin-left: 5px;">AUTO: OFF</span>
-                <span id="breachCount" style="font-size: 0.7em; color: #ff4444; font-weight: bold;">0</span>
-                <span id="digitalClock" style="font-size: 0.8em; color: #00f0ff; font-weight: bold; font-family: monospace;">00:00:00</span>
+    <!-- LEVER: Matrix animation toggle -->
+    <div id="lever-matrix" class="lever-container" role="button" tabindex="0"
+         aria-label="Toggle matrix rain animation on or off" aria-pressed="false">
+        <span class="lever-label">OFF</span>
+        <div class="lever-track"><div class="lever-handle"></div></div>
+        <span class="lever-label">MATRIX</span>
+    </div>
+
+    <!-- Categories Panel -->
+    <nav class="top-left-container" aria-label="Site categories">
+        <div class="categories-panel" id="categoriesPanel">
+            <h3>Categories</h3>
+            <div class="dropdown">
+                <button id="categoryToggleBtn" class="dropbtn" aria-expanded="false"
+                        aria-controls="categoryDropdown">&#9776; Filter Categories</button>
+                <div id="categoryDropdown" class="dropdown-content filter-container" role="listbox">
+                    <input type="text" id="categoryFilter" placeholder="&#128269; Search categories..."
+                           autocomplete="off" aria-label="Search categories">
+
+                    <div class="main-category">
+                        <a href="#" class="main-link" data-submenu-toggle role="button"
+                           aria-expanded="false">&#128193; Food</a>
+                        <div class="submenu" style="display:none;">
+                            <a href="USDA FOOD SEARCH cyberpunk oldstyle.html" role="option">USDA FOOD SEARCH</a>
+                        </div>
+                    </div>
+
+                    <div class="main-category">
+                        <a href="#" class="main-link" data-submenu-toggle role="button"
+                           aria-expanded="false">&#128193; HEALTH</a>
+                        <div class="submenu" style="display:none;">
+                            <a href="Health scanner & Guidance.html" role="option">Health scanner & Guidance</a>
+                        </div>
+                    </div>
+
+                    <div class="main-category">
+                        <a href="#" class="main-link" data-submenu-toggle role="button"
+                           aria-expanded="false">&#128193; Messages</a>
+                        <div class="submenu" style="display:none;">
+                            <a href="messages receives and responds.html" role="option">Message Receiver</a>
+                            <a href="Message <internal Network>.html" role="option">Internal Messages</a>
+                        </div>
+                    </div>
+
+                    <div class="main-category">
+                        <a href="#" class="main-link" data-submenu-toggle role="button"
+                           aria-expanded="false">&#128193; MY_STUFF v1.0</a>
+                        <div class="submenu" style="display:none;">
+                            <a href="https://mohammad3230.github.io/PROJECT/"
+                               target="_blank" rel="noopener noreferrer" role="option">MY_STUFF v1.0</a>
+                        </div>
+                    </div>
+
+                    <div class="main-category">
+                        <a href="#" class="main-link" data-submenu-toggle role="button"
+                           aria-expanded="false">&#128193; MY_STUFF v3.0</a>
+                        <div class="submenu" style="display:none;">
+                            <a href="https://mohammad3230.github.io/PROJECT/"
+                               target="_blank" rel="noopener noreferrer" role="option">MY_STUFF v1.0</a>
+                            <a href="linux.html" role="option">GHOST_TAC_v80.8</a>
+                        </div>
+                    </div>
+
+                    <div class="main-category">
+                        <a href="#" class="main-link" data-submenu-toggle role="button"
+                           aria-expanded="false">&#128193; News</a>
+                        <div class="submenu" style="display:none;">
+                            <a href="https://www.aljazeera.com/news/" target="_blank" rel="noopener noreferrer" role="option">Aljazeera News</a>
+                            <a href="https://www.bbc.com/news" target="_blank" rel="noopener noreferrer" role="option">BBC</a>
+                            <a href="https://news.google.com/home?hl=en-IN&gl=IN&ceid=IN%3Aen" target="_blank" rel="noopener noreferrer" role="option">Google News</a>
+                            <a href="https://news.un.org/en/" target="_blank" rel="noopener noreferrer" role="option">UN Org</a>
+                            <a href="https://www.thehindu.com/latest-news/" target="_blank" rel="noopener noreferrer" role="option">The Hindu</a>
+                            <a href="https://timesofindia.indiatimes.com/" target="_blank" rel="noopener noreferrer" role="option">The Times of India</a>
+                        </div>
+                    </div>
+
+                    <div class="main-category">
+                        <a href="#" class="main-link" data-submenu-toggle role="button"
+                           aria-expanded="false">&#128193; Omni-Deck</a>
+                        <div class="submenu" style="display:none;">
+                            <a href="OMNI-DECK.html" role="option">OMNi - DeCk</a>
+                        </div>
+                    </div>
+
+                    <div class="main-category">
+                        <a href="#" class="main-link" data-submenu-toggle role="button"
+                           aria-expanded="false">&#128193; Online Games</a>
+                        <div class="submenu" style="display:none;">
+                            <a href="snake.html" role="option">Snake Game</a>
+                        </div>
+                    </div>
+
+                    <div class="main-category">
+                        <a href="#" class="main-link" data-submenu-toggle role="button"
+                           aria-expanded="false">&#128193; Page Capture</a>
+                        <div class="submenu" style="display:none;">
+                            <a href="Page Capture.html" role="option">Page Capture</a>
+                        </div>
+                    </div>
+
+                    <div class="main-category">
+                        <a href="#" class="main-link" data-submenu-toggle role="button"
+                           aria-expanded="false">&#128193; ToolHub</a>
+                        <div class="submenu" style="display:none;">
+                            <a href="Toolhub.html" role="option">ToOl_HuB</a>
+                        </div>
+                    </div>
+
+                    <div class="main-category">
+                        <a href="#" class="main-link" data-submenu-toggle role="button"
+                           aria-expanded="false">&#128193; Walkie Talkie</a>
+                        <div class="submenu" style="display:none;">
+                            <a href="testing.html" role="option">Testing-Z</a>
+                            <a href="testingA.html" role="option">Testing-A</a>
+                            <a href="receiver.html" role="option">Walkie Talkie Receiver</a>
+                        </div>
+                    </div>
+
+                    <div class="main-category">
+                        <a href="#" class="main-link" data-submenu-toggle role="button"
+                           aria-expanded="false">&#128193; Documentation</a>
+                        <div class="submenu" style="display:none;">
+                            <a href="#" class="link-placeholder" data-noop role="option">User Guides</a>
+                            <a href="#" class="link-placeholder" data-noop role="option">API Docs</a>
+                            <a href="#" class="link-placeholder" data-noop role="option">Changelogs</a>
+                        </div>
+                    </div>
+
+                    <a href="music.html" role="option">&#127925; My_Music</a>
+                    <a href="https://in.pinterest.com/" target="_blank" rel="noopener noreferrer" role="option">&#128204; Pinterest</a>
+                    <a href="radio.html" role="option">&#128225; Live Radio</a>
+                    <a href="https://www.zedge.net/ringtones" target="_blank" rel="noopener noreferrer" role="option">&#128444;&#65039; Zedge Wallpapers</a>
+                    <a href="#" class="link-placeholder" data-noop role="option">&#9881;&#65039; Settings</a>
+                    <a href="#" class="link-placeholder" data-noop role="option">&#127912; Templates</a>
+                    <a href="#" class="link-placeholder" data-noop role="option">&#128228; Exports</a>
+                    <a href="#" class="link-placeholder" data-noop role="option">&#128202; Analytics</a>
+                    <a href="#" class="link-placeholder" data-noop role="option">&#128190; Backup</a>
+                </div>
             </div>
         </div>
-        
+    </nav>
+
+    <!-- Cyber Deck Panel -->
+    <aside class="bottom-right-panel hud-element" id="systemPanel" aria-label="System cyber deck dashboard">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:5px;">
+            <h5 id="deckHeaderBtn" title="Minimize / Maximize Deck (Right click to purge stats)"
+                style="font-weight:bold; text-transform:uppercase; letter-spacing:1px; color:#ffa500; margin:0; cursor:pointer;">
+                Cyber Deck &#11015;
+            </h5>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <span id="powerBtn" class="power-switch on" role="button" tabindex="0"
+                      aria-label="Toggle power on or off">PWR: ON</span>
+                <span id="muteBtn" role="button" tabindex="0" aria-label="Toggle sound mute"
+                      style="cursor:pointer; font-size:0.8em; color:#00f0ff; user-select:none;">&#128266;</span>
+                <span id="autoResponse" role="button" tabindex="0" aria-label="Toggle auto response"
+                      style="cursor:pointer; font-size:0.8em; color:#00ff88; user-select:none; margin-left:5px;">AUTO: OFF</span>
+                <span id="breachCount" style="font-size:0.7em; color:#ff4444; font-weight:bold;" aria-live="polite">0</span>
+                <span id="digitalClock" style="font-size:0.8em; color:#00f0ff; font-weight:bold; font-family:monospace;" aria-label="Current time">00:00:00</span>
+            </div>
+        </div>
+
         <div id="deckContent">
-            <div style="font-size: 0.65em; color: #8888ff; margin-bottom: 12px; border-bottom: 1px solid rgba(255, 165, 0, 0.2); padding-bottom: 5px;">
-                UPTIME: <span id="uptimeVar" style="color: #bbbbff; font-weight: bold;">00:00:00:00</span>
+            <div style="font-size:0.65em; color:#8888ff; margin-bottom:12px; border-bottom:1px solid rgba(255,165,0,0.2); padding-bottom:5px;">
+                UPTIME: <span id="uptimeVar" style="color:#bbbbff; font-weight:bold;">00:00:00:00</span>
             </div>
 
-            <div style="margin-bottom: 12px; border-top: 1px solid rgba(255, 165, 0, 0.1); padding-top: 8px;">
-                <div style="display: flex; justify-content: space-between; font-size: 0.7em; margin-bottom: 4px;">
-                    <span style="color: #bbbbff;">CORE_DECRYPTION:</span>
-                    <span id="decryptVal" style="color: #00f0ff; font-weight: bold;">0%</span>
+            <!-- Decryption progress -->
+            <div style="margin-bottom:12px; border-top:1px solid rgba(255,165,0,0.1); padding-top:8px;">
+                <div style="display:flex; justify-content:space-between; font-size:0.7em; margin-bottom:4px;">
+                    <span style="color:#bbbbff;">CORE_DECRYPTION:</span>
+                    <span id="decryptVal" style="color:#00f0ff; font-weight:bold;">0%</span>
                 </div>
-                <div style="width: 100%; height: 4px; background: rgba(255, 255, 255, 0.05); border-radius: 2px; overflow: hidden;">
-                    <div id="decryptBar" style="width: 0%; height: 100%; background: #00f0ff; transition: all 0.5s ease; box-shadow: 0 0 10px #00f0ff;"></div>
-                </div>
-            </div>
-            <div style="margin: 12px 0; border-top: 1px solid rgba(255, 0, 100, 0.3); padding-top: 8px;">
-                <div style="display: flex; justify-content: space-between; font-size: 0.7em; margin-bottom: 4px;">
-                    <span style="color: #ff0080;">THREAT LEVEL:</span>
-                    <span id="threatVal" style="color: #ff4444; font-weight: bold;">0%</span>
-                </div>
-                <div style="width: 100%; height: 4px; background: rgba(255, 0, 100, 0.1); border-radius: 2px; overflow: hidden;">
-                    <div id="threatBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #ff0080, #ff4444); transition: all 0.5s ease; box-shadow: 0 0 8px #ff0080;"></div>
+                <div style="width:100%; height:4px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden;">
+                    <div id="decryptBar" style="width:0%; height:100%; background:#00f0ff; transition:all 0.5s ease; box-shadow:0 0 10px #00f0ff;"></div>
                 </div>
             </div>
 
-            <div style="margin-bottom: 12px; border-top: 1px solid rgba(0, 240, 255, 0.2); padding-top: 8px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                    <small id="statusLabel" style="color: #00f0ff; letter-spacing: 1px; font-weight: bold; font-size: 0.7em;">STATUS: SECURE</small>
-                    <div class="network-pulse" id="pulseNode"></div>
+            <!-- Threat level -->
+            <div style="margin:12px 0; border-top:1px solid rgba(255,0,100,0.3); padding-top:8px;">
+                <div style="display:flex; justify-content:space-between; font-size:0.7em; margin-bottom:4px;">
+                    <span style="color:#ff0080;">THREAT_LEVEL:</span>
+                    <span id="threatVal" style="color:#ff4444; font-weight:bold;">0%</span>
                 </div>
-                <div style="width: 100%; height: 40px; background: rgba(0, 240, 255, 0.05); border-radius: 4px; margin-bottom: 8px; overflow: hidden; border: 1px solid rgba(0, 240, 255, 0.1); position: relative;">
-                    <svg width="100%" height="100%" viewBox="0 0 200 40" preserveAspectRatio="none" id="graphSvg">
-                        <polyline id="graphLine" fill="none" stroke="#00f0ff" stroke-width="1.5" points="0,40 20,40 40,40 60,40 80,40 100,40 120,40 140,40 160,40 180,40 200,40" />
+                <div style="width:100%; height:4px; background:rgba(255,0,100,0.1); border-radius:2px; overflow:hidden;">
+                    <div id="threatBar" style="width:0%; height:100%; background:linear-gradient(90deg,#ff0080,#ff4444); transition:all 0.5s ease; box-shadow:0 0 8px #ff0080;"></div>
+                </div>
+            </div>
+
+            <!-- Network stats -->
+            <div style="margin-bottom:12px; border-top:1px solid rgba(0,240,255,0.2); padding-top:8px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <small id="statusLabel" style="color:#00f0ff; letter-spacing:1px; font-weight:bold; font-size:0.7em;">STATUS: SECURE</small>
+                    <div class="network-pulse" id="pulseNode" aria-hidden="true"></div>
+                </div>
+                <div style="width:100%; height:40px; background:rgba(0,240,255,0.05); border-radius:4px; margin-bottom:8px; overflow:hidden; border:1px solid rgba(0,240,255,0.1); position:relative;">
+                    <svg width="100%" height="100%" viewBox="0 0 200 40" preserveAspectRatio="none" id="graphSvg" aria-hidden="true">
+                        <polyline id="graphLine" fill="none" stroke="#00f0ff" stroke-width="1.5"
+                                  points="0,40 20,40 40,40 60,40 80,40 100,40 120,40 140,40 160,40 180,40 200,40"/>
                         <g id="particleGroup"></g>
                     </svg>
                 </div>
-                <div style="font-size: 0.7em; display: flex; flex-direction: column; gap: 4px;">
-                    <div style="display: flex; justify-content: space-between;">
-                        <span style="color: #bbbbff;">DOWNLINK:</span>
-                        <span><span id="downMB" style="color: #00f0ff; font-weight: bold;">0</span> <small>Mbps</small></span>
+                <div style="font-size:0.7em; display:flex; flex-direction:column; gap:4px;">
+                    <div style="display:flex; justify-content:space-between;">
+                        <span style="color:#bbbbff;">DOWNLINK:</span>
+                        <span><span id="downMB" style="color:#00f0ff; font-weight:bold;">0</span> <small>Mbps</small></span>
                     </div>
-                    <div style="display: flex; justify-content: space-between;">
-                        <span style="color: #bbbbff;">UPLINK:</span>
-                        <span><span id="upMB" style="color: #00f0ff; font-weight: bold;">0</span> <small>Mbps</small></span>
+                    <div style="display:flex; justify-content:space-between;">
+                        <span style="color:#bbbbff;">UPLINK:</span>
+                        <span><span id="upMB" style="color:#00f0ff; font-weight:bold;">0</span> <small>Mbps</small></span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; font-size: 0.9em; margin-top: 2px;">
-                        <span>PING: <span id="pingVal" style="color: #00f0ff;">20</span>ms</span>
-                        <span>LOSS: <span id="lossVal" style="color: #00f0ff;">0.00%</span></span>
+                    <div style="display:flex; justify-content:space-between; font-size:0.9em; margin-top:2px;">
+                        <span>PING: <span id="pingVal" style="color:#00f0ff;">20</span>ms</span>
+                        <span>LOSS: <span id="lossVal" style="color:#00f0ff;">0.00%</span></span>
                     </div>
                 </div>
             </div>
-           
-            <div id="terminalLog" style="font-size: 0.65em; color: #ffa500; height: 60px; background: rgba(0,0,0,0.4); padding: 5px; border-radius: 4px; border: 1px solid rgba(255,165,0,0.1); line-height: 1.2;">
-                <div>> initializing_sys_v2.0...</div>
+
+            <!-- Terminal log -->
+            <div id="terminalLog" aria-live="polite" aria-label="System terminal log"
+                 style="font-size:0.65em; color:#ffa500; height:60px; background:rgba(0,0,0,0.4); padding:5px; border-radius:4px; border:1px solid rgba(255,165,0,0.1); line-height:1.2;">
+                <div>&gt; initializing_sys_v2.0...</div>
             </div>
         </div>
-        <audio id="alertSound" src="https://www.soundjay.com/misc/sounds/beep-07.wav" preload="auto"></audio>
-    </div>
+    </aside>
 
     <footer class="site-footer">
-    <small>Copyright © 2023-2026 All rights reserved</small>
-  </footer>
+        <small>Copyright &copy; 2023-2026 All rights reserved</small>
+    </footer>
 
- <script>
-    // ===== STATE MANAGEMENT =====
-    let matrixActive = false;
-    let hudActive = true;
-
-    // ===== MATRIX ANIMATION =====
-    const canvas = document.getElementById('matrix');
-    const ctx = canvas.getContext('2d');
-    
-    function resizeCanvas() { 
-        canvas.width = window.innerWidth; 
-        canvas.height = window.innerHeight; 
-    }
-    resizeCanvas();
-    
-    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@#$%^&*()+~{}[]<>?';
-    const fontSize = 20;
-    let columns = Math.floor(canvas.width / fontSize);
-    const drops = new Array(columns).fill(0);
-    let currentBg = { r: 0, g: 0, b: 16 };
-
-    function toggleMatrix() {
-        matrixActive = !matrixActive;
-        const lever = document.getElementById('lever-matrix');
-        
-        if (matrixActive) {
-            lever.classList.add('active');
-        } else {
-            lever.classList.remove('active');
-            // Clear canvas immediately when turning off
-            ctx.fillStyle = '#000010';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
-    }
-
-    function drawMatrix() {
-        // Fade effect for trails
-        ctx.fillStyle = `rgba(${currentBg.r}, ${currentBg.g}, ${currentBg.b}, 0.1)`;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.font = fontSize + 'px monospace';
-        
-        if (matrixActive) {
-            for (let i = 0; i < drops.length; i++) {
-                const text = characters.charAt(Math.floor(Math.random() * characters.length));
-                const colorShift = currentBg.r > 20 ? '#ff5555' : (i % 2 === 0 ? '#00bfff' : '#e0f7ff');
-                ctx.fillStyle = colorShift;
-                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
-                drops[i]++;
-            }
-        }
-    }
-    
-    setInterval(drawMatrix, 50);
-    
-    window.addEventListener('resize', () => { 
-        resizeCanvas(); 
-        columns = Math.floor(canvas.width / fontSize); 
-        drops.length = columns; 
-        drops.fill(0); 
-    });
-
-    // ===== SECURITY LEVER (HUD TOGGLE) =====
-    function toggleHUD() {
-        hudActive = !hudActive;
-        const lever = document.getElementById('lever-security');
-        const hudElements = document.querySelectorAll('.hud-element');
-        
-        if (hudActive) {
-            lever.classList.add('active');
-            hudElements.forEach(el => el.classList.remove('hud-hidden'));
-        } else {
-            lever.classList.remove('active');
-            hudElements.forEach(el => el.classList.add('hud-hidden'));
-        }
-    }
-
-    // ===== UI HELPERS =====
-    function toggleCategoryPanel() {
-        document.getElementById('categoriesPanel').classList.toggle('expanded');
-        document.getElementById('categoryDropdown').classList.toggle('show');
-    }
-
-    function toggleSubmenu(event) {
-        event.preventDefault();
-        const mainCategory = event.target.closest(".main-category");
-        if (!mainCategory) return;
-        const submenu = mainCategory.querySelector(".submenu");
-        if (!submenu) return;
-        submenu.style.display = submenu.style.display === "none" ? "block" : "none";
-    }
-
-    function filterCategories() {
-        const filterInput = document.getElementById("categoryFilter");
-        // Basic input sanitization to prevent HTML injection in attributes (though logic uses textContent)
-        const filter = filterInput.value.replace(/[<>]/g, "").toUpperCase();
-        
-        const links = document.getElementById("categoryDropdown").querySelectorAll("a");
-        links.forEach(el => {
-            const txt = el.textContent || el.innerText;
-            el.style.display = txt.toUpperCase().indexOf(filter) > -1 ? "" : "none";
-        });
-    }
-
-    function toggleDeckExpand() {
-        document.getElementById('systemPanel').classList.toggle('expanded');
-    }
-
-    let isPoweredOn = true;
-    function togglePower(event) {
-        event.stopPropagation();
-        isPoweredOn = !isPoweredOn;
-        const btn = document.getElementById('powerBtn');
-        const content = document.getElementById('deckContent');
-
-        if (isPoweredOn) {
-            btn.innerText = "PWR: ON";
-            btn.classList.add('on');
-            content.style.opacity = "1";
-            content.style.pointerEvents = "auto";
-            addTerminalLog("SYSTEM COLD BOOT SUCCESSFUL", "#00f0ff");
-        } else {
-            btn.innerText = "PWR: OFF";
-            btn.classList.remove('on');
-            content.style.opacity = "0.1";
-            content.style.pointerEvents = "none";
-            document.getElementById('downMB').innerText = "0";
-            document.getElementById('upMB').innerText = "0";
-            document.getElementById('lossVal').innerText = "0.00%";
-            document.getElementById('threatVal').innerText = "0%";
-            document.getElementById('threatBar').style.width = "0%";
-            document.getElementById('decryptVal').innerText = "0%";
-            document.getElementById('decryptBar').style.width = "0%";
-        }
-    }
-
-    // ===== CYBER DECK LOGIC =====
-    let startTime = Date.now();
-    let graphPoints = [35, 30, 32, 28, 35, 30, 25, 30, 35, 38, 40];
-    let decryptPercent = 0;
-    let isMuted = false;
-    let lastBreachStatus = false;
-    let breachCount = 0;
-    let autoResponse = false;
-    let isLockdown = false;
-    let tracePercent = 0;
-    
-    const deckLogs = ["Decrypting block...", "RSA Key Found", "Bypassing Firewall", "Node link: Active", "Shifting Frequency"];
-
-    function updateDashboard() {
-        if (isLockdown) return;
-
-        const now = new Date();
-        document.getElementById('digitalClock').innerText = now.toLocaleTimeString('en-GB');
-
-        if (!isPoweredOn) return; 
-        
-        let diff = Math.floor((Date.now() - startTime) / 1000) + 87200;
-        document.getElementById('uptimeVar').innerText = `${Math.floor(diff/86400).toString().padStart(2,'0')}:${Math.floor((diff%86400)/3600).toString().padStart(2,'0')}:${Math.floor((diff%3600)/60).toString().padStart(2,'0')}:${(diff%60).toString().padStart(2,'0')}`;
-
-        let dl = (Math.random() * 45 + 10).toFixed(1);
-        let ul = (Math.random() * 15 + 2).toFixed(1);
-        let lossNum = (Math.random() > 0.92) ? (Math.random() * 0.15) : (Math.random() * 0.01);
-        
-        if (autoResponse && lossNum > 0.05) {
-            lossNum = 0.00;
-            addTerminalLog("AUTO-RESPONSE: Threat neutralized", "#00ff88");
+    <script>
+        /* ==========================================================
+           FRAME-BUSTING — prevents clickjacking
+           CSP frame-ancestors via <meta> has limited browser support;
+           this JS fallback breaks out of unauthorized iframes.
+           ========================================================== */
+        if (window.top !== window.self) {
+            try { window.top.location = window.self.location; }
+            catch (e) { /* cross-origin iframe: cannot access parent */ }
         }
 
-        const isBreach = lossNum > 0.05;
-        const color = isBreach ? "#ff4444" : "#00f0ff";
+        /* ==========================================================
+           STATE
+           ========================================================== */
+        let matrixActive = false;
+        let hudActive = true;
+        let isPoweredOn = true;
+        let isMuted = false;
+        let autoResponse = false;
+        let isLockdown = false;
+        let lastBreachStatus = false;
+        let breachCount = 0;
+        let tracePercent = 0;
+        let decryptPercent = 0;
+        let startTime = Date.now();
+        let graphPoints = [35, 30, 32, 28, 35, 30, 25, 30, 35, 38, 40];
+        let currentBg = { r: 0, g: 0, b: 16 };
 
-        if (isBreach) {
-            tracePercent += 2.5; 
-            breachCount++;
-            document.getElementById('breachCount').innerText = breachCount;
-            if (!lastBreachStatus) {
-                if (!isMuted) {
-                    const sound = document.getElementById('alertSound');
-                    if(sound) sound.play().catch(()=>{});
+        const deckLogs = [
+            "Decrypting block...",
+            "RSA Key Found",
+            "Bypassing Firewall",
+            "Node link: Active",
+            "Shifting Frequency"
+        ];
+
+        /* ==========================================================
+           WEB AUDIO API — local beep, no external audio file needed
+           Eliminates third-party dependency and mixed-content risk.
+           ========================================================== */
+        let audioCtx = null;
+        function getAudioContext() {
+            if (!audioCtx) {
+                try {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                } catch (e) {
+                    return null;
                 }
-                addTerminalLog("BREACH_DETECTED", "#ff4444");
             }
-        } else if (tracePercent > 0) {
-            tracePercent -= 0.5;
+            return audioCtx;
         }
 
-        tracePercent = Math.max(0, Math.min(100, tracePercent));
-
-        if (tracePercent >= 100) {
-            isLockdown = true;
-            addTerminalLog("SYSTEM LOCKDOWN: TRACE COMPLETE", "#ff0000");
-            document.body.style.filter = "grayscale(1) contrast(2) invert(1)";
-            return;
+        function playBeep() {
+            if (isMuted) return;
+            var ctx = getAudioContext();
+            if (!ctx) return;
+            try {
+                /* Resume context if suspended (browser autoplay policy) */
+                if (ctx.state === 'suspended') ctx.resume();
+                var osc = ctx.createOscillator();
+                var gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = 880;
+                osc.type = 'sine';
+                gain.gain.setValueAtTime(0.25, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.25);
+            } catch (e) {
+                /* Silently fail — audio is non-critical */
+            }
         }
 
-        lastBreachStatus = isBreach;
-        document.getElementById('statusLabel').innerText = isBreach ? "STATUS: BREACH" : "STATUS: SECURE";
-        document.getElementById('statusLabel').style.color = color;
-        document.getElementById('pulseNode').style.backgroundColor = color;
-        document.getElementById('downMB').innerText = dl;
-        document.getElementById('upMB').innerText = ul;
-        document.getElementById('lossVal').innerText = lossNum.toFixed(2) + "%";
+        /* ==========================================================
+           MATRIX ANIMATION
+           ========================================================== */
+        var canvas = document.getElementById('matrix');
+        var ctx2d = canvas.getContext('2d');
 
-        if (decryptPercent < 99.9) decryptPercent += Math.random() * 0.5;
-        else if (Math.random() > 0.98) decryptPercent = 0;
-        document.getElementById('decryptVal').innerText = decryptPercent.toFixed(1) + "%";
-        document.getElementById('decryptBar').style.width = decryptPercent + "%";
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
 
-        let threatLevel = Math.min(100, (lossNum * 2000) + (decryptPercent * 0.4));
-        document.getElementById('threatVal').innerText = threatLevel.toFixed(0) + '%';
-        document.getElementById('threatBar').style.width = threatLevel + '%';
-        document.getElementById('threatBar').style.boxShadow = `0 0 8px hsl(${120 - threatLevel}, 100%, 50%)`;
+        var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@#$%^&*()+~{}[]<>?';
+        var fontSize = 20;
+        var columns = Math.floor(canvas.width / fontSize);
+        var drops = new Array(columns).fill(0);
 
-        if (threatLevel > 80) {
-            currentBg = { r: 40, g: 0, b: 0 };
-            document.getElementById('systemPanel').style.boxShadow = "0 0 40px rgba(255, 0, 0, 0.6)";
-        } else {
-            currentBg = { r: 0, g: 0, b: 16 };
-            document.getElementById('systemPanel').style.boxShadow = "0 0 25px rgba(255, 165, 0, 0.5)";
+        function toggleMatrix() {
+            matrixActive = !matrixActive;
+            var lever = document.getElementById('lever-matrix');
+            if (matrixActive) {
+                lever.classList.add('active');
+                lever.setAttribute('aria-pressed', 'true');
+            } else {
+                lever.classList.remove('active');
+                lever.setAttribute('aria-pressed', 'false');
+                /* Clear canvas immediately */
+                ctx2d.fillStyle = '#000010';
+                ctx2d.fillRect(0, 0, canvas.width, canvas.height);
+            }
         }
 
-        graphPoints.shift(); 
-        graphPoints.push(Math.floor(Math.random() * 30 + 5));
-        document.getElementById('graphLine').setAttribute("points", graphPoints.map((p, i) => `${i * 20},${p}`).join(" "));
-        
-        if (Math.random() > 0.85) addTerminalLog(deckLogs[Math.floor(Math.random() * deckLogs.length)], "#ffa500");
-    }
+        function drawMatrix() {
+            ctx2d.fillStyle = 'rgba(' + currentBg.r + ',' + currentBg.g + ',' + currentBg.b + ',0.1)';
+            ctx2d.fillRect(0, 0, canvas.width, canvas.height);
+            ctx2d.font = fontSize + 'px monospace';
 
-    function addTerminalLog(msg, color) {
-        const t = document.getElementById('terminalLog');
-        if(!t) return;
-        const entry = document.createElement('div');
-        entry.style.color = color;
-        // SECURITY: Use textContent to prevent XSS
-        entry.textContent = "> " + msg;
-        t.prepend(entry);
-        if (t.childNodes.length > 5) t.removeChild(t.lastElementChild);
-    }
+            if (matrixActive) {
+                for (var i = 0; i < drops.length; i++) {
+                    var text = chars.charAt(Math.floor(Math.random() * chars.length));
+                    ctx2d.fillStyle = currentBg.r > 20 ? '#ff5555' : (i % 2 === 0 ? '#00bfff' : '#e0f7ff');
+                    ctx2d.fillText(text, i * fontSize, drops[i] * fontSize);
+                    if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                    drops[i]++;
+                }
+            }
+        }
 
-    function toggleMute() {
-        isMuted = !isMuted;
-        document.getElementById('muteBtn').innerText = isMuted ? "🔇" : "🔊";
-    }
+        /* Respect reduced motion */
+        var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var matrixInterval = prefersReducedMotion ? null : setInterval(drawMatrix, 50);
 
-    function toggleAutoResponse() {
-        autoResponse = !autoResponse;
-        const btn = document.getElementById('autoResponse');
-        btn.innerText = `AUTO: ${autoResponse ? 'ON' : 'OFF'}`;
-        btn.style.color = autoResponse ? '#00ff88' : '#8888ff';
-    }
+        window.addEventListener('resize', function() {
+            resizeCanvas();
+            columns = Math.floor(canvas.width / fontSize);
+            drops.length = columns;
+            drops.fill(0);
+        });
 
-    const deckHeader = document.querySelector('.bottom-right-panel h5');
-    if(deckHeader) {
-        deckHeader.addEventListener('contextmenu', (e) => {
+        /* ==========================================================
+           HUD TOGGLE
+           ========================================================== */
+        function toggleHUD() {
+            hudActive = !hudActive;
+            var lever = document.getElementById('lever-security');
+            var hudElements = document.querySelectorAll('.hud-element');
+            if (hudActive) {
+                lever.classList.add('active');
+                lever.setAttribute('aria-pressed', 'true');
+                hudElements.forEach(function(el) { el.classList.remove('hud-hidden'); });
+            } else {
+                lever.classList.remove('active');
+                lever.setAttribute('aria-pressed', 'false');
+                hudElements.forEach(function(el) { el.classList.add('hud-hidden'); });
+            }
+        }
+
+        /* ==========================================================
+           CATEGORY PANEL
+           ========================================================== */
+        function toggleCategoryPanel() {
+            var panel = document.getElementById('categoriesPanel');
+            var dropdown = document.getElementById('categoryDropdown');
+            var btn = document.getElementById('categoryToggleBtn');
+            var isExpanded = panel.classList.toggle('expanded');
+            var isShown = dropdown.classList.toggle('show');
+            btn.setAttribute('aria-expanded', isShown ? 'true' : 'false');
+        }
+
+        function toggleSubmenu(event) {
+            event.preventDefault();
+            var mainCat = event.target.closest('.main-category');
+            if (!mainCat) return;
+            var submenu = mainCat.querySelector('.submenu');
+            if (!submenu) return;
+            var isOpen = submenu.style.display === 'none';
+            submenu.style.display = isOpen ? 'block' : 'none';
+            event.target.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        }
+
+        /* ==========================================================
+           INPUT SANITIZATION — hardened filter
+           Only allows alphanumeric, spaces, and common safe punctuation.
+           All other characters are stripped to prevent injection.
+           ========================================================== */
+        function sanitizeInput(str) {
+            return str.replace(/[^a-zA-Z0-9\s\-_.]/g, '');
+        }
+
+        function filterCategories() {
+            var filterInput = document.getElementById('categoryFilter');
+            var filter = sanitizeInput(filterInput.value).toUpperCase();
+            var links = document.getElementById('categoryDropdown').querySelectorAll('a:not(.main-link)');
+            links.forEach(function(el) {
+                var txt = el.textContent || el.innerText;
+                el.style.display = txt.toUpperCase().indexOf(filter) > -1 ? '' : 'none';
+            });
+        }
+
+        /* ==========================================================
+           CYBER DECK
+           ========================================================== */
+        function toggleDeckExpand() {
+            document.getElementById('systemPanel').classList.toggle('expanded');
+        }
+
+        function togglePower(event) {
+            if (event) event.stopPropagation();
+            isPoweredOn = !isPoweredOn;
+            var btn = document.getElementById('powerBtn');
+            var content = document.getElementById('deckContent');
+            if (isPoweredOn) {
+                btn.textContent = 'PWR: ON';
+                btn.classList.add('on');
+                btn.setAttribute('aria-label', 'Toggle power on or off (currently on)');
+                content.style.opacity = '1';
+                content.style.pointerEvents = 'auto';
+                addTerminalLog('SYSTEM COLD BOOT SUCCESSFUL', '#00f0ff');
+            } else {
+                btn.textContent = 'PWR: OFF';
+                btn.classList.remove('on');
+                btn.setAttribute('aria-label', 'Toggle power on or off (currently off)');
+                content.style.opacity = '0.1';
+                content.style.pointerEvents = 'none';
+                document.getElementById('downMB').textContent = '0';
+                document.getElementById('upMB').textContent = '0';
+                document.getElementById('lossVal').textContent = '0.00%';
+                document.getElementById('threatVal').textContent = '0%';
+                document.getElementById('threatBar').style.width = '0%';
+                document.getElementById('decryptVal').textContent = '0%';
+                document.getElementById('decryptBar').style.width = '0%';
+            }
+        }
+
+        function toggleMute() {
+            isMuted = !isMuted;
+            var btn = document.getElementById('muteBtn');
+            btn.textContent = isMuted ? '\uD83D\uDD07' : '\uD83D\uDD0A';
+            btn.setAttribute('aria-label', isMuted ? 'Sound is muted' : 'Sound is on');
+        }
+
+        function toggleAutoResponse() {
+            autoResponse = !autoResponse;
+            var btn = document.getElementById('autoResponse');
+            btn.textContent = 'AUTO: ' + (autoResponse ? 'ON' : 'OFF');
+            btn.style.color = autoResponse ? '#00ff88' : '#8888ff';
+            btn.setAttribute('aria-label', 'Auto response is ' + (autoResponse ? 'on' : 'off'));
+        }
+
+        /* ==========================================================
+           TERMINAL LOG — uses textContent (XSS-safe)
+           ========================================================== */
+        function addTerminalLog(msg, color) {
+            var t = document.getElementById('terminalLog');
+            if (!t) return;
+            var entry = document.createElement('div');
+            entry.style.color = color;
+            /* SECURITY: textContent prevents any HTML/script injection */
+            entry.textContent = '> ' + msg;
+            t.prepend(entry);
+            /* Keep only last 5 entries to prevent DOM bloat */
+            while (t.childNodes.length > 5) {
+                t.removeChild(t.lastElementChild);
+            }
+        }
+
+        /* ==========================================================
+           DASHBOARD UPDATE LOOP
+           ========================================================== */
+        function updateDashboard() {
+            if (isLockdown) return;
+
+            var now = new Date();
+            document.getElementById('digitalClock').textContent = now.toLocaleTimeString('en-GB');
+
+            if (!isPoweredOn) return;
+
+            /* Uptime */
+            var diff = Math.floor((Date.now() - startTime) / 1000) + 87200;
+            document.getElementById('uptimeVar').textContent =
+                String(Math.floor(diff / 86400)).padStart(2, '0') + ':' +
+                String(Math.floor((diff % 86400) / 3600)).padStart(2, '0') + ':' +
+                String(Math.floor((diff % 3600) / 60)).padStart(2, '0') + ':' +
+                String(diff % 60).padStart(2, '0');
+
+            /* Simulated network stats */
+            var dl = (Math.random() * 45 + 10).toFixed(1);
+            var ul = (Math.random() * 15 + 2).toFixed(1);
+            var lossNum = (Math.random() > 0.92) ? (Math.random() * 0.15) : (Math.random() * 0.01);
+
+            if (autoResponse && lossNum > 0.05) {
+                lossNum = 0.00;
+                addTerminalLog('AUTO-RESPONSE: Threat neutralized', '#00ff88');
+            }
+
+            var isBreach = lossNum > 0.05;
+            var color = isBreach ? '#ff4444' : '#00f0ff';
+
+            if (isBreach) {
+                tracePercent += 2.5;
+                breachCount++;
+                document.getElementById('breachCount').textContent = breachCount;
+                if (!lastBreachStatus) {
+                    playBeep();
+                    addTerminalLog('BREACH_DETECTED', '#ff4444');
+                }
+            } else if (tracePercent > 0) {
+                tracePercent -= 0.5;
+            }
+
+            tracePercent = Math.max(0, Math.min(100, tracePercent));
+
+            if (tracePercent >= 100) {
+                isLockdown = true;
+                addTerminalLog('SYSTEM LOCKDOWN: TRACE COMPLETE', '#ff0000');
+                document.body.style.filter = 'grayscale(1) contrast(2) invert(1)';
+                return;
+            }
+
+            lastBreachStatus = isBreach;
+            document.getElementById('statusLabel').textContent = isBreach ? 'STATUS: BREACH' : 'STATUS: SECURE';
+            document.getElementById('statusLabel').style.color = color;
+            document.getElementById('pulseNode').style.backgroundColor = color;
+            document.getElementById('pulseNode').style.boxShadow = '0 0 8px ' + color;
+            document.getElementById('downMB').textContent = dl;
+            document.getElementById('upMB').textContent = ul;
+            document.getElementById('lossVal').textContent = lossNum.toFixed(2) + '%';
+
+            /* Decryption progress */
+            if (decryptPercent < 99.9) decryptPercent += Math.random() * 0.5;
+            else if (Math.random() > 0.98) decryptPercent = 0;
+            document.getElementById('decryptVal').textContent = decryptPercent.toFixed(1) + '%';
+            document.getElementById('decryptBar').style.width = decryptPercent + '%';
+
+            /* Threat level */
+            var threatLevel = Math.min(100, (lossNum * 2000) + (decryptPercent * 0.4));
+            document.getElementById('threatVal').textContent = threatLevel.toFixed(0) + '%';
+            document.getElementById('threatBar').style.width = threatLevel + '%';
+            document.getElementById('threatBar').style.boxShadow =
+                '0 0 8px hsl(' + (120 - threatLevel) + ', 100%, 50%)';
+
+            /* Background color shift based on threat */
+            if (threatLevel > 80) {
+                currentBg = { r: 40, g: 0, b: 0 };
+                document.getElementById('systemPanel').style.boxShadow = '0 0 40px rgba(255,0,0,0.6)';
+            } else {
+                currentBg = { r: 0, g: 0, b: 16 };
+                document.getElementById('systemPanel').style.boxShadow = '0 0 25px rgba(255,165,0,0.5)';
+            }
+
+            /* Graph */
+            graphPoints.shift();
+            graphPoints.push(Math.floor(Math.random() * 30 + 5));
+            document.getElementById('graphLine').setAttribute(
+                'points',
+                graphPoints.map(function(p, i) { return (i * 20) + ',' + p; }).join(' ')
+            );
+
+            /* Random log message */
+            if (Math.random() > 0.85) {
+                addTerminalLog(deckLogs[Math.floor(Math.random() * deckLogs.length)], '#ffa500');
+            }
+        }
+
+        setInterval(updateDashboard, 1000);
+
+        /* ==========================================================
+           EVENT LISTENERS — no inline handlers (CSP best practice)
+           ========================================================== */
+
+        /* Lever: Matrix */
+        var leverMatrix = document.getElementById('lever-matrix');
+        leverMatrix.addEventListener('click', toggleMatrix);
+        leverMatrix.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleMatrix(); }
+        });
+
+        /* Lever: Security/HUD */
+        var leverSecurity = document.getElementById('lever-security');
+        leverSecurity.addEventListener('click', toggleHUD);
+        leverSecurity.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleHUD(); }
+        });
+
+        /* Category toggle button */
+        document.getElementById('categoryToggleBtn').addEventListener('click', toggleCategoryPanel);
+
+        /* Submenu toggles — delegated from dropdown */
+        document.getElementById('categoryDropdown').addEventListener('click', function(e) {
+            var toggle = e.target.closest('[data-submenu-toggle]');
+            if (toggle) toggleSubmenu(e);
+        });
+
+        /* Placeholder links — prevent navigation */
+        document.getElementById('categoryDropdown').addEventListener('click', function(e) {
+            if (e.target.hasAttribute('data-noop')) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        });
+
+        /* Category filter — listen to both 'input' and 'keyup' */
+        var filterInput = document.getElementById('categoryFilter');
+        filterInput.addEventListener('input', filterCategories);
+        filterInput.addEventListener('keyup', filterCategories);
+
+        /* Deck expand/collapse */
+        document.getElementById('deckHeaderBtn').addEventListener('click', toggleDeckExpand);
+
+        /* Power toggle */
+        document.getElementById('powerBtn').addEventListener('click', togglePower);
+        document.getElementById('powerBtn').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); togglePower(e); }
+        });
+
+        /* Mute toggle */
+        document.getElementById('muteBtn').addEventListener('click', toggleMute);
+        document.getElementById('muteBtn').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleMute(); }
+        });
+
+        /* Auto response toggle */
+        document.getElementById('autoResponse').addEventListener('click', toggleAutoResponse);
+        document.getElementById('autoResponse').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleAutoResponse(); }
+        });
+
+        /* Right-click purge on deck header */
+        document.getElementById('deckHeaderBtn').addEventListener('contextmenu', function(e) {
             e.preventDefault();
             breachCount = 0;
             decryptPercent = 0;
             tracePercent = 0;
             isLockdown = false;
-            document.body.style.filter = "none";
-            document.getElementById('breachCount').innerText = "0";
-            document.getElementById('terminalLog').innerHTML = "";
-            addTerminalLog("SYSTEM_PURGE: SUCCESSFUL", "#00f0ff");
+            document.body.style.filter = 'none';
+            document.getElementById('breachCount').textContent = '0';
+            document.getElementById('terminalLog').innerHTML = '';
+            addTerminalLog('SYSTEM_PURGE: SUCCESSFUL', '#00f0ff');
         });
-    }
 
-    setInterval(updateDashboard, 1000);
-</script>
-
+        /* Close categories panel when clicking outside (mobile-friendly) */
+        document.addEventListener('click', function(e) {
+            var panel = document.getElementById('categoriesPanel');
+            var btn = document.getElementById('categoryToggleBtn');
+            if (panel.classList.contains('expanded') &&
+                !panel.contains(e.target) &&
+                e.target !== btn) {
+                panel.classList.remove('expanded');
+                document.getElementById('categoryDropdown').classList.remove('show');
+                btn.setAttribute('aria-expanded', 'false');
+            }
+        });
+    </script>
 </body>
 </html>
