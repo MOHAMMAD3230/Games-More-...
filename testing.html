@@ -2,787 +2,390 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline'; connect-src 'self' wss://*.peerjs.com https://*.peerjs.com; img-src 'self' data: https:; font-src 'self'; form-action 'none'; base-uri 'self'; upgrade-insecure-requests;">
-<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline'; connect-src 'self' wss://*.peerjs.com https://*.peerjs.com; img-src 'self' data: https:; font-src 'self';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MeshChat — Secure P2P Channel</title>
+<title>OMNI-LINK | P2P RELAY</title>
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <style>
     :root {
-        --bg: #0a0a0a;
-        --surface: #111111;
+        --bg: #050505;
+        --surface: #0f0f0f;
         --border: #1a1a1a;
-        --accent: #ffb000;
-        --green: #39ff14;
-        --cyan: #00d4ff;
-        --red: #ff3333;
-        --yellow: #ffd700;
-        --muted: #555555;
+        --accent: #39ff14;
         --text: #d0d0d0;
         --mono: 'Courier New', Courier, monospace;
     }
 
-    *, *::before, *::after {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-    }
-
-    html, body {
-        height: 100vh;
-        height: 100dvh;
-        overflow: hidden;
-    }
-
-    body {
-        background: var(--bg);
-        color: var(--text);
-        font-family: var(--mono);
-        font-size: 14px;
-        line-height: 1.5;
-        display: flex;
-        flex-direction: column;
-        padding-top: env(safe-area-inset-top);
-        padding-right: env(safe-area-inset-right);
-        padding-bottom: env(safe-area-inset-bottom);
-        padding-left: env(safe-area-inset-left);
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { 
+        background: var(--bg); color: var(--text); font-family: var(--mono); 
+        height: 100vh; display: flex; flex-direction: column; overflow: hidden;
     }
 
     .header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 12px 16px;
-        background: var(--surface);
-        border-bottom: 1px solid var(--accent);
-        flex-shrink: 0;
-        min-height: 48px;
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 10px 15px; background: var(--surface); border-bottom: 1px solid var(--border);
     }
+    .header-title { color: var(--accent); font-weight: bold; font-size: 14px; letter-spacing: 2px; }
+    .header-badges { display: flex; align-items: center; gap: 8px; }
 
-    .header-title {
-        font-size: 15px;
-        font-weight: bold;
-        color: var(--accent);
-        letter-spacing: 1.5px;
-        text-transform: uppercase;
-        user-select: none;
+    .net-indicator {
+        display: inline-flex; align-items: center; gap: 5px;
+        font-size: 9px; font-weight: bold; text-transform: uppercase;
+        letter-spacing: 0.5px; padding: 4px 8px; border-radius: 3px;
+        background: #111; opacity: 0.3; transition: opacity 0.4s;
     }
+    .net-indicator.active { opacity: 1; }
 
-    .status-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 10px;
-        font-weight: bold;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        padding: 5px 10px;
-        border-radius: 3px;
-        background: #1a1a1a;
-        user-select: none;
+    .net-dot {
+        width: 6px; height: 6px; border-radius: 50%; background: #333;
+        transition: background 0.4s, box-shadow 0.4s;
     }
+    .net-dot.lan { background: #39ff14; box-shadow: 0 0 6px #39ff14; }
+    .net-dot.p2p { background: #00d4ff; box-shadow: 0 0 6px #00d4ff; }
+    .net-dot.relay { background: #ffd700; box-shadow: 0 0 6px #ffd700; }
 
-    .status-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: var(--red);
-        flex-shrink: 0;
+    #netText { color: #444; transition: color 0.4s; }
+
+    .status-badge { display: flex; align-items: center; gap: 8px; font-size: 10px; text-transform: uppercase; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #444; }
+    .status-dot.online { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+    .status-dot.listening { background: #ffd700; animation: blink 1s infinite; }
+
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    .console { 
+        flex: 1; overflow-y: auto; padding: 15px; 
+        background: rgba(0,0,0,0.5); font-size: 13px; line-height: 1.5;
     }
+    .entry { margin-bottom: 5px; word-break: break-all; border-left: 2px solid transparent; padding-left: 8px; }
+    .ts { color: #555; margin-right: 8px; }
+    .sys { color: #777; font-style: italic; }
+    .local { color: var(--accent); border-left-color: var(--accent); }
+    .remote { color: #00d4ff; border-left-color: #00d4ff; }
+    .warn { color: #ff3333; }
+    .route-log { color: #666; font-size: 11px; }
 
-    .status-dot.online { background: var(--green); }
-    .status-dot.listening {
-        background: var(--yellow);
-        animation: pulse 1.5s ease-in-out infinite;
+    .panel { padding: 15px; background: var(--surface); border-top: 1px solid var(--border); }
+    .setup-row, .chat-row { display: flex; gap: 10px; }
+    .chat-row { display: none; }
+    .chat-row.active { display: flex; }
+
+    input { 
+        flex: 1; background: #000; border: 1px solid var(--border); 
+        color: var(--accent); padding: 10px; font-family: var(--mono); outline: none;
     }
+    input:focus { border-color: var(--accent); }
 
-    @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.25; }
+    .btn { 
+        background: transparent; border: 1px solid var(--accent); color: var(--accent);
+        padding: 0 15px; cursor: pointer; font-family: var(--mono); font-size: 11px;
+        text-transform: uppercase; transition: 0.2s; min-height: 40px;
     }
+    .btn:hover { background: var(--accent); color: #000; }
+    .btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
-    .console {
-        flex: 1;
-        overflow-y: auto;
-        padding: 12px 16px;
-        background: var(--bg);
-        scroll-behavior: smooth;
-        -webkit-overflow-scrolling: touch;
-    }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: var(--border); }
 
-    .entry {
-        margin-bottom: 2px;
-        padding: 4px 0;
-        border-bottom: 1px solid var(--border);
-        word-break: break-word;
-        overflow-wrap: break-word;
-        font-size: 13px;
-        line-height: 1.65;
-    }
-
-    .ts {
-        color: var(--muted);
-        margin-right: 8px;
-        font-weight: bold;
-        font-size: 10px;
-    }
-
-    .local { color: var(--green); font-weight: bold; }
-    .remote { color: var(--cyan); font-weight: bold; }
-    .warn { color: var(--yellow); font-weight: bold; }
-    .sys { color: var(--muted); font-style: italic; }
-
-    .setup-panel {
-        padding: 20px 16px;
-        background: var(--surface);
-        border-top: 1px solid var(--border);
-        flex-shrink: 0;
-    }
-
-    .setup-panel label {
-        display: block;
-        font-size: 10px;
-        color: var(--muted);
-        text-transform: uppercase;
-        letter-spacing: 1.5px;
-        margin-bottom: 10px;
-        font-weight: bold;
-    }
-
-    .setup-row {
-        display: flex;
-        gap: 10px;
-        align-items: stretch;
-    }
-
-    .privacy-notice {
-        margin-top: 14px;
-        padding: 10px 12px;
-        background: #1a1200;
-        border: 1px solid #332600;
-        border-radius: 3px;
-        font-size: 11px;
-        color: #aa8800;
-        line-height: 1.6;
-    }
-
-    .privacy-notice strong {
-        color: var(--yellow);
-    }
-
-    .chat-controls {
-        display: none;
-        padding: 12px 16px;
-        background: var(--surface);
-        border-top: 2px solid var(--accent);
-        gap: 10px;
-        flex-shrink: 0;
-        align-items: center;
-    }
-
-    .chat-controls.active {
-        display: flex;
-    }
-
-    input[type="number"],
-    input[type="text"] {
-        flex: 1;
-        padding: 0 12px;
-        background: var(--bg);
-        border: 1px solid var(--border);
-        color: var(--accent);
-        font-family: var(--mono);
-        font-size: 14px;
-        outline: none;
-        border-radius: 2px;
-        transition: border-color 0.2s, box-shadow 0.2s;
-        min-height: 44px;
-    }
-
-    input:focus {
-        border-color: var(--accent);
-        box-shadow: 0 0 0 1px rgba(255, 176, 0, 0.3);
-    }
-
-    input::placeholder {
-        color: #2a2a2a;
-    }
-
-    input:disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
-    }
-
-    input[type="number"]::-webkit-inner-spin-button,
-    input[type="number"]::-webkit-outer-spin-button {
-        -webkit-appearance: none;
-        margin: 0;
-    }
-    input[type="number"] {
-        -moz-appearance: textfield;
-        appearance: textfield;
-    }
-
-    .btn {
-        padding: 0 16px;
-        background: transparent;
-        border: 1px solid var(--accent);
-        color: var(--accent);
-        cursor: pointer;
-        font-family: var(--mono);
-        font-size: 11px;
-        font-weight: bold;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        border-radius: 2px;
-        transition: background 0.15s, color 0.15s, transform 0.1s;
-        white-space: nowrap;
-        min-height: 44px;
-        min-width: 44px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        -webkit-tap-highlight-color: transparent;
-    }
-
-    .btn:hover {
-        background: var(--accent);
-        color: var(--bg);
-    }
-
-    .btn:active {
-        transform: scale(0.96);
-    }
-
-    .btn-danger {
-        border-color: var(--red);
-        color: var(--red);
-    }
-
-    .btn-danger:hover {
-        background: var(--red);
-        color: #fff;
-    }
-
-    .btn:disabled {
-        opacity: 0.35;
-        cursor: not-allowed;
-        pointer-events: none;
-    }
-
-    .rate-bar {
-        height: 2px;
-        background: var(--border);
-        flex-shrink: 0;
-        overflow: hidden;
-    }
-
-    .rate-fill {
-        height: 100%;
-        width: 0%;
-        background: var(--accent);
-        transition: width 0.3s ease, background 0.3s ease;
-    }
-
-    .rate-fill.warn { background: var(--yellow); }
-    .rate-fill.danger { background: var(--red); }
-
-    .load-overlay {
-        position: fixed;
-        inset: 0;
-        background: var(--bg);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        z-index: 9999;
-        color: var(--accent);
-        font-family: var(--mono);
-        gap: 16px;
-        transition: opacity 0.3s;
-    }
-
-    .load-overlay.hidden {
-        opacity: 0;
-        pointer-events: none;
-    }
-
-    .load-spinner {
-        width: 32px;
-        height: 32px;
-        border: 3px solid var(--border);
-        border-top-color: var(--accent);
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-    }
-
-    @keyframes spin {
-        to { transform: rotate(360deg); }
-    }
-
-    @media (max-width: 600px) {
-        body { font-size: 13px; }
-        .header { padding: 10px 12px; }
-        .header-title { font-size: 13px; letter-spacing: 1px; }
-        .console { padding: 10px 12px; }
-        .entry { font-size: 12px; }
-        .setup-panel, .chat-controls { padding: 14px 12px; }
-        .btn { padding: 0 12px; font-size: 10px; }
-        .privacy-notice { font-size: 10px; padding: 8px 10px; }
-        .status-badge { font-size: 9px; padding: 4px 8px; }
-    }
-
-    @media (max-width: 360px) {
-        .btn { padding: 0 8px; font-size: 9px; letter-spacing: 0; min-width: 40px; }
-        .header-title { font-size: 12px; }
-    }
-
-    .console::-webkit-scrollbar { width: 5px; }
-    .console::-webkit-scrollbar-track { background: transparent; }
-    .console::-webkit-scrollbar-thumb { background: #1a1a1a; border-radius: 3px; }
-    .console::-webkit-scrollbar-thumb:hover { background: #2a2a2a; }
-    .console { scrollbar-width: thin; scrollbar-color: #1a1a1a transparent; }
-
-    ::selection {
-        background: var(--accent);
-        color: var(--bg);
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        .status-dot.listening { animation: none; }
-        .console { scroll-behavior: auto; }
-        .btn { transition: none; }
-        input { transition: none; }
-        .rate-fill { transition: none; }
-        .load-spinner { animation: none; }
+    @media (max-width: 420px) {
+        .header-title { font-size: 12px; letter-spacing: 1px; }
+        .net-indicator { padding: 3px 6px; font-size: 8px; }
+        #netText { max-width: 36px; }
     }
 </style>
 </head>
 <body>
 
-<div class="load-overlay" id="loadOverlay">
-    <div class="load-spinner"></div>
-    <span style="font-size:12px; letter-spacing:1px;">LOADING MESHCHAT</span>
-</div>
-
-<script>
-if (window.top !== window.self) {
-    try { window.top.location = self.location; } catch(e) {}
-}
-</script>
-
-<header class="header" role="banner">
-    <span class="header-title" aria-label="MeshChat application">&#10216; MeshChat &#10217;</span>
-    <span class="status-badge" role="status" aria-live="polite">
-        <span class="status-dot" id="statusDot"></span>
-        <span id="statusText">Offline</span>
-    </span>
+<header class="header">
+    <div class="header-title">OMNI-LINK v3.0</div>
+    <div class="header-badges">
+        <div class="net-indicator" id="netIndicator">
+            <span class="net-dot" id="netDot"></span>
+            <span id="netText">---</span>
+        </div>
+        <div class="status-badge">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">Offline</span>
+        </div>
+    </div>
 </header>
 
-<main class="console" id="console" role="log" aria-label="Chat messages"></main>
+<main class="console" id="console"></main>
 
-<div class="rate-bar" role="presentation"><div class="rate-fill" id="rateFill"></div></div>
-
-<section class="setup-panel" id="setupPanel" aria-label="Channel setup">
-    <label for="chanInput">Channel (1 – 99)</label>
-    <div class="setup-row">
-        <input type="number" id="chanInput" placeholder="1" min="1" max="99"
-               inputmode="numeric" autocomplete="off" aria-describedby="privacyNote">
-        <button class="btn" id="initBtn" aria-label="Connect to channel">Connect</button>
+<section class="panel">
+    <div class="setup-row" id="setupRow">
+        <input type="number" id="chanInput" placeholder="CHANNEL (1-99)" min="1" max="99">
+        <button class="btn" id="initBtn">Initialize Link</button>
     </div>
-    <div class="privacy-notice" id="privacyNote" role="alert">
-        <strong>&#9888; P2P Direct Link</strong> — Your IP address may be visible to peers.
-        No data passes through any server. Never share passwords or sensitive info.
-    </div>
-</section>
 
-<section class="chat-controls" id="chatControls" aria-label="Chat input">
-    <input type="text" id="msgInput" placeholder="Type a message..."
-           autocomplete="off" aria-label="Message input">
-    <button class="btn" id="sendBtn" aria-label="Send message">Send</button>
-    <button class="btn btn-danger" id="disconnectBtn" aria-label="Disconnect">&#10005;</button>
+    <div class="chat-row" id="chatRow">
+        <input type="text" id="msgInput" placeholder="Type message..." maxlength="500">
+        <button class="btn" id="sendBtn">Send</button>
+    </div>
 </section>
 
 <script>
 (function() {
     'use strict';
 
-    function boot() {
-        if (typeof Peer === 'undefined') {
-            var overlay = document.getElementById('loadOverlay');
-            if (overlay) {
-                overlay.innerHTML = '<span style="color:#ff3333;font-size:13px;text-align:center;max-width:80%;font-family:monospace;">Failed to load PeerJS library.<br>Check your connection or disable ad-blockers for unpkg.com, then reload.</span>';
+    let peer = null;
+    let conn = null;
+    const PREFIX = 'OMNI-P2P-PRO-'; 
+    const logEl = document.getElementById('console');
+
+    const ICE_CONFIG = {
+        iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            {
+                urls: 'turn:openrelay.metered.ca:80',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+            },
+            {
+                urls: 'turn:openrelay.metered.ca:443',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+            },
+            {
+                urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
             }
-            return;
-        }
+        ]
+    };
 
-        var overlay = document.getElementById('loadOverlay');
-        if (overlay) overlay.classList.add('hidden');
-        setTimeout(function() { if (overlay) overlay.remove(); }, 400);
+    // ─── Network type detection via WebRTC ICE stats ───
 
-        var PREFIX        = 'MESH-';
-        var MAX_MSG_LEN   = 500;
-        var RATE_WINDOW   = 5000;
-        var RATE_MAX      = 10;
-        var RATE_COOLDOWN = 800;
-
-        var consoleEl     = document.getElementById('console');
-        var setupPanel    = document.getElementById('setupPanel');
-        var chatControls  = document.getElementById('chatControls');
-        var chanInput     = document.getElementById('chanInput');
-        var msgInput      = document.getElementById('msgInput');
-        var initBtn       = document.getElementById('initBtn');
-        var sendBtn       = document.getElementById('sendBtn');
-        var disconnectBtn = document.getElementById('disconnectBtn');
-        var statusDot     = document.getElementById('statusDot');
-        var statusText    = document.getElementById('statusText');
-        var rateFill      = document.getElementById('rateFill');
-
-        var peer          = null;
-        var conn          = null;
-        var msgTimestamps = [];
-        var lastSendTime  = 0;
-        var isDestroyed   = false;
-
-        /*
-         * ICE SERVER CONFIGURATION
-         * ========================
-         * STUN servers discover your public IP for direct P2P.
-         * This works on same-network and simple NATs.
-         *
-         * TURN servers act as a relay fallback when both peers
-         * are behind symmetric NATs (mobile data, corporate Wi-Fi).
-         * Without TURN, cross-network connections silently fail.
-         *
-         * Using Open Relay Project (metered.ca) free tier.
-         * All traffic is still DTLS-encrypted end-to-end —
-         * the TURN server sees encrypted packets, not plaintext.
-         */
-        var ICE_CONFIG = {
-            iceServers: [
-                // STUN — public IP discovery
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' },
-
-                // TURN — relay fallback for symmetric NATs
-                {
-                    urls: 'turn:openrelay.metered.ca:80',
-                    username: 'openrelayproject',
-                    credential: 'openrelayproject'
-                },
-                {
-                    urls: 'turn:openrelay.metered.ca:443',
-                    username: 'openrelayproject',
-                    credential: 'openrelayproject'
-                },
-                {
-                    urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-                    username: 'openrelayproject',
-                    credential: 'openrelayproject'
-                }
-            ]
-        };
-
-        function safeErrStr(err) {
-            if (!err) return 'Unknown error';
-            if (typeof err === 'string') return err;
-            if (typeof err.type === 'string') return err.type;
-            if (err instanceof Error) return err.message || 'Error';
-            try { return String(err); } catch(e) { return 'Error'; }
-        }
-
-        function log(msg, cls) {
-            var div     = document.createElement('div');
-            div.className = 'entry' + (cls ? ' ' + cls : '');
-            var time    = new Date().toLocaleTimeString([], { hour12: false });
-
-            var tsSpan  = document.createElement('span');
-            tsSpan.className   = 'ts';
-            tsSpan.textContent = '[' + time + ']';
-
-            var msgSpan = document.createElement('span');
-            msgSpan.textContent = msg;
-
-            div.appendChild(tsSpan);
-            div.appendChild(msgSpan);
-            consoleEl.appendChild(div);
-
-            while (consoleEl.children.length > 500) {
-                consoleEl.removeChild(consoleEl.firstChild);
-            }
-
-            consoleEl.scrollTop = consoleEl.scrollHeight;
-        }
-
-        function setStatus(text, state) {
-            statusText.textContent = text;
-            statusDot.className = 'status-dot';
-            if (state === 'online')    statusDot.classList.add('online');
-            if (state === 'listening') statusDot.classList.add('listening');
-        }
-
-        function updateRateBar() {
-            var now = Date.now();
-            msgTimestamps = msgTimestamps.filter(function(t) { return now - t < RATE_WINDOW; });
-            var ratio = msgTimestamps.length / RATE_MAX;
-            rateFill.style.width = (ratio * 100) + '%';
-            rateFill.className = 'rate-fill';
-            if (ratio > 0.8)      rateFill.classList.add('danger');
-            else if (ratio > 0.5) rateFill.classList.add('warn');
-        }
-
-        function checkRateLimit() {
-            var now = Date.now();
-            if (now - lastSendTime < RATE_COOLDOWN) return false;
-            msgTimestamps = msgTimestamps.filter(function(t) { return now - t < RATE_WINDOW; });
-            if (msgTimestamps.length >= RATE_MAX) return false;
-            msgTimestamps.push(now);
-            lastSendTime = now;
-            updateRateBar();
-            return true;
-        }
-
-        setInterval(updateRateBar, 500);
-
-        function validateChannel(val) {
-            var str = String(val).trim();
-            if (!/^\d+$/.test(str)) return false;
-            var num = parseInt(str, 10);
-            return num >= 1 && num <= 99 && String(num) === str;
-        }
-
-        function resetSetup() {
-            chanInput.disabled = false;
-            initBtn.disabled  = false;
-        }
-
-        function initLink() {
-            var raw = chanInput.value;
-            if (!validateChannel(raw)) {
-                log('Invalid channel. Enter a whole number between 1 and 99.', 'warn');
-                return;
-            }
-
-            var chan = parseInt(raw, 10);
-            var myId = PREFIX + chan;
-
-            initBtn.disabled   = true;
-            chanInput.disabled = true;
-
-            log('Tuning to channel ' + chan + ' (ID: ' + myId + ')...', 'sys');
-
-            try {
-                peer = new Peer(myId, { config: ICE_CONFIG });
-            } catch(e) {
-                log('Failed to create peer: ' + safeErrStr(e), 'warn');
-                resetSetup();
-                return;
-            }
-
-            peer.on('open', function(id) {
-                if (isDestroyed) return;
-                log('Listening on channel ' + chan + '. Waiting for peer...', 'sys');
-                setStatus('Listening', 'listening');
-            });
-
-            peer.on('connection', function(c) {
-                if (isDestroyed) return;
-                if (conn && conn.open) {
-                    c.close();
-                    log('Rejected additional connection attempt.', 'warn');
-                    return;
-                }
-                conn = c;
-                bindConnEvents();
-            });
-
-            peer.on('error', function(err) {
-                if (isDestroyed) return;
-                var errType = safeErrStr(err);
-
-                if (errType === 'unavailable-id') {
-                    log('Channel ' + chan + ' is occupied. Joining as client...', 'warn');
-
-                    peer.removeAllListeners();
-                    peer.destroy();
-                    peer = null;
-
-                    setTimeout(function() {
-                        if (isDestroyed) return;
-                        joinChannel(myId);
-                    }, 2000);
-
-                } else if (errType === 'peer-unavailable') {
-                    log('No host found on channel ' + chan + '.', 'warn');
-                    setStatus('No Host', '');
-                    resetSetup();
-                } else if (errType === 'network' || errType === 'server-error') {
-                    log('Network error: cannot reach signaling server.', 'warn');
-                    setStatus('Network Err', '');
-                    resetSetup();
-                } else if (errType === 'ice-failed') {
-                    log('ICE failed: NAT traversal blocked. If on mobile data or corporate Wi-Fi, a TURN server is required.', 'warn');
-                    setStatus('NAT Blocked', '');
-                    resetSetup();
-                } else {
-                    log('Error: ' + errType, 'warn');
-                    setStatus('Error', '');
-                    resetSetup();
-                }
-            });
-        }
-
-        function joinChannel(targetId) {
-            try {
-                peer = new Peer({ config: ICE_CONFIG });
-            } catch(e) {
-                log('Failed to create client peer.', 'warn');
-                resetSetup();
-                return;
-            }
-
-            peer.on('open', function() {
-                if (isDestroyed) return;
-                log('Connecting to host ' + targetId + '...', 'sys');
-                try {
-                    conn = peer.connect(targetId, { reliable: true });
-                    bindConnEvents();
-                } catch(e) {
-                    log('Connection attempt failed.', 'warn');
-                    resetSetup();
-                }
-            });
-
-            peer.on('error', function(err) {
-                if (isDestroyed) return;
-                var errType = safeErrStr(err);
-                log('Join failed: ' + errType, 'warn');
-                setStatus('Failed', '');
-                resetSetup();
-            });
-        }
-
-        function bindConnEvents() {
-            conn.on('open', function() {
-                if (isDestroyed) return;
-                log('Secure link established. You can now chat.', 'local');
-                setStatus('Connected', 'online');
-                setupPanel.style.display = 'none';
-                chatControls.classList.add('active');
-                setTimeout(function() { msgInput.focus(); }, 100);
-            });
-
-            conn.on('data', function(data) {
-                if (isDestroyed) return;
-                if (typeof data !== 'string') {
-                    log('Blocked non-text payload from peer.', 'warn');
-                    return;
-                }
-                var safeData = data.substring(0, MAX_MSG_LEN);
-                log('\u00AB ' + safeData, 'remote');
-            });
-
-            conn.on('close', function() {
-                if (isDestroyed) return;
-                conn = null;
-                log('Peer disconnected.', 'warn');
-                setStatus('Disconnected', '');
-                chatControls.classList.remove('active');
-                setupPanel.style.display = '';
-                resetSetup();
-            });
-
-            conn.on('error', function(err) {
-                if (isDestroyed) return;
-                log('Link error: ' + safeErrStr(err), 'warn');
-            });
-        }
-
-        function sendMsg() {
-            if (!conn || !conn.open) {
-                log('Not connected to a peer.', 'warn');
-                return;
-            }
-
-            if (!checkRateLimit()) {
-                log('Rate limited. Wait a moment.', 'warn');
-                return;
-            }
-
-            var val = msgInput.value;
-            val = val.replace(/^\s+|\s+$/g, '');
-
-            if (!val) return;
-
-            if (val.length > MAX_MSG_LEN) {
-                val = val.substring(0, MAX_MSG_LEN);
-                log('Message truncated to ' + MAX_MSG_LEN + ' characters.', 'warn');
-            }
-
-            try {
-                conn.send(val);
-            } catch(e) {
-                log('Send failed. Connection may be broken.', 'warn');
-                return;
-            }
-
-            log('\u00BB ' + val, 'local');
-            msgInput.value = '';
-        }
-
-        function disconnect() {
-            isDestroyed = true;
-
-            if (conn) { try { conn.close(); } catch(e) {} conn = null; }
-            if (peer) { try { peer.destroy(); } catch(e) {} peer = null; }
-
-            log('Link terminated by user.', 'warn');
-            setStatus('Offline', '');
-
-            chatControls.classList.remove('active');
-            setupPanel.style.display = '';
-            resetSetup();
-            chanInput.value = '';
-
-            setTimeout(function() { isDestroyed = false; }, 50);
-        }
-
-        function cleanup() {
-            isDestroyed = true;
-            if (conn) { try { conn.close(); } catch(e) {} }
-            if (peer) { try { peer.destroy(); } catch(e) {} }
-        }
-
-        window.addEventListener('beforeunload', cleanup);
-        window.addEventListener('pagehide', cleanup);
-
-        initBtn.addEventListener('click', initLink);
-        sendBtn.addEventListener('click', sendMsg);
-        disconnectBtn.addEventListener('click', disconnect);
-
-        chanInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') { e.preventDefault(); initLink(); }
-        });
-
-        msgInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') { e.preventDefault(); sendMsg(); }
-        });
-
-        log('Mesh Chat Node Initializing...', 'sys');
-        log('Protocols: XSS-filter active | P2P encrypted | CSP enforced | Rate-limited', 'sys');
-        log('NAT: STUN discovery + TURN relay (cross-network enabled)', 'sys');
-        log('Enter a channel number (1\u201399) to begin.', 'sys');
+    function getPC(c) {
+        if (!c) return null;
+        return c.peerConnection || c._pc || null;
     }
 
-    if (document.readyState === 'complete') {
-        boot();
-    } else {
-        window.addEventListener('load', boot);
+    function attachIceTracker(c) {
+        var pc = getPC(c);
+        if (!pc) return;
+
+        // Log each ICE candidate as it's discovered
+        pc.addEventListener('icecandidate', function(e) {
+            if (!e.candidate) return;
+            var t = e.candidate.type;
+            if (t === 'host')     log('ICE: Local candidate found (LAN).', 'route-log');
+            if (t === 'srflx')    log('ICE: Public IP discovered (STUN).', 'route-log');
+            if (t === 'relay')    log('ICE: TURN relay allocated.', 'route-log');
+        });
+
+        // When ICE connects, inspect which candidate pair won
+        pc.addEventListener('iceconnectionstatechange', function() {
+            var s = pc.iceConnectionState;
+            if (s === 'connected' || s === 'completed') {
+                detectRoute(pc);
+            }
+        });
     }
+
+    function detectRoute(pc) {
+        pc.getStats(null).then(function(stats) {
+            var done = false;
+            stats.forEach(function(r) {
+                if (done) return;
+                if (r.type === 'candidate-pair' && r.state === 'succeeded') {
+                    done = true;
+                    var local = stats.get(r.localCandidateId);
+                    if (local) {
+                        var t = local.candidateType || 'unknown';
+                        showRoute(t);
+                        if (t === 'host')        log('Route: Same network — direct LAN link.', 'route-log');
+                        else if (t === 'srflx')   log('Route: Different networks — direct P2P via STUN.', 'route-log');
+                        else if (t === 'relay')   log('Route: Different networks — relayed via TURN.', 'route-log');
+                        else if (t === 'prflx')   log('Route: Different networks — peer reflexive.', 'route-log');
+                        else                       log('Route: Unknown path.', 'route-log');
+                    }
+                }
+            });
+            if (!done) showRoute('unknown');
+        }).catch(function() { showRoute('unknown'); });
+    }
+
+    function showRoute(type) {
+        var el   = document.getElementById('netIndicator');
+        var dot  = document.getElementById('netDot');
+        var txt  = document.getElementById('netText');
+
+        el.className = 'net-indicator active';
+        dot.className = 'net-dot';
+        txt.style.color = '';
+
+        if (type === 'host') {
+            dot.classList.add('lan');
+            txt.textContent = 'LAN';
+            txt.style.color = '#39ff14';
+        } else if (type === 'srflx' || type === 'prflx') {
+            dot.classList.add('p2p');
+            txt.textContent = 'P2P';
+            txt.style.color = '#00d4ff';
+        } else if (type === 'relay') {
+            dot.classList.add('relay');
+            txt.textContent = 'RELAY';
+            txt.style.color = '#ffd700';
+        } else {
+            txt.textContent = '---';
+        }
+    }
+
+    function resetRoute() {
+        document.getElementById('netIndicator').className = 'net-indicator';
+        document.getElementById('netDot').className = 'net-dot';
+        var txt = document.getElementById('netText');
+        txt.textContent = '---';
+        txt.style.color = '';
+    }
+
+    // ─── Logging ───
+
+    function log(msg, type) {
+        const div = document.createElement('div');
+        div.className = 'entry ' + (type || '');
+        const ts = new Date().toLocaleTimeString([], {hour12:false});
+        div.innerHTML = `<span class="ts">[${ts}]</span><span></span>`;
+        div.querySelector('span:last-child').textContent = msg;
+        logEl.appendChild(div);
+        logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function setStatus(text, dotClass) {
+        document.getElementById('statusText').textContent = text;
+        document.getElementById('statusDot').className = 'status-dot ' + (dotClass || '');
+    }
+
+    // ─── Connection logic ───
+
+    function initLink() {
+        const chan = document.getElementById('chanInput').value;
+        if (!chan) return log('Enter channel ID', 'warn');
+
+        const targetId = PREFIX + chan;
+        document.getElementById('initBtn').disabled = true;
+        log('System: Creating node on CH-' + chan + '...', 'sys');
+
+        peer = new Peer(targetId, {
+            debug: 1,
+            config: ICE_CONFIG
+        });
+
+        peer.on('open', function(id) {
+            log('System: Node registered. Waiting for peer connection...', 'sys');
+            setStatus('Listening', 'listening');
+        });
+
+        peer.on('connection', function(incoming) {
+            log('System: Incoming connection detected...', 'sys');
+            conn = incoming;
+            attachIceTracker(conn);
+            setupDataListeners();
+        });
+
+        peer.on('error', function(err) {
+            if (err.type === 'unavailable-id') {
+                log('System: Channel occupied. Joining existing node...', 'sys');
+
+                peer.removeAllListeners();
+                peer.destroy();
+                peer = null;
+
+                setTimeout(function() { joinExisting(targetId); }, 2000);
+
+            } else if (err.type === 'ice-failed') {
+                log('Error: NAT traversal failed. TURN relay unreachable.', 'warn');
+                resetUI();
+            } else {
+                log('Error: ' + err.type, 'warn');
+                resetUI();
+            }
+        });
+    }
+
+    function joinExisting(targetId) {
+        peer = new Peer({
+            debug: 1,
+            config: ICE_CONFIG
+        });
+
+        peer.on('open', function() {
+            log('System: Guest node ready. Connecting to host...', 'sys');
+            conn = peer.connect(targetId, { reliable: true });
+            attachIceTracker(conn);
+            setupDataListeners();
+        });
+
+        peer.on('error', function(err) {
+            log('Join error: ' + err.type, 'warn');
+            resetUI();
+        });
+    }
+
+    function setupDataListeners() {
+        conn.on('open', function() {
+            log('System: P2P Data Stream Established.', 'sys');
+            setStatus('Connected', 'online');
+            document.getElementById('setupRow').style.display = 'none';
+            document.getElementById('chatRow').classList.add('active');
+            document.getElementById('msgInput').focus();
+        });
+
+        conn.on('data', function(data) {
+            log(data, 'remote');
+        });
+
+        conn.on('close', function() {
+            log('System: Connection closed by peer.', 'warn');
+            resetRoute();
+            location.reload();
+        });
+
+        conn.on('error', function(err) {
+            log('Data Error: ' + err, 'warn');
+        });
+    }
+
+    function sendMessage() {
+        const input = document.getElementById('msgInput');
+        const msg = input.value.trim();
+        
+        if (!msg) return;
+        
+        if (conn && conn.open) {
+            try {
+                conn.send(msg);
+                log(msg, 'local');
+                input.value = '';
+            } catch (e) {
+                log('System: Send failed. Peer may be unreachable.', 'warn');
+            }
+        } else {
+            log('System: Link not active. Cannot send.', 'warn');
+        }
+    }
+
+    function resetUI() {
+        if (peer) peer.destroy();
+        document.getElementById('initBtn').disabled = false;
+        setStatus('Offline', '');
+        resetRoute();
+    }
+
+    document.getElementById('initBtn').onclick = initLink;
+    document.getElementById('sendBtn').onclick = sendMessage;
+    document.getElementById('msgInput').onkeydown = function(e) {
+        if (e.key === 'Enter') sendMessage();
+    };
+
+    log('System: OMNI-LINK Online.', 'sys');
+    log('System: STUN + TURN active — cross-network enabled.', 'sys');
 
 })();
 </script>
-
 </body>
 </html>
