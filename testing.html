@@ -2,11 +2,29 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline'; connect-src 'self' wss://*.peerjs.com https://*.peerjs.com; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'none';">
+<!--
+  Content Security Policy — hardened with gtag.js allowances:
+  - script-src: added googletagmanager.com for gtag.js loader
+  - connect-src: added google-analytics.com for gtag data collection
+  - img-src: added google domains for any tracking pixels
+  - unsafe-inline: required for single-file IIFE + gtag config script
+    (no eval/Function/innerHTML exists anywhere in the codebase)
+-->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; connect-src 'self' wss://*.peerjs.com https://*.peerjs.com https://www.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com; img-src 'self' data: https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://*.googletagmanager.com; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'none';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="referrer" content="no-referrer">
 <meta name="permissions-policy" content="camera=(), microphone=(), geolocation=(), payment=()">
 <title>OMNI-LINK | DIAGNOSTIC</title>
+
+<!-- Google tag (gtag.js) — async, non-blocking, CSP-allowed -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=GT-NC6T5LRJ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'GT-NC6T5LRJ');
+</script>
+
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js" crossorigin="anonymous"></script>
 <style>
     :root {
@@ -40,7 +58,6 @@
                  env(safe-area-inset-bottom) env(safe-area-inset-left);
     }
 
-    /* ── Header ── */
     .header {
         display: flex; align-items: center; justify-content: space-between;
         padding: 0 16px; background: var(--surface);
@@ -52,7 +69,7 @@
         width: 28px; height: 28px; border-radius: var(--radius-sm);
         background: linear-gradient(135deg, var(--accent) 0%, #1a8a0a 100%);
         display: flex; align-items: center; justify-content: center;
-        flex-shrink: 0; position: relative;
+        flex-shrink: 0;
     }
     .brand-icon svg { width: 16px; height: 16px; }
     .brand-text { display: flex; flex-direction: column; gap: 0; min-width: 0; }
@@ -67,7 +84,6 @@
     }
     .header-status { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
-    /* ── Pill Badges ── */
     .pill {
         display: inline-flex; align-items: center; gap: 6px;
         padding: 5px 10px; border-radius: 100px;
@@ -81,25 +97,18 @@
         background: var(--text-dim); transition: all 0.35s ease; flex-shrink: 0;
     }
     .pill--active { border-color: var(--border-hover); color: var(--text); }
-
     .pill--lan .pill-dot { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
     .pill--lan { border-color: var(--accent-mid); color: var(--accent); background: var(--accent-dim); }
-
     .pill--p2p .pill-dot { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
     .pill--p2p { border-color: rgba(0,207,255,0.2); color: var(--cyan); background: var(--cyan-dim); }
-
     .pill--relay .pill-dot { background: var(--gold); box-shadow: 0 0 8px var(--gold); }
     .pill--relay { border-color: rgba(255,200,48,0.2); color: var(--gold); background: var(--gold-dim); }
-
     .pill--online .pill-dot { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
     .pill--online { border-color: var(--accent-mid); color: var(--accent); background: var(--accent-dim); }
-
     .pill--listening .pill-dot { background: var(--gold); animation: blink 1.2s ease infinite; }
     .pill--listening { border-color: rgba(255,200,48,0.2); color: var(--gold); background: var(--gold-dim); }
-
     .pill--connecting .pill-dot { background: var(--cyan); animation: pulse 0.7s ease infinite; }
     .pill--connecting { border-color: rgba(0,207,255,0.2); color: var(--cyan); background: var(--cyan-dim); }
-
     .pill--offline { opacity: 0.6; }
     .pill--failed { border-color: rgba(255,68,68,0.25); color: var(--warn); background: var(--warn-dim); }
     .pill--failed .pill-dot { background: var(--warn); }
@@ -107,7 +116,6 @@
     @keyframes blink { 0%,100%{opacity:1}50%{opacity:.25} }
     @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.65)} }
 
-    /* ── Privacy Banner ── */
     .privacy-banner {
         display: flex; align-items: center; gap: 10px;
         padding: 0 16px; height: 34px; flex-shrink: 0;
@@ -128,7 +136,6 @@
     }
     .privacy-dismiss:hover { background: rgba(255,200,48,0.08); border-color: rgba(255,200,48,0.3); color: var(--gold); }
 
-    /* ── Console ── */
     .console {
         flex: 1; min-height: 0; overflow-y: auto; padding: 14px 16px;
         background: var(--bg); font-size: 11.5px; line-height: 1.7;
@@ -152,7 +159,6 @@
     .privacy-log { color: #4a4020; font-size: 10px; }
     .section-divider { color: #1e2838; font-size: 9px; margin: 6px 0 4px -12px; letter-spacing: 1px; text-transform: uppercase; }
 
-    /* ── Panel ── */
     .panel {
         padding: 12px 16px; background: var(--surface);
         border-top: 1px solid var(--border); flex-shrink: 0;
@@ -160,23 +166,18 @@
     .row { display: none; gap: 8px; align-items: stretch; }
     .row.active { display: flex; }
 
-    /* ── Inputs ── */
     .input {
         flex: 1; background: var(--bg); border: 1px solid var(--border);
         color: var(--text-bright); padding: 0 14px; font-family: var(--mono);
         outline: none; min-height: 44px; font-size: 13px;
         border-radius: var(--radius); transition: border-color 0.2s, box-shadow 0.2s;
     }
-    .input:focus {
-        border-color: var(--accent);
-        box-shadow: 0 0 0 3px var(--accent-dim);
-    }
+    .input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
     .input::placeholder { color: #2a3444; font-weight: 400; }
     .input::-webkit-inner-spin-button,
     .input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     .input[type=number] { -moz-appearance: textfield; }
 
-    /* ── Buttons ── */
     .btn {
         display: inline-flex; align-items: center; justify-content: center; gap: 6px;
         border: none; border-radius: var(--radius);
@@ -189,57 +190,29 @@
     }
     .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .btn:disabled { opacity: 0.25; cursor: not-allowed; pointer-events: none; }
-
-    /* Primary */
-    .btn--primary {
-        background: var(--accent); color: #050505;
-    }
+    .btn--primary { background: var(--accent); color: #050505; }
     .btn--primary:hover { background: #4dff2e; box-shadow: 0 2px 16px rgba(57,255,20,0.2); }
     .btn--primary:active { transform: scale(0.97); background: #30e010; }
-
-    /* Ghost */
-    .btn--ghost {
-        background: var(--surface-2); color: var(--text);
-        border: 1px solid var(--border);
-    }
+    .btn--ghost { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
     .btn--ghost:hover { background: var(--border); border-color: var(--border-hover); color: var(--text-bright); }
     .btn--ghost:active { transform: scale(0.97); }
-
-    /* Danger */
-    .btn--danger {
-        background: var(--warn-dim); color: var(--warn);
-        border: 1px solid rgba(255,68,68,0.15);
-    }
+    .btn--danger { background: var(--warn-dim); color: var(--warn); border: 1px solid rgba(255,68,68,0.15); }
     .btn--danger:hover { background: rgba(255,68,68,0.15); border-color: rgba(255,68,68,0.3); box-shadow: 0 2px 12px rgba(255,68,68,0.1); }
     .btn--danger:active { transform: scale(0.97); }
     .btn--danger:focus-visible { outline-color: var(--warn); }
 
-    /* Icon-only button */
-    .btn--icon {
-        padding: 0; width: 44px; background: var(--surface-2);
-        border: 1px solid var(--border); color: var(--text-dim);
-    }
-    .btn--icon:hover { background: var(--border); color: var(--text); }
-    .btn--icon svg { width: 16px; height: 16px; }
-
-    /* ── Dead State ── */
-    .dead-state {
-        display: flex; flex-direction: column; gap: 12px; flex: 1;
-        padding: 4px 0;
-    }
+    .dead-state { display: flex; flex-direction: column; gap: 12px; flex: 1; padding: 4px 0; }
     .dead-meta { display: flex; align-items: baseline; gap: 8px; }
     .dead-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
     .dead-channel { font-size: 13px; color: var(--text-bright); font-weight: 700; letter-spacing: 0.5px; }
     .dead-hint { font-size: 9px; color: var(--text-dim); line-height: 1.5; }
     .dead-actions { display: flex; gap: 8px; }
 
-    /* ── Scrollbar ── */
     ::-webkit-scrollbar { width: 3px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
 
-    /* ── Mobile ── */
     @media (max-width: 520px) {
         .header { padding: 0 12px; height: 48px; gap: 8px; }
         .brand-icon { width: 24px; height: 24px; border-radius: 3px; }
@@ -260,8 +233,7 @@
         .pill span:last-child:not(.pill-dot) { font-size: 7px; }
     }
     @media (prefers-reduced-motion: reduce) {
-        .pill--listening .pill-dot,
-        .pill--connecting .pill-dot { animation: none; }
+        .pill--listening .pill-dot, .pill--connecting .pill-dot { animation: none; }
         .btn, .pill, .input, .privacy-banner, .console { transition: none; }
     }
 </style>
@@ -272,9 +244,7 @@
     <div class="header-brand">
         <div class="brand-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="#050505" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                <path d="M2 17l10 5 10-5"/>
-                <path d="M2 12l10 5 10-5"/>
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
             </svg>
         </div>
         <div class="brand-text">
@@ -339,6 +309,9 @@
 (function() {
     'use strict';
 
+    /* ═══════════════════════════════════════════════
+       Supply chain guard — stop if libraries missing
+    ═══════════════════════════════════════════════ */
     if (typeof Peer === 'undefined') {
         document.getElementById('initBtn').disabled = true;
         document.getElementById('initBtn').textContent = 'Error';
@@ -354,9 +327,12 @@
     var iceCandidates = { host: 0, srflx: 0, relay: 0 };
     var PREFIX = 'OMNI-DIAG-';
     var logEl = document.getElementById('console');
+
+    /* Rate limiting: 5 msgs/sec */
     var msgTimestamps = [];
     var MAX_MSG_RATE = 5;
     var RATE_WINDOW_MS = 1000;
+    /* Inbound payload cap: 10 KB */
     var MAX_RECV_SIZE = 10240;
 
     var PEER_OPTS = {
@@ -371,11 +347,15 @@
         }
     };
 
-    /* ── Sanitization ── */
+    /* ═══════════════════════════════════════════════
+       INPUT SANITIZATION
+    ═══════════════════════════════════════════════ */
+
     function sanitizeMsg(raw) {
         if (typeof raw !== 'string') return '';
         return raw.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\uFFFE\uFFFF]/g, '').substring(0, 500);
     }
+
     function parseChannel(raw) {
         if (typeof raw !== 'string') return NaN;
         var t = raw.trim();
@@ -384,15 +364,19 @@
         if (isNaN(n) || n < 1 || n > 99 || t !== String(n)) return NaN;
         return n;
     }
+
     function checkRateLimit() {
         var now = Date.now();
-        msgTimestamps = msgTimestamps.filter(function(t) { return now - t < RATE_WINDOW_MS; });
+        msgTimestamps = msgTimestamps.filter(function(ts) { return now - ts < RATE_WINDOW_MS; });
         if (msgTimestamps.length >= MAX_MSG_RATE) return false;
         msgTimestamps.push(now);
         return true;
     }
 
-    /* ── Safe Logging ── */
+    /* ═══════════════════════════════════════════════
+       SAFE DOM LOGGING — zero innerHTML (XSS proof)
+    ═══════════════════════════════════════════════ */
+
     function log(msg, type) {
         var entry = document.createElement('div');
         entry.className = 'entry ' + (type || '');
@@ -406,6 +390,7 @@
         logEl.appendChild(entry);
         logEl.scrollTop = logEl.scrollHeight;
     }
+
     function logSection(title) {
         var el = document.createElement('div');
         el.className = 'section-divider';
@@ -414,25 +399,27 @@
         logEl.scrollTop = logEl.scrollHeight;
     }
 
-    /* ── Pill Badge Updates ── */
+    /* ═══════════════════════════════════════════════
+       UI STATE
+    ═══════════════════════════════════════════════ */
+
     function setStatus(text, variant) {
         var pill = document.getElementById('statusPill');
-        var txt = document.getElementById('statusText');
         pill.className = 'pill pill--' + (variant || 'offline');
-        txt.textContent = text;
+        document.getElementById('statusText').textContent = text;
     }
+
     function setRoute(text, variant) {
         var pill = document.getElementById('routePill');
-        var txt = document.getElementById('routeText');
         pill.className = 'pill pill--' + (variant || 'offline');
-        txt.textContent = text;
+        document.getElementById('routeText').textContent = text;
     }
+
     function resetRoute() {
         setRoute('Offline', 'offline');
         logEl.className = 'console';
     }
 
-    /* ── Row Management ── */
     function showRow(name) {
         ['setupRow', 'chatRow', 'deadRow'].forEach(function(id) {
             document.getElementById(id).classList.remove('active');
@@ -440,8 +427,15 @@
         if (name) document.getElementById(name + 'Row').classList.add('active');
     }
 
-    /* ── Cleanup ── */
-    function clearAllTimeouts() { clearTimeout(connTimeout); clearTimeout(failTimeout); }
+    /* ═══════════════════════════════════════════════
+       RESOURCE CLEANUP
+    ═══════════════════════════════════════════════ */
+
+    function clearAllTimeouts() {
+        clearTimeout(connTimeout);
+        clearTimeout(failTimeout);
+    }
+
     function destroyPeer() {
         if (conn) { try { conn.close(); } catch(e) {} }
         conn = null;
@@ -449,24 +443,37 @@
         peer = null;
         iceRestarted = false;
     }
+
     function fullReset() {
-        clearAllTimeouts(); destroyPeer();
-        channel = ''; isHost = false; msgTimestamps = [];
-        setStatus('Idle', 'offline'); resetRoute();
+        clearAllTimeouts();
+        destroyPeer();
+        channel = '';
+        isHost = false;
+        msgTimestamps = [];
+        setStatus('Idle', 'offline');
+        resetRoute();
         showRow('setup');
         document.getElementById('initBtn').disabled = false;
         document.getElementById('chanInput').value = '';
     }
+
     function handleDead(reason) {
         clearAllTimeouts();
-        setStatus('Failed', 'failed'); resetRoute();
+        setStatus('Failed', 'failed');
+        resetRoute();
         document.getElementById('deadChannel').textContent = channel ? 'CH-' + channel : '';
         document.getElementById('deadHint').textContent = reason || 'Connection could not be established or was dropped.';
-        showRow('dead'); destroyPeer();
+        showRow('dead');
+        destroyPeer();
     }
 
-    /* ── ICE Tracking ── */
-    function getPC(c) { return c ? (c.peerConnection || c._pc || null) : null; }
+    /* ═══════════════════════════════════════════════
+       ICE TRACKING (verbose diagnostic)
+    ═══════════════════════════════════════════════ */
+
+    function getPC(c) {
+        return c ? (c.peerConnection || c._pc || null) : null;
+    }
 
     function attachIceTracker(c) {
         var pc = getPC(c);
@@ -488,11 +495,16 @@
                 }
                 return;
             }
-            var cand = e.candidate, type = cand.type;
+            var cand = e.candidate;
+            var type = cand.type;
             var addr = cand.address || '';
-            if (!addr && cand.candidate) { var p = cand.candidate.split(' '); if (p.length > 4) addr = p[4]; }
+            if (!addr && cand.candidate) {
+                var parts = cand.candidate.split(' ');
+                if (parts.length > 4) addr = parts[4];
+            }
             if (!addr) addr = '(hidden)';
             var proto = cand.protocol || '?';
+
             if (type === 'host')        { iceCandidates.host++;  log('LOCAL   ' + addr + '  (' + proto + ')', 'route-log'); }
             else if (type === 'srflx')   { iceCandidates.srflx++; log('STUN    ' + addr + '  (' + proto + ')', 'route-log'); }
             else if (type === 'relay')   { iceCandidates.relay++; log('TURN    ' + addr + '  (' + proto + ')', 'diag'); }
@@ -502,12 +514,17 @@
         pc.addEventListener('iceconnectionstatechange', function() {
             var s = pc.iceConnectionState;
             log('ICE state \u2192 ' + s, (s === 'failed' || s === 'disconnected') ? 'diag-bad' : 'diag');
+
             if (s === 'connected' || s === 'completed') { clearAllTimeouts(); detectRoute(pc); }
             if (s === 'disconnected') log('Link disrupted \u2014 may auto-recover...', 'warn');
             if (s === 'failed') {
                 if (!iceRestarted) {
-                    iceRestarted = true; log('Attempting ICE restart...', 'diag');
-                    try { pc.restartIce(); } catch(e) { log('ICE restart unsupported.', 'diag-bad'); handleDead('ICE restart not supported by browser.'); }
+                    iceRestarted = true;
+                    log('Attempting ICE restart...', 'diag');
+                    try { pc.restartIce(); } catch(e) {
+                        log('ICE restart unsupported.', 'diag-bad');
+                        handleDead('ICE restart not supported by browser.');
+                    }
                 } else {
                     var reason = 'ICE restart failed.';
                     if (iceCandidates.relay === 0) reason = 'No TURN relay available. Direct P2P is blocked by network.';
@@ -539,13 +556,27 @@
                     var remote = stats.get(r.remoteCandidateId);
                     var t = local ? (local.candidateType || '?') : '?';
                     var rAddr = remote ? (remote.address || remote.candidate || '?') : '?';
+
                     logSection('Route Established');
                     log('Type: ' + t + '  \u2192  Remote: ' + rAddr, 'ok');
-                    if (t === 'host')       { setRoute('LAN', 'lan');   log('Mode: Local Area Network (same subnet)', 'ok'); }
-                    else if (t === 'srflx') { setRoute('P2P', 'p2p');   log('Mode: Direct peer-to-peer (cross-network)', 'ok'); }
-                    else if (t === 'relay') { setRoute('Relay', 'relay'); log('Mode: TURN relay (routed through server)', 'ok'); }
-                    else                    { setRoute('P2P', 'p2p');    log('Mode: Unknown candidate type', 'diag'); }
-                    logEl.className = 'console linked-' + (t === 'host' ? 'lan' : t === 'srflx' ? 'p2p' : t === 'relay' ? 'relay' : 'p2p');
+
+                    if (t === 'host') {
+                        setRoute('LAN', 'lan');
+                        log('Mode: Local Area Network (same subnet)', 'ok');
+                        logEl.className = 'console linked-lan';
+                    } else if (t === 'srflx') {
+                        setRoute('P2P', 'p2p');
+                        log('Mode: Direct peer-to-peer (cross-network)', 'ok');
+                        logEl.className = 'console linked-p2p';
+                    } else if (t === 'relay') {
+                        setRoute('Relay', 'relay');
+                        log('Mode: TURN relay (routed through server)', 'ok');
+                        logEl.className = 'console linked-relay';
+                    } else {
+                        setRoute('P2P', 'p2p');
+                        log('Mode: Unknown candidate type', 'diag');
+                        logEl.className = 'console linked-p2p';
+                    }
                 }
             });
             if (!done) setRoute('P2P', 'p2p');
@@ -555,7 +586,10 @@
         });
     }
 
-    /* ── Connection Logic ── */
+    /* ═══════════════════════════════════════════════
+       CONNECTION LOGIC
+    ═══════════════════════════════════════════════ */
+
     function initLink() {
         var chan = parseChannel(document.getElementById('chanInput').value);
         if (isNaN(chan)) { log('Enter a valid channel: 1 to 99.', 'warn'); return; }
@@ -585,16 +619,22 @@
         peer.on('connection', function(incoming) {
             log('Incoming connection detected.', 'sys');
             setStatus('Connecting', 'connecting');
-            conn = incoming; conn._iceRetries = 0;
-            attachIceTracker(conn); startTimeouts(); wireData();
+            conn = incoming;
+            conn._iceRetries = 0;
+            attachIceTracker(conn);
+            startTimeouts();
+            wireData();
         });
 
         peer.on('error', function(err) {
-            clearTimeout(sigTimeout); clearAllTimeouts();
+            clearTimeout(sigTimeout);
+            clearAllTimeouts();
             if (err.type === 'unavailable-id') {
                 log('Channel occupied. Switching to CLIENT mode...', 'sys');
                 try { peer.removeAllListeners(); } catch(e) {}
-                peer.destroy(); peer = null; isHost = false;
+                peer.destroy();
+                peer = null;
+                isHost = false;
                 setTimeout(function() { joinExisting(targetId); }, 1200);
             } else {
                 log('Error: ' + err.type + ' \u2014 ' + (err.message || ''), 'diag-bad');
@@ -606,6 +646,7 @@
     function joinExisting(targetId) {
         logSection('Client Mode');
         log('Creating anonymous node...', 'sys');
+
         try { peer = new Peer(PEER_OPTS); }
         catch(e) { log('Client peer creation failed.', 'diag-bad'); fullReset(); return; }
 
@@ -620,12 +661,15 @@
             try {
                 conn = peer.connect(targetId, { reliable: true });
                 conn._iceRetries = 0;
-                attachIceTracker(conn); startTimeouts(); wireData();
+                attachIceTracker(conn);
+                startTimeouts();
+                wireData();
             } catch(e) { log('Connect failed: ' + e.message, 'diag-bad'); fullReset(); }
         });
 
         peer.on('error', function(err) {
-            clearTimeout(sigTimeout); clearAllTimeouts();
+            clearTimeout(sigTimeout);
+            clearAllTimeouts();
             log('Error: ' + err.type + ' \u2014 ' + (err.message || ''), 'diag-bad');
             fullReset();
         });
@@ -634,7 +678,10 @@
     function startTimeouts() {
         clearAllTimeouts();
         connTimeout = setTimeout(function() { log('Still waiting for ICE... (10s)', 'warn'); }, 10000);
-        failTimeout = setTimeout(function() { log('Connection timed out (30s).', 'diag-bad'); handleDead('Connection timed out after 30 seconds.'); }, 30000);
+        failTimeout = setTimeout(function() {
+            log('Connection timed out (30s).', 'diag-bad');
+            handleDead('Connection timed out after 30 seconds.');
+        }, 30000);
     }
 
     function wireData() {
@@ -646,9 +693,13 @@
             showRow('chat');
             setTimeout(function() { document.getElementById('msgInput').focus(); }, 120);
         });
+
         conn.on('data', function(data) {
             if (typeof data === 'string') {
-                if (data.length > MAX_RECV_SIZE) { log('[blocked: payload ' + data.length + 'B exceeds limit]', 'warn'); return; }
+                if (data.length > MAX_RECV_SIZE) {
+                    log('[blocked: payload ' + data.length + 'B exceeds limit]', 'warn');
+                    return;
+                }
                 log(data, 'remote');
             } else if (data instanceof ArrayBuffer || (data && data.byteLength !== undefined)) {
                 log('[binary: ' + (data.byteLength || data.size || '?') + ' bytes]', 'remote');
@@ -656,8 +707,16 @@
                 log('[unknown data type]', 'remote');
             }
         });
-        conn.on('close', function() { clearAllTimeouts(); log('Peer disconnected.', 'warn'); handleDead('Peer closed the connection.'); });
-        conn.on('error', function(err) { log('Conn error: ' + (err && err.message ? err.message : err), 'diag-bad'); });
+
+        conn.on('close', function() {
+            clearAllTimeouts();
+            log('Peer disconnected.', 'warn');
+            handleDead('Peer closed the connection.');
+        });
+
+        conn.on('error', function(err) {
+            log('Conn error: ' + (err && err.message ? err.message : err), 'diag-bad');
+        });
     }
 
     function sendMessage() {
@@ -671,17 +730,22 @@
         } else { log('Not connected.', 'warn'); }
     }
 
-    /* ── Events ── */
+    /* ═══════════════════════════════════════════════
+       EVENT WIRING
+    ═══════════════════════════════════════════════ */
+
     document.getElementById('initBtn').addEventListener('click', initLink);
     document.getElementById('sendBtn').addEventListener('click', sendMessage);
     document.getElementById('msgInput').addEventListener('keydown', function(e) {
         if (e.key === 'Enter') { e.preventDefault(); sendMessage(); }
     });
     document.getElementById('discBtn').addEventListener('click', function() {
-        log('Disconnected by user.', 'sys'); fullReset();
+        log('Disconnected by user.', 'sys');
+        fullReset();
     });
     document.getElementById('retryBtn').addEventListener('click', function() {
-        var prev = channel; fullReset();
+        var prev = channel;
+        fullReset();
         if (prev) { document.getElementById('chanInput').value = prev; setTimeout(initLink, 200); }
     });
     document.getElementById('newBtn').addEventListener('click', function() { fullReset(); });
@@ -689,16 +753,17 @@
         document.getElementById('privacyBanner').classList.add('collapsed');
     });
 
+    /* ═══════════════════════════════════════════════
+       CLEANUP ON PAGE UNLOAD
+    ═══════════════════════════════════════════════ */
     window.addEventListener('beforeunload', function() {
         if (conn) try { conn.close(); } catch(e) {}
         if (peer) try { peer.destroy(); } catch(e) {}
     });
-    document.addEventListener('contextmenu', function(e) {
-        if (e.target.tagName === 'INPUT') return;
-        e.preventDefault();
-    });
 
-    /* ── Boot ── */
+    /* ═══════════════════════════════════════════════
+       BOOT
+    ═══════════════════════════════════════════════ */
     logSection('Omni-Link v3.2');
     log('Diagnostic mode active. ICE candidates will be logged.', 'sys');
     log('', '');
