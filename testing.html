@@ -3,355 +3,231 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OMNI-VOICE V7</title>
-    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <title>TAC/COM-04 | CH-TUNER</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        :root{--gn:#00ff41;--bg:#050505;--dim:#002200;--am:#ffaa00;--rd:#ff3333}
-        *{box-sizing:border-box;touch-action:manipulation;margin:0;padding:0}
-        body{background:var(--bg);color:var(--gn);font-family:'Courier New',monospace;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;overflow:hidden}
-        body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:99;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.06) 2px,rgba(0,0,0,.06) 4px)}
-        .t{border:2px solid var(--gn);padding:22px;background:#000;width:370px;max-width:95vw;box-shadow:0 0 30px rgba(0,255,65,.12),inset 0 0 80px rgba(0,255,65,.015);border-radius:4px}
-        .tt{text-align:center;font-size:.58rem;letter-spacing:3px;color:#005522;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--dim)}
-        .nm{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding:10px;border:1px solid var(--dim);background:rgba(0,255,65,.008)}
-        .nc{display:flex;flex-direction:column;align-items:center;gap:3px}
-        .nd{width:13px;height:13px;border-radius:50%;background:#1a1a1a;border:2px solid #333;transition:all .4s}
-        .nd.on{background:var(--gn);border-color:var(--gn);box-shadow:0 0 10px var(--gn)}
-        .nb{font-size:.48rem;letter-spacing:1px;color:#333}
-        .lk{flex-grow:1;height:2px;background:#1a1a1a;margin:0 10px;position:relative;overflow:hidden}
-        .lk.on{background:#0a2a0a}
-        .lk.on::after{content:'';position:absolute;width:45px;height:100%;background:linear-gradient(90deg,transparent,var(--gn),transparent);animation:lp 1.8s infinite linear}
-        @keyframes lp{from{left:-45px}to{left:100%}}
-        input{background:#000;border:1px solid #003300;color:var(--gn);padding:11px;width:100%;margin-bottom:7px;text-transform:uppercase;font-family:inherit;font-size:.82rem;text-align:center;outline:none;letter-spacing:2px;transition:border-color .2s}
-        input:focus{border-color:var(--gn);box-shadow:0 0 8px rgba(0,255,65,.08)}
-        input::placeholder{color:#1a3a1a}
-        .br{display:flex;gap:5px;margin-bottom:12px}
-        .mb{flex:1;padding:9px;background:transparent;color:#004400;border:1px solid #003300;font-weight:bold;cursor:pointer;font-family:inherit;font-size:.68rem;letter-spacing:1px;transition:all .15s}
-        .mb:hover{border-color:#005500;color:#007700;background:rgba(0,255,65,.02)}
-        .mb.s{background:var(--gn);color:#000;border-color:var(--gn)}
-        #ptt{width:100%;padding:28px;background:transparent;color:#1a3a1a;border:2px solid #152015;cursor:not-allowed;font-size:.9rem;font-weight:bold;font-family:inherit;letter-spacing:2px;user-select:none;-webkit-user-select:none;transition:all .08s}
-        #ptt.r{cursor:pointer;border-color:#003300;color:#005500}
-        #ptt.r:hover{border-color:#005500;color:#008800}
-        #ptt.tx{background:var(--gn);color:#000;border-color:var(--gn);box-shadow:0 0 30px rgba(0,255,65,.25)}
-        #ptt.rx{border-color:var(--am);color:var(--am);box-shadow:0 0 15px rgba(255,170,0,.12)}
-        .mt{width:100%;height:5px;background:#0a0a0a;margin-top:12px;border:1px solid var(--dim);overflow:hidden}
-        #mf{width:0%;height:100%;background:var(--gn);box-shadow:0 0 5px var(--gn);transition:width .07s linear}
-        #mf.rxm{background:var(--am);box-shadow:0 0 5px var(--am)}
-        #st{font-size:.6rem;text-align:center;margin-top:9px;letter-spacing:1.5px;color:#1a3a1a;transition:color .3s}
-        #st.ok{color:var(--gn)}#st.w{color:var(--am)}#st.e{color:var(--rd)}
-        .ir{display:flex;align-items:center;gap:6px;margin-top:8px;padding:5px 8px;border:1px solid var(--dim);background:rgba(0,255,65,.005)}
-        .id{width:8px;height:8px;border-radius:50%;background:#222;flex-shrink:0;transition:all .3s}
-        .id.new{background:#555}.id.checking{background:var(--am);box-shadow:0 0 6px var(--am)}
-        .id.connected{background:var(--gn);box-shadow:0 0 6px var(--gn)}
-        .id.failed,.id.disconnected{background:var(--rd);box-shadow:0 0 6px var(--rd)}.id.closed{background:#333}
-        .il{font-size:.5rem;letter-spacing:1px;color:#336633}
-        .db{margin-top:10px;padding:7px;border:1px solid var(--dim);background:rgba(0,255,65,.005);font-size:.48rem;color:#2a5a2a;letter-spacing:.3px;line-height:1.7;max-height:90px;overflow-y:auto;word-break:break-all}
-        .db .er{color:var(--rd)}.db .im{color:#00aa33}
+        :root { --amber: #ffb000; --bg: #0d0900; --red: #8c3024; --blue: #00d4ff; --green: #39ff14; }
+        body { background: #050505; color: var(--amber); font-family: 'Courier New', monospace; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; touch-action: manipulation; overflow: hidden; }
+        .mainframe { width: 95%; max-width: 850px; background: #222; border: 6px solid #111; padding: 15px; display: flex; flex-direction: column; box-shadow: 0 0 60px #000; box-sizing: border-box; }
+        @media (min-width: 768px) { .mainframe { display: grid; grid-template-columns: 1fr 320px; height: 600px; gap: 20px; } }
+        .monitor { background: var(--bg); border: 10px solid #1a1a1a; border-radius: 15px; padding: 20px; flex-grow: 1; display: flex; flex-direction: column; position: relative; }
+        #output { height: 220px; overflow-y: auto; font-size: 0.8rem; scrollbar-width: none; border-bottom: 1px solid #333; margin-bottom: 10px; }
+        .module { background: #111; padding: 12px; border: 1px solid #333; margin-bottom: 10px; }
+        .btn-ptt { width: 100%; height: 140px; background: var(--red); color: white; border: 5px solid #5e1e16; font-weight: bold; font-size: 1.3rem; cursor: pointer; transition: 0.1s; -webkit-user-select: none; user-select: none; }
+        .btn-ptt:active:not(:disabled) { background: #f00; transform: scale(0.98); }
+        .btn-ptt:disabled { background: #333; opacity: 0.2; }
+        .btn-action { width: 100%; padding: 10px; background: #333; color: #fff; border: 1px solid #555; cursor: pointer; font-weight: bold; font-size: 0.7rem; }
+        input { width: 100%; background: #000; border: 1px solid #444; color: var(--amber); padding: 10px; box-sizing: border-box; outline: none; text-align: center; font-size: 1.2rem; letter-spacing: 2px; }
+        .status-led { width: 12px; height: 12px; border-radius: 50%; background: #200; display: inline-block; }
+        .online { background: var(--blue); box-shadow: 0 0 10px var(--blue); }
+        .tx { background: #f00; box-shadow: 0 0 10px #f00; }
+        #meter { width: 100%; height: 10px; background: #000; border: 1px solid #333; margin-top: auto; }
+        #meter-fill { width: 0%; height: 100%; background: var(--green); transition: width 0.1s; }
     </style>
 </head>
 <body>
-<div class="t">
-    <div class="tt">OMNI-VOICE V7 // WEBRTC</div>
-    <div class="nm">
-        <div class="nc"><div id="nl" class="nd"></div><div class="nb">LOCAL</div></div>
-        <div id="ln" class="lk"></div>
-        <div class="nc"><div id="nr" class="nd"></div><div class="nb">REMOTE</div></div>
+
+<div class="mainframe">
+    <audio id="remoteAudio" autoplay playsinline></audio>
+
+    <div class="monitor">
+        <div style="font-size: 0.6rem; display:flex; justify-content:space-between; margin-bottom:10px;">
+            <span>FREQ: <span id="curFreq" style="color:var(--blue)">UNSET</span></span>
+            <span>UPLINK: <span id="stat">SCANNING</span></span>
+        </div>
+        <div id="output"><div>> SYSTEM READY. SELECT FREQUENCY...</div></div>
+        <div id="meter"><div id="meter-fill"></div></div>
     </div>
-    <input type="text" id="freq" placeholder="CHANNEL_ID" maxlength="20" autocomplete="off" spellcheck="false">
-    <div class="br">
-        <button class="mb" id="ba" onclick="boot('A')">NODE_A</button>
-        <button class="mb" id="bb" onclick="boot('B')">NODE_B</button>
+
+    <div class="side-panel">
+        <div class="module">
+            <div style="font-size: 0.6rem; color: #555; margin-bottom: 5px; text-align: center;">SET FREQUENCY (1-99)</div>
+            <input type="number" id="chanInput" value="1" min="1" max="99">
+            <button class="btn-action" id="bootBtn" onclick="initChannel()" style="margin-top:10px; border-color:var(--green); color:var(--green);">SET CHANNEL</button>
+        </div>
+
+        <div class="module" style="text-align:center;">
+            <button class="btn-ptt" id="pttBtn" disabled>HOLD TO TALK</button>
+            <div style="margin-top:10px; font-size:0.5rem; display:flex; justify-content:space-around;">
+                <span><div class="status-led" id="ledNet"></div> SYNC</span>
+                <span><div class="status-led" id="ledTx"></div> TRANS</span>
+            </div>
+        </div>
+        <button class="btn-action" onclick="location.reload()" style="background:#200;">RESET SYSTEM</button>
     </div>
-    <button id="ptt">INITIALIZING...</button>
-    <div class="mt"><div id="mf"></div></div>
-    <div id="st">BOOTING...</div>
-    <div class="ir"><div id="iceD" class="id"></div><div id="iceL" class="il">ICE: --</div></div>
-    <div class="db" id="dbg">awaiting hardware...</div>
 </div>
 
 <script>
-const stE=document.getElementById('st'),ptE=document.getElementById('ptt'),
-mfE=document.getElementById('mf'),nlE=document.getElementById('nl'),
-nrE=document.getElementById('nr'),lnE=document.getElementById('ln'),
-dbE=document.getElementById('dbg'),frE=document.getElementById('freq'),
-baE=document.getElementById('ba'),bbE=document.getElementById('bb'),
-icD=document.getElementById('iceD'),icL=document.getElementById('iceL');
+    let peer, conn, localStream, audioCtx, delayNode, analyser, speakerGain;
+    const APP_PREFIX = "TAC-COM-V1-"; 
 
-let peer=null,ls=null,cc=null,role=null,tX=false,unblock=false,
-ax=null,rxS=null,rxG=null,rxA=null,txA=null,fbA=null;
-
-/* ═══ RETRY STATE ═══ */
-let tgtId=null;        // who we're trying to reach
-let sigRetry=0;        // signaling retry counter
-let sigTimer=null;     // signaling retry timer
-let dialRetry=0;       // dial retry counter
-let dialTimer=null;    // dial retry timer
-let linked=false;      // true once audio is flowing
-const MAX_SIG=10;      // max signaling reconnect attempts
-const MAX_DIAL=15;     // max dial attempts
-
-function L(m,e,i){const d=document.createElement('div');if(e)d.className='er';if(i)d.className='im';d.textContent=`[${new Date().toLocaleTimeString()}] ${m}`;dbE.appendChild(d);dbE.scrollTop=dbE.scrollHeight;while(dbE.children.length>50)dbE.removeChild(dbE.firstChild)}
-function ice(s){icD.className='id '+(s||'new');icL.textContent='ICE: '+(s||'NEW').toUpperCase()}
-function S(m,c){stE.textContent=m;stE.className=c||''}
-function clrTimers(){if(sigTimer){clearTimeout(sigTimer);sigTimer=null}if(dialTimer){clearTimeout(dialTimer);dialTimer=null}}
-
-/* ═══ MIC + AUDIO CONTEXT ═══ */
-async function init(){
-    try{
-        ls=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
-        L('mic ok');
-        ax=new(window.AudioContext||window.webkitAudioContext)();
-        L('ctx: '+ax.state);
-        rxG=ax.createGain();rxG.gain.value=1;
-        rxA=ax.createAnalyser();rxA.fftSize=256;
-        rxG.connect(rxA);rxA.connect(ax.destination);
-        txA=ax.createAnalyser();txA.fftSize=256;
-        ax.createMediaStreamSource(ls).connect(txA);
-        S('HARDWARE_READY','ok');ptE.innerText='SELECT_NODE';L('ready');meter();
-    }catch(e){L('MIC FAIL: '+e.message,true);S('MIC_DENIED','e');ptE.innerText='NO_MIC'}
-}
-
-function resume(){if(ax&&ax.state==='suspended')ax.resume()}
-document.addEventListener('click',resume);
-document.addEventListener('touchstart',resume);
-document.addEventListener('keydown',resume);
-
-/* ═══ CONNECT REMOTE STREAM ═══ */
-function connectRx(stream){
-    const tk=stream.getAudioTracks();
-    L('remote: '+tk.length+' track(s)',false,true);
-    if(!tk.length){L('NO AUDIO TRACKS!',true);return}
-    tk.forEach((t,i)=>{
-        L('trk['+i+'] en='+t.enabled+' state='+t.readyState);
-        t.onended=()=>{L('TRK ENDED',true);doFB()};
-    });
-    try{
-        if(rxS)try{rxS.disconnect()}catch(e){}
-        rxS=ax.createMediaStreamSource(stream.clone());
-        rxS.connect(rxG);
-        L('AudioCtx path OK',false,true);
-    }catch(e){L('AudioCtx fail: '+e.message,true)}
-    unblock=true;linked=true;clrTimers();dialRetry=0;sigRetry=0;
-    nrE.classList.add('on');lnE.classList.add('on');
-    ptE.classList.add('r');ptE.disabled=false;
-    ptE.innerText='HOLD_TO_TALK';S('LINK_SECURED','ok');
-}
-
-function doFB(){
-    if(!unblock||!cc)return;L('<audio> fallback...');
-    try{
-        if(!fbA)fbA=new Audio();
-        const pc=cc.peerConnection,trk=[];
-        pc.getReceivers().forEach(r=>{if(r.track)trk.push(r.track)});
-        if(!trk.length){L('no receivers',true);return}
-        fbA.srcObject=new MediaStream(trk);
-        fbA.play().then(()=>{L('fallback OK',false,true);unblock=false}).catch(e=>L('blocked: '+e.message,true));
-    }catch(e){L('fb err: '+e.message,true)}
-}
-
-/* ═══ SIGNALING RETRY — destroys & rebuilds peer entirely ═══ */
-function scheduleSigRetry(){
-    clrTimers();
-    if(sigRetry>=MAX_SIG){
-        S('SIGNAL_FAILED','e');ptE.innerText='NO_SIGNAL';
-        L('Signal retry limit ('+MAX_SIG+') reached',true);return;
-    }
-    sigRetry++;
-    /* Exponential backoff: 1.5s, 2.2s, 3.3s ... capped at 8s */
-    const delay=Math.min(1500*Math.pow(1.5,sigRetry-1),8000);
-    L('Signal retry '+sigRetry+'/'+MAX_SIG+' in '+Math.round(delay)+'ms');
-    S('RECONNECT '+sigRetry+'/'+MAX_SIG,'w');
-    ptE.innerText='RECONNECT '+sigRetry+'/'+MAX_SIG;
-    nlE.classList.remove('on');nrE.classList.remove('on');lnE.classList.remove('on');
-    ice('new');
-    sigTimer=setTimeout(rebuildPeer,delay);
-}
-
-function rebuildPeer(){
-    if(peer){try{peer.destroy()}catch(e){}peer=null}
-    linked=false;
-    createPeer();
-}
-
-/* ═══ CREATE PEER (reusable) ═══ */
-function createPeer(){
-    if(!role||!tgtId)return;
-    const f=frE.value.trim().toUpperCase();
-    const myId='OMNI_V7_'+f+'_'+role;
-
-    peer=new Peer(myId,{
-        host:'peerjs.metered.ca',
-        port:443,
-        secure:true,
-        path:'/'
-    });
-
-    peer.on('open',id=>{
-        L('OPEN: '+id,false,true);sigRetry=0;nlE.classList.add('on');ice('new');
-        if(role==='A'){
-            S('DIALING...','w');ptE.innerText='DIALING...';
-            scheduleDial();
-        }else{
-            S('[B] STANDBY','ok');ptE.innerText='AWAITING_LINK';
-        }
-    });
-
-    peer.on('call',c=>{
-        L('INCOMING: '+c.peer,false,true);S('INCOMING...','w');
-        c.answer(ls);wire(c);
-    });
-
-    peer.on('error',err=>{
-        L('ERR: '+err.type,true);
-        switch(err.type){
-            case 'peer-unavailable':
-                /* Target not registered yet — keep dialing */
-                scheduleDial();break;
-            case 'unavailable-id':
-                S('ID_TAKEN','e');ptE.innerText='CHANGE_FREQ';break;
-            case 'network':case 'server-error':case 'socket-error':case 'socket-closed':case 'disconnected':
-                /* Signaling server unreachable — rebuild peer */
-                scheduleSigRetry();break;
-            default:
-                S('ERR:'+err.type.toUpperCase(),'e');ptE.innerText='ERROR';
-        }
-    });
-
-    peer.on('disconnected',()=>{
-        L('peer disconnect',true);
-        /* Don't trust reconnect() — rebuild entirely */
-        scheduleSigRetry();
-    });
-}
-
-/* ═══ DIAL RETRY — keeps calling target until they answer ═══ */
-function scheduleDial(){
-    if(dialTimer)clearTimeout(dialTimer);
-    if(linked)return; // already connected
-    if(dialRetry>=MAX_DIAL){
-        S('TARGET_NOT_FOUND','e');ptE.innerText='TARGET_NOT_FOUND';
-        L('Dial limit ('+MAX_DIAL+') reached',true);return;
-    }
-    dialRetry++;
-    const delay=role==='A'?2500:3000;
-    L('Dial attempt '+dialRetry+'/'+MAX_DIAL);
-    S('DIALING '+dialRetry+'/'+MAX_DIAL,'w');
-    ptE.innerText='DIALING '+dialRetry+'/'+MAX_DIAL;
-    dialTimer=setTimeout(doDial,delay);
-}
-
-function doDial(){
-    if(!peer||peer.destroyed||linked)return;
-    L('calling '+tgtId);
-    try{
-        const c=peer.call(tgtId,ls);
-        if(c)wire(c);else L('call() returned null',true);
-    }catch(e){L('call() threw: '+e.message,true)}
-}
-
-/* ═══ WIRE CALL ═══ */
-function wire(call){
-    cc=call;
-    const pc=call.peerConnection;
-
-    pc.oniceconnectionstatechange=()=>{
-        const s=pc.iceConnectionState;
-        L('ICE → '+s,s==='connected'||s==='completed',s==='failed'||s==='disconnected');
-        ice(s);
-        if(s==='connected'||s==='completed'){
-            L('ICE OK',false,true);
-            /* ICE connected but if we don't get stream in 5s, something's wrong */
-        }
-        if(s==='failed'){
-            L('ICE FAILED — strict NAT/firewall',true);
-            /* ICE failure means the call itself is dead — need new call */
-            linked=false;
-            if(rxS){try{rxS.disconnect()}catch(e){}rxS=null}
-            nrE.classList.remove('on');lnE.classList.remove('on');
-            ptE.classList.remove('r','rx');ptE.disabled=true;
-            mfE.classList.remove('rxm');
-            /* Retry dial with same peer */
-            if(role==='A')scheduleDial();
-        }
-        if(s==='disconnected'&&!linked){
-            /* ICE disconnected before we got audio — retry dial */
-            if(role==='A')scheduleDial();
+    const ICE_CONFIG = {
+        config: { 
+            'iceServers': [
+                { 'urls': 'stun:stun.l.google.com:19302' },
+                { 'urls': 'stun:stun1.l.google.com:19302' },
+                { 'urls': 'stun:stun2.l.google.com:19302' }
+            ]
         }
     };
 
-    call.on('stream',stream=>{L('STREAM',false,true);connectRx(stream)});
-
-    call.on('close',()=>{
-        L('CALL CLOSED');
-        linked=false;
-        S('LINK_LOST','e');ptE.innerText='LINK_LOST';
-        ptE.disabled=true;ptE.classList.remove('r','rx');
-        nrE.classList.remove('on');lnE.classList.remove('on');
-        mfE.classList.remove('rxm');ice('closed');
-        if(rxS){try{rxS.disconnect()}catch(e){}rxS=null}
-        /* If we were linked and lost it, try to re-establish */
-        if(role==='A')scheduleDial();
-    });
-
-    call.on('error',e=>L('call err: '+e,true));
-}
-
-/* ═══ BOOT ═══ */
-function boot(r){
-    resume();
-    const f=frE.value.trim().toUpperCase();
-    if(!f){frE.style.borderColor='var(--rd)';setTimeout(()=>frE.style.borderColor='',700);return}
-
-    /* Reset everything */
-    clrTimers();
-    if(cc){try{cc.close()}catch(e){}cc=null}
-    if(rxS){try{rxS.disconnect()}catch(e){}rxS=null}
-    if(fbA){fbA.pause();fbA=null}
-    if(peer){try{peer.destroy()}catch(e){}peer=null}
-
-    role=r;linked=false;sigRetry=0;dialRetry=0;unblock=false;tX=false;
-    tgtId='OMNI_V7_'+f+'_'+(r==='A'?'B':'A');
-
-    baE.classList.toggle('s',r==='A');bbE.classList.toggle('s',r==='B');
-    nrE.classList.remove('on');lnE.classList.remove('on');
-    ptE.classList.remove('r','tx','rx');ptE.disabled=true;
-    ptE.innerText='SYNCING...';mfE.classList.remove('rxm');
-    ice('new');S('FREQ:'+f+' ['+r+']','ok');
-    L('boot '+r+' @ '+f+' → target '+tgtId);
-
-    createPeer();
-}
-
-/* ═══ PTT ═══ */
-function setTx(on){
-    resume();if(!ls||ptE.disabled)return;tX=on;
-    ls.getAudioTracks().forEach(t=>t.enabled=on);
-    if(on&&unblock&&cc){
-        try{
-            const pc=cc.peerConnection,trk=[];
-            pc.getReceivers().forEach(r=>{if(r.track)trk.push(r.track)});
-            if(trk.length){if(!fbA)fbA=new Audio();fbA.srcObject=new MediaStream(trk);fbA.play().then(()=>{L('unblocked',false,true);unblock=false}).catch(()=>{})}
-        }catch(e){}
+    function log(msg, color="#ffb000") {
+        const div = document.createElement('div');
+        div.innerText = `> ${msg}`; div.style.color = color;
+        const out = document.getElementById('output');
+        out.appendChild(div); out.scrollTop = out.scrollHeight;
     }
-    ptE.classList.toggle('tx',on);ptE.innerText=on?'TRANSMITTING':'HOLD_TO_TALK';
-}
-ptE.addEventListener('mousedown',e=>{e.preventDefault();setTx(true)});
-ptE.addEventListener('mouseup',()=>setTx(false));
-ptE.addEventListener('mouseleave',()=>{if(tX)setTx(false)});
-ptE.addEventListener('touchstart',e=>{e.preventDefault();setTx(true)});
-ptE.addEventListener('touchend',e=>{e.preventDefault();setTx(false)});
-ptE.addEventListener('touchcancel',()=>{if(tX)setTx(false)});
 
-/* ═══ VU METER ═══ */
-function meter(){
-    let v=0;
-    if(tX&&txA){const b=new Uint8Array(txA.frequencyBinCount);txA.getByteFrequencyData(b);let s=0;for(let i=0;i<b.length;i++)s+=b[i];v=(s/b.length)*4;mfE.classList.remove('rxm')}
-    else if(rxA&&rxS){const b=new Uint8Array(rxA.frequencyBinCount);rxA.getByteFrequencyData(b);let s=0;for(let i=0;i<b.length;i++)s+=b[i];v=(s/b.length)*4;mfE.classList.add('rxm');ptE.classList.toggle('rx',v>4)}
-    else{mfE.classList.remove('rxm');ptE.classList.remove('rx')}
-    mfE.style.width=Math.min(v,100)+'%';requestAnimationFrame(meter);
-}
+    async function initChannel() {
+        const chanNum = document.getElementById('chanInput').value;
+        const fullId = APP_PREFIX + chanNum;
+        
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ 
+                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
+            });
 
-frE.addEventListener('keydown',e=>{if(e.key==='Enter')boot('A')});
-init();
+            // Initialize Audio Context for effects/metering
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            speakerGain = audioCtx.createGain();
+            delayNode = audioCtx.createDelay(5.0);
+            delayNode.delayTime.value = 0.1; // Minimal delay for feedback reduction
+            analyser = audioCtx.createAnalyser();
+            
+            delayNode.connect(analyser);
+            analyser.connect(speakerGain);
+            speakerGain.connect(audioCtx.destination);
+            
+            muteMic(true);
+            document.getElementById('bootBtn').disabled = true;
+            document.getElementById('curFreq').innerText = "CH-" + chanNum;
+            updateMeter();
+            
+            initPeer(fullId);
+            log("TUNING TO CHANNEL " + chanNum + "...", "var(--blue)");
+        } catch(e) { 
+            log("HARDWARE ERROR: ENSURE HTTPS & MIC PERMISSIONS", "red"); 
+        }
+    }
+
+    function initPeer(myId) {
+        peer = new Peer(myId, ICE_CONFIG);
+
+        peer.on('open', id => { 
+            log("CHANNEL ACTIVE. WAITING...", "var(--green)"); 
+        });
+
+        peer.on('connection', c => { 
+            conn = c; 
+            setupHandlers(); 
+        });
+
+        peer.on('call', call => {
+            call.answer(localStream);
+            call.on('stream', stream => attachStream(stream));
+        });
+
+        peer.on('error', (err) => {
+            if(err.type === 'unavailable-id') {
+                log("ID TAKEN. CONNECTING AS SECONDARY...", "var(--amber)");
+                peer.destroy();
+                initCallerMode(myId);
+            } else {
+                log("PEER ERROR: " + err.type, "red");
+            }
+        });
+    }
+
+    function initCallerMode(targetId) {
+        peer = new Peer(ICE_CONFIG); 
+        peer.on('open', () => {
+            log("HANDSHAKE INITIATED...");
+            conn = peer.connect(targetId);
+            const call = peer.call(targetId, localStream);
+            call.on('stream', stream => attachStream(stream));
+            setupHandlers();
+        });
+    }
+
+    function attachStream(stream) {
+        const audioEl = document.getElementById('remoteAudio');
+        audioEl.srcObject = stream;
+        const source = audioCtx.createMediaStreamSource(stream);
+        source.connect(delayNode);
+        log("VOICE LINK ESTABLISHED.");
+    }
+
+    function setupHandlers() {
+        conn.on('open', () => {
+            document.getElementById('ledNet').classList.add('online');
+            document.getElementById('pttBtn').disabled = false;
+            document.getElementById('stat').innerText = "SYNCED";
+            log("COMS ONLINE.", "var(--green)");
+        });
+
+        conn.on('data', data => {
+            if(data === 'TX_ON') document.getElementById('ledTx').classList.add('tx');
+            if(data === 'TX_OFF') {
+                document.getElementById('ledTx').classList.remove('tx');
+                playBeep(450, 0.1); // Roger beep
+            }
+        });
+        
+        conn.on('close', () => {
+            log("CONNECTION LOST", "red");
+            location.reload();
+        });
+    }
+
+    function muteMic(shouldMute) {
+        if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = !shouldMute);
+        // Mute local output when talking to prevent feedback loops
+        if (speakerGain) speakerGain.gain.setValueAtTime(shouldMute ? 1 : 0, audioCtx.currentTime);
+    }
+
+    function updateMeter() {
+        if(!analyser) return;
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(dataArray);
+        let sum = dataArray.reduce((a, b) => a + b, 0);
+        document.getElementById('meter-fill').style.width = Math.min(100, (sum/dataArray.length)*4) + "%";
+        requestAnimationFrame(updateMeter);
+    }
+
+    function playBeep(f, d) {
+        if(!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.frequency.value = f; g.gain.value = 0.05;
+        osc.connect(g); g.connect(audioCtx.destination);
+        osc.start();
+        g.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + d);
+        osc.stop(audioCtx.currentTime + d);
+    }
+
+    const ptt = document.getElementById('pttBtn');
+    const pttOn = (e) => { 
+        if(e) e.preventDefault();
+        if(!conn || ptt.disabled) return; 
+        muteMic(false); 
+        conn.send('TX_ON'); 
+        document.getElementById('ledTx').classList.add('tx'); 
+        playBeep(800, 0.05); 
+    };
+    const pttOff = (e) => { 
+        if(e) e.preventDefault();
+        if(!conn || ptt.disabled) return; 
+        muteMic(true); 
+        conn.send('TX_OFF'); 
+        document.getElementById('ledTx').classList.remove('tx'); 
+    };
+
+    // Mobile & Desktop Listeners
+    ptt.addEventListener('mousedown', pttOn);
+    ptt.addEventListener('mouseup', pttOff);
+    ptt.addEventListener('touchstart', pttOn, {passive: false});
+    ptt.addEventListener('touchend', pttOff, {passive: false});
+
 </script>
 </body>
 </html>
