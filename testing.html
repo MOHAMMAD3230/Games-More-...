@@ -3,34 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OMNI-VOICE V17 | BYPASS</title>
+    <title>OMNI-VOICE V18</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root { --neon: #00ff41; --bg: #050505; }
         * { box-sizing: border-box; touch-action: manipulation; }
-        body { background: var(--bg); color: var(--neon); font-family: 'Courier New', monospace; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; overflow: hidden; }
-        .terminal { border: 2px solid var(--neon); padding: 20px; background: #000; width: 340px; box-shadow: 0 0 15px rgba(0, 255, 65, 0.4); text-align: center; }
-        input { background: #000; border: 1px solid var(--neon); color: var(--neon); padding: 12px; width: 100%; margin-bottom: 10px; text-align: center; outline: none; font-family: inherit; }
+        body { background: var(--bg); color: var(--neon); font-family: 'Courier New', monospace; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .terminal { border: 2px solid var(--neon); padding: 25px; background: #000; width: 340px; box-shadow: 0 0 20px var(--neon); text-align: center; }
+        input { background: #000; border: 1px solid var(--neon); color: var(--neon); padding: 12px; width: 100%; margin-bottom: 10px; text-align: center; outline: none; }
         .btn { padding: 12px; background: var(--neon); color: #000; border: none; font-weight: bold; cursor: pointer; width: 48%; }
-        #ptt { width: 100%; padding: 40px; background: transparent; color: var(--neon); border: 2px solid var(--neon); font-size: 1.1rem; font-weight: bold; margin-top: 15px; display: none; user-select: none; -webkit-user-select: none; }
-        #ptt.active { background: var(--neon); color: #000; }
-        .meter { width: 100%; height: 6px; background: #111; margin-top: 10px; border: 1px solid #222; overflow: hidden; }
+        #ptt { width: 100%; padding: 40px; background: transparent; color: var(--neon); border: 2px solid var(--neon); font-size: 1.2rem; font-weight: bold; margin-top: 15px; display: none; user-select: none; }
+        .meter { width: 100%; height: 8px; background: #111; margin-top: 15px; border: 1px solid #222; }
         #fill { height: 100%; width: 0%; background: var(--neon); transition: width 0.1s; }
-        #status { font-size: 0.6rem; margin-top: 15px; color: var(--neon); min-height: 30px; border-top: 1px solid #111; padding-top: 10px; }
+        #status { font-size: 0.6rem; margin-top: 15px; min-height: 30px; border-top: 1px solid #111; padding-top: 10px; }
     </style>
 </head>
 <body>
 
 <div class="terminal">
-    <div id="init-layer">
-        <button class="btn" style="width:100%;" onclick="initHW()">ACTIVATE OMNI-LINK</button>
+    <div id="init-zone">
+        <button class="btn" style="width:100%;" onclick="initSystem()">INITIALIZE OMNI-V18</button>
     </div>
 
-    <div id="main-layer" style="display:none;">
-        <input type="text" id="ch-id" placeholder="SECURE_CHANNEL">
+    <div id="ui-zone" style="display:none;">
+        <input type="text" id="ch" placeholder="CHANNEL_CODE">
         <div style="display:flex; justify-content: space-between;">
-            <button class="btn" onclick="connect('B')">LISTENER</button>
-            <button class="btn" onclick="connect('A')">DIALER</button>
+            <button class="btn" onclick="start('B')">LISTENER</button>
+            <button class="btn" onclick="start('A')">DIALER</button>
         </div>
         <div class="meter"><div id="fill"></div></div>
         <button id="ptt">PUSH TO TALK</button>
@@ -38,21 +37,21 @@
     <div id="status">OFFLINE</div>
 </div>
 
-<audio id="vox" autoplay playsinline></audio>
+<audio id="vox-out" autoplay playsinline></audio>
 
 <script>
-    let stream, peer, call;
+    let stream, peer;
     const status = document.getElementById('status');
     const fill = document.getElementById('fill');
     const ptt = document.getElementById('ptt');
-    const vox = document.getElementById('vox');
+    const vox = document.getElementById('vox-out');
 
-    async function initHW() {
+    async function initSystem() {
         try {
             stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             stream.getAudioTracks()[0].enabled = false;
             
-            // Minimal Visualizer
+            // Basic Visualizer
             const ctx = new AudioContext();
             const ana = ctx.createAnalyser();
             ctx.createMediaStreamSource(stream).connect(ana);
@@ -64,66 +63,81 @@
             };
             loop();
 
-            document.getElementById('init-layer').style.display = 'none';
-            document.getElementById('main-layer').style.display = 'block';
-            status.innerText = "HARDWARE_SYNCED";
-        } catch(e) { status.innerText = "HW_FAIL: " + e.name; }
+            document.getElementById('init-zone').style.display = 'none';
+            document.getElementById('ui-zone').style.display = 'block';
+            status.innerText = "HARDWARE_ACTIVE";
+        } catch(e) { status.innerText = "ERR: " + e.name; }
     }
 
-    function connect(role) {
-        const cid = document.getElementById('ch-id').value.toUpperCase().trim();
+    function start(role) {
+        const cid = document.getElementById('ch').value.toUpperCase().trim();
         if(!cid) return;
 
         if(peer) peer.destroy();
 
-        // BYPASS CONFIG: Force secure WebSockets over Port 443
-        peer = new Peer(`V17-${cid}-${role}`, {
+        // V18 STEALTH CONFIG
+        // Uses explicit Google STUNs and longer timeouts to survive firewall inspections
+        peer = new Peer(`V18-${cid}-${role}`, {
             host: '0.peerjs.com',
             secure: true,
             port: 443,
+            pingInterval: 5000,
             config: {
                 iceServers: [
                     { urls: 'stun:stun.l.google.com:19302' },
                     { urls: 'stun:stun1.l.google.com:19302' },
-                    { urls: 'stun:stun.voiparound.com:3478' }
-                ]
+                    { urls: 'stun:stun2.l.google.com:19302' },
+                    { urls: 'stun:stun3.l.google.com:19302' }
+                ],
+                iceCandidatePoolSize: 10
             }
         });
 
         peer.on('open', () => {
             status.innerText = `NODE_${role}_ONLINE`;
             if(role === 'A') {
-                status.innerText = "TUNNELING TO NODE_B...";
-                setTimeout(() => {
-                    const c = peer.call(`V17-${cid}-B`, stream);
-                    handle(c);
-                }, 2000);
+                status.innerText = "TUNNELING...";
+                // Retry dial 3 times to bypass temporary firewall drops
+                let attempts = 0;
+                const tryDial = () => {
+                    attempts++;
+                    status.innerText = `DIALING_B (TRY ${attempts}/3)...`;
+                    const c = peer.call(`V18-${cid}-B`, stream);
+                    
+                    c.on('stream', s => {
+                        vox.srcObject = s;
+                        vox.play();
+                        status.innerText = "TUNNEL_ESTABLISHED";
+                        ptt.style.display = 'block';
+                    });
+
+                    // If it fails, wait 3 seconds and try again
+                    setTimeout(() => {
+                        if(status.innerText.includes("DIALING")) tryDial();
+                    }, 5000);
+                };
+                tryDial();
             }
         });
 
         peer.on('call', c => {
-            status.innerText = "HANDSHAKE_RECEIVED";
+            status.innerText = "INCOMING_CONNECTION";
             c.answer(stream);
-            handle(c);
+            c.on('stream', s => {
+                vox.srcObject = s;
+                vox.play();
+                status.innerText = "TUNNEL_ESTABLISHED";
+                ptt.style.display = 'block';
+            });
         });
 
         peer.on('error', e => {
-            if(e.type === 'peer-unavailable') status.innerText = "NODE_B NOT FOUND. IS IT ONLINE?";
-            else if(e.type === 'network') status.innerText = "FIREWALL DETECTED: TRY MOBILE DATA";
-            else status.innerText = "ERR: " + e.type;
+            status.innerText = "SIGNAL_LOST: " + e.type.toUpperCase();
+            if(e.type === 'network') status.innerText = "WIFI_FIREWALL_BLOCKING_SIGNAL";
         });
     }
 
-    function handle(c) {
-        c.on('stream', s => {
-            vox.srcObject = s;
-            vox.play();
-            status.innerText = "LINK_ENCRYPTED";
-            ptt.style.display = 'block';
-        });
-    }
-
-    const tx = (s) => { if(stream) stream.getAudioTracks()[0].enabled = s; ptt.classList.toggle('active', s); };
+    const tx = (s) => { if(stream) stream.getAudioTracks()[0].enabled = s; ptt.innerText = s ? "TRANSMITTING..." : "PUSH TO TALK"; };
     ptt.onmousedown = () => tx(true);
     ptt.onmouseup = () => tx(false);
     ptt.ontouchstart = (e) => { e.preventDefault(); tx(true); };
