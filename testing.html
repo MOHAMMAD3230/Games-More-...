@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OMNI-VOICE | Auto-Reconnect</title>
+    <title>OMNI-VOICE | Stable Link</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        :root { --neon: #00ff41; --dim: #002200; --bg: #050505; }
-        body { background: var(--bg); color: var(--neon); font-family: 'Courier New', monospace; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-        .terminal { border: 2px solid var(--neon); padding: 25px; background: #000; width: 340px; box-shadow: 0 0 15px var(--neon); }
+        :root { --neon: #00ff41; --bg: #050505; }
+        body { background: var(--bg); color: var(--neon); font-family: 'Courier New', monospace; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; overflow: hidden; }
+        .terminal { border: 2px solid var(--neon); padding: 25px; background: #000; width: 340px; box-shadow: 0 0 15px var(--neon); text-align: center; }
         
         .node-map { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border: 1px solid #111; padding: 10px; }
         .node { width: 10px; height: 10px; border-radius: 50%; background: #222; transition: 0.3s; }
@@ -16,15 +16,16 @@
         .line { flex-grow: 1; height: 1px; background: #222; margin: 0 10px; }
         .line.active { background: var(--neon); }
 
-        input { background: #000; border: 1px solid var(--neon); color: var(--neon); padding: 12px; width: 100%; margin-bottom: 10px; text-transform: uppercase; font-family: inherit; }
+        input { background: #000; border: 1px solid var(--neon); color: var(--neon); padding: 12px; width: 100%; margin-bottom: 10px; text-transform: uppercase; font-family: inherit; text-align: center; outline: none; }
         
         #ptt-btn { 
             width: 100%; padding: 35px; background: transparent; color: var(--neon); 
             border: 2px solid var(--neon); cursor: pointer; font-size: 1.2rem; font-weight: bold;
-            margin-top: 15px; user-select: none;
+            margin-top: 15px; user-select: none; -webkit-user-select: none;
         }
         #ptt-btn:active:not(:disabled) { background: var(--neon); color: #000; }
-        #ptt-btn:disabled { border-color: #222; color: #222; }
+        #ptt-btn:disabled { border-color: #222; color: #222; cursor: not-allowed; }
+        .small { font-size: 0.6rem; opacity: 0.6; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -36,7 +37,7 @@
         <div id="n-remote" class="node"></div>
     </div>
 
-    <input type="text" id="freq" placeholder="CHANNEL_ID">
+    <input type="text" id="freq" placeholder="ENTER CHANNEL ID">
     
     <div style="display: flex; gap: 5px;">
         <button onclick="join('A')" style="flex:1; padding: 10px; background: var(--neon); color: black; border:none; font-weight:bold; cursor:pointer;">MODE_A</button>
@@ -44,7 +45,8 @@
     </div>
 
     <button id="ptt-btn" disabled>OFFLINE</button>
-    <div id="status" style="font-size: 0.7rem; text-align: center; margin-top: 10px;">SYSTEM_READY</div>
+    <div id="status" style="font-size: 0.7rem; margin-top: 10px;">READY_FOR_HANDSHAKE</div>
+    <div class="small">V.3.1_AUTO_RECONNECT</div>
 </div>
 
 <audio id="output" autoplay playsinline></audio>
@@ -57,24 +59,25 @@
     const ptt = document.getElementById('ptt-btn');
     const audioOut = document.getElementById('output');
 
-    let peer = null, localStream = null, currentCall = null;
+    let peer = null, localStream = null;
 
-    // Start Microphone
+    // 1. Initial Mic Capture
     navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } })
         .then(stream => {
             localStream = stream;
             localStream.getAudioTracks()[0].enabled = false;
-        });
+        }).catch(() => { status.innerText = "MIC_ACCESS_DENIED"; });
 
+    // 2. Peer Setup
     function join(role) {
         const ch = document.getElementById('freq').value.trim().toUpperCase();
-        if(!ch) return;
+        if(!ch) return alert("CHANNEL ID REQUIRED");
 
-        // Cleanup old connections to prevent ID collisions
-        if(peer) peer.destroy();
+        if(peer) peer.destroy(); // Clear existing
         
-        const myId = `OMNI_${ch}_${role}`;
-        const targetId = `OMNI_${ch}_${role === 'A' ? 'B' : 'A'}`;
+        // UNIQUE IDs for A and B to prevent instant disconnects
+        const myId = `OMNI_VOICE_${ch}_${role}`;
+        const targetId = `OMNI_VOICE_${ch}_${role === 'A' ? 'B' : 'A'}`;
 
         peer = new Peer(myId, {
             config: { 'iceServers': [{ url: 'stun:stun.l.google.com:19302' }, { url: 'stun:stun1.l.google.com:19302' }] },
@@ -82,46 +85,49 @@
         });
 
         peer.on('open', () => {
-            status.innerText = `ID_ACTIVE: ${role}`;
+            status.innerText = `ACTIVE_CH: ${ch} (${role})`;
             nLocal.classList.add('active');
-            if(role === 'A') attemptCall(targetId);
+            if(role === 'A') {
+                status.innerText = "SEARCHING_FOR_PEER...";
+                setTimeout(() => dial(targetId), 2000); // Wait for signaling cloud to register
+            }
         });
 
         peer.on('call', (call) => {
-            status.innerText = "INCOMING_DATA...";
+            status.innerText = "INCOMING_TRANSMISSION...";
             call.answer(localStream);
-            setupAudio(call);
+            attachStream(call);
         });
 
         peer.on('error', (err) => {
-            status.innerText = "SIG_ERR: " + err.type;
-            nLocal.classList.remove('active');
-            // Auto-retry if peer not found yet
+            status.innerText = "ERROR: " + err.type;
             if(err.type === 'peer-unavailable' && role === 'A') {
-                setTimeout(() => attemptCall(targetId), 3000);
+                status.innerText = "REMOTE_OFFLINE... RETRYING";
+                setTimeout(() => dial(targetId), 3000); // Auto-retry
             }
         });
     }
 
-    function attemptCall(tid) {
-        status.innerText = "SYNCING_REMOTE...";
+    function dial(tid) {
+        if(!peer || peer.destroyed) return;
         const call = peer.call(tid, localStream);
-        setupAudio(call);
+        attachStream(call);
     }
 
-    function setupAudio(call) {
-        currentCall = call;
+    function attachStream(call) {
         call.on('stream', (stream) => {
             audioOut.srcObject = stream;
-            // Force Audio Context Resume
+            
+            // Critical Fix: Force the audio to play after a user tap
             const playPromise = audioOut.play();
             if (playPromise !== undefined) {
                 playPromise.catch(() => {
-                    status.innerText = "TAP_SCREEN_TO_UNMUTE";
+                    status.innerText = "TAP_SCREEN_TO_ACTIVATE_AUDIO";
                     window.onclick = () => { audioOut.play(); window.onclick = null; };
                 });
             }
-            status.innerText = "LINK_SECURED";
+
+            status.innerText = "SECURED_LINK_READY";
             nRemote.classList.add('active');
             nLine.classList.add('active');
             ptt.disabled = false;
@@ -129,24 +135,25 @@
         });
 
         call.on('close', () => {
-            status.innerText = "LINK_LOST_RETRYING...";
+            status.innerText = "LINK_LOST_RECONNECTING...";
             nRemote.classList.remove('active');
             nLine.classList.remove('active');
             ptt.disabled = true;
         });
     }
 
-    const toggle = (state) => {
+    // 3. PTT logic (Supports Desktop & Mobile)
+    const setMic = (state) => {
         if(localStream) {
             localStream.getAudioTracks()[0].enabled = state;
             ptt.innerText = state ? "TRANSMITTING" : "HOLD_TO_TALK";
         }
     };
 
-    ptt.onmousedown = () => toggle(true);
-    ptt.onmouseup = () => toggle(false);
-    ptt.ontouchstart = (e) => { e.preventDefault(); toggle(true); };
-    ptt.ontouchend = (e) => { e.preventDefault(); toggle(false); };
+    ptt.onmousedown = () => setMic(true);
+    ptt.onmouseup = () => setMic(false);
+    ptt.ontouchstart = (e) => { e.preventDefault(); setMic(true); };
+    ptt.ontouchend = (e) => { e.preventDefault(); setMic(false); };
 </script>
 </body>
 </html>
