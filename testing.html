@@ -3,39 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OMNI-VOICE V13</title>
+    <title>OMNI-VOICE V14</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root { --neon: #00ff41; --bg: #050505; }
-        body { background: var(--bg); color: var(--neon); font-family: 'Courier New', monospace; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-        .terminal { border: 2px solid var(--neon); padding: 25px; background: #000; width: 340px; box-shadow: 0 0 15px var(--neon); text-align: center; }
-        #ptt { width: 100%; padding: 40px; background: transparent; color: var(--neon); border: 2px solid var(--neon); font-size: 1.2rem; font-weight: bold; margin-top: 15px; display: none; cursor: pointer; user-select: none; }
+        body { background: var(--bg); color: var(--neon); font-family: 'Courier New', monospace; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; overflow: hidden; }
+        .terminal { border: 2px solid var(--neon); padding: 25px; background: #000; width: 340px; box-shadow: 0 0 20px rgba(0, 255, 65, 0.2); text-align: center; }
+        
+        input { background: #000; border: 1px solid var(--neon); color: var(--neon); padding: 12px; width: 100%; margin-bottom: 10px; text-align: center; outline: none; font-family: inherit; }
+        .btn { padding: 12px; background: var(--neon); color: #000; border: none; font-weight: bold; cursor: pointer; width: 48%; transition: 0.2s; }
+        .btn:active { opacity: 0.7; }
+        
+        #ptt { width: 100%; padding: 40px; background: transparent; color: var(--neon); border: 2px solid var(--neon); font-size: 1.2rem; font-weight: bold; margin-top: 15px; display: none; cursor: pointer; user-select: none; -webkit-user-select: none; }
         #ptt.active { background: var(--neon); color: #000; }
-        .meter { width: 100%; height: 10px; background: #111; margin-top: 10px; border: 1px solid var(--neon); position: relative; }
-        #fill { height: 100%; width: 0%; background: var(--neon); transition: width 0.1s; }
-        input { background: #000; border: 1px solid var(--neon); color: var(--neon); padding: 10px; width: 100%; margin-bottom: 10px; text-align: center; }
-        .btn { padding: 10px; background: var(--neon); color: #000; border: none; font-weight: bold; cursor: pointer; width: 48%; }
-        #status { font-size: 0.7rem; margin-top: 15px; min-height: 1.2em; }
+        
+        .meter { width: 100%; height: 8px; background: #111; margin-top: 15px; border: 1px solid #222; overflow: hidden; }
+        #fill { height: 100%; width: 0%; background: var(--neon); transition: width 0.1s linear; }
+        #status { font-size: 0.7rem; margin-top: 15px; letter-spacing: 1px; color: var(--neon); }
+        #unmute-shield { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 100; color: var(--neon); font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
+<div id="unmute-shield" onclick="forceUnmute()">TAP TO ENABLE AUDIO RECEIVE</div>
+
 <div class="terminal">
     <div id="setup-area">
-        <button class="btn" style="width:100%; margin-bottom:10px;" onclick="startMic()">1. ACTIVATE MICROPHONE</button>
+        <button class="btn" style="width:100%;" onclick="startMic()">INITIALIZE HARDWARE</button>
     </div>
 
     <div id="comms-area" style="display:none;">
         <input type="text" id="ch" placeholder="CHANNEL_ID">
         <div style="display:flex; justify-content: space-between;">
-            <button class="btn" onclick="initPeer('A')">MODE_A</button>
-            <button class="btn" onclick="initPeer('B')">MODE_B</button>
+            <button class="btn" onclick="initPeer('A')">NODE_A</button>
+            <button class="btn" onclick="initPeer('B')">NODE_B</button>
         </div>
         <div class="meter"><div id="fill"></div></div>
         <button id="ptt">HOLD TO TALK</button>
     </div>
     
-    <div id="status">OFFLINE</div>
+    <div id="status">SYSTEM_IDLE</div>
 </div>
 
 <audio id="v-out" autoplay playsinline></audio>
@@ -46,15 +53,15 @@
     const fill = document.getElementById('fill');
     const ptt = document.getElementById('ptt');
     const vOut = document.getElementById('v-out');
+    const shield = document.getElementById('unmute-shield');
 
-    // 1. PURE MIC START (Matches the test page you just used)
     async function startMic() {
         try {
-            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            stream.getAudioTracks()[0].enabled = false; // Mute initially
-            
-            // Visual Meter Logic
-            const ctx = new AudioContext();
+            stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+            stream.getAudioTracks()[0].enabled = false; 
+
+            // Visualizer Logic
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
             const src = ctx.createMediaStreamSource(stream);
             const ana = ctx.createAnalyser();
             src.connect(ana);
@@ -63,7 +70,8 @@
             const update = () => {
                 ana.getByteFrequencyData(data);
                 if(stream.getAudioTracks()[0].enabled) {
-                    fill.style.width = (data.reduce((a,b)=>a+b)/data.length * 2) + "%";
+                    let avg = data.reduce((a,b)=>a+b)/data.length;
+                    fill.style.width = Math.min(avg * 4, 100) + "%";
                 } else { fill.style.width = "0%"; }
                 requestAnimationFrame(update);
             };
@@ -71,45 +79,68 @@
 
             document.getElementById('setup-area').style.display = 'none';
             document.getElementById('comms-area').style.display = 'block';
-            status.innerText = "MIC_READY";
-        } catch(e) { status.innerText = "MIC_FAILED: " + e.name; }
+            status.innerText = "HARDWARE_READY";
+        } catch(e) { status.innerText = "MIC_ERR: " + e.name; }
     }
 
-    // 2. PEER LOGIC
     function initPeer(role) {
-        const id = document.getElementById('ch').value.toUpperCase();
-        if(!id) return;
+        const id = document.getElementById('ch').value.toUpperCase().trim();
+        if(!id) return alert("ENTER CHANNEL");
         
         if(peer) peer.destroy();
-        peer = new Peer(`OMNI_${id}_${role}`, { debug: 1 });
+        // Standard Google STUN servers to bypass NAT
+        peer = new Peer(`OMNI_V14_${id}_${role}`, {
+            config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] }
+        });
 
         peer.on('open', () => {
-            status.innerText = `ONLINE: ${role}`;
+            status.innerText = `NODE_${role} ONLINE`;
             if(role === 'A') {
-                status.innerText = "CONNECTING TO B...";
-                const c = peer.call(`OMNI_${id}_B`, stream);
-                handleStream(c);
+                status.innerText = "LINKING TO NODE_B...";
+                dial(`OMNI_V14_${id}_B`);
             }
         });
 
         peer.on('call', c => {
+            status.innerText = "HANDSHAKE...";
             c.answer(stream);
             handleStream(c);
         });
+
+        peer.on('error', e => {
+            status.innerText = "SIGNAL_ERR: " + e.type;
+        });
+    }
+
+    function dial(tid) {
+        if(!peer) return;
+        const c = peer.call(tid, stream);
+        handleStream(c);
     }
 
     function handleStream(c) {
         c.on('stream', s => {
             vOut.srcObject = s;
-            status.innerText = "LINKED";
-            ptt.style.display = 'block';
+            vOut.play().then(() => {
+                status.innerText = "LINK_SECURED";
+                ptt.style.display = 'block';
+            }).catch(() => {
+                shield.style.display = 'flex'; // Show manual unmute if autoplay fails
+            });
         });
     }
 
-    // 3. PTT LOGIC
+    function forceUnmute() {
+        vOut.play();
+        shield.style.display = 'none';
+        status.innerText = "LINK_SECURED";
+        ptt.style.display = 'block';
+    }
+
     const talk = (on) => { 
         if(stream) stream.getAudioTracks()[0].enabled = on; 
         ptt.classList.toggle('active', on);
+        ptt.innerText = on ? "TRANSMITTING..." : "HOLD TO TALK";
     };
 
     ptt.onmousedown = () => talk(true);
