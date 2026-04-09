@@ -2,147 +2,189 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OMNI-VOICE | Channel Mode</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>OMNI-VOICE PTT</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        body { background: #050505; color: #00ff41; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-        .console { border: 2px solid #00ff41; padding: 25px; background: #000; width: 340px; box-shadow: 0 0 20px rgba(0,255,65,0.2); border-radius: 4px; }
-        .status-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #111; padding-bottom: 10px; }
-        .led { width: 10px; height: 10px; border-radius: 50%; background: #222; }
-        .active { background: #00ff41; box-shadow: 0 0 10px #00ff41; }
-        #ptt-btn { 
-            width: 100%; padding: 30px; background: transparent; color: #00ff41; 
-            border: 2px solid #00ff41; cursor: pointer; font-size: 1.1rem; font-weight: bold;
-            margin-top: 15px; transition: 0.1s;
+        :root { --neon: #00ff41; --dim: #003b0f; --bg: #050505; }
+        * { box-sizing: border-box; touch-action: manipulation; }
+        body { 
+            background: var(--bg); color: var(--neon); 
+            font-family: 'Courier New', monospace; 
+            display: flex; flex-direction: column; align-items: center; 
+            justify-content: center; height: 100vh; margin: 0; overflow: hidden;
         }
-        #ptt-btn:active:not(:disabled) { background: #00ff41; color: #000; }
-        #ptt-btn:disabled { border-color: #222; color: #222; }
-        input { background: #000; border: 1px solid #00ff41; color: #00ff41; padding: 12px; width: 100%; box-sizing: border-box; margin-bottom: 10px; text-transform: uppercase; }
-        .label { font-size: 0.7rem; margin-bottom: 5px; opacity: 0.6; }
+
+        .terminal { 
+            border: 2px solid var(--neon); padding: 25px; background: #000; 
+            width: 340px; box-shadow: 0 0 20px rgba(0, 255, 65, 0.2); 
+            border-radius: 4px; position: relative;
+        }
+
+        .header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--dim); padding-bottom: 10px; }
+        .led { width: 10px; height: 10px; border-radius: 50%; background: #222; transition: 0.3s; }
+        .active { background: var(--neon); box-shadow: 0 0 10px var(--neon); }
+        .error { background: #ff003c; box-shadow: 0 0 10px #ff003c; }
+
+        input { 
+            background: #000; border: 1px solid var(--neon); color: var(--neon); 
+            padding: 12px; width: 100%; margin-bottom: 10px; text-transform: uppercase;
+            font-family: 'Courier New', monospace; outline: none;
+        }
+
+        #ptt-btn { 
+            width: 100%; padding: 40px 20px; background: transparent; color: var(--neon); 
+            border: 2px solid var(--neon); cursor: pointer; font-size: 1.3rem; font-weight: bold;
+            margin-top: 15px; transition: 0.1s; user-select: none; -webkit-user-select: none;
+        }
+        #ptt-btn:active { background: var(--neon); color: #000; }
+        #ptt-btn:disabled { border-color: #222; color: #222; cursor: not-allowed; }
+
+        .meter-box { width: 100%; height: 6px; background: #111; margin-top: 15px; border: 1px solid #222; overflow: hidden; }
+        #meter-bar { width: 0%; height: 100%; background: var(--neon); transition: width 0.05s; }
+        
+        .small-caps { font-size: 0.7rem; opacity: 0.6; margin-bottom: 5px; }
     </style>
 </head>
 <body>
 
-<div class="console">
-    <div class="status-bar">
-        <div id="led" class="led"></div>
-        <span id="log">SYSTEM_OFFLINE</span>
+<div class="terminal">
+    <div class="header">
+        <div id="status-led" class="led"></div>
+        <span id="log-text">BOOTING_SYSTEM...</span>
     </div>
 
-    <div class="label">FREQUENCY / CHANNEL:</div>
-    <input type="text" id="channel-input" placeholder="e.g. ALPHA_9">
+    <div class="small-caps">FREQUENCY / CHANNEL:</div>
+    <input type="text" id="ch-input" placeholder="ALPHA_1">
     
-    <button id="join-btn" onclick="joinChannel()" style="width: 100%; background: #00ff41; color: #000; border: none; padding: 10px; cursor: pointer; font-weight: bold;">SET FREQUENCY</button>
+    <div style="display: flex; gap: 5px;">
+        <button onclick="join('A')" style="flex:1; padding: 10px; background: var(--neon); color: black; border: none; font-weight: bold; cursor: pointer;">SET_A</button>
+        <button onclick="join('B')" style="flex:1; padding: 10px; background: var(--neon); color: black; border: none; font-weight: bold; cursor: pointer;">SET_B</button>
+    </div>
+
+    <button id="ptt-btn" disabled>LINK_REQUIRED</button>
     
-    <button id="ptt-btn" disabled>PTT_LOCKED</button>
-    
-    <div id="debug-info" style="font-size: 0.6rem; margin-top: 15px; color: #333; text-align: center;"></div>
+    <div class="meter-box"><div id="meter-bar"></div></div>
+    <div id="debug" style="font-size: 0.6rem; color: #333; margin-top: 10px; text-align: center;">V.2.0_STABLE</div>
 </div>
 
-<audio id="receiver" autoplay playsinline></audio>
+<audio id="audio-out" autoplay playsinline></audio>
 
 <script>
-    const log = document.getElementById('log');
-    const led = document.getElementById('led');
+    const log = document.getElementById('log-text');
+    const led = document.getElementById('status-led');
     const ptt = document.getElementById('ptt-btn');
-    const channelInp = document.getElementById('channel-input');
-    const debug = document.getElementById('debug-info');
+    const meter = document.getElementById('meter-bar');
+    const audioOut = document.getElementById('audio-out');
 
     let peer = null;
     let localStream = null;
-    const PREFIX = "OMNI_VOICE_CH_"; // Unique prefix to avoid ID collisions
+    let analyzer = null;
+    let dataArray = null;
 
-    // Initialize Mic on Start
-    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-        localStream = stream;
-        localStream.getAudioTracks()[0].enabled = false;
-        log.innerText = "MIC_READY";
-    }).catch(() => log.innerText = "MIC_ERROR");
+    // 1. Initialize Mic and Visual Meter
+    async function initMedia() {
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ 
+                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
+            });
+            localStream.getAudioTracks()[0].enabled = false; // Start Muted
+            
+            // Meter setup
+            const ctx = new AudioContext();
+            const source = ctx.createMediaStreamSource(localStream);
+            analyzer = ctx.createAnalyser();
+            source.connect(analyzer);
+            dataArray = new Uint8Array(analyzer.frequencyBinCount);
+            drawMeter();
+            
+            log.innerText = "MIC_STANDBY";
+        } catch (e) {
+            log.innerText = "HARDWARE_ERR";
+            led.classList.add('error');
+        }
+    }
 
-    function joinChannel() {
-        const channelName = channelInp.value.trim().toUpperCase();
-        if (!channelName) return alert("Enter Channel Name");
+    function drawMeter() {
+        if (analyzer) {
+            analyzer.getByteFrequencyData(dataArray);
+            let sum = dataArray.reduce((a, b) => a + b, 0);
+            let avg = sum / dataArray.length;
+            if (localStream && localStream.getAudioTracks()[0].enabled) {
+                meter.style.width = Math.min(avg * 5, 100) + "%";
+            } else {
+                meter.style.width = "0%";
+            }
+        }
+        requestAnimationFrame(drawMeter);
+    }
 
-        if (peer) peer.destroy(); // Clear existing connection
+    // 2. Peer/Channel Logic
+    function join(role) {
+        const ch = document.getElementById('ch-input').value.trim().toUpperCase();
+        if (!ch) return alert("Enter Channel");
 
-        // Create a predictable ID based on the channel name
-        // IMPORTANT: In 1-to-1, User A and User B need slightly different IDs or 
-        // they will collide. We use a prompt to decide role.
-        const role = confirm("Click OK for SENDER (A), CANCEL for RECEIVER (B)") ? "A" : "B";
-        const myId = `${PREFIX}${channelName}_${role}`;
-        const targetId = `${PREFIX}${channelName}_${role === "A" ? "B" : "A"}`;
+        if (peer) peer.destroy();
+        
+        const myId = `VOICE_CH_${ch}_${role}`;
+        const targetId = `VOICE_CH_${ch}_${role === 'A' ? 'B' : 'A'}`;
 
         peer = new Peer(myId, {
-            config: { 'iceServers': [{ url: 'stun:stun.l.google.com:19302' }] },
-            debug: 2
+            config: { 'iceServers': [{ url: 'stun:stun.l.google.com:19302' }, { url: 'stun:stun1.l.google.com:19302' }] },
+            debug: 1
         });
 
-        peer.on('open', (id) => {
-            log.innerText = `CH: ${channelName} (${role})`;
+        peer.on('open', () => {
+            log.innerText = `FREQ: ${ch}_${role}`;
             led.classList.add('active');
-            debug.innerText = `MY_ID: ${id}`;
-            
-            // If sender, automatically attempt to dial the other person
-            if (role === "A") {
+            if (role === 'A') {
                 log.innerText = "SCANNING_CH...";
-                const call = peer.call(targetId, localStream);
-                handleCall(call);
+                handleCall(peer.call(targetId, localStream));
             }
         });
 
         peer.on('call', (call) => {
-            log.innerText = "LINK_INCOMING...";
+            log.innerText = "LINK_REQUEST...";
             call.answer(localStream);
             handleCall(call);
         });
 
         peer.on('error', (err) => {
-            if(err.type === 'unavailable-id') alert("Channel busy or role taken.");
-            log.innerText = "SIGNAL_LOST";
-            led.classList.remove('active');
+            log.innerText = "SIG_ERR: " + err.type;
+            led.classList.add('error');
         });
     }
 
-  function handleCall(call) {
-    call.on('stream', (rStream) => {
-        const audio = document.getElementById('receiver');
-        audio.srcObject = rStream;
-        
-        // Force play logic
-        audio.play().catch(e => {
-            console.log("Autoplay blocked. Click the screen to hear audio.");
-            log.innerText = "CLICK_TO_HEAR_AUDIO";
+    function handleCall(call) {
+        if (!call) return;
+        call.on('stream', (stream) => {
+            audioOut.srcObject = stream;
+            // Bypass Autoplay Block
+            audioOut.play().catch(() => {
+                log.innerText = "TAP_TO_UNMUTE";
+                window.addEventListener('click', () => audioOut.play(), { once: true });
+            });
+            log.innerText = "LINK_SECURED";
+            ptt.disabled = false;
+            ptt.innerText = "HOLD_TO_TALK";
         });
-
-        log.innerText = "LINK_SECURED";
-        ptt.disabled = false;
-        ptt.innerText = "HOLD_TO_TALK";
-    });
-}
-
-    // PTT Controls
-// Works for both PC (Mouse) and Mobile (Touch)
-function startTalking() {
-    if(localStream) {
-        localStream.getAudioTracks()[0].enabled = true;
-        ptt.innerText = "TRANSMITTING";
     }
-}
 
-function stopTalking() {
-    if(localStream) {
-        localStream.getAudioTracks()[0].enabled = false;
-        ptt.innerText = "HOLD_TO_TALK";
-    }
-}
+    // 3. PTT Interaction (Touch + Mouse)
+    const toggle = (on) => {
+        if (localStream) {
+            localStream.getAudioTracks()[0].enabled = on;
+            ptt.innerText = on ? "TRANSMITTING" : "HOLD_TO_TALK";
+        }
+    };
 
-ptt.onmousedown = startTalking;
-ptt.ontouchstart = startTalking; // Mobile support
+    ptt.addEventListener('mousedown', () => toggle(true));
+    ptt.addEventListener('mouseup', () => toggle(false));
+    ptt.addEventListener('touchstart', (e) => { e.preventDefault(); toggle(true); });
+    ptt.addEventListener('touchend', (e) => { e.preventDefault(); toggle(false); });
 
-ptt.onmouseup = stopTalking;
-ptt.ontouchend = stopTalking;   // Mobile support
-    
+    // Startup
+    initMedia();
 </script>
 </body>
 </html>
