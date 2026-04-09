@@ -3,35 +3,34 @@
 <head>
     <!--
         ====================================================================
-        MY_STUFF_AIO v2.0 + TAC/COM-04 — SECURITY HARDENED
+        TAC/COM-04 | SECURE NET — SECURITY HARDENED
         ====================================================================
         PROTECTION LAYERS:
         1. CSP — blocks XSS, clickjacking, plugin embed, base-uri/form-action hijack
         2. Referrer Policy — strict-origin-when-cross-origin
-        3. Permissions-Policy — blocks camera/mic/geo/payment EXCEPT microphone
-           (required for walkie-talkie) via microphone=self
-        4. Input sanitization — whitelist-only on all user inputs
-        5. DOM writes — textContent only (never innerHTML with user data)
+        3. Permissions-Policy — blocks camera/geo/payment, allows microphone=(self)
+           (microphone=self is REQUIRED for walkie-talkie; still blocks third-party iframes)
+        4. Input sanitization — channel input validated as integer, range-clamped 1-99
+        5. DOM writes — innerText used exclusively (XSS-safe)
         6. Frame-busting JS — fallback for browsers ignoring CSP frame-ancestors
-        7. crossorigin="anonymous" on external scripts
-        8. Inline SVG favicon — zero network request
+        7. crossorigin="anonymous" on PeerJS script — no credential leak
+        8. Inline SVG favicon — zero network request, no mixed-content risk
         9. PeerJS APP_PREFIX — isolates channels from public PeerJS traffic
-        10. Microphone access only AFTER explicit user action (channel init)
+        10. Microphone access only AFTER explicit user action (button click)
 
         TRADEOFFS (GitHub Pages single-file):
-        - script-src 'unsafe-inline' required for inline scripts
-        - CSP frame-ancestors via meta limited in Firefox; JS frame-bust is fallback
+        - script-src 'unsafe-inline' required for inline <script>
+        - CSP frame-ancestors via meta has limited Firefox support; JS frame-bust is fallback
         - PeerJS library loaded via CDN (no SRI — frequently changing payload)
-        - AdSense/GTM have full DOM access (inherent to using those services)
         ====================================================================
     -->
     <meta http-equiv="Content-Security-Policy"
           content="default-src 'self';
-                   script-src 'self' 'unsafe-inline' https://unpkg.com https://pagead2.googlesyndication.com https://www.googletagmanager.com;
+                   script-src 'self' 'unsafe-inline' https://unpkg.com;
                    style-src 'self' 'unsafe-inline';
                    img-src 'self' https: data:;
                    font-src 'self' data:;
-                   connect-src 'self' https://unpkg.com https://0.peerjs.com wss://0.peerjs.com https://www.google-analytics.com https://www.googletagmanager.com https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net https://stats.g.doubleclick.net;
+                   connect-src 'self' https://unpkg.com https://0.peerjs.com wss://0.peerjs.com;
                    media-src 'self' blob:;
                    object-src 'none';
                    frame-ancestors 'none';
@@ -40,1211 +39,676 @@
                    upgrade-insecure-requests;">
 
     <meta name="referrer" content="strict-origin-when-cross-origin">
-    <!-- Microphone=self is required for the walkie-talkie feature -->
+
     <meta name="permissions-policy" content="camera=(), microphone=(self), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()">
 
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#050505">
+    <meta name="description" content="TAC/COM-04 Secure Walkie-Talkie Net">
+    <title>TAC/COM-04 | SECURE NET</title>
+
+    <!-- DNS preconnect to PeerJS signaling server -->
     <link rel="preconnect" href="https://unpkg.com" crossorigin>
-    <link rel="preconnect" href="https://pagead2.googlesyndication.com" crossorigin>
-    <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin>
-    <link rel="preconnect" href="https://www.google-analytics.com" crossorigin>
 
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4592970036066688"
-            crossorigin="anonymous"></script>
-    <script async src="https://www.googletagmanager.com/gtag/js?id=GT-NC6T5LRJ"
-            crossorigin="anonymous"></script>
-    <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){ dataLayer.push(arguments); }
-        gtag('js', new Date());
-        gtag('config', 'GT-NC6T5LRJ');
-    </script>
-
-    <!-- PeerJS v1.5.2 pinned for stability -->
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js" crossorigin="anonymous"></script>
-
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23001020'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='18' fill='%2300eaff' font-family='monospace'%3EM%3C/text%3E%3C/svg%3E"
+    <!-- Inline SVG favicon: zero network request, no mixed-content risk -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23050505'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='16' fill='%23ffb000' font-family='monospace'%3ETC%3C/text%3E%3C/svg%3E"
           type="image/svg+xml" sizes="32x32" />
 
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#000010" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="description" content="MY_STUFF_AIO — All-in-one secure dashboard with TAC/COM walkie-talkie" />
-    <title>MY_STUFF_AIO</title>
-
+    <!-- Use a specific version of PeerJS to ensure stability -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js" crossorigin="anonymous"></script>
     <style>
-        /* ==================== RESET & BASE ==================== */
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body {
-            height: 100%; overflow-x: hidden;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            -webkit-text-size-adjust: 100%;
-            -webkit-tap-highlight-color: transparent;
-            background: #000010; color: #e0f7ff;
+        :root {
+            --amber: #ffb000;
+            --amber-dim: #8c6600;
+            --bg: #0d0900;
+            --red: #ff3333;
+            --red-dim: #8c1818;
+            --blue: #00d4ff;
+            --green: #39ff14;
+            --panel-bg: #1a1a1a;
         }
-        :focus-visible { outline: 2px solid #00eaff; outline-offset: 2px; }
-        @media (prefers-reduced-motion: reduce) {
-            *, *::before, *::after {
-                animation-duration: 0.01ms !important;
-                animation-iteration-count: 1 !important;
-                transition-duration: 0.01ms !important;
+
+        body {
+            background: #050505;
+            color: var(--amber);
+            font-family: 'Courier New', monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            touch-action: manipulation; /* Improves touch response */
+            overflow: hidden;
+        }
+
+        /* CRT Scanline Effect */
+        .scanlines {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        .mainframe {
+            width: 95%;
+            max-width: 900px;
+            background: #222;
+            border: 4px solid #333;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 40px #000;
+            box-sizing: border-box;
+            position: relative;
+            z-index: 10;
+        }
+
+        @media (min-width: 768px) {
+            .mainframe {
+                display: grid;
+                grid-template-columns: 1fr 300px;
+                gap: 15px;
+                height: 650px;
             }
         }
 
-        /* ==================== MATRIX CANVAS ==================== */
-        #matrix {
-            position: fixed; top: 0; left: 0;
-            width: 100%; height: 100%; z-index: 0;
-            background: #000010; display: block;
+        .monitor {
+            background: var(--bg);
+            border: 2px solid #333;
+            padding: 15px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: inset 0 0 20px #000;
         }
 
-        /* ==================== PAGE CONTENT ==================== */
-        .page-content {
-            position: relative; z-index: 1;
-            min-height: 100vh; padding-bottom: 70px;
-            display: flex; flex-direction: column; align-items: center;
-        }
-        .page-title {
-            text-align: center; color: #00eaff;
-            font-size: clamp(1.3rem, 5vw, 3em);
-            text-transform: uppercase; letter-spacing: 4px;
-            margin-top: 24px; margin-bottom: 16px; user-select: none;
-            text-shadow: 0 0 5px #f9fbfb, 0 0 15px #f4f5f6;
-            padding: 0 16px; line-height: 1.3;
-        }
-        .page-title .version {
-            font-size: 0.5em; color: #00e5ff;
-            letter-spacing: 1px; margin-left: 8px; font-weight: 400;
+        /* Header / Status Bar */
+        .status-bar {
+            font-size: 0.7rem;
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
-        /* ==================== BACKDROP ==================== */
-        .backdrop-overlay {
-            display: none; position: fixed; inset: 0; z-index: 40;
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
-            opacity: 0; transition: opacity 0.3s ease;
-        }
-        .backdrop-overlay.visible { display: block; opacity: 1; }
-
-        /* ==================== DESKTOP LEVERS ==================== */
-        .lever-container {
-            width: 70px; height: 160px;
-            background: rgba(10, 10, 25, 0.9);
-            border: 2px solid #333; border-radius: 12px;
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: space-around;
-            box-shadow: 0 0 20px rgba(0,0,0,0.8), inset 0 0 10px #000;
-            z-index: 30; cursor: pointer;
-            transition: border-color 0.4s, box-shadow 0.4s;
-            touch-action: manipulation;
-        }
-        .lever-label {
-            font-size: 0.65em; color: #555;
-            font-family: monospace; text-transform: uppercase;
-            letter-spacing: 2px; pointer-events: none;
-        }
-        .lever-track {
-            width: 16px; height: 90px; background: #050505;
-            border-radius: 8px; position: relative; border: 1px solid #222;
-        }
-        .lever-handle {
-            width: 34px; height: 44px;
-            background: linear-gradient(145deg, #555, #111);
-            border: 1px solid #777; border-radius: 6px;
-            position: absolute; left: -10px; top: 0;
-            transition: top 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.3s, box-shadow 0.3s;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.6);
-        }
-        #lever-matrix { position: fixed; top: 50%; right: 40px; transform: translateY(-50%); }
-        #lever-matrix.active { border-color: #00bfff; box-shadow: 0 0 25px rgba(0,191,255,0.4); }
-        #lever-matrix.active .lever-handle {
-            top: 46px; background: linear-gradient(145deg, #00bfff, #005f7f);
-            box-shadow: 0 0 15px #00bfff; border-color: #e0f7ff;
-        }
-        #lever-security { position: fixed; top: 50%; right: 130px; transform: translateY(-50%); }
-        #lever-security.active { border-color: #ff0055; box-shadow: 0 0 25px rgba(255,0,85,0.4); }
-        #lever-security.active .lever-handle {
-            top: 46px; background: linear-gradient(145deg, #ff0055, #80002a);
-            box-shadow: 0 0 15px #ff0055; border-color: #ffe0e7;
+        #output {
+            height: 100%;
+            overflow-y: auto;
+            font-size: 0.85rem;
+            scrollbar-width: thin;
+            scrollbar-color: var(--amber-dim) #000;
+            margin-bottom: 10px;
+            word-break: break-all;
         }
 
-        /* ==================== DESKTOP CATEGORIES PANEL ==================== */
-        .top-left-container { position: fixed; top: 30px; left: 30px; z-index: 20; }
-        .categories-panel {
-            width: 180px; height: 100px;
-            background: rgba(0, 0, 0, 0.0);
-            border-radius: 12px; padding: 20px;
-            box-shadow: 0 0 25px rgba(0,191,255,0.5);
-            overflow: hidden; color: white; font-family: monospace;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); position: relative;
-        }
-        .categories-panel.expanded {
-            width: 220px; height: 420px;
-            box-shadow: 0 0 35px rgba(0,191,255,0.8);
-            background: rgba(5, 5, 20, 0.95);
-        }
-        .dropdown-content { display: none; }
-        .dropdown-content.show { display: block !important; }
-        .filter-container {
-            height: 240px; overflow-y: auto; overscroll-behavior: contain;
-            scrollbar-width: thin; scrollbar-color: #00bfff rgba(0,0,0,0.3);
-            border: 1px solid rgba(0,191,255,0.3); border-radius: 6px;
-            margin-top: 10px; background: rgba(0,0,0,0.6);
-        }
-        .filter-container::-webkit-scrollbar { width: 8px; }
-        .filter-container::-webkit-scrollbar-track { background: rgba(0,0,0,0.5); border-radius: 4px; }
-        .filter-container::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #00bfff, #0080ff); border-radius: 4px; }
-        .categories-panel h3 { color: #00bfff; font-weight: 600; font-size: 1.2em; margin: 0 0 10px 0; }
-        .dropbtn {
-            background: rgba(0,191,255,0.3); color: #fff; padding: 12px;
-            font-size: 0.9em; border: 1px solid rgba(0,191,255,0.5); border-radius: 6px;
-            cursor: pointer; font-family: monospace; font-weight: bold;
-            width: 100%; text-align: left; touch-action: manipulation;
-        }
-        .dropbtn:hover { background: rgba(0,191,255,0.5); }
-        #categoryFilter {
-            width: 100%; padding: 10px 12px; border: none;
-            border-bottom: 1px solid rgba(0,191,255,0.5);
-            background: rgba(0,0,0,0.8); color: #e0f7ff;
-            font-family: monospace; font-size: 0.9em;
-        }
-        #categoryFilter::placeholder { color: #556; }
-        .dropdown-content a, .dropdown-content span.link-placeholder {
-            color: #e0f7ff; padding: 12px 14px; text-decoration: none; display: block;
-            font-size: 0.9em; border-bottom: 1px solid rgba(0,191,255,0.2);
-            transition: background 0.2s, padding-left 0.2s;
-        }
-        .dropdown-content a:hover { background: rgba(0,191,255,0.4); color: #fff; padding-left: 18px; }
-        .main-category .main-link {
-            color: #00e5ff; font-weight: bold; padding: 10px 12px; display: block;
-            border-bottom: 1px solid rgba(0,191,255,0.2); cursor: pointer; text-decoration: none;
-        }
-        .main-category .submenu a { color: #bbbbff; padding: 8px 20px; display: block; font-size: 0.85em; }
-        .link-placeholder { color: #556 !important; font-style: italic; cursor: default !important; }
-        .link-placeholder:hover { background: transparent !important; padding-left: 14px !important; }
+        #output::-webkit-scrollbar { width: 6px; }
+        #output::-webkit-scrollbar-thumb { background: var(--amber-dim); }
 
-        /* ==================== DESKTOP CYBER DECK ==================== */
-        .bottom-right-panel {
-            position: fixed; bottom: 40px; right: 230px;
-            width: 220px; height: 40px;
-            background: rgba(0,0,0,0.7); border-radius: 12px;
-            padding: 15px 20px;
-            box-shadow: 0 0 25px rgba(255,165,0,0.5);
-            border: 1px solid rgba(0,240,255,0.2);
-            color: white; font-family: monospace; z-index: 15;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden;
-        }
-        .bottom-right-panel.expanded { height: 520px; }
-        .bottom-right-panel h5 { color: #00f0ff; font-weight: 600; font-size: 1.1em; margin: 0 0 15px 0; }
-        .network-pulse {
-            width: 8px; height: 8px; border-radius: 50%;
-            background-color: #00f0ff; box-shadow: 0 0 8px #00f0ff;
-            transition: background-color 0.3s, box-shadow 0.3s; flex-shrink: 0;
-        }
-        #terminalLog { display: flex; flex-direction: column-reverse; overflow-y: hidden; }
-        .power-switch {
-            font-size: 0.8em; padding: 4px 8px; background: #ff4444; color: #fff;
-            border-radius: 4px; cursor: pointer; font-weight: bold;
-            border: 1px solid rgba(255,255,255,0.2); transition: all 0.3s ease;
-            font-family: monospace; white-space: nowrap; touch-action: manipulation;
-        }
-        .power-switch.on { background: #00ff88; box-shadow: 0 0 10px #00ff88; color: #000; }
-        .hud-element { transition: opacity 0.3s; }
-        .hud-hidden { opacity: 0; pointer-events: none; }
-
-        /* ==================== MOBILE TOOLBAR ==================== */
-        .mobile-toolbar {
-            display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
-            background: rgba(5, 5, 20, 0.95);
-            border-top: 1px solid rgba(0,191,255,0.3);
-            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-            padding: 6px 4px; padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
-        }
-        .mobile-toolbar-inner {
-            display: flex; justify-content: space-around; align-items: center;
-            max-width: 500px; margin: 0 auto;
-        }
-        .toolbar-btn {
-            display: flex; flex-direction: column; align-items: center; gap: 1px;
-            background: none; border: none; color: #8899aa; font-size: 9px;
-            font-family: monospace; cursor: pointer; padding: 5px 6px;
-            border-radius: 8px; transition: color 0.2s, background 0.2s;
-            min-width: 52px; min-height: 48px; justify-content: center;
-            -webkit-tap-highlight-color: transparent; touch-action: manipulation;
-        }
-        .toolbar-btn:active { background: rgba(0,191,255,0.15); }
-        .toolbar-btn .tb-icon { font-size: 18px; line-height: 1; }
-        .toolbar-btn.active { color: #00eaff; }
-        .toolbar-btn.active .tb-icon { filter: drop-shadow(0 0 4px #00eaff); }
-
-        /* ==================== MOBILE SHEETS ==================== */
-        .mobile-sheet {
-            display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 45;
-            background: rgba(5, 5, 20, 0.98);
-            border-top: 1px solid rgba(0,191,255,0.4);
-            border-radius: 16px 16px 0 0;
-            transform: translateY(100%);
-            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-            max-height: 85vh; overflow: hidden; flex-direction: column;
-        }
-        .mobile-sheet.open { display: flex; transform: translateY(0); }
-        .mobile-sheet.animating { display: flex; }
-        .sheet-handle {
-            display: flex; justify-content: center;
-            padding: 10px 16px 6px; cursor: grab; flex-shrink: 0;
-        }
-        .sheet-handle::after {
-            content: ''; width: 40px; height: 4px; border-radius: 2px;
-            background: rgba(0,191,255,0.4);
-        }
-        .sheet-header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 4px 16px 10px;
-            border-bottom: 1px solid rgba(0,191,255,0.2); flex-shrink: 0;
-        }
-        .sheet-header h3 { color: #00bfff; font-family: monospace; font-size: 1em; font-weight: 600; margin: 0; }
-        .sheet-close {
-            background: rgba(255,0,85,0.2); border: 1px solid rgba(255,0,85,0.4);
-            color: #ff5588; width: 36px; height: 36px; border-radius: 50%;
-            font-size: 18px; cursor: pointer; display: flex; align-items: center;
-            justify-content: center; transition: background 0.2s;
-            -webkit-tap-highlight-color: transparent; touch-action: manipulation;
-            min-width: 36px; min-height: 36px;
-        }
-        .sheet-close:active { background: rgba(255,0,85,0.4); }
-        .sheet-body {
-            flex: 1; overflow-y: auto; overscroll-behavior: contain;
-            -webkit-overflow-scrolling: touch; padding: 12px 16px 32px;
-            scrollbar-width: thin; scrollbar-color: #00bfff rgba(0,0,0,0.3);
-        }
-        .sheet-body::-webkit-scrollbar { width: 6px; }
-        .sheet-body::-webkit-scrollbar-track { background: transparent; }
-        .sheet-body::-webkit-scrollbar-thumb { background: rgba(0,191,255,0.4); border-radius: 3px; }
-        .mobile-sheet #mobileCategoryFilter {
-            width: 100%; padding: 12px 14px; font-size: 0.95em;
-            border-radius: 8px; border: 1px solid rgba(0,191,255,0.3);
-            margin-bottom: 8px; background: rgba(0,0,0,0.8); color: #e0f7ff; font-family: monospace;
-        }
-        .mobile-sheet #mobileCategoryFilter::placeholder { color: #556; }
-        .mobile-sheet .main-category .main-link { padding: 12px 16px; font-size: 0.95em; border-radius: 6px; }
-        .mobile-sheet .main-category .submenu a { padding: 11px 24px; font-size: 0.9em; }
-        .mobile-sheet .dropdown-content a, .mobile-sheet .dropdown-content span.link-placeholder {
-            padding: 14px 16px; font-size: 0.95em; border-radius: 6px; margin-bottom: 2px;
+        .module {
+            background: var(--panel-bg);
+            padding: 15px;
+            border: 1px solid #444;
+            margin-bottom: 15px;
+            position: relative;
         }
 
-        /* Deck controls */
-        .deck-controls-row {
-            display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px;
+        .module::before {
+            content: '';
+            position: absolute;
+            top: 2px; left: 2px; right: 2px; height: 1px;
+            background: #444;
         }
-        .deck-controls-row .power-switch { font-size: 0.75em; padding: 5px 10px; }
-        .deck-ctrl-btn {
-            font-size: 0.75em; padding: 5px 10px;
-            background: rgba(0,191,255,0.15); color: #00f0ff;
-            border: 1px solid rgba(0,191,255,0.3); border-radius: 4px;
-            cursor: pointer; font-family: monospace; font-weight: bold;
-            -webkit-tap-highlight-color: transparent; white-space: nowrap;
-            touch-action: manipulation; min-height: 32px; display: inline-flex; align-items: center;
-        }
-        .deck-ctrl-btn:active { background: rgba(0,191,255,0.3); }
-        .deck-ctrl-btn.on { background: rgba(0,255,136,0.2); color: #00ff88; border-color: rgba(0,255,136,0.4); }
 
-        /* ==================== TAC/COM STYLES (Shared) ==================== */
-        .tac-com-root {
-            --amber: #ffb000; --amber-dim: #8c6600; --tac-bg: #0d0900;
-            --tac-red: #ff3333; --tac-red-dim: #8c1818; --tac-blue: #00d4ff;
-            --tac-green: #39ff14; --tac-panel: #1a1a1a;
+        /* Controls */
+        .btn-ptt {
+            width: 100%;
+            height: 120px;
+            background: repeating-linear-gradient(
+                45deg,
+                var(--red-dim),
+                var(--red-dim) 10px,
+                #601010 10px,
+                #601010 20px
+            );
+            color: white;
+            border: 4px solid #442222;
+            font-weight: bold;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: 0.1s;
+            text-shadow: 0 2px 0 #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        .btn-ptt:active:not(:disabled) {
+            background: var(--red);
+            transform: scale(0.98);
+            box-shadow: 0 0 15px var(--red);
+            border-color: #fff;
+        }
+
+        .btn-ptt:disabled {
+            background: #222;
+            color: #555;
+            border-color: #333;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-action {
+            width: 100%;
+            padding: 12px;
+            background: #222;
+            color: var(--amber);
+            border: 1px solid var(--amber-dim);
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            transition: 0.2s;
+        }
+
+        .btn-action:hover:not(:disabled) {
+            background: var(--amber-dim);
+            color: #000;
+        }
+
+        .btn-action:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        input {
+            width: 100%;
+            background: #000;
+            border: 2px solid #444;
+            color: var(--blue);
+            padding: 12px;
+            box-sizing: border-box;
+            outline: none;
+            text-align: center;
+            font-size: 1.5rem;
             font-family: 'Courier New', monospace;
-        }
-        .tac-com-root .tac-status-bar {
-            font-size: 0.7rem; display: flex; justify-content: space-between;
-            border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 10px;
-            text-transform: uppercase; letter-spacing: 1px; color: var(--amber);
-        }
-        .tac-com-root #tacOutput {
-            height: 150px; overflow-y: auto; font-size: 0.8rem;
-            scrollbar-width: thin; scrollbar-color: var(--amber-dim) #000;
-            margin-bottom: 10px; word-break: break-all;
-            background: rgba(0,0,0,0.4); padding: 8px; border-radius: 4px;
-            border: 1px solid #333;
-        }
-        .tac-com-root #tacOutput::-webkit-scrollbar { width: 6px; }
-        .tac-com-root #tacOutput::-webkit-scrollbar-thumb { background: var(--amber-dim); }
-        .tac-com-root .tac-module {
-            background: var(--tac-panel); padding: 12px;
-            border: 1px solid #444; margin-bottom: 12px; position: relative;
-        }
-        .tac-com-root .tac-module::before {
-            content: ''; position: absolute;
-            top: 2px; left: 2px; right: 2px; height: 1px; background: #444;
-        }
-        .tac-com-root .btn-ptt {
-            width: 100%; height: 100px;
-            background: repeating-linear-gradient(45deg, var(--tac-red-dim), var(--tac-red-dim) 10px, #601010 10px, #601010 20px);
-            color: white; border: 4px solid #442222;
-            font-weight: bold; font-size: 1.3rem; cursor: pointer;
-            transition: 0.1s; text-shadow: 0 2px 0 #000;
-            display: flex; align-items: center; justify-content: center;
-            flex-direction: column; border-radius: 4px;
-            touch-action: manipulation; user-select: none; -webkit-user-select: none;
-        }
-        .tac-com-root .btn-ptt:active:not(:disabled) {
-            background: var(--tac-red); transform: scale(0.98);
-            box-shadow: 0 0 15px var(--tac-red); border-color: #fff;
-        }
-        .tac-com-root .btn-ptt:disabled {
-            background: #222; color: #555; border-color: #333;
-            cursor: not-allowed; transform: none; box-shadow: none;
-        }
-        .tac-com-root .btn-tac-action {
-            width: 100%; padding: 10px; background: #222; color: var(--amber);
-            border: 1px solid var(--amber-dim); cursor: pointer;
-            font-weight: bold; font-size: 0.8rem; text-transform: uppercase;
-            transition: 0.2s; border-radius: 3px; touch-action: manipulation;
-            font-family: 'Courier New', monospace;
-        }
-        .tac-com-root .btn-tac-action:hover:not(:disabled) { background: var(--amber-dim); color: #000; }
-        .tac-com-root .btn-tac-action:disabled { opacity: 0.5; cursor: not-allowed; }
-        .tac-com-root .tac-chan-input {
-            width: 100%; background: #000; border: 2px solid #444; color: var(--tac-blue);
-            padding: 10px; box-sizing: border-box; outline: none; text-align: center;
-            font-size: 1.4rem; font-family: 'Courier New', monospace;
-            font-weight: bold; letter-spacing: 3px; border-radius: 3px;
-        }
-        .tac-com-root .tac-chan-input:focus { border-color: var(--tac-blue); }
-        .tac-com-root .led-group {
-            display: flex; justify-content: space-around; margin-top: 12px;
-        }
-        .tac-com-root .indicator {
-            display: flex; flex-direction: column; align-items: center;
-            font-size: 0.6rem; color: #777;
-        }
-        .tac-com-root .status-led {
-            width: 14px; height: 14px; border-radius: 50%;
-            background: #300; border: 1px solid #500;
-            margin-bottom: 5px; transition: 0.3s;
-        }
-        .tac-com-root .online { background: var(--tac-blue); box-shadow: 0 0 8px var(--tac-blue); border-color: #fff; }
-        .tac-com-root .tx { background: var(--tac-red); box-shadow: 0 0 15px var(--tac-red); border-color: #fff; }
-        .tac-com-root #tacMeterContainer {
-            width: 100%; height: 8px; background: #000;
-            border: 1px solid #444; margin-top: 8px; border-radius: 2px; overflow: hidden;
-        }
-        .tac-com-root #tacMeterFill {
-            width: 0%; height: 100%; background: var(--tac-green);
-            transition: width 0.05s linear; box-shadow: 0 0 5px var(--tac-green);
+            font-weight: bold;
+            letter-spacing: 3px;
         }
 
-        /* Desktop TAC/COM panel */
-        .desktop-tac-panel {
-            display: none; position: fixed; top: 30px; right: 230px;
-            width: 320px; max-height: calc(100vh - 80px);
-            background: rgba(13, 9, 0, 0.95); border: 2px solid #333;
-            border-radius: 8px; z-index: 25; overflow-y: auto;
-            box-shadow: 0 0 30px rgba(255, 176, 0, 0.2);
-            scrollbar-width: thin; scrollbar-color: #8c6600 #000;
-        }
-        .desktop-tac-panel::-webkit-scrollbar { width: 6px; }
-        .desktop-tac-panel::-webkit-scrollbar-thumb { background: #8c6600; }
-        .desktop-tac-panel .tac-panel-inner { padding: 15px; }
-        .desktop-tac-panel #tacOutput { height: 200px; }
-
-        /* Mobile TAC/COM sheet overrides */
-        .mobile-sheet.tac-sheet #tacOutput { height: 120px; }
-        .mobile-sheet.tac-sheet .btn-ptt { height: 90px; }
-
-        /* ==================== FOOTER ==================== */
-        .site-footer {
-            background-color: rgba(0,0,0,0.5); color: #e0f7ff;
-            font-size: 0.75rem; text-align: center; padding: 4px 8px;
-            position: fixed; bottom: 0; left: 0; width: 100%;
-            user-select: none; border-top: 1px solid rgba(0,191,255,0.2); z-index: 10;
-        }
-        .site-footer small { display: inline-block; letter-spacing: 1px; color: #00e5ff; }
-
-        .noscript-msg {
-            position: fixed; inset: 0; z-index: 99999;
-            background: #000; color: #00eaff;
-            display: flex; align-items: center; justify-content: center;
-            font-family: monospace; font-size: 1.2rem; text-align: center; padding: 2rem;
+        input:focus {
+            border-color: var(--blue);
         }
 
-        /* ==================== RESPONSIVE ==================== */
-        @media (min-width: 1100px) {
-            .desktop-tac-panel { display: block; }
+        /* Indicators */
+        .led-group {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15px;
         }
-        @media (max-width: 900px) {
-            .lever-container { display: none !important; }
-            .top-left-container { display: none !important; }
-            .bottom-right-panel { display: none !important; }
-            .desktop-tac-panel { display: none !important; }
-            .mobile-toolbar { display: block; }
-            .site-footer { bottom: 54px; z-index: 9; }
-            .page-content { padding-bottom: 120px; }
+
+        .indicator {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 0.6rem;
+            color: #777;
         }
-        @media (max-width: 400px) {
-            .page-title { letter-spacing: 2px; }
-            .page-title .version { display: block; margin-left: 0; margin-top: 4px; }
-            .toolbar-btn { padding: 4px 4px; min-width: 44px; font-size: 8px; }
-            .toolbar-btn .tb-icon { font-size: 16px; }
-            .mobile-sheet { max-height: 88vh; }
+
+        .status-led {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #300;
+            border: 1px solid #500;
+            margin-bottom: 5px;
+            transition: 0.3s;
         }
-        @media (max-height: 500px) and (orientation: landscape) {
-            .mobile-sheet { max-height: 70vh; }
-            .page-title { margin-top: 8px; margin-bottom: 8px; font-size: clamp(1rem, 4vw, 1.6rem); }
-            .page-content { padding-bottom: 100px; }
+
+        .online { background: var(--blue); box-shadow: 0 0 8px var(--blue); border-color: #fff; }
+        .tx { background: var(--red); box-shadow: 0 0 15px var(--red); border-color: #fff; }
+        
+        /* Audio Meter */
+        #meter-container {
+            width: 100%;
+            height: 8px;
+            background: #000;
+            border: 1px solid #444;
+            margin-top: 10px;
+        }
+        #meter-fill {
+            width: 0%;
+            height: 100%;
+            background: var(--green);
+            transition: width 0.05s linear;
+            box-shadow: 0 0 5px var(--green);
         }
     </style>
 </head>
 <body>
 
+    <!-- Graceful degradation when JS is disabled -->
     <noscript>
-        <div class="noscript-msg" role="alert">
-            JavaScript is required to use MY_STUFF_AIO.<br>
-            Please enable JavaScript in your browser settings and reload.
+        <div style="position:fixed;inset:0;z-index:99999;background:#000;color:#ffb000;display:flex;align-items:center;justify-content:center;font-family:monospace;font-size:1.2rem;text-align:center;padding:2rem;">
+            JavaScript is required for TAC/COM-04.<br>
+            Please enable JavaScript and reload.
         </div>
     </noscript>
 
-    <canvas id="matrix" aria-hidden="true"></canvas>
-    <div class="backdrop-overlay" id="backdropOverlay" aria-hidden="true"></div>
+    <!--
+        FRAME-BUSTING — prevents clickjacking via iframes.
+        CSP frame-ancestors 'none' via <meta> has limited browser support
+        (notably Firefox ignores it). This JS fallback breaks out of
+        unauthorized iframes as a defense-in-depth measure.
+    -->
+    <script>
+        if (window.top !== window.self) {
+            try { window.top.location = window.self.location; }
+            catch (e) { /* cross-origin iframe: cannot access parent, but CSP still blocks rendering */ }
+        }
+    </script>
+
+<div class="scanlines"></div>
+
+<div class="mainframe">
+    <!-- Hidden Audio Element for Remote Stream -->
     <audio id="remoteAudio" autoplay playsinline style="display:none;"></audio>
 
-    <div class="page-content">
-        <h1 class="page-title">
-            MY_STUFF_AIO
-            <span class="version">v2.0 [SECURE]</span>
-        </h1>
+    <!-- Left Panel: Monitor -->
+    <div class="monitor">
+        <div class="status-bar">
+            <span>FREQ: <span id="curFreq" style="color:var(--blue)">--.--</span> MHz</span>
+            <span id="netStat">NET: DISCONNECTED</span>
+        </div>
+        
+        <div id="output"><div>> SYSTEM STANDBY...<div style="color:#555; font-size:0.7em; margin-top:5px;">WAITING FOR FREQUENCY ALLOCATION</div></div></div>
+        
+        <div style="margin-top:auto;">
+             <div style="display:flex; justify-content:space-between; font-size:0.6rem; margin-bottom:2px;">
+                <span>RX LEVEL</span>
+                <span id="dbVal">-inf dB</span>
+            </div>
+            <div id="meter-container"><div id="meter-fill"></div></div>
+        </div>
     </div>
 
-    <!-- Desktop levers -->
-    <div id="lever-security" class="lever-container" role="button" tabindex="0" aria-label="Toggle HUD" aria-pressed="true">
-        <span class="lever-label">HUD</span>
-        <div class="lever-track"><div class="lever-handle"></div></div>
-        <span class="lever-label">SEC</span>
-    </div>
-    <div id="lever-matrix" class="lever-container" role="button" tabindex="0" aria-label="Toggle matrix" aria-pressed="false">
-        <span class="lever-label">OFF</span>
-        <div class="lever-track"><div class="lever-handle"></div></div>
-        <span class="lever-label">MATRIX</span>
-    </div>
+    <!-- Right Panel: Controls -->
+    <div class="side-panel">
+        <!-- Channel Module -->
+        <div class="module">
+            <div style="font-size: 0.6rem; color: #777; margin-bottom: 8px; text-align: center;">SET SECURE CHANNEL (1-99)</div>
+            <input type="number" id="chanInput" value="1" min="1" max="99" autocomplete="off">
+            <button class="btn-action" id="bootBtn" onclick="initChannel()" style="margin-top:10px;">
+                INITIALIZE LINK
+            </button>
+        </div>
 
-    <!-- Desktop categories -->
-    <nav class="top-left-container" aria-label="Site categories">
-        <div class="categories-panel" id="categoriesPanel">
-            <h3>Categories</h3>
-            <div class="dropdown">
-                <button id="categoryToggleBtn" class="dropbtn" aria-expanded="false" aria-controls="categoryDropdown">&#9776; Filter Categories</button>
-                <div id="categoryDropdown" class="dropdown-content filter-container" role="listbox">
-                    <input type="text" id="categoryFilter" placeholder="&#128269; Search..." autocomplete="off" aria-label="Search categories">
-                    <div class="main-category"><a class="main-link" data-submenu-toggle role="button" aria-expanded="false">&#128193; Food</a><div class="submenu" style="display:none;"><a href="USDA%20FOOD%20SEARCH%20cyberpunk%20oldstyle.html" role="option">USDA FOOD SEARCH</a></div></div>
-                    <div class="main-category"><a class="main-link" data-submenu-toggle role="button" aria-expanded="false">&#128193; HEALTH</a><div class="submenu" style="display:none;"><a href="Health%20scanner%20%26%20Guidance.html" role="option">Health scanner &amp; Guidance</a></div></div>
-                    <div class="main-category"><a class="main-link" data-submenu-toggle role="button" aria-expanded="false">&#128193; Messages</a><div class="submenu" style="display:none;"><a href="messages%20receives%20and%20responds.html" role="option">Message Receiver</a><a href="Message%20%3Cinternal%20Network%3E.html" role="option">Internal Messages</a></div></div>
-                    <div class="main-category"><a class="main-link" data-submenu-toggle role="button" aria-expanded="false">&#128193; MY_STUFF v1.0</a><div class="submenu" style="display:none;"><a href="https://mohammad3230.github.io/PROJECT/" target="_blank" rel="noopener noreferrer" role="option">MY_STUFF v1.0</a></div></div>
-                    <div class="main-category"><a class="main-link" data-submenu-toggle role="button" aria-expanded="false">&#128193; MY_STUFF v3.0</a><div class="submenu" style="display:none;"><a href="https://mohammad3230.github.io/PROJECT/" target="_blank" rel="noopener noreferrer" role="option">MY_STUFF v1.0</a><a href="linux.html" role="option">GHOST_TAC_v80.8</a></div></div>
-                    <div class="main-category"><a class="main-link" data-submenu-toggle role="button" aria-expanded="false">&#128193; News</a><div class="submenu" style="display:none;"><a href="https://www.aljazeera.com/news/" target="_blank" rel="noopener noreferrer" role="option">Aljazeera</a><a href="https://www.bbc.com/news" target="_blank" rel="noopener noreferrer" role="option">BBC</a><a href="https://news.google.com/home?hl=en-IN&amp;gl=IN&amp;ceid=IN%3Aen" target="_blank" rel="noopener noreferrer" role="option">Google News</a><a href="https://news.un.org/en/" target="_blank" rel="noopener noreferrer" role="option">UN Org</a><a href="https://www.thehindu.com/latest-news/" target="_blank" rel="noopener noreferrer" role="option">The Hindu</a><a href="https://timesofindia.indiatimes.com/" target="_blank" rel="noopener noreferrer" role="option">Times of India</a></div></div>
-                    <div class="main-category"><a class="main-link" data-submenu-toggle role="button" aria-expanded="false">&#128193; Omni-Deck</a><div class="submenu" style="display:none;"><a href="OMNI-DECK.html" role="option">OMNi - DeCk</a></div></div>
-                    <div class="main-category"><a class="main-link" data-submenu-toggle role="button" aria-expanded="false">&#128193; Online Games</a><div class="submenu" style="display:none;"><a href="snake.html" role="option">Snake Game</a></div></div>
-                    <div class="main-category"><a class="main-link" data-submenu-toggle role="button" aria-expanded="false">&#128193; Page Capture</a><div class="submenu" style="display:none;"><a href="Page%20Capture.html" role="option">Page Capture</a></div></div>
-                    <div class="main-category"><a class="main-link" data-submenu-toggle role="button" aria-expanded="false">&#128193; ToolHub</a><div class="submenu" style="display:none;"><a href="Toolhub.html" role="option">ToOl_HuB</a></div></div>
-                    <div class="main-category"><a class="main-link" data-submenu-toggle role="button" aria-expanded="false">&#128193; Walkie Talkie</a><div class="submenu" style="display:none;"><a href="testing.html" role="option">Testing-Z</a><a href="testingA.html" role="option">Testing-A</a><a href="receiver.html" role="option">Walkie Talkie Receiver</a></div></div>
-                    <div class="main-category"><a class="main-link" data-submenu-toggle role="button" aria-expanded="false">&#128193; Documentation</a><div class="submenu" style="display:none;"><span class="link-placeholder" data-noop role="option">User Guides</span><span class="link-placeholder" data-noop role="option">API Docs</span><span class="link-placeholder" data-noop role="option">Changelogs</span></div></div>
-                    <a href="music.html" role="option">&#127925; My_Music</a>
-                    <a href="https://in.pinterest.com/" target="_blank" rel="noopener noreferrer" role="option">&#128204; Pinterest</a>
-                    <a href="radio.html" role="option">&#128225; Live Radio</a>
-                    <a href="https://www.zedge.net/ringtones" target="_blank" rel="noopener noreferrer" role="option">&#128444;&#65039; Zedge Wallpapers</a>
-                    <span class="link-placeholder" data-noop role="option">&#9881;&#65039; Settings</span>
-                    <span class="link-placeholder" data-noop role="option">&#127912; Templates</span>
-                    <span class="link-placeholder" data-noop role="option">&#128228; Exports</span>
-                    <span class="link-placeholder" data-noop role="option">&#128202; Analytics</span>
-                    <span class="link-placeholder" data-noop role="option">&#128190; Backup</span>
+        <!-- PTT Module -->
+        <div class="module" style="text-align:center;">
+            <button class="btn-ptt" id="pttBtn" disabled>
+                <span>PUSH TO TALK</span>
+                <span style="font-size:0.8rem; font-weight:normal; opacity:0.8;">(HOLD)</span>
+            </button>
+            
+            <div class="led-group">
+                <div class="indicator">
+                    <div class="status-led" id="ledNet"></div>
+                    <span>DATA LINK</span>
+                </div>
+                <div class="indicator">
+                    <div class="status-led" id="ledTx"></div>
+                    <span>TX</span>
                 </div>
             </div>
         </div>
-    </nav>
 
-    <!-- Desktop cyber deck -->
-    <aside class="bottom-right-panel hud-element" id="systemPanel" aria-label="Cyber deck dashboard">
-        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:5px;">
-            <h5 id="deckHeaderBtn" title="Expand/collapse (Right-click to purge)" style="font-weight:bold; text-transform:uppercase; letter-spacing:1px; color:#ffa500; margin:0; cursor:pointer;">Cyber Deck &#11015;</h5>
-            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                <span id="powerBtn" class="power-switch on" role="button" tabindex="0" aria-label="Toggle power">PWR: ON</span>
-                <span id="muteBtn" role="button" tabindex="0" aria-label="Toggle mute" style="cursor:pointer; font-size:0.8em; color:#00f0ff; user-select:none; touch-action:manipulation;">&#128266;</span>
-                <span id="autoResponse" role="button" tabindex="0" aria-label="Toggle auto response" style="cursor:pointer; font-size:0.8em; color:#8888ff; user-select:none; margin-left:5px; touch-action:manipulation;">AUTO: OFF</span>
-                <span id="breachCount" style="font-size:0.7em; color:#ff4444; font-weight:bold;" aria-live="polite">0</span>
-                <span id="digitalClock" style="font-size:0.8em; color:#00f0ff; font-weight:bold; font-family:monospace;" aria-label="Current time">00:00:00</span>
-            </div>
-        </div>
-        <div id="deckContent">
-            <div style="font-size:0.65em; color:#8888ff; margin-bottom:12px; border-bottom:1px solid rgba(255,165,0,0.2); padding-bottom:5px;">UPTIME: <span id="uptimeVar" style="color:#bbbbff; font-weight:bold;">00:00:00:00</span></div>
-            <div style="margin-bottom:12px; border-top:1px solid rgba(255,165,0,0.1); padding-top:8px;">
-                <div style="display:flex; justify-content:space-between; font-size:0.7em; margin-bottom:4px;"><span style="color:#bbbbff;">CORE_DECRYPTION:</span><span id="decryptVal" style="color:#00f0ff; font-weight:bold;">0%</span></div>
-                <div style="width:100%; height:4px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden;"><div id="decryptBar" style="width:0%; height:100%; background:#00f0ff; transition:all 0.5s ease; box-shadow:0 0 10px #00f0ff;"></div></div>
-            </div>
-            <div style="margin:12px 0; border-top:1px solid rgba(255,0,100,0.3); padding-top:8px;">
-                <div style="display:flex; justify-content:space-between; font-size:0.7em; margin-bottom:4px;"><span style="color:#ff0080;">THREAT_LEVEL:</span><span id="threatVal" style="color:#ff4444; font-weight:bold;">0%</span></div>
-                <div style="width:100%; height:4px; background:rgba(255,0,100,0.1); border-radius:2px; overflow:hidden;"><div id="threatBar" style="width:0%; height:100%; background:linear-gradient(90deg,#ff0080,#ff4444); transition:all 0.5s ease; box-shadow:0 0 8px #ff0080;"></div></div>
-            </div>
-            <div style="margin-bottom:12px; border-top:1px solid rgba(0,240,255,0.2); padding-top:8px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;"><small id="statusLabel" style="color:#00f0ff; letter-spacing:1px; font-weight:bold; font-size:0.7em;">STATUS: SECURE</small><div class="network-pulse" id="pulseNode" aria-hidden="true"></div></div>
-                <div style="width:100%; height:40px; background:rgba(0,240,255,0.05); border-radius:4px; margin-bottom:8px; overflow:hidden; border:1px solid rgba(0,240,255,0.1);"><svg width="100%" height="100%" viewBox="0 0 200 40" preserveAspectRatio="none" aria-hidden="true"><polyline id="graphLine" fill="none" stroke="#00f0ff" stroke-width="1.5" points="0,40 20,40 40,40 60,40 80,40 100,40 120,40 140,40 160,40 180,40 200,40"/></svg></div>
-                <div style="font-size:0.7em; display:flex; flex-direction:column; gap:4px;">
-                    <div style="display:flex; justify-content:space-between;"><span style="color:#bbbbff;">DOWNLINK:</span><span><span id="downMB" style="color:#00f0ff; font-weight:bold;">0</span> <small>Mbps</small></span></div>
-                    <div style="display:flex; justify-content:space-between;"><span style="color:#bbbbff;">UPLINK:</span><span><span id="upMB" style="color:#00f0ff; font-weight:bold;">0</span> <small>Mbps</small></span></div>
-                    <div style="display:flex; justify-content:space-between; font-size:0.9em; margin-top:2px;"><span>PING: <span id="pingVal" style="color:#00f0ff;">20</span>ms</span><span>LOSS: <span id="lossVal" style="color:#00f0ff;">0.00%</span></span></div>
-                </div>
-            </div>
-            <div id="terminalLog" aria-live="polite" aria-label="Terminal log" style="font-size:0.65em; color:#ffa500; height:60px; background:rgba(0,0,0,0.4); padding:5px; border-radius:4px; border:1px solid rgba(255,165,0,0.1); line-height:1.2;"><div>&gt; initializing_sys_v2.0...</div></div>
-        </div>
-    </aside>
-
-    <!-- Desktop TAC/COM panel (visible >= 1100px) -->
-    <div class="desktop-tac-panel hud-element tac-com-root" id="desktopTacPanel">
-        <div class="tac-panel-inner">
-            <div class="tac-status-bar">
-                <span>FREQ: <span id="dCurFreq" style="color:var(--tac-blue)">--.--</span> MHz</span>
-                <span id="dNetStat">NET: DISCONNECTED</span>
-            </div>
-            <div id="dTacOutput"><div>&gt; SYSTEM STANDBY...</div></div>
-            <div class="tac-module">
-                <div style="font-size:0.6rem; color:#777; margin-bottom:8px; text-align:center;">SET SECURE CHANNEL (1-99)</div>
-                <input type="number" class="tac-chan-input" id="dChanInput" value="1" min="1" max="99" autocomplete="off">
-                <button class="btn-tac-action" id="dBootBtn" style="margin-top:10px;">INITIALIZE LINK</button>
-            </div>
-            <div class="tac-module" style="text-align:center;">
-                <button class="btn-ptt" id="dPttBtn" disabled><span>PUSH TO TALK</span><span style="font-size:0.7rem; font-weight:normal; opacity:0.8;">(HOLD)</span></button>
-                <div class="led-group">
-                    <div class="indicator"><div class="status-led" id="dLedNet"></div><span>DATA LINK</span></div>
-                    <div class="indicator"><div class="status-led" id="dLedTx"></div><span>TX</span></div>
-                </div>
-            </div>
-            <div style="display:flex; justify-content:space-between; font-size:0.6rem; margin-bottom:2px;"><span>RX LEVEL</span><span id="dDbVal">-inf dB</span></div>
-            <div id="tacMeterContainer"><div id="dTacMeterFill"></div></div>
-            <button class="btn-tac-action" id="dResetBtn" style="margin-top:12px; background:#200; border-color:#500; color:#f55;">SYSTEM RESET</button>
-        </div>
+        <!-- System Module -->
+        <button class="btn-action" onclick="hardReset()" style="background:#200; border-color:#500; color:#f55;">
+            SYSTEM RESET
+        </button>
     </div>
+</div>
 
-    <!-- Mobile: Categories Sheet -->
-    <div class="mobile-sheet" id="mobileCategorySheet" role="dialog" aria-label="Categories" aria-modal="true">
-        <div class="sheet-handle" id="catSheetHandle"></div>
-        <div class="sheet-header"><h3>&#128193; Categories</h3><button class="sheet-close" id="catSheetClose" aria-label="Close">&times;</button></div>
-        <div class="sheet-body" id="mobileCategoryBody">
-            <input type="text" id="mobileCategoryFilter" placeholder="&#128269; Search..." autocomplete="off" aria-label="Search categories">
-            <div class="main-category"><a class="main-link" data-submenu-toggle role="button" aria-expanded="false">&#128193; Food</a><div class="submenu" style="display:none;"><a href="USDA%20FOOD%20SEARCH%20cyberpunk%20oldstyle.html" role="option">USDA FOOD SEARCH</a></div></div>
-            <div class="main-category"><a class="main-link" data-submenu-toggle role="button" aria-expanded="false">&#128193; HEALTH</a><div class="submenu" style="display:none;"><a href="Health%20scanner%20%26%20Guidance.html" role="option">Health scanner &amp; Guidance</a></div></div>
-            <div class="main-category"><a class="main-link" data-submenu-toggle role="button" aria-expanded="false">&#128193; Messages</a><div class="submenu" style="display:none;"><a href="messages%20receives%20and%20responds.html" role="option">Message Receiver</a><a href="Message%20%3Cinternal%20Network%3E.html" role="option">Internal Messages</a></div></div>
-            <div class="main-category"><a class="main-link" data-submenu-toggle role="button" aria-expanded="false">&#128193; MY_STUFF v1.0</a><div class="submenu" style="display:none;"><a href="https://mohammad3230.github.io/PROJECT/" target="_blank" rel="noopener noreferrer" role="option">MY_STUFF v1.0</a></div></div>
-            <div class="main-category"><a class="main-link" data-submenu-toggle role="button" aria-expanded="false">&#128193; MY_STUFF v3.0</a><div class="submenu" style="display:none;"><a href="https://mohammad3230.github.io/PROJECT/" target="_blank" rel="noopener noreferrer" role="option">MY_STUFF v1.0</a><a href="linux.html" role="option">GHOST_TAC_v80.8</a></div></div>
-            <div class="main-category"><a class="main-link" data-submenu-toggle role="button" aria-expanded="false">&#128193; News</a><div class="submenu" style="display:none;"><a href="https://www.aljazeera.com/news/" target="_blank" rel="noopener noreferrer" role="option">Aljazeera</a><a href="https://www.bbc.com/news" target="_blank" rel="noopener noreferrer" role="option">BBC</a><a href="https://news.google.com/home?hl=en-IN&amp;gl=IN&amp;ceid=IN%3Aen" target="_blank" rel="noopener noreferrer" role="option">Google News</a><a href="https://news.un.org/en/" target="_blank" rel="noopener noreferrer" role="option">UN Org</a><a href="https://www.thehindu.com/latest-news/" target="_blank" rel="noopener noreferrer" role="option">The Hindu</a><a href="https://timesofindia.indiatimes.com/" target="_blank" rel="noopener noreferrer" role="option">Times of India</a></div></div>
-            <div class="main-category"><a class="main-link" data-submenu-toggle role="button" aria-expanded="false">&#128193; Omni-Deck</a><div class="submenu" style="display:none;"><a href="OMNI-DECK.html" role="option">OMNi - DeCk</a></div></div>
-            <div class="main-category"><a class="main-link" data-submenu-toggle role="button" aria-expanded="false">&#128193; Online Games</a><div class="submenu" style="display:none;"><a href="snake.html" role="option">Snake Game</a></div></div>
-            <div class="main-category"><a class="main-link" data-submenu-toggle role="button" aria-expanded="false">&#128193; Page Capture</a><div class="submenu" style="display:none;"><a href="Page%20Capture.html" role="option">Page Capture</a></div></div>
-            <div class="main-category"><a class="main-link" data-submenu-toggle role="button" aria-expanded="false">&#128193; ToolHub</a><div class="submenu" style="display:none;"><a href="Toolhub.html" role="option">ToOl_HuB</a></div></div>
-            <div class="main-category"><a class="main-link" data-submenu-toggle role="button" aria-expanded="false">&#128193; Walkie Talkie</a><div class="submenu" style="display:none;"><a href="testing.html" role="option">Testing-Z</a><a href="testingA.html" role="option">Testing-A</a><a href="receiver.html" role="option">Walkie Talkie Receiver</a></div></div>
-            <div class="main-category"><a class="main-link" data-submenu-toggle role="button" aria-expanded="false">&#128193; Documentation</a><div class="submenu" style="display:none;"><span class="link-placeholder" data-noop role="option">User Guides</span><span class="link-placeholder" data-noop role="option">API Docs</span><span class="link-placeholder" data-noop role="option">Changelogs</span></div></div>
-            <a href="music.html" role="option">&#127925; My_Music</a>
-            <a href="https://in.pinterest.com/" target="_blank" rel="noopener noreferrer" role="option">&#128204; Pinterest</a>
-            <a href="radio.html" role="option">&#128225; Live Radio</a>
-            <a href="https://www.zedge.net/ringtones" target="_blank" rel="noopener noreferrer" role="option">&#128444;&#65039; Zedge Wallpapers</a>
-            <span class="link-placeholder" data-noop role="option">&#9881;&#65039; Settings</span>
-            <span class="link-placeholder" data-noop role="option">&#127912; Templates</span>
-            <span class="link-placeholder" data-noop role="option">&#128228; Exports</span>
-            <span class="link-placeholder" data-noop role="option">&#128202; Analytics</span>
-            <span class="link-placeholder" data-noop role="option">&#128190; Backup</span>
-        </div>
-    </div>
+<script>
+    // --- Configuration & State ---
+    let peer = null;
+    let conn = null;
+    let localStream = null;
+    let audioCtx = null;
+    let delayNode = null;
+    let analyser = null;
+    let speakerGain = null;
+    let currentCall = null;
 
-    <!-- Mobile: Deck Sheet -->
-    <div class="mobile-sheet" id="mobileDeckSheet" role="dialog" aria-label="Cyber Deck" aria-modal="true">
-        <div class="sheet-handle" id="deckSheetHandle"></div>
-        <div class="sheet-header"><h3>&#128187; Cyber Deck</h3><button class="sheet-close" id="deckSheetClose" aria-label="Close">&times;</button></div>
-        <div class="sheet-body" id="mobileDeckBody">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid rgba(255,165,0,0.2);">
-                <span id="mobileDigitalClock" style="font-size:1.1em; color:#00f0ff; font-weight:bold; font-family:monospace;">00:00:00</span>
-                <span style="font-size:0.7em; color:#8888ff;">UPTIME: <span id="mobileUptimeVar" style="color:#bbbbff; font-weight:bold;">00:00:00:00</span></span>
-            </div>
-            <div class="deck-controls-row">
-                <span id="mobilePowerBtn" class="power-switch on" role="button" tabindex="0" aria-label="Toggle power">PWR: ON</span>
-                <span id="mobileMuteBtn" class="deck-ctrl-btn" role="button" tabindex="0" aria-label="Toggle mute">&#128266; SND</span>
-                <span id="mobileAutoBtn" class="deck-ctrl-btn" role="button" tabindex="0" aria-label="Toggle auto">AUTO: OFF</span>
-                <span id="mobileBreachCount" style="font-size:0.75em; color:#ff4444; font-weight:bold; margin-left:auto; touch-action:manipulation;" aria-live="polite" title="Long-press to purge">0 BREACH</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                <small id="mobileStatusLabel" style="color:#00f0ff; letter-spacing:1px; font-weight:bold; font-size:0.8em;">STATUS: SECURE</small>
-                <div class="network-pulse" id="mobilePulseNode" aria-hidden="true"></div>
-            </div>
-            <div style="margin-bottom:10px;"><div style="display:flex; justify-content:space-between; font-size:0.75em; margin-bottom:4px;"><span style="color:#bbbbff;">CORE_DECRYPTION:</span><span id="mobileDecryptVal" style="color:#00f0ff; font-weight:bold;">0%</span></div><div style="width:100%; height:5px; background:rgba(255,255,255,0.05); border-radius:3px; overflow:hidden;"><div id="mobileDecryptBar" style="width:0%; height:100%; background:#00f0ff; transition:all 0.5s ease; box-shadow:0 0 10px #00f0ff;"></div></div></div>
-            <div style="margin-bottom:10px;"><div style="display:flex; justify-content:space-between; font-size:0.75em; margin-bottom:4px;"><span style="color:#ff0080;">THREAT_LEVEL:</span><span id="mobileThreatVal" style="color:#ff4444; font-weight:bold;">0%</span></div><div style="width:100%; height:5px; background:rgba(255,0,100,0.1); border-radius:3px; overflow:hidden;"><div id="mobileThreatBar" style="width:0%; height:100%; background:linear-gradient(90deg,#ff0080,#ff4444); transition:all 0.5s ease; box-shadow:0 0 8px #ff0080;"></div></div></div>
-            <div style="width:100%; height:50px; background:rgba(0,240,255,0.05); border-radius:4px; margin-bottom:10px; overflow:hidden; border:1px solid rgba(0,240,255,0.1);"><svg width="100%" height="100%" viewBox="0 0 200 40" preserveAspectRatio="none" aria-hidden="true"><polyline id="mobileGraphLine" fill="none" stroke="#00f0ff" stroke-width="1.5" points="0,40 20,40 40,40 60,40 80,40 100,40 120,40 140,40 160,40 180,40 200,40"/></svg></div>
-            <div style="font-size:0.8em; display:grid; grid-template-columns:1fr 1fr; gap:6px 12px; margin-bottom:12px; padding:8px; background:rgba(0,0,0,0.3); border-radius:6px; border:1px solid rgba(0,240,255,0.1);">
-                <span style="color:#bbbbff;">DOWNLINK:</span><span style="text-align:right;"><span id="mobileDownMB" style="color:#00f0ff; font-weight:bold;">0</span> Mbps</span>
-                <span style="color:#bbbbff;">UPLINK:</span><span style="text-align:right;"><span id="mobileUpMB" style="color:#00f0ff; font-weight:bold;">0</span> Mbps</span>
-                <span>PING:</span><span style="text-align:right;"><span id="mobilePingVal" style="color:#00f0ff;">20</span> ms</span>
-                <span>LOSS:</span><span style="text-align:right;"><span id="mobileLossVal" style="color:#00f0ff;">0.00%</span></span>
-            </div>
-            <div id="mobileTerminalLog" aria-live="polite" aria-label="Terminal" style="font-size:0.7em; color:#ffa500; height:70px; background:rgba(0,0,0,0.5); padding:8px; border-radius:6px; border:1px solid rgba(255,165,0,0.15); line-height:1.3; overflow:hidden;"><div>&gt; initializing_sys_v2.0...</div></div>
-        </div>
-    </div>
+    // Prefix to isolate traffic from other public PeerJS users
+    const APP_PREFIX = "TAC-COM-SECURE-"; 
 
-    <!-- Mobile: TAC/COM Sheet -->
-    <div class="mobile-sheet tac-sheet tac-com-root" id="mobileTacSheet" role="dialog" aria-label="TAC/COM Walkie Talkie" aria-modal="true">
-        <div class="sheet-handle" id="tacSheetHandle"></div>
-        <div class="sheet-header"><h3>&#128225; TAC/COM-04</h3><button class="sheet-close" id="tacSheetClose" aria-label="Close">&times;</button></div>
-        <div class="sheet-body">
-            <div class="tac-status-bar">
-                <span>FREQ: <span id="mCurFreq" style="color:var(--tac-blue)">--.--</span> MHz</span>
-                <span id="mNetStat">NET: DISCONNECTED</span>
-            </div>
-            <div id="mTacOutput"><div>&gt; SYSTEM STANDBY...</div></div>
-            <div class="tac-module">
-                <div style="font-size:0.6rem; color:#777; margin-bottom:8px; text-align:center;">SET SECURE CHANNEL (1-99)</div>
-                <input type="number" class="tac-chan-input" id="mChanInput" value="1" min="1" max="99" autocomplete="off">
-                <button class="btn-tac-action" id="mBootBtn" style="margin-top:10px;">INITIALIZE LINK</button>
-            </div>
-            <div class="tac-module" style="text-align:center;">
-                <button class="btn-ptt" id="mPttBtn" disabled><span>PUSH TO TALK</span><span style="font-size:0.7rem; font-weight:normal; opacity:0.8;">(HOLD)</span></button>
-                <div class="led-group">
-                    <div class="indicator"><div class="status-led" id="mLedNet"></div><span>DATA LINK</span></div>
-                    <div class="indicator"><div class="status-led" id="mLedTx"></div><span>TX</span></div>
-                </div>
-            </div>
-            <div style="display:flex; justify-content:space-between; font-size:0.6rem; margin-bottom:2px;"><span>RX LEVEL</span><span id="mDbVal">-inf dB</span></div>
-            <div id="tacMeterContainer"><div id="mTacMeterFill"></div></div>
-            <button class="btn-tac-action" id="mResetBtn" style="margin-top:12px; background:#200; border-color:#500; color:#f55;">SYSTEM RESET</button>
-        </div>
-    </div>
+    // --- Logging Utility (XSS SAFE) ---
+    // Uses innerText, never innerHTML — prevents script injection
+    // even if malicious data were received via PeerJS data channel.
+    function log(msg, type="info") {
+        const out = document.getElementById('output');
+        const div = document.createElement('div');
+        const timestamp = new Date().toLocaleTimeString('en-US', {hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit"});
+        
+        div.innerText = `[${timestamp}] > ${msg}`; 
+        
+        if (type === "error") div.style.color = "var(--red)";
+        else if (type === "success") div.style.color = "var(--green)";
+        else if (type === "sys") div.style.color = "#888";
+        else div.style.color = "var(--amber)";
 
-    <!-- Mobile toolbar -->
-    <nav class="mobile-toolbar" id="mobileToolbar" aria-label="Navigation">
-        <div class="mobile-toolbar-inner">
-            <button class="toolbar-btn" id="tbCategories" aria-label="Links"><span class="tb-icon">&#128193;</span><span>Links</span></button>
-            <button class="toolbar-btn" id="tbDeck" aria-label="Deck"><span class="tb-icon">&#128187;</span><span>Deck</span></button>
-            <button class="toolbar-btn" id="tbTac" aria-label="TAC/COM"><span class="tb-icon">&#128225;</span><span>TAC</span></button>
-            <button class="toolbar-btn" id="tbMatrix" aria-label="Matrix"><span class="tb-icon">&#127748;</span><span>Matrix</span></button>
-            <button class="toolbar-btn" id="tbHud" aria-label="HUD"><span class="tb-icon">&#128065;</span><span>HUD</span></button>
-        </div>
-    </nav>
+        out.appendChild(div);
+        out.scrollTop = out.scrollHeight;
+    }
 
-    <footer class="site-footer" id="siteFooter"><small>&copy; 2023-2026 All rights reserved</small></footer>
-
-    <script>
-        /* ========== FRAME-BUSTING ========== */
-        if (window.top !== window.self) {
-            try { window.top.location = window.self.location; } catch (e) {}
+    // --- Main Initialization ---
+    async function initChannel() {
+        const inputEl = document.getElementById('chanInput');
+        
+        // 1. INPUT VALIDATION (Security & Logic)
+        // Prevents non-numeric input and restricts range
+        let val = parseInt(inputEl.value);
+        
+        if (isNaN(val) || val < 1 || val > 99) {
+            log("ERROR: INVALID FREQUENCY. RANGE 01-99.", "error");
+            inputEl.style.borderColor = "var(--red)";
+            setTimeout(() => inputEl.style.borderColor = "#444", 1000);
+            return;
         }
 
-        /* ========== DASHBOARD STATE ========== */
-        var matrixActive = false, hudActive = true, isPoweredOn = true, isMuted = false;
-        var autoResponse = false, isLockdown = false, lastBreachStatus = false;
-        var breachCount = 0, tracePercent = 0, decryptPercent = 0, startTime = Date.now();
-        var graphPoints = [35,30,32,28,35,30,25,30,35,38,40];
-        var currentBg = { r:0, g:0, b:16 }, activeSheet = null;
-        var deckLogs = ["Decrypting block...","RSA Key Found","Bypassing Firewall","Node link: Active","Shifting Frequency"];
+        const chanNum = val.toString().padStart(2, '0');
+        const fullId = APP_PREFIX + chanNum;
 
-        /* ========== TAC/COM STATE ========== */
-        var tacPeer = null, tacConn = null, tacLocalStream = null;
-        var tacAudioCtx = null, tacDelayNode = null, tacAnalyser = null, tacSpeakerGain = null, tacCurrentCall = null;
-        var tacAnimFrame = null;
-        var APP_PREFIX = "TAC-COM-SECURE-";
+        // UI Updates
+        document.getElementById('bootBtn').disabled = true;
+        document.getElementById('bootBtn').innerText = "LINKING...";
+        log(`ATTEMPTING CONNECTION ON CHANNEL ${chanNum}...`, "sys");
 
-        /* ========== AUDIO (Dashboard beep) ========== */
-        var audioCtx = null;
-        function getAudioContext() {
-            if (!audioCtx) try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { return null; }
-            return audioCtx;
-        }
-        function playBeep() {
-            if (isMuted) return;
-            var ctx = getAudioContext(); if (!ctx) return;
-            try {
-                if (ctx.state === 'suspended') ctx.resume();
-                var o = ctx.createOscillator(), g = ctx.createGain();
-                o.connect(g); g.connect(ctx.destination);
-                o.frequency.value = 880; o.type = 'sine';
-                g.gain.setValueAtTime(0.25, ctx.currentTime);
-                g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
-                o.start(ctx.currentTime); o.stop(ctx.currentTime + 0.25);
-            } catch(e) {}
-        }
-
-        /* ========== MATRIX ========== */
-        var canvas = document.getElementById('matrix'), ctx2d = canvas.getContext('2d');
-        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-        resizeCanvas();
-        var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@#$%^&*()+~{}[]<>?';
-        var fontSize = 20, columns = Math.floor(canvas.width/fontSize), drops = new Array(columns).fill(0);
-
-        function toggleMatrix() {
-            matrixActive = !matrixActive;
-            var l = document.getElementById('lever-matrix'), t = document.getElementById('tbMatrix');
-            if (matrixActive) { l.classList.add('active'); l.setAttribute('aria-pressed','true'); t.classList.add('active'); }
-            else { l.classList.remove('active'); l.setAttribute('aria-pressed','false'); t.classList.remove('active'); ctx2d.fillStyle='#000010'; ctx2d.fillRect(0,0,canvas.width,canvas.height); }
-        }
-        function drawMatrix() {
-            ctx2d.fillStyle = 'rgba('+currentBg.r+','+currentBg.g+','+currentBg.b+',0.1)';
-            ctx2d.fillRect(0,0,canvas.width,canvas.height);
-            ctx2d.font = fontSize+'px monospace';
-            if (matrixActive) { for (var i=0;i<drops.length;i++) { var t=chars.charAt(Math.floor(Math.random()*chars.length)); ctx2d.fillStyle=currentBg.r>20?'#ff5555':(i%2===0?'#00bfff':'#e0f7ff'); ctx2d.fillText(t,i*fontSize,drops[i]*fontSize); if(drops[i]*fontSize>canvas.height&&Math.random()>0.975)drops[i]=0; drops[i]++; } }
-        }
-        if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) setInterval(drawMatrix, 50);
-        window.addEventListener('resize', function() { resizeCanvas(); columns=Math.floor(canvas.width/fontSize); drops.length=columns; drops.fill(0); });
-
-        /* ========== HUD TOGGLE ========== */
-        function toggleHUD() {
-            hudActive = !hudActive;
-            var l=document.getElementById('lever-security'), t=document.getElementById('tbHud');
-            var h=document.querySelectorAll('.hud-element');
-            if (hudActive) { l.classList.add('active'); l.setAttribute('aria-pressed','true'); t.classList.add('active'); h.forEach(function(e){e.classList.remove('hud-hidden');}); }
-            else { l.classList.remove('active'); l.setAttribute('aria-pressed','false'); t.classList.remove('active'); h.forEach(function(e){e.classList.add('hud-hidden');}); }
-        }
-
-        /* ========== SHEET SYSTEM ========== */
-        function openSheet(id) {
-            if (activeSheet) closeSheet();
-            var s=document.getElementById(id), b=document.getElementById('backdropOverlay');
-            if (!s) return;
-            activeSheet = id;
-            s.classList.add('animating'); b.classList.add('visible');
-            s.offsetHeight; s.classList.add('open');
-            if (id==='mobileCategorySheet') document.getElementById('tbCategories').classList.add('active');
-            if (id==='mobileDeckSheet') document.getElementById('tbDeck').classList.add('active');
-            if (id==='mobileTacSheet') document.getElementById('tbTac').classList.add('active');
-        }
-        function closeSheet() {
-            if (!activeSheet) return;
-            var s=document.getElementById(activeSheet), b=document.getElementById('backdropOverlay');
-            s.classList.remove('open'); b.classList.remove('visible');
-            document.getElementById('tbCategories').classList.remove('active');
-            document.getElementById('tbDeck').classList.remove('active');
-            document.getElementById('tbTac').classList.remove('active');
-            var cid=activeSheet; activeSheet=null;
-            setTimeout(function(){ var x=document.getElementById(cid); if(x)x.classList.remove('animating'); },360);
-        }
-        function initSheetSwipe(sid,hid) {
-            var s=document.getElementById(sid),h=document.getElementById(hid); if(!s||!h)return;
-            var sy=0,cy=0,d=false;
-            h.addEventListener('touchstart',function(e){sy=e.touches[0].clientY;d=true;s.style.transition='none';},{passive:true});
-            h.addEventListener('touchmove',function(e){if(!d)return;cy=e.touches[0].clientY-sy;if(cy>0)s.style.transform='translateY('+cy+'px)';},{passive:true});
-            h.addEventListener('touchend',function(){if(!d)return;d=false;s.style.transition='';if(cy>80)closeSheet();else s.style.transform='';cy=0;},{passive:true});
-        }
-        initSheetSwipe('mobileCategorySheet','catSheetHandle');
-        initSheetSwipe('mobileDeckSheet','deckSheetHandle');
-        initSheetSwipe('mobileTacSheet','tacSheetHandle');
-        document.getElementById('backdropOverlay').addEventListener('click', closeSheet);
-        document.getElementById('catSheetClose').addEventListener('click', closeSheet);
-        document.getElementById('deckSheetClose').addEventListener('click', closeSheet);
-        document.getElementById('tacSheetClose').addEventListener('click', closeSheet);
-        document.getElementById('tbCategories').addEventListener('click', function(){ activeSheet==='mobileCategorySheet'?closeSheet():openSheet('mobileCategorySheet'); });
-        document.getElementById('tbDeck').addEventListener('click', function(){ activeSheet==='mobileDeckSheet'?closeSheet():openSheet('mobileDeckSheet'); });
-        document.getElementById('tbTac').addEventListener('click', function(){ activeSheet==='mobileTacSheet'?closeSheet():openSheet('mobileTacSheet'); });
-        document.getElementById('tbMatrix').addEventListener('click', toggleMatrix);
-        document.getElementById('tbHud').addEventListener('click', toggleHUD);
-
-        /* ========== INPUT SANITIZATION ========== */
-        function sanitizeInput(s) { return String(s).replace(/[^a-zA-Z0-9\s\-_.]/g,''); }
-        function filterLinks(container, input) {
-            var f = sanitizeInput(input.value).toUpperCase();
-            container.querySelectorAll('a:not(.main-link)').forEach(function(el) {
-                el.style.display = sanitizeInput(el.textContent||el.innerText).toUpperCase().indexOf(f)>-1 ? '' : 'none';
+        try {
+            // 2. GET USER MEDIA (Microphone)
+            // Microphone is only accessed AFTER explicit user action (button click),
+            // satisfying browser autoplay/gesture requirements and security best practice.
+            localStream = await navigator.mediaDevices.getUserMedia({ 
+                audio: { 
+                    echoCancellation: true, 
+                    noiseSuppression: true, 
+                    autoGainControl: true 
+                } 
             });
-            container.querySelectorAll('.main-category').forEach(function(cat) {
-                var sub=cat.querySelector('.submenu'); if(!sub)return;
-                var v=false; sub.querySelectorAll('a').forEach(function(a){if(a.style.display!=='none')v=true;});
-                cat.style.display=v?'':'none';
-            });
-        }
-        var df=document.getElementById('categoryFilter'), dd=document.getElementById('categoryDropdown');
-        df.addEventListener('input', function(){filterLinks(dd,df);});
-        var mf=document.getElementById('mobileCategoryFilter'), mb=document.getElementById('mobileCategoryBody');
-        mf.addEventListener('input', function(){filterLinks(mb,mf);});
 
-        /* ========== CATEGORY PANEL ========== */
-        function toggleCategoryPanel() {
-            var p=document.getElementById('categoriesPanel'),d=document.getElementById('categoryDropdown'),b=document.getElementById('categoryToggleBtn');
-            var sh=d.classList.toggle('show'); p.classList.toggle('expanded'); b.setAttribute('aria-expanded',sh?'true':'false');
+            // Mute local mic immediately (Half-Duplex default)
+            setMicState(false);
+
+            // 3. SETUP AUDIO GRAPH
+            setupAudioGraph();
+
+            document.getElementById('curFreq').innerText = "462." + chanNum; // Simulated FRS/GMRS freq
+            
+            // Start Connection Logic
+            connectToPeer(fullId);
+
+        } catch(e) {
+            console.error(e);
+            log("HARDWARE ERROR: MIC ACCESS DENIED OR UNAVAILABLE", "error");
+            document.getElementById('bootBtn').disabled = false;
+            document.getElementById('bootBtn').innerText = "INITIALIZE LINK";
         }
-        function toggleSubmenu(e) {
-            e.preventDefault(); var mc=e.target.closest('.main-category'); if(!mc)return;
-            var sub=mc.querySelector('.submenu'); if(!sub)return;
-            var open=sub.style.display==='none'; sub.style.display=open?'block':'none';
-            e.target.setAttribute('aria-expanded',open?'true':'false');
-        }
-        document.getElementById('categoryToggleBtn').addEventListener('click', toggleCategoryPanel);
-        dd.addEventListener('click', function(e){ if(e.target.closest('[data-submenu-toggle]'))toggleSubmenu(e); if(e.target.hasAttribute('data-noop')){e.preventDefault();e.stopPropagation();} });
-        mb.addEventListener('click', function(e){ if(e.target.closest('[data-submenu-toggle]'))toggleSubmenu(e); if(e.target.hasAttribute('data-noop')){e.preventDefault();e.stopPropagation();} });
-        document.addEventListener('click', function(e) {
-            var p=document.getElementById('categoriesPanel'),b=document.getElementById('categoryToggleBtn');
-            if(p&&p.classList.contains('expanded')&&!p.contains(e.target)&&e.target!==b){p.classList.remove('expanded');dd.classList.remove('show');b.setAttribute('aria-expanded','false');}
+    }
+
+    function setupAudioGraph() {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContext();
+        
+        speakerGain = audioCtx.createGain();
+        speakerGain.gain.value = 1; // Start with speakers ON (RX mode)
+
+        delayNode = audioCtx.createDelay(5.0);
+        delayNode.delayTime.value = 0.05; // Slight delay for smoother processing
+
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 64; // Low resolution for performance/visuals
+        
+        // Chain: Delay -> Analyser -> Gain -> Destination
+        delayNode.connect(analyser);
+        analyser.connect(speakerGain);
+        speakerGain.connect(audioCtx.destination);
+        
+        updateMeter();
+    }
+
+    // --- PeerJS Connection Logic ---
+    function connectToPeer(targetId) {
+        // Try to connect to the ID as a client first
+        peer = new Peer(); // Get a random ID for ourselves
+
+        peer.on('open', (id) => {
+            log("LOCAL HANDSHAKE ESTABLISHED. ID: " + id.substr(0,4) + "...", "sys");
+            
+            // Attempt to connect to the target Frequency
+            conn = peer.connect(targetId);
+            
+            // Also try to call them (Media)
+            currentCall = peer.call(targetId, localStream);
+
+            setupConnectionHandlers(conn, currentCall);
         });
 
-        /* ========== DECK CONTROLS (shared) ========== */
-        function toggleDeckExpand(){ document.getElementById('systemPanel').classList.toggle('expanded'); }
-        function togglePower() {
-            isPoweredOn=!isPoweredOn;
-            var d=document.getElementById('powerBtn'),m=document.getElementById('mobilePowerBtn'),c=document.getElementById('deckContent');
-            if(isPoweredOn){d.textContent='PWR: ON';d.classList.add('on');m.textContent='PWR: ON';m.classList.add('on');c.style.opacity='1';c.style.pointerEvents='auto';addTerminalLog('SYSTEM COLD BOOT SUCCESSFUL','#00f0ff');}
-            else{d.textContent='PWR: OFF';d.classList.remove('on');m.textContent='PWR: OFF';m.classList.remove('on');c.style.opacity='0.1';c.style.pointerEvents='none';resetDisplayValues();}
-        }
-        function resetDisplayValues() {
-            ['downMB','upMB'].forEach(function(id){setEl(id,null,'0');setEl('mobile'+id.charAt(0).toUpperCase()+id.slice(1),null,'0');});
-            setEl('lossVal',null,'0.00%');setEl('mobileLossVal',null,'0.00%');
-            setEl('threatVal',null,'0%');setEl('mobileThreatVal',null,'0%');
-            setEl('decryptVal',null,'0%');setEl('mobileDecryptVal',null,'0%');
-            ['threatBar','decryptBar'].forEach(function(id){setEl(id,'width','0%');setEl('mobile'+id.charAt(0).toUpperCase()+id.slice(1),'width','0%');});
-        }
-        function toggleMute() {
-            isMuted=!isMuted;
-            document.getElementById('muteBtn').textContent=isMuted?'\uD83D\uDD07':'\uD83D\uDD0A';
-            var m=document.getElementById('mobileMuteBtn'); m.innerHTML=isMuted?'&#128263; SND':'&#128266; SND'; m.classList.toggle('on',!isMuted);
-        }
-        function toggleAutoResponse() {
-            autoResponse=!autoResponse;
-            var d=document.getElementById('autoResponse'),m=document.getElementById('mobileAutoBtn');
-            d.textContent='AUTO: '+(autoResponse?'ON':'OFF'); d.style.color=autoResponse?'#00ff88':'#8888ff';
-            m.textContent='AUTO: '+(autoResponse?'ON':'OFF'); m.classList.toggle('on',autoResponse);
-        }
-        function addTerminalLog(msg,color) {
-            ['terminalLog','mobileTerminalLog'].forEach(function(id){var t=document.getElementById(id);if(!t)return;var e=document.createElement('div');e.style.color=color;e.textContent='> '+msg;t.prepend(e);while(t.childNodes.length>5)t.removeChild(t.lastElementChild);});
-        }
-        function setEl(id,cssProp,val) { var el=document.getElementById(id); if(!el)return; if(cssProp)el.style[cssProp]=val; else el.textContent=val; }
-
-        /* ========== DASHBOARD LOOP ========== */
-        function updateDashboard() {
-            if(isLockdown)return;
-            var ts=new Date().toLocaleTimeString('en-GB');
-            setEl('digitalClock',null,ts); setEl('mobileDigitalClock',null,ts);
-            if(!isPoweredOn)return;
-            var diff=Math.floor((Date.now()-startTime)/1000)+87200;
-            var us=String(Math.floor(diff/86400)).padStart(2,'0')+':'+String(Math.floor((diff%86400)/3600)).padStart(2,'0')+':'+String(Math.floor((diff%3600)/60)).padStart(2,'0')+':'+String(diff%60).padStart(2,'0');
-            setEl('uptimeVar',null,us); setEl('mobileUptimeVar',null,us);
-            var dl=(Math.random()*45+10).toFixed(1),ul=(Math.random()*15+2).toFixed(1);
-            var ln=(Math.random()>0.92)?(Math.random()*0.15):(Math.random()*0.01),pn=Math.floor(Math.random()*30+10);
-            if(autoResponse&&ln>0.05){ln=0;addTerminalLog('AUTO-RESPONSE: Threat neutralized','#00ff88');}
-            var ib=ln>0.05,cl=ib?'#ff4444':'#00f0ff';
-            if(ib){tracePercent+=2.5;breachCount++;if(!lastBreachStatus){playBeep();addTerminalLog('BREACH_DETECTED','#ff4444');}}else if(tracePercent>0)tracePercent-=0.5;
-            tracePercent=Math.max(0,Math.min(100,tracePercent));
-            if(tracePercent>=100){isLockdown=true;addTerminalLog('SYSTEM LOCKDOWN: TRACE COMPLETE','#ff0000');document.body.style.filter='grayscale(1) contrast(2) invert(1)';return;}
-            lastBreachStatus=ib;
-            var st=ib?'STATUS: BREACH':'STATUS: SECURE';
-            setEl('statusLabel','color',cl);setEl('statusLabel',null,st);setEl('mobileStatusLabel','color',cl);setEl('mobileStatusLabel',null,st);
-            ['pulseNode','mobilePulseNode'].forEach(function(id){setEl(id,'backgroundColor',cl);setEl(id,'boxShadow','0 0 8px '+cl);});
-            setEl('downMB',null,dl);setEl('upMB',null,ul);setEl('lossVal',null,ln.toFixed(2)+'%');setEl('pingVal',null,pn);
-            setEl('mobileDownMB',null,dl);setEl('mobileUpMB',null,ul);setEl('mobileLossVal',null,ln.toFixed(2)+'%');setEl('mobilePingVal',null,pn);
-            setEl('breachCount',null,breachCount);setEl('mobileBreachCount',null,breachCount+' BREACH');
-            if(decryptPercent<99.9)decryptPercent+=Math.random()*0.5;else if(Math.random()>0.98)decryptPercent=0;
-            var ds=decryptPercent.toFixed(1)+'%';
-            setEl('decryptVal',null,ds);setEl('decryptBar','width',decryptPercent+'%');setEl('mobileDecryptVal',null,ds);setEl('mobileDecryptBar','width',decryptPercent+'%');
-            var tl=Math.min(100,(ln*2000)+(decryptPercent*0.4)),ts2=tl.toFixed(0)+'%',tsh='0 0 8px hsl('+(120-tl)+', 100%, 50%)';
-            setEl('threatVal',null,ts2);setEl('threatBar','width',tl+'%');setEl('threatBar','boxShadow',tsh);
-            setEl('mobileThreatVal',null,ts2);setEl('mobileThreatBar','width',tl+'%');setEl('mobileThreatBar','boxShadow',tsh);
-            if(tl>80){currentBg={r:40,g:0,b:0};var sp=document.getElementById('systemPanel');if(sp)sp.style.boxShadow='0 0 40px rgba(255,0,0,0.6)';}
-            else{currentBg={r:0,g:0,b:16};var sp=document.getElementById('systemPanel');if(sp)sp.style.boxShadow='0 0 25px rgba(255,165,0,0.5)';}
-            graphPoints.shift();graphPoints.push(Math.floor(Math.random()*30+5));
-            var pts=graphPoints.map(function(p,i){return(i*20)+','+p;}).join(' ');
-            var gl=document.getElementById('graphLine'),ml=document.getElementById('mobileGraphLine');
-            if(gl)gl.setAttribute('points',pts); if(ml)ml.setAttribute('points',pts);
-            if(Math.random()>0.85)addTerminalLog(deckLogs[Math.floor(Math.random()*deckLogs.length)],'#ffa500');
-        }
-        setInterval(updateDashboard,1000);
-
-        function purgeSystem() {
-            breachCount=0;decryptPercent=0;tracePercent=0;isLockdown=false;document.body.style.filter='none';
-            setEl('breachCount',null,'0');setEl('mobileBreachCount',null,'0 BREACH');
-            ['terminalLog','mobileTerminalLog'].forEach(function(id){var e=document.getElementById(id);if(e)e.innerHTML='';});
-            addTerminalLog('SYSTEM_PURGE: SUCCESSFUL','#00f0ff');
-        }
-
-        /* ========== DESKTOP EVENT LISTENERS ========== */
-        var lm=document.getElementById('lever-matrix'); lm.addEventListener('click',toggleMatrix); lm.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleMatrix();}});
-        var ls=document.getElementById('lever-security'); ls.addEventListener('click',toggleHUD); ls.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleHUD();}});
-        document.getElementById('deckHeaderBtn').addEventListener('click',toggleDeckExpand);
-        document.getElementById('deckHeaderBtn').addEventListener('contextmenu',function(e){e.preventDefault();purgeSystem();});
-        document.getElementById('powerBtn').addEventListener('click',togglePower);
-        document.getElementById('powerBtn').addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();togglePower();}});
-        document.getElementById('muteBtn').addEventListener('click',toggleMute);
-        document.getElementById('muteBtn').addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleMute();}});
-        document.getElementById('autoResponse').addEventListener('click',toggleAutoResponse);
-        document.getElementById('autoResponse').addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleAutoResponse();}});
-        document.getElementById('mobilePowerBtn').addEventListener('click',togglePower);
-        document.getElementById('mobileMuteBtn').addEventListener('click',toggleMute);
-        document.getElementById('mobileAutoBtn').addEventListener('click',toggleAutoResponse);
-        (function(){var bc=document.getElementById('mobileBreachCount'),t=null;bc.addEventListener('touchstart',function(){t=setTimeout(purgeSystem,800);},{passive:true});bc.addEventListener('touchend',function(){clearTimeout(t);});bc.addEventListener('touchmove',function(){clearTimeout(t);},{passive:true});bc.addEventListener('touchcancel',function(){clearTimeout(t);});})();
-
-        /* ===========================================================================
-           TAC/COM-04 WALKIE TALKIE — UNIFIED LOGIC (syncs desktop + mobile UI)
-           =========================================================================== */
-
-        /* XSS-safe log for TAC/COM output */
-        function tacLog(msg, type) {
-            var outIds = ['dTacOutput', 'mTacOutput'];
-            var ts = new Date().toLocaleTimeString('en-US',{hour12:false,hour:"2-digit",minute:"2-digit",second:"2-digit"});
-            outIds.forEach(function(id) {
-                var out = document.getElementById(id); if (!out) return;
-                var div = document.createElement('div');
-                div.textContent = '[' + ts + '] > ' + msg;
-                if (type === 'error') div.style.color = 'var(--tac-red)';
-                else if (type === 'success') div.style.color = 'var(--tac-green)';
-                else if (type === 'sys') div.style.color = '#888';
-                else div.style.color = 'var(--amber)';
-                out.appendChild(div);
-                out.scrollTop = out.scrollHeight;
-            });
-        }
-
-        /* Unified UI helper: sets both desktop ('d'+Id) and mobile ('m'+Id) elements */
-        function tacUI(idSuffix, prop, val) {
-            var d = document.getElementById('d' + idSuffix);
-            var m = document.getElementById('m' + idSuffix);
-            if (d) { if (prop === 'class') { if (val === 'add') d.classList.add(idSuffix.indexOf('Led')>-1?'online':'tx'); else d.classList.remove(idSuffix.indexOf('Led')>-1?'online':'tx'); } else if (prop === 'style') d.style.cssText = val; else d.textContent = val; }
-            if (m) { if (prop === 'class') { if (val === 'add') m.classList.add(idSuffix.indexOf('Led')>-1?'online':'tx'); else m.classList.remove(idSuffix.indexOf('Led')>-1?'online':'tx'); } else if (prop === 'style') m.style.cssText = val; else m.textContent = val; }
-        }
-
-        function tacSetLed(which, on) {
-            var cls = which === 'tx' ? 'tx' : 'online';
-            var d = document.getElementById('dLed' + (which === 'tx' ? 'Tx' : 'Net'));
-            var m = document.getElementById('mLed' + (which === 'tx' ? 'Tx' : 'Net'));
-            if (d) { if (on) d.classList.add(cls); else d.classList.remove(cls); }
-            if (m) { if (on) m.classList.add(cls); else m.classList.remove(cls); }
-        }
-
-        function tacSetMeter(pct) {
-            var df = document.getElementById('dTacMeterFill'), mf = document.getElementById('mTacMeterFill');
-            if (df) df.style.width = pct + '%';
-            if (mf) mf.style.width = pct + '%';
-            var dbText = pct > 5 ? '-' + (100 - pct).toFixed(0) + ' dB' : '-inf dB';
-            var dd = document.getElementById('dDbVal'), md = document.getElementById('mDbVal');
-            if (dd) dd.textContent = dbText;
-            if (md) md.textContent = dbText;
-        }
-
-        /* Main channel initialization */
-        async function tacInitChannel(inputId) {
-            var inputEl = document.getElementById(inputId);
-            var val = parseInt(inputEl.value);
-            if (isNaN(val) || val < 1 || val > 99) {
-                tacLog('ERROR: INVALID FREQUENCY. RANGE 01-99.', 'error');
-                inputEl.style.borderColor = 'var(--tac-red)';
-                setTimeout(function(){ inputEl.style.borderColor = '#444'; }, 1000);
-                return;
+        peer.on('error', (err) => {
+            if(err.type === 'peer-unavailable') {
+                // If no one is there, we become the "Host" (Master) of this frequency
+                log("CHANNEL CLEAR. ESTABLISHING HOST NODE...", "sys");
+                peer.destroy();
+                becomeHost(targetId);
+            } else {
+                log("CONNECTION ERROR: " + err.type, "error");
+                resetUI();
             }
-            var chanNum = val.toString().padStart(2, '0');
-            var fullId = APP_PREFIX + chanNum;
+        });
+    }
 
-            /* Disable both boot buttons */
-            var db = document.getElementById('dBootBtn'), mb = document.getElementById('mBootBtn');
-            if (db) { db.disabled = true; db.textContent = 'LINKING...'; }
-            if (mb) { mb.disabled = true; mb.textContent = 'LINKING...'; }
-            tacLog('ATTEMPTING CONNECTION ON CHANNEL ' + chanNum + '...', 'sys');
+    function becomeHost(myHostId) {
+        // Create a peer with the specific Channel ID
+        peer = new Peer(myHostId);
 
-            try {
-                tacLocalStream = await navigator.mediaDevices.getUserMedia({
-                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-                });
-                tacSetMicState(false);
-                tacSetupAudioGraph();
-                tacUI('CurFreq', null, '462.' + chanNum);
-                tacConnectToPeer(fullId);
-            } catch(e) {
-                console.error(e);
-                tacLog('HARDWARE ERROR: MIC ACCESS DENIED OR UNAVAILABLE', 'error');
-                if (db) { db.disabled = false; db.textContent = 'INITIALIZE LINK'; }
-                if (mb) { mb.disabled = false; mb.textContent = 'INITIALIZE LINK'; }
-            }
-        }
+        peer.on('open', (id) => {
+            log(`NODE ${id.substr(-2)} ONLINE. LISTENING...`, "success");
+            document.getElementById('netStat').innerText = "NET: HOSTING";
+            document.getElementById('netStat').style.color = "var(--green)";
+            enablePTT();
+        });
 
-        function tacSetupAudioGraph() {
-            var AC = window.AudioContext || window.webkitAudioContext;
-            tacAudioCtx = new AC();
-            tacSpeakerGain = tacAudioCtx.createGain();
-            tacSpeakerGain.gain.value = 1;
-            tacDelayNode = tacAudioCtx.createDelay(5.0);
-            tacDelayNode.delayTime.value = 0.05;
-            tacAnalyser = tacAudioCtx.createAnalyser();
-            tacAnalyser.fftSize = 64;
-            tacDelayNode.connect(tacAnalyser);
-            tacAnalyser.connect(tacSpeakerGain);
-            tacSpeakerGain.connect(tacAudioCtx.destination);
-            tacUpdateMeter();
-        }
+        // Handle incoming connections
+        peer.on('connection', (c) => {
+            log("INCOMING HANDSHAKE DETECTED.", "sys");
+            conn = c;
+            setupConnectionHandlers(c, null); // Media handled in 'call' event
+        });
 
-        function tacUpdateMeter() {
-            if (!tacAnalyser) return;
-            var data = new Uint8Array(tacAnalyser.frequencyBinCount);
-            tacAnalyser.getByteFrequencyData(data);
-            var sum = 0; for (var i = 0; i < data.length; i++) sum += data[i];
-            var avg = sum / data.length;
-            tacSetMeter(Math.min(100, avg * 3));
-            tacAnimFrame = requestAnimationFrame(tacUpdateMeter);
-        }
+        peer.on('call', (call) => {
+            log("INCOMING VOICE LINK.", "sys");
+            call.answer(localStream);
+            setupConnectionHandlers(null, call);
+        });
+    }
 
-        function tacConnectToPeer(targetId) {
-            tacPeer = new Peer();
-            tacPeer.on('open', function(id) {
-                tacLog('LOCAL HANDSHAKE ESTABLISHED. ID: ' + id.substr(0,4) + '...', 'sys');
-                tacConn = tacPeer.connect(targetId);
-                tacCurrentCall = tacPeer.call(targetId, tacLocalStream);
-                tacSetupHandlers(tacConn, tacCurrentCall);
+    function setupConnectionHandlers(connection, call) {
+        // Data Channel Setup
+        if (connection) {
+            connection.on('open', () => {
+                document.getElementById('ledNet').classList.add('online');
+                document.getElementById('netStat').innerText = "NET: CONNECTED";
+                document.getElementById('netStat').style.color = "var(--blue)";
+                enablePTT();
+                log("DATA LINK ESTABLISHED.", "success");
             });
-            tacPeer.on('error', function(err) {
-                if (err.type === 'peer-unavailable') {
-                    tacLog('CHANNEL CLEAR. ESTABLISHING HOST NODE...', 'sys');
-                    tacPeer.destroy();
-                    tacBecomeHost(targetId);
-                } else {
-                    tacLog('CONNECTION ERROR: ' + err.type, 'error');
-                    tacResetUI();
+
+            connection.on('data', (data) => {
+                // SECURITY: Strict string comparison against known values only.
+                // This prevents any unintended behavior from unexpected data types
+                // or values received through the PeerJS data channel.
+                if (data === 'TX_ON') {
+                    document.getElementById('ledTx').classList.add('tx');
+                    // Logic: Mute speakers when remote transmits to prevent feedback loop
+                    if(speakerGain) speakerGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
+                }
+                if (data === 'TX_OFF') {
+                    document.getElementById('ledTx').classList.remove('tx');
+                    // Logic: Unmute speakers
+                    if(speakerGain) speakerGain.gain.setTargetAtTime(1, audioCtx.currentTime, 0.1);
+                    playTone(600, 0.1, 'sine'); // End of transmission beep
                 }
             });
-        }
-
-        function tacBecomeHost(myHostId) {
-            tacPeer = new Peer(myHostId);
-            tacPeer.on('open', function(id) {
-                tacLog('NODE ' + id.substr(-2) + ' ONLINE. LISTENING...', 'success');
-                tacUI('NetStat', null, 'NET: HOSTING');
-                var d=document.getElementById('dNetStat'), m=document.getElementById('mNetStat');
-                if(d)d.style.color='var(--tac-green)'; if(m)m.style.color='var(--tac-green)';
-                tacEnablePTT();
-            });
-            tacPeer.on('connection', function(c) {
-                tacLog('INCOMING HANDSHAKE DETECTED.', 'sys');
-                tacConn = c;
-                tacSetupHandlers(c, null);
-            });
-            tacPeer.on('call', function(call) {
-                tacLog('INCOMING VOICE LINK.', 'sys');
-                call.answer(tacLocalStream);
-                tacSetupHandlers(null, call);
+            
+            connection.on('close', () => {
+                log("LINK LOST.", "error");
+                hardReset();
             });
         }
 
-        function tacSetupHandlers(connection, call) {
-            if (connection) {
-                connection.on('open', function() {
-                    tacSetLed('net', true);
-                    tacUI('NetStat', null, 'NET: CONNECTED');
-                    var d=document.getElementById('dNetStat'), m=document.getElementById('mNetStat');
-                    if(d)d.style.color='var(--tac-blue)'; if(m)m.style.color='var(--tac-blue)';
-                    tacEnablePTT();
-                    tacLog('DATA LINK ESTABLISHED.', 'success');
-                });
-                connection.on('data', function(data) {
-                    if (data === 'TX_ON') {
-                        tacSetLed('tx', true);
-                        if (tacSpeakerGain) tacSpeakerGain.gain.setTargetAtTime(0, tacAudioCtx.currentTime, 0.1);
-                    }
-                    if (data === 'TX_OFF') {
-                        tacSetLed('tx', false);
-                        if (tacSpeakerGain) tacSpeakerGain.gain.setTargetAtTime(1, tacAudioCtx.currentTime, 0.1);
-                        tacPlayTone(600, 0.1, 'sine');
-                    }
-                });
-                connection.on('close', function() { tacLog('LINK LOST.', 'error'); tacHardReset(); });
-            }
-            if (call) {
-                call.on('stream', function(stream) {
-                    var audioEl = document.getElementById('remoteAudio');
-                    audioEl.srcObject = stream;
-                    var source = tacAudioCtx.createMediaStreamSource(stream);
-                    source.connect(tacDelayNode);
-                    tacLog('REMOTE AUDIO SYNCED.', 'success');
-                });
-                call.on('close', function() { tacLog('CALL TERMINATED.', 'error'); tacHardReset(); });
-            }
+        // Media Stream Setup
+        if (call) {
+            call.on('stream', (stream) => {
+                const audioEl = document.getElementById('remoteAudio');
+                audioEl.srcObject = stream;
+                
+                // Connect remote audio to our WebAudio graph for visualizer
+                const source = audioCtx.createMediaStreamSource(stream);
+                source.connect(delayNode);
+                log("REMOTE AUDIO SYNCED.", "success");
+            });
+            
+            call.on('close', () => {
+                log("CALL TERMINATED.", "error");
+                hardReset();
+            });
+        }
+    }
+
+    // --- Interaction Logic ---
+    function enablePTT() {
+        const btn = document.getElementById('pttBtn');
+        btn.disabled = false;
+        document.getElementById('bootBtn').innerText = "LINK ACTIVE";
+        document.getElementById('curFreq').style.color = "var(--green)";
+    }
+
+    function setMicState(enable) {
+        if (localStream) {
+            localStream.getAudioTracks().forEach(track => track.enabled = enable);
+        }
+    }
+
+    // PTT Button Handlers
+    const pttBtn = document.getElementById('pttBtn');
+
+    function pttDown() {
+        if (!conn || !conn.open) return;
+        
+        setMicState(true); // Unmute Mic
+        conn.send('TX_ON');
+        document.getElementById('ledTx').classList.add('tx');
+        
+        // Mute local speakers to avoid hearing yourself with delay
+        if(speakerGain) speakerGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.01);
+        
+        playTone(1200, 0.05, 'square'); // Start beep
+    }
+
+    function pttUp() {
+        if (!conn || !conn.open) return;
+        
+        setMicState(false); // Mute Mic
+        conn.send('TX_OFF');
+        document.getElementById('ledTx').classList.remove('tx');
+        
+        // Unmute speakers
+        if(speakerGain) speakerGain.gain.setTargetAtTime(1, audioCtx.currentTime, 0.5);
+        
+        playTone(450, 0.1, 'sine'); // End beep
+    }
+
+    // Mouse Events
+    pttBtn.addEventListener('mousedown', pttDown);
+    window.addEventListener('mouseup', pttUp); // Catch release outside button
+
+    // Touch Events (Prevent default to stop scrolling/selecting)
+    pttBtn.addEventListener('touchstart', (e) => { e.preventDefault(); pttDown(); });
+    pttBtn.addEventListener('touchend', (e) => { e.preventDefault(); pttUp(); });
+
+    // --- Utilities ---
+    function playTone(freq, duration, type) {
+        if(!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.value = freq;
+        gain.gain.value = 0.1;
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+        osc.stop(audioCtx.currentTime + duration);
+    }
+
+    function updateMeter() {
+        if(!analyser) return;
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(dataArray);
+        
+        // Calculate average volume
+        let sum = 0;
+        for(let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+        let average = sum / dataArray.length;
+
+        // Update visual bar
+        const percentage = Math.min(100, average * 3); // Scale up for sensitivity
+        document.getElementById('meter-fill').style.width = percentage + "%";
+        
+        // Update fake dB readout
+        if(percentage > 5) {
+             document.getElementById('dbVal').innerText = "-" + (100 - percentage).toFixed(0) + " dB";
+        } else {
+             document.getElementById('dbVal').innerText = "-inf dB";
         }
 
-        function tacEnablePTT() {
-            var dp=document.getElementById('dPttBtn'), mp=document.getElementById('mPttBtn');
-            if(dp)dp.disabled=false; if(mp)mp.disabled=false;
-            var db=document.getElementById('dBootBtn'), mb=document.getElementById('mBootBtn');
-            if(db)db.textContent='LINK ACTIVE'; if(mb)mb.textContent='LINK ACTIVE';
-            var dc=document.getElementById('dCurFreq'), mc=document.getElementById('mCurFreq');
-            if(dc)dc.style.color='var(--tac-green)'; if(mc)mc.style.color='var(--tac-green)';
+        requestAnimationFrame(updateMeter);
+    }
+
+    function resetUI() {
+        document.getElementById('bootBtn').disabled = false;
+        document.getElementById('bootBtn').innerText = "INITIALIZE LINK";
+        document.getElementById('ledNet').classList.remove('online');
+        document.getElementById('ledTx').classList.remove('tx');
+        document.getElementById('netStat').innerText = "NET: DISCONNECTED";
+        document.getElementById('netStat').style.color = "var(--amber)";
+        document.getElementById('curFreq').innerText = "--.--";
+        document.getElementById('curFreq').style.color = "var(--blue)";
+        document.getElementById('pttBtn').disabled = true;
+        document.getElementById('meter-fill').style.width = "0%";
+        document.getElementById('dbVal').innerText = "-inf dB";
+    }
+
+    function hardReset() {
+        if(peer) peer.destroy();
+        if(localStream) {
+            localStream.getTracks().forEach(track => track.stop());
         }
+        location.reload();
+    }
+    
+    // Initial System Log
+    log("SYSTEM BOOT SEQUENCE INITIATED...", "sys");
+    setTimeout(() => log("WAITING FOR USER INPUT...", "sys"), 500);
 
-        function tacSetMicState(enable) {
-            if (tacLocalStream) tacLocalStream.getAudioTracks().forEach(function(t){ t.enabled = enable; });
-        }
-
-        function tacPttDown() {
-            if (!tacConn || !tacConn.open) return;
-            tacSetMicState(true); tacConn.send('TX_ON'); tacSetLed('tx', true);
-            if (tacSpeakerGain) tacSpeakerGain.gain.setTargetAtTime(0, tacAudioCtx.currentTime, 0.01);
-            tacPlayTone(1200, 0.05, 'square');
-        }
-        function tacPttUp() {
-            if (!tacConn || !tacConn.open) return;
-            tacSetMicState(false); tacConn.send('TX_OFF'); tacSetLed('tx', false);
-            if (tacSpeakerGain) tacSpeakerGain.gain.setTargetAtTime(1, tacAudioCtx.currentTime, 0.5);
-            tacPlayTone(450, 0.1, 'sine');
-        }
-
-        function tacPlayTone(freq, dur, type) {
-            if (!tacAudioCtx) return;
-            var o = tacAudioCtx.createOscillator(), g = tacAudioCtx.createGain();
-            o.type = type; o.frequency.value = freq; g.gain.value = 0.1;
-            o.connect(g); g.connect(tacAudioCtx.destination); o.start();
-            g.gain.exponentialRampToValueAtTime(0.00001, tacAudioCtx.currentTime + dur);
-            o.stop(tacAudioCtx.currentTime + dur);
-        }
-
-        function tacResetUI() {
-            ['dBootBtn','mBootBtn'].forEach(function(id){var e=document.getElementById(id);if(e){e.disabled=false;e.textContent='INITIALIZE LINK';}});
-            tacSetLed('net',false); tacSetLed('tx',false);
-            tacUI('NetStat',null,'NET: DISCONNECTED');
-            var d=document.getElementById('dNetStat'),m=document.getElementById('mNetStat');
-            if(d)d.style.color='var(--amber)'; if(m)m.style.color='var(--amber)';
-            tacUI('CurFreq',null,'--.--');
-            var dc=document.getElementById('dCurFreq'),mc=document.getElementById('mCurFreq');
-            if(dc)dc.style.color='var(--tac-blue)'; if(mc)mc.style.color='var(--tac-blue)';
-            ['dPttBtn','mPttBtn'].forEach(function(id){var e=document.getElementById(id);if(e)e.disabled=true;});
-            tacSetMeter(0);
-        }
-
-        function tacHardReset() {
-            if (tacAnimFrame) cancelAnimationFrame(tacAnimFrame);
-            if (tacPeer) tacPeer.destroy();
-            if (tacLocalStream) tacLocalStream.getTracks().forEach(function(t){ t.stop(); });
-            tacPeer=null; tacConn=null; tacLocalStream=null; tacAudioCtx=null;
-            tacDelayNode=null; tacAnalyser=null; tacSpeakerGain=null; tacCurrentCall=null;
-            tacResetUI();
-            tacLog('SYSTEM RESET COMPLETE. READY.', 'sys');
-        }
-
-        /* --- TAC/COM EVENT BINDING --- */
-
-        /* Desktop boot button */
-        document.getElementById('dBootBtn').addEventListener('click', function(){ tacInitChannel('dChanInput'); });
-        /* Mobile boot button */
-        document.getElementById('mBootBtn').addEventListener('click', function(){ tacInitChannel('mChanInput'); });
-
-        /* Desktop PTT: mouse */
-        document.getElementById('dPttBtn').addEventListener('mousedown', tacPttDown);
-        window.addEventListener('mouseup', tacPttUp);
-        /* Desktop PTT: touch */
-        document.getElementById('dPttBtn').addEventListener('touchstart', function(e){ e.preventDefault(); tacPttDown(); });
-        document.getElementById('dPttBtn').addEventListener('touchend', function(e){ e.preventDefault(); tacPttUp(); });
-
-        /* Mobile PTT: touch */
-        document.getElementById('mPttBtn').addEventListener('touchstart', function(e){ e.preventDefault(); tacPttDown(); });
-        document.getElementById('mPttBtn').addEventListener('touchend', function(e){ e.preventDefault(); tacPttUp(); });
-        /* Mobile PTT: mouse fallback */
-        document.getElementById('mPttBtn').addEventListener('mousedown', tacPttDown);
-        window.addEventListener('mouseup', tacPttUp);
-
-        /* Desktop reset */
-        document.getElementById('dResetBtn').addEventListener('click', tacHardReset);
-        /* Mobile reset */
-        document.getElementById('mResetBtn').addEventListener('click', tacHardReset);
-
-        /* Sync channel inputs between desktop and mobile */
-        document.getElementById('dChanInput').addEventListener('input', function(){ document.getElementById('mChanInput').value = this.value; });
-        document.getElementById('mChanInput').addEventListener('input', function(){ document.getElementById('dChanInput').value = this.value; });
-
-        /* ========== INIT ========== */
-        document.getElementById('lever-security').classList.add('active');
-        document.getElementById('tbHud').classList.add('active');
-        tacLog('SYSTEM BOOT SEQUENCE INITIATED...', 'sys');
-        setTimeout(function(){ tacLog('WAITING FOR USER INPUT...', 'sys'); }, 500);
-    </script>
+</script>
 </body>
 </html>
