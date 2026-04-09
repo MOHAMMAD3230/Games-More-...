@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
-    <!-- ===== SECURITY HEADERS (Added for GitHub Pages) ===== -->
+    <!-- ===== SECURITY HEADERS ===== -->
     <meta http-equiv="Content-Security-Policy" content="
         default-src 'self';
-        script-src 'self' https://unpkg.com;
+        script-src 'self' 'unsafe-inline' https://unpkg.com;
         style-src 'self' 'unsafe-inline';
         img-src 'self' data:;
         media-src 'self' blob:;
@@ -19,8 +19,6 @@
     " />
     <meta http-equiv="X-Frame-Options" content="SAMEORIGIN" />
     <meta name="referrer" content="no-referrer-when-downgrade" />
-    
-    <!-- CRITICAL: Allows microphone access on this page -->
     <meta http-equiv="Permissions-Policy" content="
         camera=(),
         microphone=(self),
@@ -36,12 +34,10 @@
         picture-in-picture=(),
         screen-wake-lock=()
     " />
-
     <meta name="robots" content="noindex, nofollow, noarchive, nosnippet" />
     <!-- ========================================================= -->
 
     <title>TAC/COM-04 | SECURE NET</title>
-    <!-- Use a specific version of PeerJS to ensure stability -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -64,11 +60,10 @@
             align-items: center;
             min-height: 100vh;
             margin: 0;
-            touch-action: manipulation; /* Improves touch response */
+            touch-action: manipulation;
             overflow: hidden;
         }
 
-        /* CRT Scanline Effect */
         .scanlines {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -112,7 +107,6 @@
             box-shadow: inset 0 0 20px #000;
         }
 
-        /* Header / Status Bar */
         .status-bar {
             font-size: 0.7rem;
             display: flex;
@@ -152,7 +146,6 @@
             background: #444;
         }
 
-        /* Controls */
         .btn-ptt {
             width: 100%;
             height: 120px;
@@ -234,7 +227,6 @@
             border-color: var(--blue);
         }
 
-        /* Indicators */
         .led-group {
             display: flex;
             justify-content: space-around;
@@ -262,7 +254,6 @@
         .online { background: var(--blue); box-shadow: 0 0 8px var(--blue); border-color: #fff; }
         .tx { background: var(--red); box-shadow: 0 0 15px var(--red); border-color: #fff; }
         
-        /* Audio Meter */
         #meter-container {
             width: 100%;
             height: 8px;
@@ -284,10 +275,8 @@
 <div class="scanlines"></div>
 
 <div class="mainframe">
-    <!-- Hidden Audio Element for Remote Stream -->
     <audio id="remoteAudio" autoplay playsinline style="display:none;"></audio>
 
-    <!-- Left Panel: Monitor -->
     <div class="monitor">
         <div class="status-bar">
             <span>FREQ: <span id="curFreq" style="color:var(--blue)">--.--</span> MHz</span>
@@ -305,19 +294,15 @@
         </div>
     </div>
 
-    <!-- Right Panel: Controls -->
     <div class="side-panel">
-        <!-- Channel Module -->
         <div class="module">
             <div style="font-size: 0.6rem; color: #777; margin-bottom: 8px; text-align: center;">SET SECURE CHANNEL (1-99)</div>
             <input type="number" id="chanInput" value="1" min="1" max="99" autocomplete="off">
-            <!-- SECURITY: Removed onclick="initChannel()" to allow strict CSP -->
             <button class="btn-action" id="bootBtn" style="margin-top:10px;">
                 INITIALIZE LINK
             </button>
         </div>
 
-        <!-- PTT Module -->
         <div class="module" style="text-align:center;">
             <button class="btn-ptt" id="pttBtn" disabled>
                 <span>PUSH TO TALK</span>
@@ -336,8 +321,6 @@
             </div>
         </div>
 
-        <!-- System Module -->
-        <!-- SECURITY: Removed onclick="hardReset()" to allow strict CSP, added id="resetBtn" -->
         <button class="btn-action" id="resetBtn" style="background:#200; border-color:#500; color:#f55;">
             SYSTEM RESET
         </button>
@@ -345,7 +328,6 @@
 </div>
 
 <script>
-    // --- Configuration & State ---
     let peer = null;
     let conn = null;
     let localStream = null;
@@ -355,10 +337,8 @@
     let speakerGain = null;
     let currentCall = null;
 
-    // Prefix to isolate traffic from other public PeerJS users
     const APP_PREFIX = "TAC-COM-SECURE-"; 
 
-    // --- Logging Utility (XSS SAFE - uses innerText) ---
     function log(msg, type="info") {
         const out = document.getElementById('output');
         const div = document.createElement('div');
@@ -375,11 +355,9 @@
         out.scrollTop = out.scrollHeight;
     }
 
-    // --- Main Initialization ---
     async function initChannel() {
         const inputEl = document.getElementById('chanInput');
         
-        // 1. INPUT VALIDATION (Security & Logic)
         let val = parseInt(inputEl.value);
         
         if (isNaN(val) || val < 1 || val > 99) {
@@ -392,13 +370,11 @@
         const chanNum = val.toString().padStart(2, '0');
         const fullId = APP_PREFIX + chanNum;
 
-        // UI Updates
         document.getElementById('bootBtn').disabled = true;
         document.getElementById('bootBtn').innerText = "LINKING...";
         log(`ATTEMPTING CONNECTION ON CHANNEL ${chanNum}...`, "sys");
 
         try {
-            // 2. GET USER MEDIA (Microphone)
             localStream = await navigator.mediaDevices.getUserMedia({ 
                 audio: { 
                     echoCancellation: true, 
@@ -407,15 +383,11 @@
                 } 
             });
 
-            // Mute local mic immediately (Half-Duplex default)
             setMicState(false);
-
-            // 3. SETUP AUDIO GRAPH
             setupAudioGraph();
 
-            document.getElementById('curFreq').innerText = "462." + chanNum; // Simulated FRS/GMRS freq
+            document.getElementById('curFreq').innerText = "462." + chanNum;
             
-            // Start Connection Logic
             connectToPeer(fullId);
 
         } catch(e) {
@@ -431,15 +403,14 @@
         audioCtx = new AudioContext();
         
         speakerGain = audioCtx.createGain();
-        speakerGain.gain.value = 1; // Start with speakers ON (RX mode)
+        speakerGain.gain.value = 1;
 
         delayNode = audioCtx.createDelay(5.0);
-        delayNode.delayTime.value = 0.05; // Slight delay for smoother processing
+        delayNode.delayTime.value = 0.05;
 
         analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 64; // Low resolution for performance/visuals
+        analyser.fftSize = 64;
         
-        // Chain: Delay -> Analyser -> Gain -> Destination
         delayNode.connect(analyser);
         analyser.connect(speakerGain);
         speakerGain.connect(audioCtx.destination);
@@ -447,7 +418,6 @@
         updateMeter();
     }
 
-    // --- PeerJS Connection Logic (100% Preserved) ---
     function connectToPeer(targetId) {
         peer = new Peer();
 
@@ -540,7 +510,6 @@
         }
     }
 
-    // --- Interaction Logic ---
     function enablePTT() {
         const btn = document.getElementById('pttBtn');
         btn.disabled = false;
@@ -554,7 +523,6 @@
         }
     }
 
-    // PTT Button Handlers
     const pttBtn = document.getElementById('pttBtn');
 
     function pttDown() {
@@ -581,15 +549,12 @@
         playTone(450, 0.1, 'sine'); 
     }
 
-    // Mouse Events
     pttBtn.addEventListener('mousedown', pttDown);
     window.addEventListener('mouseup', pttUp); 
 
-    // Touch Events 
     pttBtn.addEventListener('touchstart', (e) => { e.preventDefault(); pttDown(); });
     pttBtn.addEventListener('touchend', (e) => { e.preventDefault(); pttUp(); });
 
-    // --- Utilities ---
     function playTone(freq, duration, type) {
         if(!audioCtx) return;
         const osc = audioCtx.createOscillator();
@@ -638,15 +603,9 @@
         location.reload();
     }
 
-    // =================================================================
-    // SECURITY: Event Listeners (Moved from HTML to JS for strict CSP)
-    // This replaces the old onclick="initChannel()" and onclick="hardReset()"
-    // It does NOT change how the functions work, just when they are called.
-    // =================================================================
     document.getElementById('bootBtn').addEventListener('click', initChannel);
     document.getElementById('resetBtn').addEventListener('click', hardReset);
     
-    // Initial System Log
     log("SYSTEM BOOT SEQUENCE INITIATED...", "sys");
     setTimeout(() => log("WAITING FOR USER INPUT...", "sys"), 500);
 
