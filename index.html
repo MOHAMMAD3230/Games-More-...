@@ -1,1181 +1,1052 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- 
-        CONTENT SECURITY POLICY (CSP)
-        - frame-ancestors 'none'  → prevents clickjacking via iframes
-        - form-action 'self'      → blocks form submission to external domains
-        - base-uri 'self'         → prevents <base> tag hijacking
-        - object-src 'none'       → blocks Flash/plugin embedding
-        - upgrade-insecure-requests → auto-upgrades HTTP to HTTPS
-        NOTE: 'unsafe-inline' is required for a single-file setup with inline <script>.
-              Move scripts to external .js files to remove this and gain full XSS protection.
-    -->
-    <meta http-equiv="Content-Security-Policy"
-          content="default-src 'self';
-                   script-src 'self' 'unsafe-inline' https://pagead2.googlesyndication.com https://www.googletagmanager.com;
-                   style-src 'self' 'unsafe-inline';
-                   img-src 'self' https: data:;
-                   font-src 'self' data:;
-                   connect-src 'self' https://www.google-analytics.com https://www.googletagmanager.com https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net https://stats.g.doubleclick.net;
-                   object-src 'none';
-                   frame-ancestors 'none';
-                   form-action 'self';
-                   base-uri 'self';
-                   upgrade-insecure-requests;">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <!-- Referrer Policy: only send origin on cross-origin requests, never full URL -->
-    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <!-- ===== SECURITY HEADERS ===== -->
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline' https://pagead2.googlesyndication.com https://www.googletagmanager.com;
+        style-src 'self' 'unsafe-inline';
+        img-src 'self' data: https:;
+        font-src 'self' data:;
+        connect-src 'self' https://pagead2.googlesyndication.com https://www.google-analytics.com https://www.googletagmanager.com;
+        media-src 'self' https://www.soundjay.com;
+        frame-src https://pagead2.googlesyndication.com;
+        base-uri 'self';
+        form-action 'self';
+        object-src 'none';
+    " />
+    <meta http-equiv="X-Frame-Options" content="SAMEORIGIN" />
+    <meta name="referrer" content="no-referrer-when-downgrade" />
+    <meta http-equiv="Permissions-Policy" content="
+        camera=(), microphone=(), geolocation=(), payment=(), usb=(),
+        magnetometer=(), gyroscope=(), accelerometer=(),
+        ambient-light-sensor=(), autoplay=(), encrypted-media=(),
+        picture-in-picture=(), screen-wake-lock=()
+    " />
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet" />
 
-    <!-- AdSense (your existing publisher ID) -->
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4592970036066688"
-            crossorigin="anonymous"></script>
+    <!-- ===== FAVICON ===== -->
+    <link rel="icon" href="https://mohammad3230.github.io/Games-More-.../favicon.png" type="image/png" sizes="32x32" />
 
-    <!-- Google Tag Manager -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=GT-NC6T5LRJ"
-            crossorigin="anonymous"></script>
+    <title>MY_STUFF_AIO</title>
+
+    <!-- ===== GOOGLE TAG MANAGER (single load) ===== -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=GT-NC6T5LRJ"></script>
     <script>
         window.dataLayer = window.dataLayer || [];
-        function gtag(){ dataLayer.push(arguments); }
+        function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());
+        gtag('consent', 'default', {
+            'analytics_storage': 'denied',
+            'ad_storage': 'denied',
+            'ad_user_data': 'denied',
+            'ad_personalization': 'denied',
+            'wait_for_update': 500
+        });
         gtag('config', 'GT-NC6T5LRJ');
     </script>
 
-    <!-- NOTE: Fix your favicon path — the "..." below is likely a mistake -->
-    <link rel="icon" href="https://mohammad3230.github.io/Games-More-.../favicon.png"
-          type="image/png" sizes="32x32" />
-
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MY_STUFF_AIO</title>
+    <!-- ===== ADSENSE (single load — duplicate removed) ===== -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4592970036066688" crossorigin="anonymous"></script>
 
     <style>
-        /* ==================== RESET & BASE ==================== */
+        /* ================================================================
+           RESET & BASE
+           ================================================================ */
         *, *::before, *::after { box-sizing: border-box; }
-
         html, body {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            overflow-x: hidden;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0; padding: 0;
+            height: 100%; width: 100%;
+            overflow: hidden;
+            -webkit-tap-highlight-color: transparent;
             -webkit-text-size-adjust: 100%;
         }
 
-        /* Focus-visible for keyboard navigation */
-        :focus-visible {
-            outline: 2px solid #00eaff;
-            outline-offset: 2px;
-        }
-
-        /* Reduced motion preference */
-        @media (prefers-reduced-motion: reduce) {
-            *, *::before, *::after {
-                animation-duration: 0.01ms !important;
-                animation-iteration-count: 1 !important;
-                transition-duration: 0.01ms !important;
-            }
-        }
-
-        /* ==================== MATRIX CANVAS ==================== */
+        /* ================================================================
+           MATRIX CANVAS
+           ================================================================ */
         #matrix {
-            position: fixed;
-            top: 0; left: 0;
+            position: fixed; top: 0; left: 0;
             width: 100%; height: 100%;
-            z-index: -1;
-            background: #000010;
-            display: block;
-            transition: opacity 1s ease;
+            z-index: -1; background: #000010;
+            display: block; transition: opacity 1s ease;
         }
 
-        /* ==================== PAGE TITLE ==================== */
+        /* ================================================================
+           PAGE TITLE — responsive via clamp()
+           ================================================================ */
         .page-title {
-            text-align: center;
-            color: #00eaff;
+            text-align: center; color: #00eaff;
             font-family: 'Segoe UI', sans-serif;
-            font-size: clamp(1.4rem, 5vw, 3em);
+            font-size: clamp(1.3em, 5vw, 3em);
             text-transform: uppercase;
-            letter-spacing: 4px;
-            margin-top: 30px;
-            margin-bottom: 20px;
-            user-select: none;
+            letter-spacing: clamp(1px, 1.5vw, 4px);
+            margin-top: 30px; margin-bottom: 15px;
+            padding: 0 20px; user-select: none;
             text-shadow: 0 0 5px #f9fbfb, 0 0 15px #f4f5f6;
-            padding: 0 clamp(16px, 5vw, 80px);
-            line-height: 1.2;
+            position: relative; z-index: 1;
         }
         .page-title .version {
-            font-size: 0.55em;
-            color: #00e5ff;
-            letter-spacing: 1px;
-            margin-left: 8px;
-            font-weight: 400;
+            font-size: 0.55em; color: #00e5ff;
+            letter-spacing: 1px; margin-left: 8px; font-weight: 400;
         }
 
-        /* ==================== LEVER (Desktop) ==================== */
+        /* ================================================================
+           GENERIC LEVER STYLES
+           ================================================================ */
         .lever-container {
-            width: 70px;
-            height: 160px;
+            width: 70px; height: 160px;
             background: rgba(10, 10, 25, 0.9);
-            border: 2px solid #333;
-            border-radius: 12px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: space-around;
+            border: 2px solid #333; border-radius: 12px;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: space-around;
             box-shadow: 0 0 20px rgba(0,0,0,0.8), inset 0 0 10px #000;
-            z-index: 30;
-            cursor: pointer;
-            transition: border-color 0.4s, box-shadow 0.4s;
-            -webkit-tap-highlight-color: transparent;
+            z-index: 100; cursor: pointer;
+            transition: border-color 0.4s;
+            touch-action: manipulation;
         }
         .lever-label {
-            font-size: 0.65em;
-            color: #555;
-            font-family: monospace;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            pointer-events: none;
+            font-size: 0.65em; color: #555;
+            font-family: monospace; text-transform: uppercase;
+            letter-spacing: 2px; pointer-events: none;
         }
         .lever-track {
-            width: 16px;
-            height: 90px;
-            background: #050505;
-            border-radius: 8px;
-            position: relative;
-            border: 1px solid #222;
+            width: 16px; height: 90px;
+            background: #050505; border-radius: 8px;
+            position: relative; border: 1px solid #222;
         }
         .lever-handle {
-            width: 34px;
-            height: 44px;
+            width: 34px; height: 44px;
             background: linear-gradient(145deg, #555, #111);
-            border: 1px solid #777;
-            border-radius: 6px;
-            position: absolute;
-            left: -10px;
-            top: 0;
-            transition: top 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.3s, box-shadow 0.3s;
+            border: 1px solid #777; border-radius: 6px;
+            position: absolute; left: -10px; top: 0;
+            transition: top 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.3s;
             box-shadow: 0 5px 15px rgba(0,0,0,0.6);
         }
 
-        /* Lever: Matrix (rightmost) */
+        /* ---- Matrix Lever (Rightmost) ---- */
         #lever-matrix {
-            position: fixed;
-            top: 50%;
-            right: 40px;
+            position: fixed; top: 50%; right: 40px;
             transform: translateY(-50%);
         }
-        #lever-matrix.active { border-color: #00bfff; box-shadow: 0 0 25px rgba(0,191,255,0.4); }
+        #lever-matrix.active { border-color: #00bfff; box-shadow: 0 0 25px rgba(0, 191, 255, 0.4); }
         #lever-matrix.active .lever-handle {
             top: 46px;
             background: linear-gradient(145deg, #00bfff, #005f7f);
-            box-shadow: 0 0 15px #00bfff;
-            border-color: #e0f7ff;
+            box-shadow: 0 0 15px #00bfff; border-color: #e0f7ff;
         }
 
-        /* Lever: Security/HUD (inner right) */
+        /* ---- Security Lever ---- */
         #lever-security {
-            position: fixed;
-            top: 50%;
-            right: 130px;
+            position: fixed; top: 50%; right: 130px;
             transform: translateY(-50%);
         }
-        #lever-security.active { border-color: #ff0055; box-shadow: 0 0 25px rgba(255,0,85,0.4); }
+        #lever-security.active { border-color: #ff0055; box-shadow: 0 0 25px rgba(255, 0, 85, 0.4); }
         #lever-security.active .lever-handle {
             top: 46px;
             background: linear-gradient(145deg, #ff0055, #80002a);
-            box-shadow: 0 0 15px #ff0055;
-            border-color: #ffe0e7;
+            box-shadow: 0 0 15px #ff0055; border-color: #ffe0e7;
         }
 
-        /* ==================== TOP-LEFT CATEGORIES PANEL ==================== */
+        /* ================================================================
+           CATEGORIES PANEL
+           ================================================================ */
         .top-left-container {
-            position: fixed;
-            top: 30px;
-            left: 30px;
-            z-index: 20;
+            position: fixed; top: 30px; left: 30px; z-index: 50;
         }
         .categories-panel {
-            width: 180px;
-            height: 100px;
-            background: rgba(0, 0, 0, 0.0);
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 0 25px rgba(0,191,255,0.5);
-            overflow: hidden;
-            color: white;
-            font-family: monospace, monospace;
+            width: 180px; height: 100px;
+            background: rgba(0, 0, 0, 0);
+            border-radius: 12px; padding: 20px;
+            box-shadow: 0 0 25px rgba(0, 191, 255, 0.5);
+            overflow: hidden; color: white;
+            font-family: monospace;
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
         }
         .categories-panel.expanded {
-            width: 220px;
-            height: 420px;
-            box-shadow: 0 0 35px rgba(0,191,255,0.8);
+            width: 220px; height: 420px;
+            box-shadow: 0 0 35px rgba(0, 191, 255, 0.8);
         }
         .dropdown-content { display: none; }
         .dropdown-content.show { display: block !important; }
-
         .filter-container {
-            height: 240px;
-            overflow-y: auto;
+            height: 240px; overflow-y: auto;
             overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
             scrollbar-width: thin;
-            scrollbar-color: #00bfff rgba(0,0,0,0.3);
-            border: 1px solid rgba(0,191,255,0.3);
-            border-radius: 6px;
-            margin-top: 10px;
-            background: rgba(0,0,0,0.6);
+            scrollbar-color: #00bfff rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 191, 255, 0.3);
+            border-radius: 6px; margin-top: 10px;
+            background: rgba(0, 0, 0, 0.6);
         }
         .filter-container::-webkit-scrollbar { width: 8px; }
-        .filter-container::-webkit-scrollbar-track { background: rgba(0,0,0,0.5); border-radius: 4px; }
+        .filter-container::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.5); border-radius: 4px; }
         .filter-container::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #00bfff, #0080ff); border-radius: 4px; }
-
         .categories-panel h3 { color: #00bfff; font-weight: 600; font-size: 1.2em; margin: 0 0 10px 0; }
-
         .dropbtn {
-            background: rgba(0,191,255,0.3);
-            color: #ffffff;
-            padding: 12px;
-            font-size: 0.9em;
-            border: 1px solid rgba(0,191,255,0.5);
-            border-radius: 6px;
-            cursor: pointer;
-            font-family: monospace;
-            font-weight: bold;
-            width: 100%;
-            text-align: left;
+            background: rgba(0, 191, 255, 0.3); color: #ffffff;
+            padding: 12px; font-size: 0.9em;
+            border: 1px solid rgba(0, 191, 255, 0.5);
+            border-radius: 6px; cursor: pointer;
+            font-family: monospace; font-weight: bold;
+            width: 100%; text-align: left;
+            box-sizing: border-box; touch-action: manipulation;
         }
-        .dropbtn:hover { background: rgba(0,191,255,0.5); }
-
         #categoryFilter {
-            width: 100%;
-            padding: 10px 12px;
-            border: none;
-            border-bottom: 1px solid rgba(0,191,255,0.5);
-            background: rgba(0,0,0,0.8);
-            color: #e0f7ff;
-            font-family: monospace;
-            font-size: 0.9em;
+            width: 100%; padding: 10px 12px; border: none;
+            border-bottom: 1px solid rgba(0, 191, 255, 0.5);
+            background: rgba(0, 0, 0, 0.8); color: #e0f7ff;
+            font-family: monospace; font-size: 0.9em;
+            box-sizing: border-box;
         }
-        #categoryFilter::placeholder { color: #556; }
-
         .dropdown-content a {
-            color: #e0f7ff;
-            padding: 12px 14px;
-            text-decoration: none;
-            display: block;
+            color: #e0f7ff; padding: 12px 14px;
+            text-decoration: none; display: block;
             font-size: 0.9em;
-            border-bottom: 1px solid rgba(0,191,255,0.2);
-            transition: background 0.2s, padding-left 0.2s, color 0.2s;
+            border-bottom: 1px solid rgba(0, 191, 255, 0.2);
         }
-        .dropdown-content a:hover { background: rgba(0,191,255,0.4); color: #ffffff; padding-left: 18px; }
-
+        .dropdown-content a:hover {
+            background: rgba(0, 191, 255, 0.4);
+            color: #ffffff; padding-left: 18px;
+        }
         .main-category .main-link {
-            color: #00e5ff;
-            font-weight: bold;
-            padding: 10px 12px;
-            display: block;
-            border-bottom: 1px solid rgba(0,191,255,0.2);
-            cursor: pointer;
+            color: #00e5ff; font-weight: bold;
+            padding: 10px 12px; display: block;
+            border-bottom: 1px solid rgba(0, 191, 255, 0.2);
         }
         .main-category .submenu a { color: #bbbbff; padding: 8px 20px; display: block; font-size: 0.85em; }
 
-        .link-placeholder {
-            color: #556 !important;
-            font-style: italic;
-            cursor: default !important;
-        }
-        .link-placeholder:hover { background: transparent !important; padding-left: 14px !important; }
-
-        /* ==================== CYBER DECK PANEL ==================== */
+        /* ================================================================
+           CYBER DECK PANEL
+           ================================================================ */
         .bottom-right-panel {
-            position: fixed;
-            bottom: 30px;
-            right: 230px;
-            width: 220px;
-            height: 40px;
-            background: rgba(0,0,0,0.7);
-            border-radius: 12px;
-            padding: 15px 20px;
-            box-shadow: 0 0 25px rgba(255,165,0,0.5);
-            border: 1px solid rgba(0,240,255,0.2);
-            color: white;
-            font-family: monospace, monospace;
-            z-index: 15;
+            position: fixed; bottom: 30px; right: 230px;
+            width: 220px; height: 40px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 12px; padding: 15px 20px;
+            box-shadow: 0 0 25px rgba(255, 165, 0, 0.5);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            color: white; font-family: monospace; z-index: 60;
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             overflow: hidden;
         }
         .bottom-right-panel.expanded { height: 520px; }
-
         .bottom-right-panel h5 {
-            color: #00f0ff;
-            font-weight: 600;
-            font-size: 1.1em;
-            margin: 0 0 15px 0;
+            color: #00f0ff; font-weight: 600;
+            font-size: 1.1em; margin: 0 0 15px 0;
         }
-
+        .bottom-right-panel small { color: #bbbbff; font-weight: normal; font-style: italic; }
         .network-pulse {
-            width: 8px; height: 8px;
-            border-radius: 50%;
-            background-color: #00f0ff;
-            box-shadow: 0 0 8px #00f0ff;
-            transition: background-color 0.3s, box-shadow 0.3s;
+            width: 8px; height: 8px; border-radius: 50%;
+            background-color: #00f0ff; box-shadow: 0 0 8px #00f0ff;
         }
-        #terminalLog { display: flex; flex-direction: column-reverse; overflow-y: hidden; }
+        #terminalLog {
+            display: flex; flex-direction: column-reverse; overflow-y: hidden;
+        }
         #graphSvg { overflow: visible !important; }
-
         .power-switch {
-            font-size: 0.8em;
-            padding: 4px 8px;
-            background: #ff4444;
-            color: #fff;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
+            font-size: 0.8em; padding: 4px 8px;
+            background: #ff4444; color: #fff; border-radius: 4px;
+            cursor: pointer; font-weight: bold;
             border: 1px solid rgba(255,255,255,0.2);
-            transition: all 0.3s ease;
-            font-family: monospace;
+            transition: all 0.3s ease; touch-action: manipulation;
         }
         .power-switch.on { background: #00ff88; box-shadow: 0 0 10px #00ff88; color: #000; }
 
+        /* HUD toggle */
         .hud-element { transition: opacity 0.3s; }
         .hud-hidden { opacity: 0; pointer-events: none; }
 
-        /* ==================== FOOTER ==================== */
+        /* ================================================================
+           FOOTER
+           ================================================================ */
         .site-footer {
-            background-color: rgba(0,0,0,0.1);
-            color: #e0f7ff;
-            font-size: 0.9rem;
-            text-align: center;
-            padding: 3px 7px;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: #e0f7ff; font-size: 0.85rem;
+            text-align: center; padding: 4px 10px;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            position: fixed;
-            bottom: 0; left: 0;
-            width: 100%;
+            position: fixed; bottom: 0; left: 0; width: 100%;
             user-select: none;
-            box-shadow: inset 0 1px 3px rgba(255,255,255,0.08);
-            border-top: 1px solid rgba(0,191,255,0.3);
-            z-index: 25;
+            box-shadow: inset 0 1px 3px rgba(255, 255, 255, 0.08);
+            border-top: 1px solid rgba(0, 191, 255, 0.3);
+            z-index: 10;
         }
         .site-footer small { display: inline-block; letter-spacing: 1px; color: #00e5ff; }
 
-        /* ==================== NOSCRIPT ==================== */
-        .noscript-msg {
-            position: fixed;
-            inset: 0;
-            z-index: 99999;
-            background: #000;
-            color: #00eaff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: monospace;
-            font-size: 1.2rem;
+        /* ================================================================
+           COOKIE CONSENT BANNER
+           ================================================================ */
+        #cookieConsent {
+            position: fixed; bottom: 40px; left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.96);
+            border: 1px solid #00bfff; border-radius: 8px;
+            padding: 16px 24px; z-index: 9999;
+            color: #e0f7ff; font-family: monospace; font-size: 0.82em;
+            max-width: 480px; width: calc(100% - 32px);
             text-align: center;
-            padding: 2rem;
+            box-shadow: 0 0 30px rgba(0, 191, 255, 0.3);
+            display: none;
         }
+        #cookieConsent p { margin: 0 0 12px; line-height: 1.5; }
+        #cookieConsent button {
+            margin: 0 5px; padding: 8px 18px;
+            border: 1px solid; border-radius: 4px;
+            cursor: pointer; font-family: monospace;
+            font-weight: bold; font-size: 0.9em;
+            transition: all 0.2s; touch-action: manipulation;
+        }
+        #cookieConsent .accept-btn { background: #00ff88; color: #000; border-color: #00ff88; }
+        #cookieConsent .accept-btn:hover { background: #00cc6a; }
+        #cookieConsent .reject-btn { background: transparent; color: #ff4444; border-color: #ff4444; }
+        #cookieConsent .reject-btn:hover { background: rgba(255, 68, 68, 0.15); }
 
-        /* ==================== MOBILE: TABLET (<=768px) ==================== */
+        /* ================================================================
+           BACKDROP OVERLAY (mobile panel dismiss)
+           ================================================================ */
+        #panelBackdrop {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 45; display: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        #panelBackdrop.active { display: block; }
+
+        /* ================================================================
+           RESPONSIVE: TABLET & PHONE (<= 768px)
+           ================================================================ */
         @media (max-width: 768px) {
-            .page-title { margin-top: 16px; margin-bottom: 12px; }
-
-            /* Levers become compact circular buttons */
-            .lever-container {
-                width: 44px;
-                height: 44px;
-                border-radius: 50%;
-                flex-direction: row;
-                justify-content: center;
-                align-items: center;
-                padding: 0;
-            }
-            .lever-track { display: none; }
-            .lever-handle { display: none; }
-            .lever-label:first-child { display: none; }
-            .lever-label:last-child {
-                font-size: 0.45em;
-                letter-spacing: 0;
-                display: block;
-                text-align: center;
-                line-height: 1;
-            }
-            #lever-matrix.active .lever-label:last-child { color: #00bfff; }
-            #lever-security.active .lever-label:last-child { color: #ff0055; }
-
+            /* --- Levers: compact, repositioned to top-right --- */
             #lever-matrix {
-                position: fixed;
-                bottom: 48px;
-                right: 16px;
-                top: auto;
+                right: 12px; top: 12px;
                 transform: none;
             }
             #lever-security {
-                position: fixed;
-                bottom: 48px;
-                right: 68px;
-                top: auto;
+                right: 74px; top: 12px;
                 transform: none;
             }
+            .lever-container {
+                width: 50px; height: 88px;
+                border-radius: 8px;
+                border-width: 1.5px;
+            }
+            .lever-track { height: 42px; width: 12px; }
+            .lever-handle {
+                width: 26px; height: 32px;
+                left: -8px; border-radius: 4px;
+            }
+            .lever-label { font-size: 0.48em; letter-spacing: 1px; }
 
-            /* Categories panel */
-            .top-left-container { top: 10px; left: 10px; }
-            .categories-panel { width: 160px; padding: 14px; }
+            /* Lever active states — smaller offsets */
+            #lever-matrix.active .lever-handle { top: 10px; }
+            #lever-security.active .lever-handle { top: 10px; }
+
+            /* --- Title: push below lever row --- */
+            .page-title { margin-top: 110px; margin-bottom: 10px; padding: 0 15px; }
+
+            /* --- Categories: collapsed = just a button --- */
+            .top-left-container { top: 12px; left: 12px; z-index: 200; }
+            .categories-panel {
+                width: auto; height: auto;
+                padding: 0; background: transparent;
+                box-shadow: none; border-radius: 0;
+            }
+            .categories-panel h3 { display: none; }
+            .dropbtn { padding: 10px 14px; font-size: 0.82em; border-radius: 6px; }
+
+            /* Categories expanded: full-width overlay */
             .categories-panel.expanded {
-                width: calc(100vw - 20px);
-                max-width: 300px;
-                height: calc(100vh - 120px);
-                max-height: 70vh;
+                position: fixed; top: 0; left: 0;
+                width: 100%; height: 72vh;
+                padding: 20px 16px;
+                background: rgba(0, 0, 10, 0.97);
+                box-shadow: 0 4px 40px rgba(0, 191, 255, 0.6);
+                border-radius: 0 0 12px 12px;
+                z-index: 210;
             }
-            .filter-container { height: calc(100% - 90px); }
+            .categories-panel.expanded h3 { display: block; margin-bottom: 12px; }
+            .filter-container { height: calc(72vh - 120px); border-radius: 8px; }
 
-            /* Cyber Deck panel */
+            /* Larger touch targets for links */
+            .dropdown-content a { padding: 14px 16px; font-size: 0.95em; }
+            .main-category .main-link { padding: 13px 16px; font-size: 1em; }
+            .main-category .submenu a { padding: 11px 22px; font-size: 0.9em; }
+
+            /* --- Cyber Deck: full-width at bottom --- */
             .bottom-right-panel {
-                right: 10px;
-                left: 10px;
-                width: auto;
-                bottom: 100px;
+                right: 10px; left: 10px;
+                bottom: 32px; width: auto;
+                padding: 12px 16px;
+                border-radius: 10px;
             }
-            .bottom-right-panel.expanded { height: calc(100vh - 160px); }
+            .bottom-right-panel.expanded {
+                height: 58vh;
+                border-radius: 12px 12px 0 0;
+            }
 
-            /* Footer smaller */
-            .site-footer { font-size: 0.75rem; padding: 2px 4px; }
+            /* --- Footer: smaller --- */
+            .site-footer { font-size: 0.72rem; padding: 3px 6px; }
+
+            /* --- Cookie consent: bottom-center, safe margins --- */
+            #cookieConsent { bottom: 44px; font-size: 0.78em; padding: 14px 16px; }
         }
 
-        /* ==================== MOBILE: PHONE (<=480px) ==================== */
-        @media (max-width: 480px) {
-            .page-title { margin-top: 10px; margin-bottom: 8px; letter-spacing: 2px; }
-            .page-title .version { display: block; margin-left: 0; margin-top: 4px; }
+        /* ================================================================
+           RESPONSIVE: SMALL PHONE (<= 400px)
+           ================================================================ */
+        @media (max-width: 400px) {
+            #lever-matrix { right: 8px; top: 8px; }
+            #lever-security { right: 62px; top: 8px; }
+            .lever-container { width: 42px; height: 76px; }
+            .lever-track { height: 34px; width: 10px; }
+            .lever-handle { width: 22px; height: 28px; left: -7px; }
+            .lever-label { font-size: 0.42em; letter-spacing: 0.5px; }
+            .page-title { margin-top: 96px; }
+            .dropbtn { padding: 8px 10px; font-size: 0.75em; }
+            .bottom-right-panel { left: 6px; right: 6px; padding: 10px 12px; }
+            .bottom-right-panel.expanded { height: 55vh; }
+            #cookieConsent { padding: 12px; font-size: 0.72em; }
+            #cookieConsent button { padding: 7px 14px; font-size: 0.82em; }
+        }
 
-            .lever-container { width: 38px; height: 38px; }
-            .lever-label:last-child { font-size: 0.4em; }
-            #lever-matrix { right: 10px; bottom: 42px; }
-            #lever-security { right: 56px; bottom: 42px; }
-
-            .top-left-container { top: 6px; left: 6px; }
-            .categories-panel { width: 140px; padding: 10px; }
-            .categories-panel h3 { font-size: 1em; margin-bottom: 6px; }
-            .dropbtn { padding: 8px; font-size: 0.8em; }
-            .categories-panel.expanded {
-                width: calc(100vw - 12px);
-                height: calc(100vh - 90px);
-                max-height: 75vh;
-            }
-            #categoryFilter { padding: 8px; font-size: 0.8em; }
-            .dropdown-content a { padding: 10px 12px; font-size: 0.8em; }
-
-            .bottom-right-panel {
-                padding: 10px 14px;
-                bottom: 86px;
-                left: 6px;
-                right: 6px;
-                height: 36px;
-            }
-            .bottom-right-panel.expanded { height: calc(100vh - 130px); }
-
-            .site-footer { font-size: 0.65rem; }
+        /* ================================================================
+           RESPONSIVE: SHORT VIEWPORT (landscape phone)
+           ================================================================ */
+        @media (max-height: 480px) {
+            .categories-panel.expanded { height: 55vh; }
+            .filter-container { height: calc(55vh - 110px); }
+            .bottom-right-panel.expanded { height: 42vh; }
+            .page-title { margin-top: 80px; margin-bottom: 6px; }
         }
     </style>
 </head>
 <body>
 
-    <!-- Graceful degradation when JS is disabled -->
-    <noscript>
-        <div class="noscript-msg" role="alert">
-            JavaScript is required to use MY_STUFF_AIO.<br>
-            Please enable JavaScript in your browser settings and reload.
-        </div>
-    </noscript>
+    <!-- Background Canvas -->
+    <canvas id="matrix"></canvas>
 
-    <canvas id="matrix" aria-hidden="true"></canvas>
+    <!-- Page Title -->
+    <h1 class="page-title">MY_STUFF_AIO <span class="version">v2.0</span></h1>
 
-    <h1 class="page-title">
-        MY_STUFF_AIO
-        <span class="version">v2.0 [SECURE]</span>
-    </h1>
-
-    <!-- LEVER: Security / HUD toggle -->
-    <div id="lever-security" class="lever-container" role="button" tabindex="0"
-         aria-label="Toggle HUD elements on or off" aria-pressed="true">
+    <!-- ===== LEVERS (right side — repositioned on mobile) ===== -->
+    <div id="lever-security" class="lever-container" role="button" tabindex="0" aria-label="Toggle HUD visibility">
         <span class="lever-label">HUD</span>
         <div class="lever-track"><div class="lever-handle"></div></div>
         <span class="lever-label">SEC</span>
     </div>
-
-    <!-- LEVER: Matrix animation toggle -->
-    <div id="lever-matrix" class="lever-container" role="button" tabindex="0"
-         aria-label="Toggle matrix rain animation on or off" aria-pressed="false">
+    <div id="lever-matrix" class="lever-container" role="button" tabindex="0" aria-label="Toggle matrix animation">
         <span class="lever-label">OFF</span>
         <div class="lever-track"><div class="lever-handle"></div></div>
         <span class="lever-label">MATRIX</span>
     </div>
 
-    <!-- Categories Panel -->
-    <nav class="top-left-container" aria-label="Site categories">
+    <!-- ===== CATEGORIES PANEL ===== -->
+    <div class="top-left-container">
         <div class="categories-panel" id="categoriesPanel">
             <h3>Categories</h3>
             <div class="dropdown">
-                <button id="categoryToggleBtn" class="dropbtn" aria-expanded="false"
-                        aria-controls="categoryDropdown">&#9776; Filter Categories</button>
-                <div id="categoryDropdown" class="dropdown-content filter-container" role="listbox">
-                    <input type="text" id="categoryFilter" placeholder="&#128269; Search categories..."
-                           autocomplete="off" aria-label="Search categories">
+                <button id="categoryToggleBtn" class="dropbtn">☰ Filter Categories</button>
+                <div id="categoryDropdown" class="dropdown-content filter-container">
+                    <input type="text" id="categoryFilter" placeholder="🔍 Search categories..." maxlength="100" autocomplete="off" spellcheck="false" />
 
+                     <div class="main-category">
+                        <a href="#" class="main-link" data-submenu="sub-docs">📁 Documentation</a>
+                        <div class="submenu" id="sub-docs" style="display:none;">
+                            <a href="#">User Guides</a>
+                            <a href="#">API Docs</a>
+                            <a href="#">Changelogs</a>
+                        </div>
+                    
                     <div class="main-category">
-                        <a href="#" class="main-link" data-submenu-toggle role="button"
-                           aria-expanded="false">&#128193; Food</a>
-                        <div class="submenu" style="display:none;">
-                            <a href="USDA FOOD SEARCH cyberpunk oldstyle.html" role="option">USDA FOOD SEARCH</a>
+                        <a href="#" class="main-link" data-submenu="sub-Elevator">📁 Elevator</a>
+                        <div class="submenu" id="sub-Elevator" style="display:none;"><a href="Elevator.html">Skyscraper OS - Ultimate Hybrid Edition</a></div>
+                    </div>
+                    
+                    <div class="main-category">
+                        <a href="#" class="main-link" data-submenu="sub-food">📁 Food</a>
+                        <div class="submenu" id="sub-food" style="display:none;"><a href="USDA FOOD SEARCH cyberpunk oldstyle.html">USDA FOOD SEARCH</a></div>
+                    </div>
+                    <div class="main-category">
+                        <a href="#" class="main-link" data-submenu="sub-health">📁 HEALTH</a>
+                        <div class="submenu" id="sub-health" style="display:none;"><a href="Health scanner & Guidance.html">Health scanner & Guidance</a></div>
+                    </div>
+                    <div class="main-category">
+                        <a href="#" class="main-link" data-submenu="sub-msg">📁 Messages (Synchronized Frequency - Internal Network)</a>
+                        <div class="submenu" id="sub-msg" style="display:none;"><a href="messages receives and responds.html">Message Receiver</a></div>
+                    </div>
+                    <div class="main-category">
+                        <a href="#" class="main-link" data-submenu="sub-v1">📁 MY_STUFF v1.0</a>
+                        <div class="submenu" id="sub-v1" style="display:none;"><a href="https://mohammad3230.github.io/PROJECT/" rel="noopener noreferrer" target="_blank">MY_STUFF v1.0</a></div>
+                    </div>
+                    <div class="main-category">
+                        <a href="#" class="main-link" data-submenu="sub-v3">📁 MY_STUFF v3.0</a>
+                        <div class="submenu" id="sub-v3" style="display:none;">
+                            <a href="https://mohammad3230.github.io/PROJECT/" rel="noopener noreferrer" target="_blank">MY_STUFF v1.0</a>
+                            <a href="linux.html">GHOST_TAC_v80.8</a>
                         </div>
                     </div>
-
                     <div class="main-category">
-                        <a href="#" class="main-link" data-submenu-toggle role="button"
-                           aria-expanded="false">&#128193; HEALTH</a>
-                        <div class="submenu" style="display:none;">
-                            <a href="Health scanner & Guidance.html" role="option">Health scanner & Guidance</a>
+                        <a href="#" class="main-link" data-submenu="sub-news">📁 News</a>
+                        <div class="submenu" id="sub-news" style="display:none;">
+                            <a href="https://www.aljazeera.com/news/" rel="noopener noreferrer" target="_blank">Aljazeera News</a>
+                            <a href="https://www.bbc.com/news" rel="noopener noreferrer" target="_blank">BBC</a>
+                            <a href="https://news.google.com/home?hl=en-IN&gl=IN&ceid=IN%3Aen" rel="noopener noreferrer" target="_blank">Google News</a>
+                            <a href="https://news.un.org/en/" rel="noopener noreferrer" target="_blank">UN Org</a>
+                            <a href="https://www.thehindu.com/latest-news/" rel="noopener noreferrer" target="_blank">The Hindu</a>
+                            <a href="https://timesofindia.indiatimes.com/" rel="noopener noreferrer" target="_blank">The Times of India</a>
                         </div>
                     </div>
-
                     <div class="main-category">
-                        <a href="#" class="main-link" data-submenu-toggle role="button"
-                           aria-expanded="false">&#128193; Messages</a>
-                        <div class="submenu" style="display:none;">
-                            <a href="messages receives and responds.html" role="option">Message Receiver</a>
-                            <a href="Message <internal Network>.html" role="option">Internal Messages</a>
+                        <a href="#" class="main-link" data-submenu="sub-games">📁 Online Games</a>
+                        <div class="submenu" id="sub-games" style="display:none;"><a href="snake.html">Snake Game</a></div>
+                    </div>
+                    <div class="main-category">
+                        <a href="#" class="main-link" data-submenu="sub-capture">📁 Page Capture</a>
+                        <div class="submenu" id="sub-capture" style="display:none;"><a href="Page Capture.html">Page Capture</a></div>
+                    </div>
+                    <div class="main-category">
+                        <a href="#" class="main-link" data-submenu="sub-tools">📁 ToolHub</a>
+                        <div class="submenu" id="sub-tools" style="display:none;"><a href="Toolhub.html">ToOl_HuB</a></div>
+                    </div>
+                    <div class="main-category">
+                        <a href="#" class="main-link" data-submenu="sub-walkie">📁 Walkie Talkie (Synchronized Frequency - Internal Network)</a>
+                        <div class="submenu" id="sub-walkie" style="display:none;">
+                            <a href="testing.html">Testing</a>
+                            <a href="receiver.html">Walkie Talkie Receiver</a>
                         </div>
                     </div>
-
-                    <div class="main-category">
-                        <a href="#" class="main-link" data-submenu-toggle role="button"
-                           aria-expanded="false">&#128193; MY_STUFF v1.0</a>
-                        <div class="submenu" style="display:none;">
-                            <a href="https://mohammad3230.github.io/PROJECT/"
-                               target="_blank" rel="noopener noreferrer" role="option">MY_STUFF v1.0</a>
-                        </div>
+                   
                     </div>
-
-                    <div class="main-category">
-                        <a href="#" class="main-link" data-submenu-toggle role="button"
-                           aria-expanded="false">&#128193; MY_STUFF v3.0</a>
-                        <div class="submenu" style="display:none;">
-                            <a href="https://mohammad3230.github.io/PROJECT/"
-                               target="_blank" rel="noopener noreferrer" role="option">MY_STUFF v1.0</a>
-                            <a href="linux.html" role="option">GHOST_TAC_v80.8</a>
-                        </div>
-                    </div>
-
-                    <div class="main-category">
-                        <a href="#" class="main-link" data-submenu-toggle role="button"
-                           aria-expanded="false">&#128193; News</a>
-                        <div class="submenu" style="display:none;">
-                            <a href="https://www.aljazeera.com/news/" target="_blank" rel="noopener noreferrer" role="option">Aljazeera News</a>
-                            <a href="https://www.bbc.com/news" target="_blank" rel="noopener noreferrer" role="option">BBC</a>
-                            <a href="https://news.google.com/home?hl=en-IN&gl=IN&ceid=IN%3Aen" target="_blank" rel="noopener noreferrer" role="option">Google News</a>
-                            <a href="https://news.un.org/en/" target="_blank" rel="noopener noreferrer" role="option">UN Org</a>
-                            <a href="https://www.thehindu.com/latest-news/" target="_blank" rel="noopener noreferrer" role="option">The Hindu</a>
-                            <a href="https://timesofindia.indiatimes.com/" target="_blank" rel="noopener noreferrer" role="option">The Times of India</a>
-                        </div>
-                    </div>
-
-                    <div class="main-category">
-                        <a href="#" class="main-link" data-submenu-toggle role="button"
-                           aria-expanded="false">&#128193; Omni-Deck</a>
-                        <div class="submenu" style="display:none;">
-                            <a href="OMNI-DECK.html" role="option">OMNi - DeCk</a>
-                        </div>
-                    </div>
-
-                    <div class="main-category">
-                        <a href="#" class="main-link" data-submenu-toggle role="button"
-                           aria-expanded="false">&#128193; Online Games</a>
-                        <div class="submenu" style="display:none;">
-                            <a href="snake.html" role="option">Snake Game</a>
-                        </div>
-                    </div>
-
-                    <div class="main-category">
-                        <a href="#" class="main-link" data-submenu-toggle role="button"
-                           aria-expanded="false">&#128193; Page Capture</a>
-                        <div class="submenu" style="display:none;">
-                            <a href="Page Capture.html" role="option">Page Capture</a>
-                        </div>
-                    </div>
-
-                    <div class="main-category">
-                        <a href="#" class="main-link" data-submenu-toggle role="button"
-                           aria-expanded="false">&#128193; ToolHub</a>
-                        <div class="submenu" style="display:none;">
-                            <a href="Toolhub.html" role="option">ToOl_HuB</a>
-                        </div>
-                    </div>
-
-                    <div class="main-category">
-                        <a href="#" class="main-link" data-submenu-toggle role="button"
-                           aria-expanded="false">&#128193; Walkie Talkie</a>
-                        <div class="submenu" style="display:none;">
-                            <a href="testing.html" role="option">Testing-Z</a>
-                            <a href="testingA.html" role="option">Testing-A</a>
-                            <a href="receiver.html" role="option">Walkie Talkie Receiver</a>
-                        </div>
-                    </div>
-
-                    <div class="main-category">
-                        <a href="#" class="main-link" data-submenu-toggle role="button"
-                           aria-expanded="false">&#128193; Documentation</a>
-                        <div class="submenu" style="display:none;">
-                            <a href="#" class="link-placeholder" data-noop role="option">User Guides</a>
-                            <a href="#" class="link-placeholder" data-noop role="option">API Docs</a>
-                            <a href="#" class="link-placeholder" data-noop role="option">Changelogs</a>
-                        </div>
-                    </div>
-
-                    <a href="music.html" role="option">&#127925; My_Music</a>
-                    <a href="https://in.pinterest.com/" target="_blank" rel="noopener noreferrer" role="option">&#128204; Pinterest</a>
-                    <a href="radio.html" role="option">&#128225; Live Radio</a>
-                    <a href="https://www.zedge.net/ringtones" target="_blank" rel="noopener noreferrer" role="option">&#128444;&#65039; Zedge Wallpapers</a>
-                    <a href="#" class="link-placeholder" data-noop role="option">&#9881;&#65039; Settings</a>
-                    <a href="#" class="link-placeholder" data-noop role="option">&#127912; Templates</a>
-                    <a href="#" class="link-placeholder" data-noop role="option">&#128228; Exports</a>
-                    <a href="#" class="link-placeholder" data-noop role="option">&#128202; Analytics</a>
-                    <a href="#" class="link-placeholder" data-noop role="option">&#128190; Backup</a>
+                    <a href="music.html">🎵 My_Music</a>
+                    <a href="https://in.pinterest.com/" rel="noopener noreferrer" target="_blank">📌 Pinterest</a>
+                    <a href="radio.html">📡 Live Radio</a>
+                    <a href="https://www.zedge.net/ringtones" rel="noopener noreferrer" target="_blank">🖼️ Zedge Wallpapers</a>
+                    <a href="#">⚙️ Settings</a>
+                    <a href="#">🎨 Templates</a>
+                    <a href="#">📤 Exports</a>
+                    <a href="#">📊 Analytics</a>
+                    <a href="#">💾 Backup</a>
                 </div>
             </div>
         </div>
-    </nav>
+    </div>
 
-    <!-- Cyber Deck Panel -->
-    <aside class="bottom-right-panel hud-element" id="systemPanel" aria-label="System cyber deck dashboard">
-        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:5px;">
-            <h5 id="deckHeaderBtn" title="Minimize / Maximize Deck (Right click to purge stats)"
-                style="font-weight:bold; text-transform:uppercase; letter-spacing:1px; color:#ffa500; margin:0; cursor:pointer;">
-                Cyber Deck &#11015;
-            </h5>
-            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                <span id="powerBtn" class="power-switch on" role="button" tabindex="0"
-                      aria-label="Toggle power on or off">PWR: ON</span>
-                <span id="muteBtn" role="button" tabindex="0" aria-label="Toggle sound mute"
-                      style="cursor:pointer; font-size:0.8em; color:#00f0ff; user-select:none;">&#128266;</span>
-                <span id="autoResponse" role="button" tabindex="0" aria-label="Toggle auto response"
-                      style="cursor:pointer; font-size:0.8em; color:#00ff88; user-select:none; margin-left:5px;">AUTO: OFF</span>
-                <span id="breachCount" style="font-size:0.7em; color:#ff4444; font-weight:bold;" aria-live="polite">0</span>
-                <span id="digitalClock" style="font-size:0.8em; color:#00f0ff; font-weight:bold; font-family:monospace;" aria-label="Current time">00:00:00</span>
+    <!-- ===== CYBER DECK PANEL ===== -->
+    <div class="bottom-right-panel hud-element" id="systemPanel">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;">
+            <h5 id="deckToggleBtn" style="font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:#ffa500;margin:0;cursor:pointer;touch-action:manipulation;" title="Minimize / Maximize Deck (Right click to purge stats)">Cyber Deck ⬍</h5>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+                <span id="powerBtn" class="power-switch on" role="button" tabindex="0" aria-label="Toggle power">PWR: ON</span>
+                <span id="muteBtn" role="button" tabindex="0" aria-label="Toggle mute" style="cursor:pointer;font-size:0.8em;color:#00f0ff;user-select:none;touch-action:manipulation;">🔊</span>
+                <span id="autoResponse" role="button" tabindex="0" aria-label="Toggle auto response" style="cursor:pointer;font-size:0.75em;color:#00ff88;user-select:none;touch-action:manipulation;">AUTO: OFF</span>
+                <span id="breachCount" style="font-size:0.7em;color:#ff4444;font-weight:bold;">0</span>
+                <span id="digitalClock" style="font-size:0.8em;color:#00f0ff;font-weight:bold;font-family:monospace;">00:00:00</span>
             </div>
         </div>
 
         <div id="deckContent">
-            <div style="font-size:0.65em; color:#8888ff; margin-bottom:12px; border-bottom:1px solid rgba(255,165,0,0.2); padding-bottom:5px;">
-                UPTIME: <span id="uptimeVar" style="color:#bbbbff; font-weight:bold;">00:00:00:00</span>
+            <div style="font-size:0.65em;color:#8888ff;margin-bottom:10px;border-bottom:1px solid rgba(255,165,0,0.2);padding-bottom:5px;">
+                UPTIME: <span id="uptimeVar" style="color:#bbbbff;font-weight:bold;">00:00:00:00</span>
             </div>
-
-            <!-- Decryption progress -->
-            <div style="margin-bottom:12px; border-top:1px solid rgba(255,165,0,0.1); padding-top:8px;">
-                <div style="display:flex; justify-content:space-between; font-size:0.7em; margin-bottom:4px;">
+            <div style="margin-bottom:10px;border-top:1px solid rgba(255,165,0,0.1);padding-top:8px;">
+                <div style="display:flex;justify-content:space-between;font-size:0.7em;margin-bottom:4px;">
                     <span style="color:#bbbbff;">CORE_DECRYPTION:</span>
-                    <span id="decryptVal" style="color:#00f0ff; font-weight:bold;">0%</span>
+                    <span id="decryptVal" style="color:#00f0ff;font-weight:bold;">0%</span>
                 </div>
-                <div style="width:100%; height:4px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden;">
-                    <div id="decryptBar" style="width:0%; height:100%; background:#00f0ff; transition:all 0.5s ease; box-shadow:0 0 10px #00f0ff;"></div>
-                </div>
-            </div>
-
-            <!-- Threat level -->
-            <div style="margin:12px 0; border-top:1px solid rgba(255,0,100,0.3); padding-top:8px;">
-                <div style="display:flex; justify-content:space-between; font-size:0.7em; margin-bottom:4px;">
-                    <span style="color:#ff0080;">THREAT_LEVEL:</span>
-                    <span id="threatVal" style="color:#ff4444; font-weight:bold;">0%</span>
-                </div>
-                <div style="width:100%; height:4px; background:rgba(255,0,100,0.1); border-radius:2px; overflow:hidden;">
-                    <div id="threatBar" style="width:0%; height:100%; background:linear-gradient(90deg,#ff0080,#ff4444); transition:all 0.5s ease; box-shadow:0 0 8px #ff0080;"></div>
+                <div style="width:100%;height:4px;background:rgba(255,255,255,0.05);border-radius:2px;overflow:hidden;">
+                    <div id="decryptBar" style="width:0%;height:100%;background:#00f0ff;transition:all 0.5s ease;box-shadow:0 0 10px #00f0ff;"></div>
                 </div>
             </div>
-
-            <!-- Network stats -->
-            <div style="margin-bottom:12px; border-top:1px solid rgba(0,240,255,0.2); padding-top:8px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                    <small id="statusLabel" style="color:#00f0ff; letter-spacing:1px; font-weight:bold; font-size:0.7em;">STATUS: SECURE</small>
-                    <div class="network-pulse" id="pulseNode" aria-hidden="true"></div>
+            <div style="margin:10px 0;border-top:1px solid rgba(255,0,100,0.3);padding-top:8px;">
+                <div style="display:flex;justify-content:space-between;font-size:0.7em;margin-bottom:4px;">
+                    <span style="color:#ff0080;">THREAT LEVEL:</span>
+                    <span id="threatVal" style="color:#ff4444;font-weight:bold;">0%</span>
                 </div>
-                <div style="width:100%; height:40px; background:rgba(0,240,255,0.05); border-radius:4px; margin-bottom:8px; overflow:hidden; border:1px solid rgba(0,240,255,0.1); position:relative;">
-                    <svg width="100%" height="100%" viewBox="0 0 200 40" preserveAspectRatio="none" id="graphSvg" aria-hidden="true">
-                        <polyline id="graphLine" fill="none" stroke="#00f0ff" stroke-width="1.5"
-                                  points="0,40 20,40 40,40 60,40 80,40 100,40 120,40 140,40 160,40 180,40 200,40"/>
+                <div style="width:100%;height:4px;background:rgba(255,0,100,0.1);border-radius:2px;overflow:hidden;">
+                    <div id="threatBar" style="width:0%;height:100%;background:linear-gradient(90deg,#ff0080,#ff4444);transition:all 0.5s ease;box-shadow:0 0 8px #ff0080;"></div>
+                </div>
+            </div>
+            <div style="margin-bottom:10px;border-top:1px solid rgba(0,240,255,0.2);padding-top:8px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                    <small id="statusLabel" style="color:#00f0ff;letter-spacing:1px;font-weight:bold;font-size:0.7em;">STATUS: SECURE</small>
+                    <div class="network-pulse" id="pulseNode"></div>
+                </div>
+                <div style="width:100%;height:40px;background:rgba(0,240,255,0.05);border-radius:4px;margin-bottom:8px;overflow:hidden;border:1px solid rgba(0,240,255,0.1);position:relative;">
+                    <svg width="100%" height="100%" viewBox="0 0 200 40" preserveAspectRatio="none" id="graphSvg">
+                        <polyline id="graphLine" fill="none" stroke="#00f0ff" stroke-width="1.5" points="0,40 20,40 40,40 60,40 80,40 100,40 120,40 140,40 160,40 180,40 200,40" />
                         <g id="particleGroup"></g>
                     </svg>
                 </div>
-                <div style="font-size:0.7em; display:flex; flex-direction:column; gap:4px;">
-                    <div style="display:flex; justify-content:space-between;">
+                <div style="font-size:0.7em;display:flex;flex-direction:column;gap:4px;">
+                    <div style="display:flex;justify-content:space-between;">
                         <span style="color:#bbbbff;">DOWNLINK:</span>
-                        <span><span id="downMB" style="color:#00f0ff; font-weight:bold;">0</span> <small>Mbps</small></span>
+                        <span><span id="downMB" style="color:#00f0ff;font-weight:bold;">0</span> <small>Mbps</small></span>
                     </div>
-                    <div style="display:flex; justify-content:space-between;">
+                    <div style="display:flex;justify-content:space-between;">
                         <span style="color:#bbbbff;">UPLINK:</span>
-                        <span><span id="upMB" style="color:#00f0ff; font-weight:bold;">0</span> <small>Mbps</small></span>
+                        <span><span id="upMB" style="color:#00f0ff;font-weight:bold;">0</span> <small>Mbps</small></span>
                     </div>
-                    <div style="display:flex; justify-content:space-between; font-size:0.9em; margin-top:2px;">
+                    <div style="display:flex;justify-content:space-between;font-size:0.9em;margin-top:2px;">
                         <span>PING: <span id="pingVal" style="color:#00f0ff;">20</span>ms</span>
                         <span>LOSS: <span id="lossVal" style="color:#00f0ff;">0.00%</span></span>
                     </div>
                 </div>
             </div>
-
-            <!-- Terminal log -->
-            <div id="terminalLog" aria-live="polite" aria-label="System terminal log"
-                 style="font-size:0.65em; color:#ffa500; height:60px; background:rgba(0,0,0,0.4); padding:5px; border-radius:4px; border:1px solid rgba(255,165,0,0.1); line-height:1.2;">
-                <div>&gt; initializing_sys_v2.0...</div>
+            <div id="terminalLog" style="font-size:0.65em;color:#ffa500;height:60px;background:rgba(0,0,0,0.4);padding:5px;border-radius:4px;border:1px solid rgba(255,165,0,0.1);line-height:1.2;">
+                <div>> initializing_sys_v2.0...</div>
             </div>
         </div>
-    </aside>
 
+        <audio id="alertSound" preload="auto">
+            <source src="https://www.soundjay.com/misc/sounds/beep-07.wav" type="audio/wav">
+        </audio>
+    </div>
+
+    <!-- ===== BACKDROP (mobile panel dismiss) ===== -->
+    <div id="panelBackdrop"></div>
+
+    <!-- ===== COOKIE CONSENT (GDPR/CCPA) ===== -->
+    <div id="cookieConsent">
+        <p>This site uses Google Analytics and AdSense for tracking and advertising. You can opt out below.</p>
+        <button id="consentAccept" class="accept-btn">Accept All</button>
+        <button id="consentReject" class="reject-btn">Reject All</button>
+    </div>
+
+    <!-- ===== FOOTER ===== -->
     <footer class="site-footer">
         <small>Copyright &copy; 2023-2026 All rights reserved</small>
     </footer>
 
     <script>
-        /* ==========================================================
-           FRAME-BUSTING — prevents clickjacking
-           CSP frame-ancestors via <meta> has limited browser support;
-           this JS fallback breaks out of unauthorized iframes.
-           ========================================================== */
-        if (window.top !== window.self) {
-            try { window.top.location = window.self.location; }
-            catch (e) { /* cross-origin iframe: cannot access parent */ }
+    /* =================================================================
+       SECURITY UTILITIES
+       ================================================================= */
+
+    /* Strip HTML tags, null bytes, control characters; enforce length */
+    function sanitizeInput(str) {
+        if (typeof str !== 'string') return '';
+        return str.replace(/[<>]/g, '').replace(/[\x00-\x1F\x7F]/g, '').trim().slice(0, 200);
+    }
+
+    /* Block javascript:, data:, vbscript:, blob: URL schemes */
+    function isSafeUrl(url) {
+        if (typeof url !== 'string') return false;
+        var t = url.trim().toLowerCase();
+        var blocked = ['javascript:', 'data:', 'vbscript:', 'blob:'];
+        for (var i = 0; i < blocked.length; i++) {
+            if (t.indexOf(blocked[i]) === 0) return false;
+        }
+        return true;
+    }
+
+    /* =================================================================
+       STATE
+       ================================================================= */
+    var matrixActive = false;
+    var hudActive = true;
+    var isPoweredOn = true;
+    var isMuted = false;
+    var autoResponse = false;
+    var isLockdown = false;
+    var lastBreachStatus = false;
+    var breachCount = 0;
+    var decryptPercent = 0;
+    var tracePercent = 0;
+    var startTime = Date.now();
+    var graphPoints = [35, 30, 32, 28, 35, 30, 25, 30, 35, 38, 40];
+    var currentBg = { r: 0, g: 0, b: 16 };
+    var deckLogs = ['Decrypting block...', 'RSA Key Found', 'Bypassing Firewall', 'Node link: Active', 'Shifting Frequency'];
+
+    /* =================================================================
+       MATRIX ANIMATION
+       ================================================================= */
+    var canvas = document.getElementById('matrix');
+    var ctx = canvas.getContext('2d');
+    var characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@#$%^&*()+~{}[]<>?';
+    var fontSize = 20;
+    var columns, drops;
+
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        columns = Math.floor(canvas.width / fontSize);
+        drops = new Array(columns);
+        for (var i = 0; i < drops.length; i++) drops[i] = 0;
+    }
+    resizeCanvas();
+
+    function toggleMatrix() {
+        matrixActive = !matrixActive;
+        var lever = document.getElementById('lever-matrix');
+        if (matrixActive) {
+            lever.classList.add('active');
+        } else {
+            lever.classList.remove('active');
+            ctx.fillStyle = '#000010';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+    }
+
+    function drawMatrix() {
+        ctx.fillStyle = 'rgba(' + currentBg.r + ',' + currentBg.g + ',' + currentBg.b + ',0.1)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.font = fontSize + 'px monospace';
+        if (matrixActive) {
+            for (var i = 0; i < drops.length; i++) {
+                var text = characters.charAt(Math.floor(Math.random() * characters.length));
+                ctx.fillStyle = currentBg.r > 20 ? '#ff5555' : (i % 2 === 0 ? '#00bfff' : '#e0f7ff');
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
+            }
+        }
+    }
+    setInterval(drawMatrix, 50);
+    window.addEventListener('resize', resizeCanvas);
+
+    /* =================================================================
+       HUD TOGGLE
+       ================================================================= */
+    function toggleHUD() {
+        hudActive = !hudActive;
+        var lever = document.getElementById('lever-security');
+        var els = document.querySelectorAll('.hud-element');
+        if (hudActive) {
+            lever.classList.add('active');
+            for (var i = 0; i < els.length; i++) els[i].classList.remove('hud-hidden');
+        } else {
+            lever.classList.remove('active');
+            for (var i = 0; i < els.length; i++) els[i].classList.add('hud-hidden');
+        }
+    }
+
+    /* =================================================================
+       PANEL HELPERS
+       ================================================================= */
+    var backdrop = document.getElementById('panelBackdrop');
+
+    function isMobile() { return window.innerWidth <= 768; }
+
+    function showBackdrop() { if (isMobile()) backdrop.classList.add('active'); }
+    function hideBackdrop() { backdrop.classList.remove('active'); }
+
+    function closeCategories() {
+        document.getElementById('categoriesPanel').classList.remove('expanded');
+        document.getElementById('categoryDropdown').classList.remove('show');
+        hideBackdrop();
+    }
+
+    function closeCyberDeck() {
+        document.getElementById('systemPanel').classList.remove('expanded');
+        hideBackdrop();
+    }
+
+    function toggleCategoryPanel() {
+        var panel = document.getElementById('categoriesPanel');
+        var isOpen = panel.classList.contains('expanded');
+
+        /* Mutual exclusion on mobile: close deck if opening categories */
+        if (!isOpen && isMobile()) closeCyberDeck();
+
+        panel.classList.toggle('expanded');
+        document.getElementById('categoryDropdown').classList.toggle('show');
+
+        if (panel.classList.contains('expanded')) showBackdrop();
+        else hideBackdrop();
+    }
+
+    function toggleSubmenu(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        var id = event.currentTarget.getAttribute('data-submenu');
+        if (!id) return;
+        var sub = document.getElementById(id);
+        if (sub) sub.style.display = sub.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function filterCategories() {
+        var raw = document.getElementById('categoryFilter').value;
+        var filter = sanitizeInput(raw).toUpperCase();
+        var links = document.getElementById('categoryDropdown').querySelectorAll('a');
+        for (var i = 0; i < links.length; i++) {
+            var txt = (links[i].textContent || links[i].innerText).toUpperCase();
+            links[i].style.display = txt.indexOf(filter) > -1 ? '' : 'none';
+        }
+    }
+
+    function toggleDeckExpand() {
+        var deck = document.getElementById('systemPanel');
+        var isOpen = deck.classList.contains('expanded');
+
+        /* Mutual exclusion on mobile: close categories if opening deck */
+        if (!isOpen && isMobile()) closeCategories();
+
+        deck.classList.toggle('expanded');
+        if (deck.classList.contains('expanded')) showBackdrop();
+        else hideBackdrop();
+    }
+
+    /* =================================================================
+       POWER / MUTE / AUTO
+       ================================================================= */
+    function togglePower(event) {
+        if (event) event.stopPropagation();
+        isPoweredOn = !isPoweredOn;
+        var btn = document.getElementById('powerBtn');
+        var content = document.getElementById('deckContent');
+        if (isPoweredOn) {
+            btn.innerText = 'PWR: ON'; btn.classList.add('on');
+            content.style.opacity = '1'; content.style.pointerEvents = 'auto';
+            addTerminalLog('SYSTEM COLD BOOT SUCCESSFUL', '#00f0ff');
+        } else {
+            btn.innerText = 'PWR: OFF'; btn.classList.remove('on');
+            content.style.opacity = '0.1'; content.style.pointerEvents = 'none';
+            document.getElementById('downMB').innerText = '0';
+            document.getElementById('upMB').innerText = '0';
+            document.getElementById('lossVal').innerText = '0.00%';
+            document.getElementById('threatVal').innerText = '0%';
+            document.getElementById('threatBar').style.width = '0%';
+            document.getElementById('decryptVal').innerText = '0%';
+            document.getElementById('decryptBar').style.width = '0%';
+        }
+    }
+
+    function toggleMute() {
+        isMuted = !isMuted;
+        document.getElementById('muteBtn').innerText = isMuted ? '🔇' : '🔊';
+    }
+
+    function toggleAutoResponse() {
+        autoResponse = !autoResponse;
+        var btn = document.getElementById('autoResponse');
+        btn.innerText = 'AUTO: ' + (autoResponse ? 'ON' : 'OFF');
+        btn.style.color = autoResponse ? '#00ff88' : '#8888ff';
+    }
+
+    /* =================================================================
+       CYBER DECK DASHBOARD
+       ================================================================= */
+    function addTerminalLog(msg, color) {
+        var t = document.getElementById('terminalLog');
+        if (!t) return;
+        var entry = document.createElement('div');
+        entry.style.color = color;
+        entry.textContent = '> ' + msg;
+        t.prepend(entry);
+        while (t.childNodes.length > 5) t.removeChild(t.lastElementChild);
+    }
+
+    function updateDashboard() {
+        if (isLockdown) return;
+        var now = new Date();
+        document.getElementById('digitalClock').innerText = now.toLocaleTimeString('en-GB');
+        if (!isPoweredOn) return;
+
+        var diff = Math.floor((Date.now() - startTime) / 1000) + 87200;
+        document.getElementById('uptimeVar').innerText =
+            String(Math.floor(diff / 86400)).padStart(2, '0') + ':' +
+            String(Math.floor((diff % 86400) / 3600)).padStart(2, '0') + ':' +
+            String(Math.floor((diff % 3600) / 60)).padStart(2, '0') + ':' +
+            String(diff % 60).padStart(2, '0');
+
+        var dl = (Math.random() * 45 + 10).toFixed(1);
+        var ul = (Math.random() * 15 + 2).toFixed(1);
+        var lossNum = (Math.random() > 0.92) ? (Math.random() * 0.15) : (Math.random() * 0.01);
+
+        if (autoResponse && lossNum > 0.05) {
+            lossNum = 0;
+            addTerminalLog('AUTO-RESPONSE: Threat neutralized', '#00ff88');
         }
 
-        /* ==========================================================
-           STATE
-           ========================================================== */
-        let matrixActive = false;
-        let hudActive = true;
-        let isPoweredOn = true;
-        let isMuted = false;
-        let autoResponse = false;
-        let isLockdown = false;
-        let lastBreachStatus = false;
-        let breachCount = 0;
-        let tracePercent = 0;
-        let decryptPercent = 0;
-        let startTime = Date.now();
-        let graphPoints = [35, 30, 32, 28, 35, 30, 25, 30, 35, 38, 40];
-        let currentBg = { r: 0, g: 0, b: 16 };
+        var isBreach = lossNum > 0.05;
+        var color = isBreach ? '#ff4444' : '#00f0ff';
 
-        const deckLogs = [
-            "Decrypting block...",
-            "RSA Key Found",
-            "Bypassing Firewall",
-            "Node link: Active",
-            "Shifting Frequency"
-        ];
-
-        /* ==========================================================
-           WEB AUDIO API — local beep, no external audio file needed
-           Eliminates third-party dependency and mixed-content risk.
-           ========================================================== */
-        let audioCtx = null;
-        function getAudioContext() {
-            if (!audioCtx) {
-                try {
-                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                } catch (e) {
-                    return null;
+        if (isBreach) {
+            tracePercent += 2.5;
+            breachCount++;
+            document.getElementById('breachCount').innerText = breachCount;
+            if (!lastBreachStatus) {
+                if (!isMuted) {
+                    document.getElementById('alertSound').play().catch(function() {
+                        console.warn('Audio blocked by browser policy.');
+                    });
                 }
+                addTerminalLog('BREACH_DETECTED', '#ff4444');
             }
-            return audioCtx;
+        } else if (tracePercent > 0) {
+            tracePercent -= 0.5;
         }
 
-        function playBeep() {
-            if (isMuted) return;
-            var ctx = getAudioContext();
-            if (!ctx) return;
-            try {
-                /* Resume context if suspended (browser autoplay policy) */
-                if (ctx.state === 'suspended') ctx.resume();
-                var osc = ctx.createOscillator();
-                var gain = ctx.createGain();
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.frequency.value = 880;
-                osc.type = 'sine';
-                gain.gain.setValueAtTime(0.25, ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
-                osc.start(ctx.currentTime);
-                osc.stop(ctx.currentTime + 0.25);
-            } catch (e) {
-                /* Silently fail — audio is non-critical */
+        tracePercent = Math.max(0, Math.min(100, tracePercent));
+
+        if (tracePercent >= 100) {
+            isLockdown = true;
+            addTerminalLog('SYSTEM LOCKDOWN: TRACE COMPLETE', '#ff0000');
+            document.body.style.filter = 'grayscale(1) contrast(2) invert(1)';
+            return;
+        }
+
+        lastBreachStatus = isBreach;
+        document.getElementById('statusLabel').innerText = isBreach ? 'STATUS: BREACH' : 'STATUS: SECURE';
+        document.getElementById('statusLabel').style.color = color;
+        document.getElementById('pulseNode').style.backgroundColor = color;
+        document.getElementById('downMB').innerText = dl;
+        document.getElementById('upMB').innerText = ul;
+        document.getElementById('lossVal').innerText = lossNum.toFixed(2) + '%';
+
+        if (decryptPercent < 99.9) decryptPercent += Math.random() * 0.5;
+        else if (Math.random() > 0.98) decryptPercent = 0;
+        document.getElementById('decryptVal').innerText = decryptPercent.toFixed(1) + '%';
+        document.getElementById('decryptBar').style.width = decryptPercent + '%';
+
+        var threatLevel = Math.min(100, (lossNum * 2000) + (decryptPercent * 0.4));
+        document.getElementById('threatVal').innerText = threatLevel.toFixed(0) + '%';
+        document.getElementById('threatBar').style.width = threatLevel + '%';
+        document.getElementById('threatBar').style.boxShadow = '0 0 8px hsl(' + (120 - threatLevel) + ', 100%, 50%)';
+
+        if (threatLevel > 80) {
+            currentBg = { r: 40, g: 0, b: 0 };
+            document.getElementById('systemPanel').style.boxShadow = '0 0 40px rgba(255,0,0,0.6)';
+        } else {
+            currentBg = { r: 0, g: 0, b: 16 };
+            document.getElementById('systemPanel').style.boxShadow = '0 0 25px rgba(255,165,0,0.5)';
+        }
+
+        graphPoints.shift();
+        graphPoints.push(Math.floor(Math.random() * 30 + 5));
+        var pts = '';
+        for (var i = 0; i < graphPoints.length; i++) pts += (i * 20) + ',' + graphPoints[i] + ' ';
+        document.getElementById('graphLine').setAttribute('points', pts.trim());
+
+        if (Math.random() > 0.85) {
+            addTerminalLog(deckLogs[Math.floor(Math.random() * deckLogs.length)], '#ffa500');
+        }
+    }
+
+    /* =================================================================
+       COOKIE CONSENT
+       ================================================================= */
+    function showCookieConsent() {
+        try {
+            if (!localStorage.getItem('cookie_consent')) {
+                document.getElementById('cookieConsent').style.display = 'block';
             }
-        }
+        } catch (e) { /* localStorage unavailable */ }
+    }
 
-        /* ==========================================================
-           MATRIX ANIMATION
-           ========================================================== */
-        var canvas = document.getElementById('matrix');
-        var ctx2d = canvas.getContext('2d');
-
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-        resizeCanvas();
-
-        var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@#$%^&*()+~{}[]<>?';
-        var fontSize = 20;
-        var columns = Math.floor(canvas.width / fontSize);
-        var drops = new Array(columns).fill(0);
-
-        function toggleMatrix() {
-            matrixActive = !matrixActive;
-            var lever = document.getElementById('lever-matrix');
-            if (matrixActive) {
-                lever.classList.add('active');
-                lever.setAttribute('aria-pressed', 'true');
-            } else {
-                lever.classList.remove('active');
-                lever.setAttribute('aria-pressed', 'false');
-                /* Clear canvas immediately */
-                ctx2d.fillStyle = '#000010';
-                ctx2d.fillRect(0, 0, canvas.width, canvas.height);
-            }
-        }
-
-        function drawMatrix() {
-            ctx2d.fillStyle = 'rgba(' + currentBg.r + ',' + currentBg.g + ',' + currentBg.b + ',0.1)';
-            ctx2d.fillRect(0, 0, canvas.width, canvas.height);
-            ctx2d.font = fontSize + 'px monospace';
-
-            if (matrixActive) {
-                for (var i = 0; i < drops.length; i++) {
-                    var text = chars.charAt(Math.floor(Math.random() * chars.length));
-                    ctx2d.fillStyle = currentBg.r > 20 ? '#ff5555' : (i % 2 === 0 ? '#00bfff' : '#e0f7ff');
-                    ctx2d.fillText(text, i * fontSize, drops[i] * fontSize);
-                    if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
-                    drops[i]++;
-                }
-            }
-        }
-
-        /* Respect reduced motion */
-        var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        var matrixInterval = prefersReducedMotion ? null : setInterval(drawMatrix, 50);
-
-        window.addEventListener('resize', function() {
-            resizeCanvas();
-            columns = Math.floor(canvas.width / fontSize);
-            drops.length = columns;
-            drops.fill(0);
+    function grantConsent() {
+        try { localStorage.setItem('cookie_consent', 'accepted'); } catch (e) {}
+        document.getElementById('cookieConsent').style.display = 'none';
+        gtag('consent', 'update', {
+            'analytics_storage': 'granted',
+            'ad_storage': 'granted',
+            'ad_user_data': 'granted',
+            'ad_personalization': 'granted'
         });
+    }
 
-        /* ==========================================================
-           HUD TOGGLE
-           ========================================================== */
-        function toggleHUD() {
-            hudActive = !hudActive;
-            var lever = document.getElementById('lever-security');
-            var hudElements = document.querySelectorAll('.hud-element');
-            if (hudActive) {
-                lever.classList.add('active');
-                lever.setAttribute('aria-pressed', 'true');
-                hudElements.forEach(function(el) { el.classList.remove('hud-hidden'); });
-            } else {
-                lever.classList.remove('active');
-                lever.setAttribute('aria-pressed', 'false');
-                hudElements.forEach(function(el) { el.classList.add('hud-hidden'); });
-            }
-        }
+    function denyConsent() {
+        try { localStorage.setItem('cookie_consent', 'denied'); } catch (e) {}
+        document.getElementById('cookieConsent').style.display = 'none';
+    }
 
-        /* ==========================================================
-           CATEGORY PANEL
-           ========================================================== */
-        function toggleCategoryPanel() {
-            var panel = document.getElementById('categoriesPanel');
-            var dropdown = document.getElementById('categoryDropdown');
-            var btn = document.getElementById('categoryToggleBtn');
-            var isExpanded = panel.classList.toggle('expanded');
-            var isShown = dropdown.classList.toggle('show');
-            btn.setAttribute('aria-expanded', isShown ? 'true' : 'false');
-        }
+    /* =================================================================
+       EVENT BINDING (no inline onclick — supports strict CSP)
+       ================================================================= */
+    document.addEventListener('DOMContentLoaded', function() {
 
-        function toggleSubmenu(event) {
-            event.preventDefault();
-            var mainCat = event.target.closest('.main-category');
-            if (!mainCat) return;
-            var submenu = mainCat.querySelector('.submenu');
-            if (!submenu) return;
-            var isOpen = submenu.style.display === 'none';
-            submenu.style.display = isOpen ? 'block' : 'none';
-            event.target.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-        }
-
-        /* ==========================================================
-           INPUT SANITIZATION — hardened filter
-           Only allows alphanumeric, spaces, and common safe punctuation.
-           All other characters are stripped to prevent injection.
-           ========================================================== */
-        function sanitizeInput(str) {
-            return str.replace(/[^a-zA-Z0-9\s\-_.]/g, '');
-        }
-
-        function filterCategories() {
-            var filterInput = document.getElementById('categoryFilter');
-            var filter = sanitizeInput(filterInput.value).toUpperCase();
-            var links = document.getElementById('categoryDropdown').querySelectorAll('a:not(.main-link)');
-            links.forEach(function(el) {
-                var txt = el.textContent || el.innerText;
-                el.style.display = txt.toUpperCase().indexOf(filter) > -1 ? '' : 'none';
-            });
-        }
-
-        /* ==========================================================
-           CYBER DECK
-           ========================================================== */
-        function toggleDeckExpand() {
-            document.getElementById('systemPanel').classList.toggle('expanded');
-        }
-
-        function togglePower(event) {
-            if (event) event.stopPropagation();
-            isPoweredOn = !isPoweredOn;
-            var btn = document.getElementById('powerBtn');
-            var content = document.getElementById('deckContent');
-            if (isPoweredOn) {
-                btn.textContent = 'PWR: ON';
-                btn.classList.add('on');
-                btn.setAttribute('aria-label', 'Toggle power on or off (currently on)');
-                content.style.opacity = '1';
-                content.style.pointerEvents = 'auto';
-                addTerminalLog('SYSTEM COLD BOOT SUCCESSFUL', '#00f0ff');
-            } else {
-                btn.textContent = 'PWR: OFF';
-                btn.classList.remove('on');
-                btn.setAttribute('aria-label', 'Toggle power on or off (currently off)');
-                content.style.opacity = '0.1';
-                content.style.pointerEvents = 'none';
-                document.getElementById('downMB').textContent = '0';
-                document.getElementById('upMB').textContent = '0';
-                document.getElementById('lossVal').textContent = '0.00%';
-                document.getElementById('threatVal').textContent = '0%';
-                document.getElementById('threatBar').style.width = '0%';
-                document.getElementById('decryptVal').textContent = '0%';
-                document.getElementById('decryptBar').style.width = '0%';
-            }
-        }
-
-        function toggleMute() {
-            isMuted = !isMuted;
-            var btn = document.getElementById('muteBtn');
-            btn.textContent = isMuted ? '\uD83D\uDD07' : '\uD83D\uDD0A';
-            btn.setAttribute('aria-label', isMuted ? 'Sound is muted' : 'Sound is on');
-        }
-
-        function toggleAutoResponse() {
-            autoResponse = !autoResponse;
-            var btn = document.getElementById('autoResponse');
-            btn.textContent = 'AUTO: ' + (autoResponse ? 'ON' : 'OFF');
-            btn.style.color = autoResponse ? '#00ff88' : '#8888ff';
-            btn.setAttribute('aria-label', 'Auto response is ' + (autoResponse ? 'on' : 'off'));
-        }
-
-        /* ==========================================================
-           TERMINAL LOG — uses textContent (XSS-safe)
-           ========================================================== */
-        function addTerminalLog(msg, color) {
-            var t = document.getElementById('terminalLog');
-            if (!t) return;
-            var entry = document.createElement('div');
-            entry.style.color = color;
-            /* SECURITY: textContent prevents any HTML/script injection */
-            entry.textContent = '> ' + msg;
-            t.prepend(entry);
-            /* Keep only last 5 entries to prevent DOM bloat */
-            while (t.childNodes.length > 5) {
-                t.removeChild(t.lastElementChild);
-            }
-        }
-
-        /* ==========================================================
-           DASHBOARD UPDATE LOOP
-           ========================================================== */
-        function updateDashboard() {
-            if (isLockdown) return;
-
-            var now = new Date();
-            document.getElementById('digitalClock').textContent = now.toLocaleTimeString('en-GB');
-
-            if (!isPoweredOn) return;
-
-            /* Uptime */
-            var diff = Math.floor((Date.now() - startTime) / 1000) + 87200;
-            document.getElementById('uptimeVar').textContent =
-                String(Math.floor(diff / 86400)).padStart(2, '0') + ':' +
-                String(Math.floor((diff % 86400) / 3600)).padStart(2, '0') + ':' +
-                String(Math.floor((diff % 3600) / 60)).padStart(2, '0') + ':' +
-                String(diff % 60).padStart(2, '0');
-
-            /* Simulated network stats */
-            var dl = (Math.random() * 45 + 10).toFixed(1);
-            var ul = (Math.random() * 15 + 2).toFixed(1);
-            var lossNum = (Math.random() > 0.92) ? (Math.random() * 0.15) : (Math.random() * 0.01);
-
-            if (autoResponse && lossNum > 0.05) {
-                lossNum = 0.00;
-                addTerminalLog('AUTO-RESPONSE: Threat neutralized', '#00ff88');
-            }
-
-            var isBreach = lossNum > 0.05;
-            var color = isBreach ? '#ff4444' : '#00f0ff';
-
-            if (isBreach) {
-                tracePercent += 2.5;
-                breachCount++;
-                document.getElementById('breachCount').textContent = breachCount;
-                if (!lastBreachStatus) {
-                    playBeep();
-                    addTerminalLog('BREACH_DETECTED', '#ff4444');
-                }
-            } else if (tracePercent > 0) {
-                tracePercent -= 0.5;
-            }
-
-            tracePercent = Math.max(0, Math.min(100, tracePercent));
-
-            if (tracePercent >= 100) {
-                isLockdown = true;
-                addTerminalLog('SYSTEM LOCKDOWN: TRACE COMPLETE', '#ff0000');
-                document.body.style.filter = 'grayscale(1) contrast(2) invert(1)';
-                return;
-            }
-
-            lastBreachStatus = isBreach;
-            document.getElementById('statusLabel').textContent = isBreach ? 'STATUS: BREACH' : 'STATUS: SECURE';
-            document.getElementById('statusLabel').style.color = color;
-            document.getElementById('pulseNode').style.backgroundColor = color;
-            document.getElementById('pulseNode').style.boxShadow = '0 0 8px ' + color;
-            document.getElementById('downMB').textContent = dl;
-            document.getElementById('upMB').textContent = ul;
-            document.getElementById('lossVal').textContent = lossNum.toFixed(2) + '%';
-
-            /* Decryption progress */
-            if (decryptPercent < 99.9) decryptPercent += Math.random() * 0.5;
-            else if (Math.random() > 0.98) decryptPercent = 0;
-            document.getElementById('decryptVal').textContent = decryptPercent.toFixed(1) + '%';
-            document.getElementById('decryptBar').style.width = decryptPercent + '%';
-
-            /* Threat level */
-            var threatLevel = Math.min(100, (lossNum * 2000) + (decryptPercent * 0.4));
-            document.getElementById('threatVal').textContent = threatLevel.toFixed(0) + '%';
-            document.getElementById('threatBar').style.width = threatLevel + '%';
-            document.getElementById('threatBar').style.boxShadow =
-                '0 0 8px hsl(' + (120 - threatLevel) + ', 100%, 50%)';
-
-            /* Background color shift based on threat */
-            if (threatLevel > 80) {
-                currentBg = { r: 40, g: 0, b: 0 };
-                document.getElementById('systemPanel').style.boxShadow = '0 0 40px rgba(255,0,0,0.6)';
-            } else {
-                currentBg = { r: 0, g: 0, b: 16 };
-                document.getElementById('systemPanel').style.boxShadow = '0 0 25px rgba(255,165,0,0.5)';
-            }
-
-            /* Graph */
-            graphPoints.shift();
-            graphPoints.push(Math.floor(Math.random() * 30 + 5));
-            document.getElementById('graphLine').setAttribute(
-                'points',
-                graphPoints.map(function(p, i) { return (i * 20) + ',' + p; }).join(' ')
-            );
-
-            /* Random log message */
-            if (Math.random() > 0.85) {
-                addTerminalLog(deckLogs[Math.floor(Math.random() * deckLogs.length)], '#ffa500');
-            }
-        }
-
-        setInterval(updateDashboard, 1000);
-
-        /* ==========================================================
-           EVENT LISTENERS — no inline handlers (CSP best practice)
-           ========================================================== */
-
-        /* Lever: Matrix */
+        /* --- Levers --- */
         var leverMatrix = document.getElementById('lever-matrix');
+        var leverSecurity = document.getElementById('lever-security');
+
         leverMatrix.addEventListener('click', toggleMatrix);
         leverMatrix.addEventListener('keydown', function(e) {
             if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleMatrix(); }
         });
-
-        /* Lever: Security/HUD */
-        var leverSecurity = document.getElementById('lever-security');
         leverSecurity.addEventListener('click', toggleHUD);
         leverSecurity.addEventListener('keydown', function(e) {
             if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleHUD(); }
         });
 
-        /* Category toggle button */
+        /* --- Categories --- */
         document.getElementById('categoryToggleBtn').addEventListener('click', toggleCategoryPanel);
+        document.getElementById('categoryFilter').addEventListener('keyup', filterCategories);
 
-        /* Submenu toggles — delegated from dropdown */
-        document.getElementById('categoryDropdown').addEventListener('click', function(e) {
-            var toggle = e.target.closest('[data-submenu-toggle]');
-            if (toggle) toggleSubmenu(e);
+        var mainLinks = document.querySelectorAll('.main-link[data-submenu]');
+        for (var i = 0; i < mainLinks.length; i++) {
+            mainLinks[i].addEventListener('click', toggleSubmenu);
+        }
+
+        /* Close categories panel when a real navigation link is tapped (mobile UX) */
+        var navLinks = document.querySelectorAll('#categoryDropdown a[href]');
+        for (var i = 0; i < navLinks.length; i++) {
+            (function(link) {
+                if (link.getAttribute('data-submenu')) return;
+                if (link.getAttribute('href') === '#') return;
+                link.addEventListener('click', function() {
+                    setTimeout(closeCategories, 150);
+                });
+            })(navLinks[i]);
+        }
+
+        /* --- Cyber Deck controls --- */
+        document.getElementById('deckToggleBtn').addEventListener('click', toggleDeckExpand);
+        document.getElementById('deckToggleBtn').addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            breachCount = 0; decryptPercent = 0; tracePercent = 0;
+            isLockdown = false; document.body.style.filter = 'none';
+            document.getElementById('breachCount').innerText = '0';
+            var t = document.getElementById('terminalLog');
+            while (t.firstChild) t.removeChild(t.firstChild);
+            addTerminalLog('SYSTEM_PURGE: SUCCESSFUL', '#00f0ff');
         });
 
-        /* Placeholder links — prevent navigation */
-        document.getElementById('categoryDropdown').addEventListener('click', function(e) {
-            if (e.target.hasAttribute('data-noop')) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-        });
-
-        /* Category filter — listen to both 'input' and 'keyup' */
-        var filterInput = document.getElementById('categoryFilter');
-        filterInput.addEventListener('input', filterCategories);
-        filterInput.addEventListener('keyup', filterCategories);
-
-        /* Deck expand/collapse */
-        document.getElementById('deckHeaderBtn').addEventListener('click', toggleDeckExpand);
-
-        /* Power toggle */
         document.getElementById('powerBtn').addEventListener('click', togglePower);
         document.getElementById('powerBtn').addEventListener('keydown', function(e) {
             if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); togglePower(e); }
         });
-
-        /* Mute toggle */
         document.getElementById('muteBtn').addEventListener('click', toggleMute);
         document.getElementById('muteBtn').addEventListener('keydown', function(e) {
             if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleMute(); }
         });
-
-        /* Auto response toggle */
         document.getElementById('autoResponse').addEventListener('click', toggleAutoResponse);
         document.getElementById('autoResponse').addEventListener('keydown', function(e) {
             if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleAutoResponse(); }
         });
 
-        /* Right-click purge on deck header */
-        document.getElementById('deckHeaderBtn').addEventListener('contextmenu', function(e) {
-            e.preventDefault();
-            breachCount = 0;
-            decryptPercent = 0;
-            tracePercent = 0;
-            isLockdown = false;
-            document.body.style.filter = 'none';
-            document.getElementById('breachCount').textContent = '0';
-            document.getElementById('terminalLog').innerHTML = '';
-            addTerminalLog('SYSTEM_PURGE: SUCCESSFUL', '#00f0ff');
+        /* --- Backdrop tap to close panels (mobile) --- */
+        backdrop.addEventListener('click', function() {
+            closeCategories();
+            closeCyberDeck();
         });
 
-        /* Close categories panel when clicking outside (mobile-friendly) */
-        document.addEventListener('click', function(e) {
-            var panel = document.getElementById('categoriesPanel');
-            var btn = document.getElementById('categoryToggleBtn');
-            if (panel.classList.contains('expanded') &&
-                !panel.contains(e.target) &&
-                e.target !== btn) {
-                panel.classList.remove('expanded');
-                document.getElementById('categoryDropdown').classList.remove('show');
-                btn.setAttribute('aria-expanded', 'false');
-            }
-        });
+        /* --- Cookie consent --- */
+        document.getElementById('consentAccept').addEventListener('click', grantConsent);
+        document.getElementById('consentReject').addEventListener('click', denyConsent);
+
+        /* --- URL safety: intercept all link clicks --- */
+        var allAnchors = document.querySelectorAll('a[href]');
+        for (var i = 0; i < allAnchors.length; i++) {
+            (function(anchor) {
+                anchor.addEventListener('click', function(e) {
+                    var href = anchor.getAttribute('href');
+                    if (href && !isSafeUrl(href)) {
+                        e.preventDefault();
+                        console.warn('Blocked unsafe URL:', href);
+                    }
+                });
+            })(allAnchors[i]);
+        }
+
+        /* --- Init --- */
+        showCookieConsent();
+        setInterval(updateDashboard, 1000);
+    });
     </script>
 </body>
 </html>
