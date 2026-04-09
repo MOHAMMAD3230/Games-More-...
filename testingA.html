@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
-    <!-- Security Headers -->
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta name="referrer" content="no-referrer">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
@@ -13,10 +12,6 @@
     
     <title>TAC/COM-04</title>
     
-    <!-- 
-    PeerJS - No SRI for compatibility (add after generating hash)
-    To add SRI later: curl -s URL | openssl dgst -sha384 -binary | openssl base64 -A
-    -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     
     <style>
@@ -40,7 +35,6 @@
             --panel-bg: #1a1a1a;
             --panel-border: #333;
             --text-dim: #777;
-            --text-darker: #555;
         }
 
         html { height: 100%; -webkit-text-size-adjust: 100%; }
@@ -152,7 +146,38 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        .meter-container { flex-shrink: 0; padding-top: 10px; }
+        /* ICE Status Indicator */
+        .ice-status {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 0;
+            font-size: 0.6rem;
+            color: var(--text-dim);
+            border-top: 1px solid var(--panel-border);
+            margin-top: 8px;
+        }
+
+        .ice-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #333;
+            flex-shrink: 0;
+        }
+
+        .ice-dot.checking { background: var(--amber); animation: icePulse 0.8s infinite; }
+        .ice-dot.connected { background: var(--green); box-shadow: 0 0 6px var(--green-glow); }
+        .ice-dot.failed { background: var(--red); }
+        .ice-dot.relay { background: var(--blue); box-shadow: 0 0 6px var(--blue-glow); }
+
+        @keyframes icePulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .meter-container { flex-shrink: 0; padding-top: 6px; }
 
         .meter-header {
             display: flex;
@@ -338,6 +363,14 @@
 
         @keyframes spin { to { transform: rotate(360deg); } }
 
+        .network-info {
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--panel-border);
+            font-size: 0.5rem;
+            color: var(--text-dim);
+            text-align: center;
+        }
+
         @media (max-width: 767px) {
             .status-bar { font-size: 0.55rem; }
             #output { font-size: 0.75rem; }
@@ -351,6 +384,7 @@
             .ptt-container { padding: 10px; }
             .btn-ptt { height: 60px; font-size: 1rem; }
             .led-group { margin-top: 8px; gap: 15px; }
+            .network-info { display: none; }
         }
 
         @media (max-height: 400px) and (orientation: landscape) {
@@ -386,6 +420,11 @@
         <div id="output" role="log" aria-live="polite">
             <div class="log-entry" style="color:#888">> SYSTEM STANDBY</div>
             <div class="log-entry" style="color:#555; font-size:0.7em; margin-top:4px;">AWAITING FREQUENCY ALLOCATION</div>
+        </div>
+        
+        <div class="ice-status">
+            <div class="ice-dot" id="iceDot"></div>
+            <span id="iceText">ICE: IDLE</span>
         </div>
         
         <div class="meter-container" aria-hidden="true">
@@ -426,6 +465,10 @@
             </div>
         </div>
 
+        <div class="network-info" id="networkInfo">
+            CROSS-NETWORK ENABLED (TURN RELAY)
+        </div>
+
         <div class="module">
             <button class="btn-action danger" id="resetBtn">SYSTEM RESET</button>
         </div>
@@ -436,14 +479,66 @@
 'use strict';
 
 // ============================================================
-// CHECK PEERJS LOADED
+// PEERJS CHECK
 // ============================================================
 if (typeof Peer === 'undefined') {
     document.getElementById('output').innerHTML = 
         '<div style="color:var(--red)">ERROR: PEERJS FAILED TO LOAD</div>' +
-        '<div style="color:#888; font-size:0.7em; margin-top:8px;">Check network connection or try refreshing.</div>';
+        '<div style="color:#888; font-size:0.7em; margin-top:8px;">Check your network connection and refresh.</div>';
     throw new Error('PeerJS not loaded');
 }
+
+// ============================================================
+// ICE SERVER CONFIGURATION - CRITICAL FOR CROSS-NETWORK
+// ============================================================
+// 
+// WHY THIS MATTERS:
+// - STUN servers: Help discover public IP (fails with symmetric NAT on mobile)
+// - TURN servers: Relay traffic when direct connection impossible
+// - Mobile carriers (5G/4G) almost always use symmetric NAT
+// - Port 443 TCP: Often the only port not blocked on mobile networks
+//
+const ICE_SERVERS = [
+    // Google STUN servers (free, for IP discovery)
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    
+    // Open Relay Project TURN servers (free, for traffic relay)
+    // Required when both devices are behind symmetric NAT (mobile networks)
+    { 
+        urls: 'turn:openrelay.metered.ca:80', 
+        username: 'openrelayproject', 
+        credential: 'openrelayproject' 
+    },
+    { 
+        urls: 'turn:openrelay.metered.ca:443', 
+        username: 'openrelayproject', 
+        credential: 'openrelayproject' 
+    },
+    { 
+        urls: 'turn:openrelay.metered.ca:443?transport=tcp', 
+        username: 'openrelayproject', 
+        credential: 'openrelayproject' 
+    },
+    
+    // Additional relay options for stubborn networks
+    { 
+        urls: 'turn:openrelay.metered.ca:443?transport=tls', 
+        username: 'openrelayproject', 
+        credential: 'openrelayproject' 
+    }
+];
+
+// PeerJS configuration with extended ICE settings
+const PEER_CONFIG = {
+    config: {
+        iceServers: ICE_SERVERS,
+        iceCandidatePoolSize: 10  // Pre-gather candidates for faster connection
+    },
+    // Increase timeout for mobile networks
+    pingInterval: 5000
+};
 
 // ============================================================
 // STATE
@@ -460,14 +555,17 @@ const S = {
     remoteSrc: null,
     raf: null,
     timeout: null,
+    iceTimeout: null,
     tx: false,
     remoteTx: false,
     role: null,
-    ready: false
+    ready: false,
+    iceState: 'idle'
 };
 
 const PREFIX = 'TC04-';
-const TIMEOUT = 6000;
+const TIMEOUT = 8000;        // Connection probe timeout
+const ICE_TIMEOUT = 30000;   // ICE connection timeout (longer for mobile)
 const MAX_LOG = 80;
 const CMDS = new Set(['TX_ON', 'TX_OFF']);
 
@@ -489,21 +587,67 @@ const DOM = {
     role: $('roleBadge'),
     meter: $('meter-fill'),
     db: $('dbVal'),
-    audio: $('remoteAudio')
+    audio: $('remoteAudio'),
+    iceDot: $('iceDot'),
+    iceText: $('iceText'),
+    netInfo: $('networkInfo')
 };
 
 // ============================================================
-// LOGGING (XSS safe)
+// LOGGING
 // ============================================================
 function log(msg, type = 'info') {
     const el = document.createElement('div');
     el.className = 'log-entry';
     const t = new Date().toLocaleTimeString('en-US', {hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit'});
     el.textContent = `[${t}] > ${msg}`;
-    el.style.color = {error:'var(--red)', success:'var(--green)', sys:'#888', warn:'var(--amber-dim)'}[type] || 'var(--amber)';
+    el.style.color = {error:'var(--red)', success:'var(--green)', sys:'#888', warn:'var(--amber-dim)', ice:'var(--blue)'}[type] || 'var(--amber)';
     DOM.out.appendChild(el);
     while (DOM.out.children.length > MAX_LOG) DOM.out.removeChild(DOM.out.firstChild);
     DOM.out.scrollTop = DOM.out.scrollHeight;
+}
+
+// ============================================================
+// ICE STATUS TRACKING
+// ============================================================
+function setIceStatus(state, detail) {
+    S.iceState = state;
+    
+    DOM.iceDot.className = 'ice-dot';
+    
+    switch(state) {
+        case 'idle':
+            DOM.iceText.textContent = 'ICE: IDLE';
+            break;
+        case 'gathering':
+            DOM.iceDot.classList.add('checking');
+            DOM.iceText.textContent = 'ICE: GATHERING CANDIDATES...';
+            break;
+        case 'checking':
+            DOM.iceDot.classList.add('checking');
+            DOM.iceText.textContent = 'ICE: CHECKING CONNECTION...';
+            break;
+        case 'connected':
+            DOM.iceDot.classList.add('connected');
+            DOM.iceText.textContent = detail || 'ICE: DIRECT CONNECT';
+            break;
+        case 'relayed':
+            DOM.iceDot.classList.add('relay');
+            DOM.iceText.textContent = 'ICE: RELAYED (TURN)';
+            break;
+        case 'failed':
+            DOM.iceDot.classList.add('failed');
+            DOM.iceText.textContent = 'ICE: FAILED - RETRYING';
+            break;
+        case 'disconnected':
+            DOM.iceDot.classList.add('checking');
+            DOM.iceText.textContent = 'ICE: RECONNECTING...';
+            break;
+        case 'closed':
+            DOM.iceDot.className = 'ice-dot';
+            DOM.iceText.textContent = 'ICE: CLOSED';
+            break;
+    }
 }
 
 // ============================================================
@@ -511,7 +655,7 @@ function log(msg, type = 'info') {
 // ============================================================
 function validateChan(v) {
     const n = parseInt(String(v).replace(/[^0-9]/g, ''), 10);
-    return (n >= 1 && n <= 99) ? n : null;
+    return (n >= 1 && n >= 1 && n <= 99) ? n : null;
 }
 
 // ============================================================
@@ -586,6 +730,109 @@ function beep(freq, dur, type) {
 }
 
 // ============================================================
+// TRACK ICE CONNECTION STATE
+// ============================================================
+function trackICE(call) {
+    if (!call || !call.peerConnection) {
+        log('WARNING: No peer connection available', 'warn');
+        return;
+    }
+
+    const pc = call.peerConnection;
+    
+    // Monitor ICE connection state
+    pc.addEventListener('iceconnectionstatechange', () => {
+        const state = pc.iceConnectionState;
+        log(`ICE STATE: ${state}`, 'ice');
+        
+        switch(state) {
+            case 'new':
+                setIceStatus('gathering');
+                break;
+            case 'checking':
+                setIceStatus('checking');
+                break;
+            case 'connected':
+                // Check if using TURN relay
+                checkRelayUsage(pc);
+                break;
+            case 'completed':
+                checkRelayUsage(pc);
+                break;
+            case 'disconnected':
+                setIceStatus('disconnected');
+                // Try ICE restart
+                setTimeout(() => {
+                    if (pc.iceConnectionState === 'disconnected') {
+                        log('ATTEMPTING ICE RESTART...', 'warn');
+                        try {
+                            pc.restartIce();
+                        } catch(e) {
+                            log('ICE RESTART FAILED', 'error');
+                        }
+                    }
+                }, 2000);
+                break;
+            case 'failed':
+                setIceStatus('failed');
+                log('ICE FAILED - CONNECTION MAY BE UNSTABLE', 'error');
+                // Attempt restart
+                setTimeout(() => {
+                    try { pc.restartIce(); } catch(e) {}
+                }, 3000);
+                break;
+            case 'closed':
+                setIceStatus('closed');
+                break;
+        }
+    });
+
+    // Monitor ICE gathering state
+    pc.addEventListener('icegatheringstatechange', () => {
+        log(`ICE GATHERING: ${pc.iceGatheringState}`, 'ice');
+    });
+
+    // Log ICE candidates for debugging
+    pc.addEventListener('icecandidate', (e) => {
+        if (e.candidate) {
+            const type = e.candidate.type;
+            log(`CANDIDATE: ${type}`, 'ice');
+        } else {
+            log('ICE GATHERING COMPLETE', 'ice');
+        }
+    });
+}
+
+// Check if connection is using TURN relay
+function checkRelayUsage(pc) {
+    if (!pc.getStats) return;
+    
+    pc.getStats().then(stats => {
+        let isRelayed = false;
+        let localType = '';
+        
+        stats.forEach(report => {
+            if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+                localType = stats.get(report.localCandidateId)?.candidateType || '';
+                if (localType === 'relay') {
+                    isRelayed = true;
+                }
+            }
+        });
+        
+        if (isRelayed) {
+            setIceStatus('relayed');
+            log('USING TURN RELAY (CROSS-NETWORK)', 'ice');
+        } else {
+            setIceStatus('connected', `ICE: ${localType.toUpperCase() || 'DIRECT'}`);
+            log(`DIRECT CONNECTION (${localType || 'unknown'})`, 'ice');
+        }
+    }).catch(() => {
+        setIceStatus('connected', 'ICE: CONNECTED');
+    });
+}
+
+// ============================================================
 // CONNECTION
 // ============================================================
 async function init() {
@@ -605,10 +852,15 @@ async function init() {
     DOM.boot.innerHTML = 'LINKING<span class="spinner"></span>';
     DOM.chan.disabled = true;
     log(`CONNECTING TO CHANNEL ${ch.toString().padStart(2,'0')}...`, 'sys');
+    log('INITIALIZING TURN RELAY FOR CROSS-NETWORK...', 'ice');
 
     try {
         S.stream = await navigator.mediaDevices.getUserMedia({
-            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+            audio: { 
+                echoCancellation: { ideal: true }, 
+                noiseSuppression: { ideal: true }, 
+                autoGainControl: { ideal: true }
+            },
             video: false
         });
         setMic(false);
@@ -635,7 +887,6 @@ function connect(targetId) {
         if (S.timeout) { clearTimeout(S.timeout); S.timeout = null; }
     };
 
-    // Timeout: become host
     S.timeout = setTimeout(() => {
         if (!done) {
             finish();
@@ -645,11 +896,12 @@ function connect(targetId) {
         }
     }, TIMEOUT);
 
-    // Create probe peer
-    S.peer = new Peer();
+    // Create peer with ICE configuration
+    S.peer = new Peer(PEER_CONFIG);
 
     S.peer.on('open', () => {
-        log('SCANNING...', 'sys');
+        log('PEER CONNECTED TO SIGNALLING SERVER', 'ice');
+        log('SCANNING FOR HOST...', 'sys');
         
         const probe = S.peer.connect(targetId, { reliable: true });
         
@@ -657,14 +909,26 @@ function connect(targetId) {
             if (done) { probe.close(); return; }
             done = true;
             finish();
-            log('HOST FOUND - JOINING', 'sys');
+            log('HOST FOUND - ESTABLISHING LINK', 'sys');
             
+            // Make the call - this is where ICE happens
             const call = S.peer.call(targetId, S.stream);
             if (call) {
                 S.conn = probe;
                 S.call = call;
                 S.role = 'client';
+                setIceStatus('gathering');
                 wireClient(probe, call);
+                trackICE(call);
+                
+                // ICE timeout - if not connected after 30s, show warning
+                S.iceTimeout = setTimeout(() => {
+                    if (S.iceState === 'checking' || S.iceState === 'gathering') {
+                        log('ICE TAKING LONGER THAN EXPECTED', 'warn');
+                        log('IF ON MOBILE: ENSURE DATA IS ENABLED', 'warn');
+                    }
+                }, ICE_TIMEOUT);
+                
             } else {
                 finish();
                 probe.close();
@@ -694,18 +958,19 @@ function connect(targetId) {
 
 function becomeHost(id) {
     S.role = 'host';
-    S.peer = new Peer(id);
+    S.peer = new Peer(id, PEER_CONFIG);
 
     S.peer.on('open', () => {
         log('HOST NODE ONLINE', 'success');
+        log('WAITING FOR INCOMING CONNECTION...', 'ice');
         updateNet();
         enablePTT();
     });
 
     S.peer.on('connection', c => {
-        log('INCOMING HANDSHAKE', 'sys');
+        log('INCOMING HANDSHAKE DETECTED', 'sys');
         if (S.conn && S.conn.open) {
-            log('REPLACING CLIENT', 'warn');
+            log('REPLACING EXISTING CLIENT', 'warn');
             S.conn.close();
         }
         S.conn = c;
@@ -714,11 +979,19 @@ function becomeHost(id) {
 
     S.peer.on('call', call => {
         log('INCOMING VOICE LINK', 'sys');
+        setIceStatus('gathering');
         call.answer(S.stream);
         S.call = call;
         wireMedia(call);
+        trackICE(call);
         updateNet();
         enablePTT();
+        
+        // Clear ICE timeout when connected
+        if (S.iceTimeout) {
+            clearTimeout(S.iceTimeout);
+            S.iceTimeout = null;
+        }
     });
 
     S.peer.on('error', err => {
@@ -734,18 +1007,19 @@ function becomeHost(id) {
 
     S.peer.on('disconnected', () => {
         if (S.peer && !S.peer.destroyed) {
-            log('RECONNECTING...', 'warn');
+            log('SIGNALLING DISCONNECTED - RECONNECTING', 'warn');
+            setIceStatus('disconnected');
             try { S.peer.reconnect(); } catch(e) {}
         }
     });
 }
 
 // ============================================================
-// WIRING (no duplicates)
+// WIRING
 // ============================================================
 function wireClient(conn, call) {
     conn.on('data', onData);
-    conn.on('close', () => { log('LINK LOST', 'error'); hardReset(); });
+    conn.on('close', () => { log('DATA LINK LOST', 'error'); hardReset(); });
     conn.on('error', () => log('DATA ERROR', 'error'));
     wireMedia(call);
     updateNet();
@@ -763,6 +1037,7 @@ function wireHostData(conn) {
         log('CLIENT DISCONNECTED', 'warn');
         DOM.ledRx.classList.remove('rx');
         updateNet(true);
+        setIceStatus('idle');
     });
     conn.on('error', () => log('CLIENT ERROR', 'error'));
 }
@@ -770,20 +1045,36 @@ function wireHostData(conn) {
 function wireMedia(call) {
     call.on('stream', stream => {
         DOM.audio.srcObject = stream;
+        
+        // Clear ICE timeout on stream received
+        if (S.iceTimeout) {
+            clearTimeout(S.iceTimeout);
+            S.iceTimeout = null;
+        }
+        
         if (!S.remoteSrc) {
             try {
                 S.remoteSrc = S.audioCtx.createMediaStreamSource(stream);
                 S.remoteSrc.connect(S.delay);
             } catch(e) {}
         }
-        log('VOICE LINK ACTIVE', 'success');
+        log('VOICE STREAM RECEIVED', 'success');
     });
-    call.on('close', () => { log('VOICE TERMINATED', 'error'); hardReset(); });
-    call.on('error', err => log('VOICE ERROR: ' + err.type, 'error'));
+    
+    call.on('close', () => { 
+        log('VOICE TERMINATED', 'error'); 
+        setIceStatus('closed');
+        hardReset(); 
+    });
+    
+    call.on('error', err => {
+        log('VOICE ERROR: ' + err.type, 'error');
+        setIceStatus('failed');
+    });
 }
 
 // ============================================================
-// INCOMING DATA (whitelist only)
+// DATA HANDLER
 // ============================================================
 function onData(data) {
     if (typeof data !== 'string' || !CMDS.has(data)) return;
@@ -854,6 +1145,7 @@ function resetUI() {
     DOM.role.innerHTML = '';
     DOM.meter.style.width = '0%';
     DOM.db.textContent = '-∞ dB';
+    setIceStatus('idle');
     S.ready = false;
     S.role = null;
 }
@@ -891,6 +1183,7 @@ function pttOff() {
 // CLEANUP
 // ============================================================
 function destroyPeer() {
+    if (S.iceTimeout) { clearTimeout(S.iceTimeout); S.iceTimeout = null; }
     if (S.peer) {
         try { S.peer.destroy(); } catch(e) {}
         S.peer = null;
@@ -927,17 +1220,14 @@ DOM.chan.addEventListener('input', () => {
     DOM.chan.value = DOM.chan.value.replace(/[^0-9]/g, '');
 });
 
-// PTT Mouse
 DOM.ptt.addEventListener('mousedown', e => { e.preventDefault(); pttOn(); });
 window.addEventListener('mouseup', pttOff);
 
-// PTT Touch
 DOM.ptt.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); pttOn(); }, {passive:false});
 DOM.ptt.addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); pttOff(); }, {passive:false});
 DOM.ptt.addEventListener('touchcancel', e => { e.preventDefault(); e.stopPropagation(); pttOff(); }, {passive:false});
 DOM.ptt.addEventListener('contextmenu', e => e.preventDefault());
 
-// Prevent zoom
 let lastTouch = 0;
 document.addEventListener('touchend', e => {
     const now = Date.now();
@@ -945,20 +1235,25 @@ document.addEventListener('touchend', e => {
     lastTouch = now;
 }, {passive:false});
 
-// Background -> release PTT
 document.addEventListener('visibilitychange', () => { if (document.hidden) pttOff(); });
-
 window.addEventListener('beforeunload', cleanup);
 
 // ============================================================
 // BOOT
 // ============================================================
-log('TAC/COM-04 v2.2 READY', 'sys');
+log('TAC/COM-04 v3.0 - CROSS-NETWORK ENABLED', 'sys');
+log('TURN RELAY CONFIGURED FOR MOBILE/5G', 'ice');
 
 if (!navigator.mediaDevices?.getUserMedia) {
     log('ERROR: INCOMPATIBLE BROWSER', 'error');
     DOM.boot.disabled = true;
     DOM.boot.textContent = 'UNSUPPORTED';
+}
+
+// Detect connection type
+if (navigator.connection) {
+    const conn = navigator.connection;
+    log(`NETWORK: ${conn.effectiveType || 'unknown'} (${conn.type || 'unknown'})`, 'ice');
 }
 
 </script>
