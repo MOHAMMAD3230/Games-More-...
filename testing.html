@@ -3,169 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OMNI-VOICE V16 | STABLE</title>
+    <title>OMNI-VOICE V17 | BYPASS</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root { --neon: #00ff41; --bg: #050505; }
         * { box-sizing: border-box; touch-action: manipulation; }
         body { background: var(--bg); color: var(--neon); font-family: 'Courier New', monospace; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; overflow: hidden; }
-        
-        .terminal { border: 2px solid var(--neon); padding: 25px; background: #000; width: 340px; box-shadow: 0 0 20px rgba(0, 255, 65, 0.2); text-align: center; }
-        
+        .terminal { border: 2px solid var(--neon); padding: 20px; background: #000; width: 340px; box-shadow: 0 0 15px rgba(0, 255, 65, 0.4); text-align: center; }
         input { background: #000; border: 1px solid var(--neon); color: var(--neon); padding: 12px; width: 100%; margin-bottom: 10px; text-align: center; outline: none; font-family: inherit; }
         .btn { padding: 12px; background: var(--neon); color: #000; border: none; font-weight: bold; cursor: pointer; width: 48%; }
-        
-        #ptt { width: 100%; padding: 40px; background: transparent; color: var(--neon); border: 2px solid var(--neon); font-size: 1.2rem; font-weight: bold; margin-top: 15px; display: none; cursor: pointer; user-select: none; -webkit-user-select: none; }
+        #ptt { width: 100%; padding: 40px; background: transparent; color: var(--neon); border: 2px solid var(--neon); font-size: 1.1rem; font-weight: bold; margin-top: 15px; display: none; user-select: none; -webkit-user-select: none; }
         #ptt.active { background: var(--neon); color: #000; }
-        
-        .meter { width: 100%; height: 8px; background: #111; margin-top: 15px; border: 1px solid #222; overflow: hidden; }
-        #fill { height: 100%; width: 0%; background: var(--neon); transition: width 0.1s linear; }
-        #status { font-size: 0.65rem; margin-top: 15px; color: var(--neon); min-height: 20px; text-transform: uppercase; }
-        #audio-shield { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 100; color: var(--neon); text-align: center; cursor: pointer; padding: 20px; border: 2px inset var(--neon); }
+        .meter { width: 100%; height: 6px; background: #111; margin-top: 10px; border: 1px solid #222; overflow: hidden; }
+        #fill { height: 100%; width: 0%; background: var(--neon); transition: width 0.1s; }
+        #status { font-size: 0.6rem; margin-top: 15px; color: var(--neon); min-height: 30px; border-top: 1px solid #111; padding-top: 10px; }
     </style>
 </head>
 <body>
 
-<div id="audio-shield" onclick="unlockAudio()">
-    <h1>CONNECTION SECURED</h1>
-    <p>TAP ANYWHERE TO UNMUTE RECEIVER</p>
-</div>
-
 <div class="terminal">
-    <div id="setup-layer">
-        <button class="btn" style="width:100%;" onclick="powerOn()">1. INITIALIZE SYSTEM</button>
+    <div id="init-layer">
+        <button class="btn" style="width:100%;" onclick="initHW()">ACTIVATE OMNI-LINK</button>
     </div>
 
-    <div id="comms-layer" style="display:none;">
-        <input type="text" id="freq" placeholder="CHANNEL_ID">
+    <div id="main-layer" style="display:none;">
+        <input type="text" id="ch-id" placeholder="SECURE_CHANNEL">
         <div style="display:flex; justify-content: space-between;">
-            <button class="btn" onclick="boot('A')">MODE_A</button>
-            <button class="btn" onclick="boot('B')">MODE_B</button>
+            <button class="btn" onclick="connect('B')">LISTENER</button>
+            <button class="btn" onclick="connect('A')">DIALER</button>
         </div>
         <div class="meter"><div id="fill"></div></div>
-        <button id="ptt">HOLD TO TALK</button>
+        <button id="ptt">PUSH TO TALK</button>
     </div>
-    
-    <div id="status">HW_OFFLINE</div>
+    <div id="status">OFFLINE</div>
 </div>
 
 <audio id="vox" autoplay playsinline></audio>
 
 <script>
-    let localStream, peer, currentCall;
+    let stream, peer, call;
     const status = document.getElementById('status');
     const fill = document.getElementById('fill');
     const ptt = document.getElementById('ptt');
     const vox = document.getElementById('vox');
-    const shield = document.getElementById('audio-shield');
 
-    async function powerOn() {
+    async function initHW() {
         try {
-            localStream = await navigator.mediaDevices.getUserMedia({ 
-                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
-            });
-            localStream.getAudioTracks()[0].enabled = false; 
-
-            // Visualizer
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            const src = ctx.createMediaStreamSource(localStream);
-            const ana = ctx.createAnalyser();
-            src.connect(ana);
-            const data = new Uint8Array(ana.frequencyBinCount);
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            stream.getAudioTracks()[0].enabled = false;
             
-            const render = () => {
+            // Minimal Visualizer
+            const ctx = new AudioContext();
+            const ana = ctx.createAnalyser();
+            ctx.createMediaStreamSource(stream).connect(ana);
+            const data = new Uint8Array(ana.frequencyBinCount);
+            const loop = () => {
                 ana.getByteFrequencyData(data);
-                if(localStream.getAudioTracks()[0].enabled) {
-                    let avg = data.reduce((a,b)=>a+b)/data.length;
-                    fill.style.width = Math.min(avg * 4, 100) + "%";
-                } else { fill.style.width = "0%"; }
-                requestAnimationFrame(render);
+                fill.style.width = stream.getAudioTracks()[0].enabled ? (data[0] / 2) + "%" : "0%";
+                requestAnimationFrame(loop);
             };
-            render();
+            loop();
 
-            document.getElementById('setup-layer').style.display = 'none';
-            document.getElementById('comms-layer').style.display = 'block';
-            status.innerText = "HARDWARE_READY";
-        } catch(e) { 
-            status.innerText = "HW_ERR: " + e.name;
-            console.error(e);
-        }
+            document.getElementById('init-layer').style.display = 'none';
+            document.getElementById('main-layer').style.display = 'block';
+            status.innerText = "HARDWARE_SYNCED";
+        } catch(e) { status.innerText = "HW_FAIL: " + e.name; }
     }
 
-    function boot(role) {
-        const id = document.getElementById('freq').value.toUpperCase().trim();
-        if(!id) return;
-        
+    function connect(role) {
+        const cid = document.getElementById('ch-id').value.toUpperCase().trim();
+        if(!cid) return;
+
         if(peer) peer.destroy();
 
-        // V16 RESILIENCE CONFIG
-        peer = new Peer(`OMNI_V16_${id}_${role}`, {
+        // BYPASS CONFIG: Force secure WebSockets over Port 443
+        peer = new Peer(`V17-${cid}-${role}`, {
             host: '0.peerjs.com',
-            port: 443,
             secure: true,
-            debug: 1,
-            config: { 
+            port: 443,
+            config: {
                 iceServers: [
                     { urls: 'stun:stun.l.google.com:19302' },
                     { urls: 'stun:stun1.l.google.com:19302' },
-                    { urls: 'stun:stun2.l.google.com:19302' }
-                ] 
+                    { urls: 'stun:stun.voiparound.com:3478' }
+                ]
             }
         });
 
         peer.on('open', () => {
-            status.innerText = `SIGNAL_OK | ${role}`;
+            status.innerText = `NODE_${role}_ONLINE`;
             if(role === 'A') {
-                status.innerText = "CONNECTING TO NODE_B...";
-                // Small delay to let Node B open its socket
+                status.innerText = "TUNNELING TO NODE_B...";
                 setTimeout(() => {
-                    const call = peer.call(`OMNI_V16_${id}_B`, localStream);
-                    handleCall(call);
+                    const c = peer.call(`V17-${cid}-B`, stream);
+                    handle(c);
                 }, 2000);
             }
         });
 
-        peer.on('call', call => {
-            status.innerText = "INCOMING_HANDSHAKE...";
-            call.answer(localStream);
-            handleCall(call);
+        peer.on('call', c => {
+            status.innerText = "HANDSHAKE_RECEIVED";
+            c.answer(stream);
+            handle(c);
         });
 
         peer.on('error', e => {
-            status.innerText = "NET_ERR: " + e.type.toUpperCase();
-            if(e.type === 'network') status.innerText = "SIGNAL_BLOCKED_BY_FIREWALL";
+            if(e.type === 'peer-unavailable') status.innerText = "NODE_B NOT FOUND. IS IT ONLINE?";
+            else if(e.type === 'network') status.innerText = "FIREWALL DETECTED: TRY MOBILE DATA";
+            else status.innerText = "ERR: " + e.type;
         });
     }
 
-    function handleCall(call) {
-        call.on('stream', stream => {
-            vox.srcObject = stream;
-            vox.play().then(() => {
-                status.innerText = "LINK_ACTIVE";
-                ptt.style.display = 'block';
-            }).catch(() => {
-                shield.style.display = 'flex';
-            });
+    function handle(c) {
+        c.on('stream', s => {
+            vox.srcObject = s;
+            vox.play();
+            status.innerText = "LINK_ENCRYPTED";
+            ptt.style.display = 'block';
         });
     }
 
-    function unlockAudio() {
-        vox.play();
-        shield.style.display = 'none';
-        status.innerText = "LINK_ACTIVE";
-        ptt.style.display = 'block';
-    }
-
-    const setMic = (on) => { 
-        if(localStream) localStream.getAudioTracks()[0].enabled = on; 
-        ptt.classList.toggle('active', on);
-        ptt.innerText = on ? "TRANSMITTING..." : "HOLD TO TALK";
-    };
-
-    ptt.onmousedown = () => setMic(true);
-    ptt.onmouseup = () => setMic(false);
-    ptt.ontouchstart = (e) => { e.preventDefault(); setMic(true); };
-    ptt.ontouchend = (e) => { e.preventDefault(); setMic(false); };
+    const tx = (s) => { if(stream) stream.getAudioTracks()[0].enabled = s; ptt.classList.toggle('active', s); };
+    ptt.onmousedown = () => tx(true);
+    ptt.onmouseup = () => tx(false);
+    ptt.ontouchstart = (e) => { e.preventDefault(); tx(true); };
+    ptt.ontouchend = (e) => { e.preventDefault(); tx(false); };
 </script>
 </body>
 </html>
