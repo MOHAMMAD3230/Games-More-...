@@ -2,173 +2,159 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>WebRTC Peer Connection</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PeerJS Video Chat with Indicators (Different Networks)</title>
 <style>
-  body { font-family: Arial, sans-serif; background: #222; color: #eee; padding: 20px; }
-  #netStat { font-weight: bold; margin-bottom: 10px; }
-  #log { height: 200px; overflow-y: auto; background: #333; padding: 10px; }
-  button { padding: 10px 20px; margin-top: 10px; }
+  body { font-family: Arial, sans-serif; text-align: center; margin-top: 20px; }
+  video { width: 45%; margin: 10px; border: 1px solid #ccc; }
+  #channelContainer { margin-top: 20px; }
+  input { padding: 8px; width: 300px; }
+  button { padding: 8px 16px; margin-left: 10px; }
+  #status { margin-top: 10px; font-weight: bold; }
+  #peerIdSection { margin-top: 20px; }
+  #chatBox { width: 90%; height: 150px; border: 1px solid #ccc; overflow-y: auto; margin-top: 10px; padding: 5px; }
+  #messageInput { width: 70%; padding: 8px; }
 </style>
 </head>
 <body>
 
-<h1>WebRTC Peer Connection</h1>
-<div id="netStat">NET: NOT CONNECTED</div>
-<div id="log"></div>
-<button id="bootBtn">INITIALIZE LINK</button>
-<input type="number" id="chanInput" placeholder="Channel 01-99" min="1" max="99"/>
-<script src="https://cdn.jsdelivr.net/npm/peerjs@1.4.7/dist/peerjs.min.js"></script>
+<h2>PeerJS Video Chat (Different Networks)</h2>
+<p>Your Peer ID: <span id="myId">Connecting...</span></p>
+<div id="status">Status: Connecting...</div>
+
+<div id="channelContainer">
+  <h3>Connect to Peer</h3>
+  <input type="text" id="peerIdInput" placeholder="Enter Peer ID" />
+  <button id="connectBtn">Connect</button>
+</div>
+
+<div id="peerIdSection">
+  <h3>Your Peer ID (Share this with others)</h3>
+  <div style="font-weight: bold; font-size: 1.2em;" id="ownPeerId"></div>
+</div>
+
+<div id="videoContainer" style="display:none;">
+  <video id="localVideo" autoplay muted></video>
+  <video id="remoteVideo" autoplay></video>
+</div>
+
+<h3>Channel Chat</h3>
+<div id="chatBox"></div>
+<input type="text" id="messageInput" placeholder="Type a message" />
+<button id="sendBtn">Send</button>
+
+<!-- Include PeerJS library -->
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.3.1/dist/peerjs.min.js"></script>
 <script>
-  const logEl = document.getElementById('log');
-  const bootBtn = document.getElementById('bootBtn');
-  const chanInput = document.getElementById('chanInput');
-  const netStat = document.getElementById('netStat');
+const localVideo = document.getElementById('localVideo');
+const remoteVideo = document.getElementById('remoteVideo');
+const myIdSpan = document.getElementById('myId');
+const statusDiv = document.getElementById('status');
+const peerIdInput = document.getElementById('peerIdInput');
+const connectBtn = document.getElementById('connectBtn');
+const chatBox = document.getElementById('chatBox');
+const messageInput = document.getElementById('messageInput');
+const sendBtn = document.getElementById('sendBtn');
+const videoContainer = document.getElementById('videoContainer');
+const ownPeerIdDiv = document.getElementById('ownPeerId');
 
-  let peer = null;
-  let conn = null;
-  let currentCall = null;
-  let localStream = null;
+let peer, localStream;
+let currentCall = null;
+let dataConnection = null;
 
-  // Your TURN/STUN servers
-  const NET_CONFIG = {
-    host: 'your.peerjs.server', // Optional: your own PeerServer
-    port: 9000,
-    path: '/myapp',
-    secure: true,
-    config: {
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        // Add TURN server if needed
-        // { urls: 'turn:your.turn.server', username: 'user', credential: 'pass' }
-      ]
-    }
-  };
+// 1. Get user media
+navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+  .then(stream => {
+    localStream = stream;
+    localVideo.srcObject = stream;
+  })
+  .catch(err => {
+    alert('Error accessing media devices: ' + err);
+  });
 
-  function log(message, type='') {
-    const span = document.createElement('div');
-    span.innerText = message;
-    if (type === 'error') span.style.color = 'red';
-    if (type === 'success') span.style.color = 'lightgreen';
-    logEl.appendChild(span);
-    logEl.scrollTop = logEl.scrollHeight;
+// 2. Initialize PeerJS with public server (works across different networks)
+peer = new Peer(undefined, {
+  host: 'peerjs.com',
+  port: 443,
+  secure: true,
+  path: '/'
+});
+
+peer.on('open', id => {
+  myIdSpan.textContent = id;
+  ownPeerIdDiv.textContent = id;
+  statusDiv.textContent = 'Status: Ready. Share your Peer ID to connect.';
+});
+
+// 3. Handle incoming calls
+peer.on('call', call => {
+  // Accept the call
+  call.answer(localStream);
+  currentCall = call;
+  call.on('stream', remoteStream => {
+    remoteVideo.srcObject = remoteStream;
+    videoContainer.style.display = 'block';
+    updateStatus('Connected to ' + call.peer);
+  });
+  call.on('close', () => {
+    updateStatus('Call ended');
+    remoteVideo.srcObject = null;
+  });
+});
+
+// 4. Connect to another peer
+connectBtn.onclick = () => {
+  const peerId = peerIdInput.value.trim();
+  if (!peerId) {
+    alert('Enter a valid Peer ID.');
+    return;
   }
+  // Make a call
+  const call = peer.call(peerId, localStream);
+  currentCall = call;
+  call.on('stream', remoteStream => {
+    remoteVideo.srcObject = remoteStream;
+    videoContainer.style.display = 'block';
+    updateStatus('Connected to ' + peerId);
+  });
+  call.on('close', () => {
+    updateStatus('Call ended');
+    remoteVideo.srcObject = null;
+  });
 
-  function enablePTT() {
-    // Your code to enable push-to-talk or other UI
-  }
+  // Create data connection for chat
+  const conn = peer.connect(peerId);
+  setupDataConnection(conn);
+};
 
-  function setupConnectionHandlers(connection, call) {
-    if (connection) {
-      connection.on('data', (data) => {
-        log('Received data: ' + data);
-      });
-      connection.on('close', () => log('Connection closed.'));
-    }
+// 5. Handle incoming data connection
+peer.on('connection', conn => {
+  setupDataConnection(conn);
+  updateStatus('Chat connected with ' + conn.peer);
+});
 
-    if (call) {
-      call.on('stream', (stream) => {
-        // Play remote stream
-        log('Received remote stream.');
-        // You might want to attach to an audio element
-      });
-      call.on('close', () => log('Call ended.'));
-    }
-  }
+// Function to setup data connection
+function setupDataConnection(conn) {
+  dataConnection = conn;
+  conn.on('data', data => {
+    chatBox.innerHTML += `<div><strong>${conn.peer}:</strong> ${data}</div>`;
+    chatBox.scrollTop = chatBox.scrollHeight;
+  });
+}
 
-  function setupAudioGraph() {
-    // Your code to set up audio processing
-  }
+// 6. Send chat message
+sendBtn.onclick = () => {
+  const message = messageInput.value.trim();
+  if (!message || !dataConnection || dataConnection.open !== true) return;
+  chatBox.innerHTML += `<div><strong>You:</strong> ${message}</div>`;
+  dataConnection.send(message);
+  messageInput.value = '';
+};
 
-  function setMicState(state) {
-    // Your code to enable/disable mic
-  }
-
-  // Function to become host with fixed ID
-  function becomeHost() {
-    const fixedHostId = 'TAC-SECURE-HOST'; // Fixed peer ID for host
-
-    peer = new Peer(fixedHostId, NET_CONFIG);
-    peer.on('open', (id) => {
-      log(`NODE ${id} ONLINE. LISTENING...`, "success");
-      netStat.innerText = "NET: HOSTING";
-      netStat.style.color = "var(--green)";
-      enablePTT();
-      console.log('Host Peer ID:', id);
-    });
-
-    peer.on('connection', (c) => {
-      log("INCOMING HANDSHAKE DETECTED.", "sys");
-      conn = c;
-      setupConnectionHandlers(c, null); 
-    });
-
-    peer.on('call', (call) => {
-      log("INCOMING VOICE LINK.", "sys");
-      call.answer(localStream);
-      setupConnectionHandlers(null, call);
-    });
-  }
-
-  // Function to connect to the host
-  async function initChannel() {
-    const inputVal = parseInt(chanInput.value);
-    if (isNaN(inputVal) || inputVal < 1 || inputVal > 99) {
-      log("ERROR: INVALID FREQUENCY. RANGE 01-99.", "error");
-      chanInput.style.borderColor = "red";
-      setTimeout(() => chanInput.style.borderColor = "#444", 1000);
-      return;
-    }
-    const chanNum = inputVal.toString().padStart(2, '0');
-    const targetId = 'TAC-SECURE-HOST'; // Fixed ID to connect to
-
-    bootBtn.disabled = true;
-    bootBtn.innerText = "LINKING...";
-    log(`ATTEMPTING CONNECTION TO ${targetId}...`, "sys");
-    console.log('Connecting to peer ID:', targetId);
-
-    try {
-      localStream = await navigator.mediaDevices.getUserMedia({ 
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-      });
-      setMicState(false);
-      setupAudioGraph();
-
-      document.getElementById('curFreq').innerText = "462." + chanNum;
-
-      connectToPeer(targetId);
-    } catch(e) {
-      console.error(e);
-      log("HARDWARE ERROR: MIC ACCESS DENIED OR UNAVAILABLE", "error");
-      bootBtn.disabled = false;
-      bootBtn.innerText = "INITIALIZE LINK";
-    }
-  }
-
-  function connectToPeer(targetId) {
-    peer = new Peer(NET_CONFIG);
-    peer.on('open', (id) => {
-      console.log('Local Peer ID:', id);
-      log("LOCAL HANDSHAKE ESTABLISHED. ID: " + id.substr(0,4) + "...", "sys");
-      // Connect to fixed host ID
-      conn = peer.connect(targetId);
-      currentCall = peer.call(targetId, localStream);
-      setupConnectionHandlers(conn, currentCall);
-    });
-    peer.on('error', (err) => {
-      log('Peer error: ' + err.message, 'error');
-    });
-  }
-
-  document.getElementById('bootBtn').onclick = () => {
-    // Decide whether to be host or client:
-    // For example, if you want to be host:
-    // becomeHost();
-    // Or if you want to connect as client:
-    initChannel();
-  };
-
-  // For testing, you can call becomeHost() manually in console or button
+// 7. Update status indicator
+function updateStatus(text) {
+  statusDiv.textContent = 'Status: ' + text;
+}
 </script>
 
 </body>
