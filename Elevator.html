@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skyscraper OS - Ultimate Hybrid Edition</title>
+    <style>
+        :root {
+            --floor-h: 70px;
+            --shaft-width: 130px;
+            --room-width: 150px;
+            --bg-color: #05050a;
+            --building-bg: rgba(0,0,0,0.9);
+            --theme-color: #00d2ff;
+            --active-glow: #00ff88;
+            --moving-glow: #ff8c00;
+            --emergency: #ff0033;
+            --text-main: #ffffff;
+        }
+
+        /* --- THEME VARIATIONS --- */
+        body.theme-morning { --bg-color: #e3f2fd; --building-bg: rgba(255,255,255,0.8); --theme-color: #1976d2; --text-main: #263238; }
+        body.theme-afternoon { --bg-color: #f5f5f5; --building-bg: rgba(250,250,250,0.9); --theme-color: #00796b; --text-main: #212121; }
+        body.theme-evening { --bg-color: #263238; --building-bg: rgba(38, 50, 56, 0.95); --theme-color: #ffb300; --text-main: #eceff1; }
+
+        body {
+            background: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            transition: background 1s ease;
+        }
+
+        /* --- EXTERIOR VIEW --- */
+        #exterior-view {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            /* Pointing to your local file */
+            background: url('skyscraper.jpg') no-repeat center center;
+            background-size: cover;
+            z-index: 1000;
+            display: flex;
+            justify-content: flex-end;
+            align-items: flex-end;
+            transition: opacity 0.8s ease, visibility 0.8s;
+        }
+
+        .enter-btn-ui {
+            margin: 3% 8%;
+            cursor: pointer;
+            text-align: center;
+            transition: transform 0.3s;
+        }
+        .enter-btn-ui:hover { transform: scale(1.1); }
+        .enter-btn-ui .glow-circle {
+            width: 70px; height: 70px;
+            background: var(--theme-color);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 25px var(--theme-color);
+            margin-bottom: 10px;
+        }
+        .enter-btn-ui span {
+            font-size: 11px; font-weight: bold; color: #fff;
+            text-shadow: 0 0 5px #000; letter-spacing: 1px;
+        }
+
+        /* --- INTERIOR VISIBILITY --- */
+        .system-active #exterior-view { opacity: 0; visibility: hidden; }
+
+        /* --- BUILDING CONTAINER --- */
+        .building-container {
+            position: relative;
+            width: 100%;
+            max-width: 650px;
+            background: var(--building-bg);
+            border-left: 3px solid var(--theme-color);
+            border-bottom: 20px solid #111;
+            display: flex;
+            flex-direction: column-reverse;
+            transition: all 0.5s ease;
+            box-shadow: 0 10px 50px rgba(0,0,0,0.5);
+            visibility: hidden; opacity: 0; transform: scale(0.95);
+        }
+        .system-active .building-container { visibility: visible; opacity: 1; transform: scale(1); }
+
+        .mode-desktop { height: auto; max-height: 95vh; }
+        .mode-mobile { height: 90vh; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--theme-color) #111;}
+
+        .floor-row {
+            height: var(--floor-h);
+            min-height: var(--floor-h);
+            border-top: 1px solid rgba(128,128,128,0.1);
+            display: flex;
+            align-items: center;
+            padding-left: var(--shaft-width);
+            position: relative;
+        }
+
+        .floor-label-text { margin-left: 15px; font-size: 11px; opacity: 0.5; transition: 0.3s; }
+        .floor-active .floor-label-text, .alarm-on .floor-label-text { opacity: 1; color: var(--theme-color); font-weight: bold; }
+
+        /* --- ROOMS --- */
+        .room-view {
+            width: var(--room-width); height: 50px;
+            background: rgba(0,0,0,0.05); border: 1px solid var(--theme-color);
+            position: relative; overflow: hidden; 
+            opacity: 0; transform: scale(0.9); transition: 0.4s;
+        }
+        .floor-active .room-view, .alarm-on .room-view { opacity: 1; transform: scale(1); }
+
+        .room-door-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #1e272e; display: flex; flex-direction: column; 
+            align-items: center; justify-content: center; z-index: 10;
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .room-view.unlocked .room-door-layer { transform: translateY(-100%); }
+
+        .ad-text { font-size: 10px; font-weight: bold; color: var(--theme-color); cursor: pointer; transition: 0.2s; }
+        .ad-text:hover { text-shadow: 0 0 8px var(--theme-color); }
+        
+        .room-controls { display: flex; gap: 4px; justify-content: center; margin-top: 2px; }
+        .room-btn { background: none; font-size: 8px; cursor: pointer; border: 1px solid var(--theme-color); color: var(--theme-color); padding: 1px 4px; border-radius: 2px; }
+        .btn-lock { border-color: var(--emergency); color: var(--emergency); }
+
+        /* --- ELEVATOR --- */
+        .elevator {
+            position: absolute; left: 10px; bottom: 0;
+            width: 100px; height: 68px; background: #000;
+            border: 2px solid var(--theme-color);
+            transition: bottom 1.8s cubic-bezier(0.45, 0.05, 0.55, 0.95);
+            z-index: 20; cursor: pointer;
+        }
+        .lift-door { position: absolute; width: 50%; height: 100%; background: #222; transition: 0.6s; }
+        .lift-door-l { left: 0; border-right: 1px solid var(--theme-color); } 
+        .lift-door-r { right: 0; border-left: 1px solid var(--theme-color); }
+        .open .lift-door-l { transform: translateX(-85%); }
+        .open .lift-door-r { transform: translateX(85%); }
+
+        /* --- DASHBOARD --- */
+        .dashboard-panel {
+            position: fixed; right: 20px; bottom: 20px;
+            width: 320px; background: #000; color: #fff;
+            border: 2px solid var(--theme-color);
+            padding: 15px; display: none; flex-direction: column;
+            border-radius: 12px; z-index: 100; box-shadow: 0 0 30px #000;
+        }
+
+        .select-input { background: #111; color: var(--theme-color); border: 1px solid var(--theme-color); padding: 5px; width: 100%; margin-bottom: 10px; font-family: monospace; font-size: 11px; outline: none; }
+        .num-pad { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; margin-bottom: 10px; overflow-y: auto; max-height: 180px; }
+        .circ-btn { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 5px; border-radius: 4px; transition: 0.2s; }
+        .btn-circle { width: 24px; height: 24px; border-radius: 50%; border: 1px solid #333; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; }
+        
+        .circ-btn.moving .btn-circle { border-color: var(--moving-glow); color: var(--moving-glow); box-shadow: 0 0 8px var(--moving-glow); }
+        .circ-btn.arrived .btn-circle { border-color: var(--active-glow); color: var(--active-glow); }
+
+        .control-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-top: 10px; border-top: 1px solid #222; }
+        .ctrl-btn { background: #111; border: 1px solid var(--theme-color); color: var(--theme-color); padding: 8px; cursor: pointer; font-size: 10px; border-radius: 4px; font-weight: bold; }
+        .alarm-btn { border-color: var(--emergency); color: var(--emergency); grid-column: span 2; }
+        .exit-btn { border-color: #fff; color: #fff; background: #333; grid-column: span 2; }
+        .alarm-active { background: var(--emergency) !important; color: #fff !important; animation: blink 0.5s infinite; }
+
+        @keyframes blink { 50% { opacity: 0.5; } }
+    </style>
+</head>
+<body class="theme-evening">
+
+    <div id="exterior-view">
+        <div class="enter-btn-ui" onclick="enterBuilding()">
+            <div class="glow-circle">
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            </div>
+            <span>ENTER | EXIT SYSTEM</span>
+        </div>
+    </div>
+
+    <div class="building-container mode-desktop" id="building">
+        <div id="elevator" class="elevator open" onclick="toggleDash()">
+            <div class="lift-door lift-door-l"></div>
+            <div class="lift-door lift-door-r"></div>
+        </div>
+    </div>
+
+    <div class="dashboard-panel" id="dash">
+        <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <span id="clock" style="font-family: monospace; color: var(--theme-color); font-size: 14px;">00:00:00</span>
+            <span id="status-tag" style="font-size: 9px; letter-spacing: 1px; color: var(--theme-color);">SYSTEM ACTIVE</span>
+        </div>
+
+        <label style="font-size: 9px; color: #888;">PLATFORM CONFIG:</label>
+        <select class="select-input" id="platformSelector" onchange="changePlatformMode()">
+            <option value="desktop">Desktop (Compact View)</option>
+            <option value="mobile">Mobile (Scrollable)</option>
+        </select>
+
+        <label style="font-size: 9px; color: #888;">GEOLOCATION:</label>
+        <select class="select-input" id="locationSelector" onchange="updateLocationTime()">
+            <option value="local">Auto Detect</option>
+            <option value="IN">India (IST)</option>
+            <option value="US">USA (EST)</option>
+        </select>
+        
+        <div class="num-pad" id="btn-container"></div>
+
+        <div class="control-row">
+            <button class="ctrl-btn" onclick="controlLiftDoors('open')">OPEN DOORS</button>
+            <button class="ctrl-btn" onclick="controlLiftDoors('close')">CLOSE DOORS</button>
+            <button class="ctrl-btn alarm-btn" id="alarm" onclick="triggerFireExit()">ALARM / FIRE EXIT</button>
+            <button class="ctrl-btn exit-btn" onclick="exitBuilding()">LOGOUT / EXIT BUILDING</button>
+            <button class="ctrl-btn" style="grid-column: span 2;" onclick="toggleDash()">MINIMIZE INTERFACE</button>
+        </div>
+    </div>
+
+    <script>
+        const floors = ["Basement", "Lobby", "Research", "Finance", "Marketing", "HR Node", "Security", "Engine", "Sales", "Exec", "Apex"];
+        const floorCodes = ["B1", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
+        const roomIDs = floors.map((_, i) => i === 0 ? "ID-B01" : `ID-${i}${i.toString().padStart(2, '0')}`);
+        const floorURLs = ["https://www.google.com", "https://www.wikipedia.org", "https://vimeo.com", "https://www.bloomberg.com", "https://www.canva.com", "https://www.linkedin.com", "https://www.cloudflare.com", "https://www.github.com", "https://www.salesforce.com", "https://www.apple.com", "https://www.spacex.com"];
+
+        let activeWindows = {};
+        let currentFloor = 0;
+        let isMoving = false;
+        let isAlarmActive = false;
+
+        const building = document.getElementById('building');
+        const btnContainer = document.getElementById('btn-container');
+        const elevator = document.getElementById('elevator');
+        const dash = document.getElementById('dash');
+
+        function enterBuilding() {
+            document.body.classList.add('system-active');
+            speak("Welcome to Skyscraper O S. Systems initialized.");
+        }
+
+        function exitBuilding() {
+            document.body.classList.remove('system-active');
+            dash.style.display = 'none';
+            speak("System logging out. Have a productive day.");
+        }
+
+        function changePlatformMode() {
+            const mode = document.getElementById('platformSelector').value;
+            building.className = `building-container mode-${mode}`;
+            speak(`${mode} mode active.`);
+        }
+
+        function updateLocationTime() {
+            const loc = document.getElementById('locationSelector').value;
+            let now = new Date();
+            if (loc === "IN") { now = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"})); } 
+            else if (loc === "US") { now = new Date(new Date().toLocaleString("en-US", {timeZone: "America/New_York"})); }
+
+            const hours = now.getHours();
+            const body = document.body;
+            const status = document.getElementById('status-tag');
+            if(!isAlarmActive) {
+                body.classList.remove('theme-morning', 'theme-afternoon', 'theme-evening');
+                if (hours >= 5 && hours < 12) { body.classList.add('theme-morning'); status.innerText = "MORNING"; } 
+                else if (hours >= 12 && hours < 17) { body.classList.add('theme-afternoon'); status.innerText = "AFTERNOON"; } 
+                else if (hours >= 17 && hours < 20) { body.classList.add('theme-evening'); status.innerText = "EVENING"; } 
+                else { status.innerText = "NIGHT MODE"; }
+            }
+            document.getElementById('clock').innerText = now.toLocaleTimeString('en-GB');
+        }
+
+        floors.forEach((name, i) => {
+            const row = document.createElement('div');
+            row.className = 'floor-row' + (i === 0 ? ' floor-active' : '');
+            row.id = `f-row-${i}`;
+            row.innerHTML = `
+                <div class="room-view" id="room-${i}">
+                    <div class="room-door-layer">
+                         <div style="font-size:7px; opacity:0.5; margin-bottom:2px;">${roomIDs[i]}</div>
+                         <button onclick="verifyID(${i})" style="font-size:9px; cursor:pointer;">VERIFY</button>
+                    </div>
+                    <div style="padding:5px; text-align:center;">
+                        <div class="ad-text" onclick="handleAdClick(${i})">${name}</div>
+                        <div class="room-controls">
+                            <button class="room-btn" onclick="returnFromFloor(${i})">RETURN</button>
+                            <button class="room-btn btn-lock" onclick="lockRoom(${i})">LOCK</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="floor-label-text"><b>${floorCodes[i]}</b> — ${name}</div>
+            `;
+            building.appendChild(row);
+
+            const btn = document.createElement('div');
+            btn.className = 'circ-btn' + (i === 0 ? ' arrived' : '');
+            btn.id = `btn-${i}`;
+            btn.innerHTML = `<div class="btn-circle">${floorCodes[i]}</div><div style="font-size:10px;">${name}</div>`;
+            btn.onclick = () => requestFloor(i);
+            btnContainer.prepend(btn);
+        });
+
+        function handleAdClick(f) {
+            if (document.getElementById(`room-${f}`).classList.contains('unlocked')) {
+                speak(`Accessing ${floors[f]} link.`);
+                activeWindows[f] = window.open(floorURLs[f], '_blank');
+            } else {
+                speak("Access denied.");
+            }
+        }
+
+        function returnFromFloor(f) {
+            if (activeWindows[f]) { 
+                activeWindows[f].close(); 
+                delete activeWindows[f]; 
+                speak("Connection closed.");
+            }
+        }
+
+        function lockRoom(f) {
+            if (isAlarmActive) return;
+            document.getElementById(`room-${f}`).classList.remove('unlocked');
+            speak(`Sector ${floorCodes[f]} locked.`);
+        }
+
+        function verifyID(f) {
+            if (isAlarmActive) return;
+            const input = prompt(`Security Code:`, roomIDs[f]);
+            if (input === roomIDs[f]) {
+                document.getElementById(`room-${f}`).classList.add('unlocked');
+                speak("Identity verified.");
+            }
+        }
+
+        function requestFloor(f) {
+            if (isMoving || f === currentFloor || isAlarmActive) return;
+            controlLiftDoors('close');
+            document.querySelectorAll('.circ-btn').forEach(b => b.classList.remove('arrived', 'moving'));
+            document.getElementById(`btn-${f}`).classList.add('moving');
+
+            setTimeout(() => {
+                isMoving = true;
+                elevator.style.bottom = (f * 70) + "px";
+                
+                if (building.classList.contains('mode-mobile')) {
+                    building.scrollTo({ top: building.scrollHeight - (f * 70) - 400, behavior: 'smooth' });
+                }
+
+                setTimeout(() => {
+                    document.querySelectorAll('.floor-row').forEach(r => r.classList.remove('floor-active'));
+                    currentFloor = f;
+                    isMoving = false;
+                    document.getElementById(`btn-${f}`).classList.replace('moving', 'arrived');
+                    speak(`Floor ${floorCodes[f]}`);
+                    setTimeout(() => controlLiftDoors('open'), 400);
+                }, 1800);
+            }, 400);
+        }
+
+        function controlLiftDoors(action) {
+            const row = document.getElementById(`f-row-${currentFloor}`);
+            if (action === 'open') {
+                elevator.classList.add('open');
+                row.classList.add('floor-active'); 
+            } else {
+                elevator.classList.remove('open');
+                row.classList.remove('floor-active');
+                if(!isAlarmActive) document.querySelectorAll('.room-view').forEach(r => r.classList.remove('unlocked'));
+            }
+        }
+
+        function triggerFireExit() {
+            isAlarmActive = !isAlarmActive;
+            const btn = document.getElementById('alarm');
+            if (isAlarmActive) {
+                btn.classList.add('alarm-active');
+                building.classList.add('alarm-on');
+                speak("EMERGENCY. ALL SECTORS UNLOCKED.");
+                document.querySelectorAll('.room-view').forEach(r => r.classList.add('unlocked'));
+                controlLiftDoors('open');
+            } else {
+                btn.classList.remove('alarm-active');
+                building.classList.remove('alarm-on');
+                speak("Security restored.");
+                document.querySelectorAll('.room-view').forEach(r => r.classList.remove('unlocked'));
+            }
+        }
+
+        function toggleDash() { dash.style.display = (dash.style.display === 'flex') ? 'none' : 'flex'; }
+        function speak(txt) { window.speechSynthesis.speak(new SpeechSynthesisUtterance(txt)); }
+        
+        setInterval(updateLocationTime, 1000);
+        updateLocationTime();
+    </script>
+</body>
+</html>
