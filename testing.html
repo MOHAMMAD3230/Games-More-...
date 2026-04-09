@@ -1,161 +1,195 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>PeerJS Video Chat with Indicators (Different Networks)</title>
+<title>LMS</title>
 <style>
-  body { font-family: Arial, sans-serif; text-align: center; margin-top: 20px; }
-  video { width: 45%; margin: 10px; border: 1px solid #ccc; }
-  #channelContainer { margin-top: 20px; }
-  input { padding: 8px; width: 300px; }
-  button { padding: 8px 16px; margin-left: 10px; }
-  #status { margin-top: 10px; font-weight: bold; }
-  #peerIdSection { margin-top: 20px; }
-  #chatBox { width: 90%; height: 150px; border: 1px solid #ccc; overflow-y: auto; margin-top: 10px; padding: 5px; }
-  #messageInput { width: 70%; padding: 8px; }
+  body {
+    font-family: Arial, sans-serif;
+    background: #222;
+    color: #fff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+  }
+  #container {
+    max-width: 400px;
+    width: 90%;
+    padding: 20px;
+    background: #333;
+    border-radius: 10px;
+    text-align: center;
+  }
+  #networkType {
+    font-size: 1rem;
+    margin-bottom: 10px;
+  }
+  button {
+    padding: 15px 20px;
+    font-size: 1.2rem;
+    margin: 10px 0;
+    cursor: pointer;
+    background: #007bff;
+    border: none;
+    border-radius: 5px;
+    color: #fff;
+    width: 200px;
+  }
+  button:disabled {
+    background: #555;
+    cursor: not-allowed;
+  }
+  #status {
+    margin-top: 10px;
+    font-size: 0.9rem;
+  }
+  #holdBtn {
+    background: #d00;
+    font-weight: bold;
+  }
+  #holdBtn:active {
+    background: #f00;
+  }
+  #remoteAudio {
+    display: none;
+  }
 </style>
 </head>
 <body>
-
-<h2>PeerJS Video Chat (Different Networks)</h2>
-<p>Your Peer ID: <span id="myId">Connecting...</span></p>
-<div id="status">Status: Connecting...</div>
-
-<div id="channelContainer">
-  <h3>Connect to Peer</h3>
-  <input type="text" id="peerIdInput" placeholder="Enter Peer ID" />
-  <button id="connectBtn">Connect</button>
+<div id="container">
+  <h2>Peer-to-Peer LMS</h2>
+  <div id="networkType">Detecting network...</div>
+  <button id="startBtn">Start</button>
+  <button id="callBtn" disabled>Call</button>
+  <div id="status"></div>
+  <button id="holdBtn" disabled>Hold to Talk</button>
+  <audio id="remoteAudio" autoplay></audio>
 </div>
 
-<div id="peerIdSection">
-  <h3>Your Peer ID (Share this with others)</h3>
-  <div style="font-weight: bold; font-size: 1.2em;" id="ownPeerId"></div>
-</div>
-
-<div id="videoContainer" style="display:none;">
-  <video id="localVideo" autoplay muted></video>
-  <video id="remoteVideo" autoplay></video>
-</div>
-
-<h3>Channel Chat</h3>
-<div id="chatBox"></div>
-<input type="text" id="messageInput" placeholder="Type a message" />
-<button id="sendBtn">Send</button>
-
-<!-- Include PeerJS library -->
-<script src="https://cdn.jsdelivr.net/npm/peerjs@1.3.1/dist/peerjs.min.js"></script>
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <script>
-const localVideo = document.getElementById('localVideo');
-const remoteVideo = document.getElementById('remoteVideo');
-const myIdSpan = document.getElementById('myId');
-const statusDiv = document.getElementById('status');
-const peerIdInput = document.getElementById('peerIdInput');
-const connectBtn = document.getElementById('connectBtn');
-const chatBox = document.getElementById('chatBox');
-const messageInput = document.getElementById('messageInput');
-const sendBtn = document.getElementById('sendBtn');
-const videoContainer = document.getElementById('videoContainer');
-const ownPeerIdDiv = document.getElementById('ownPeerId');
+  const startBtn = document.getElementById('startBtn');
+  const callBtn = document.getElementById('callBtn');
+  const statusDiv = document.getElementById('status');
+  const remoteAudio = document.getElementById('remoteAudio');
+  const networkDiv = document.getElementById('networkType');
+  const holdBtn = document.getElementById('holdBtn');
 
-let peer, localStream;
-let currentCall = null;
-let dataConnection = null;
+  let peer = null;
+  let conn = null;
+  let localStream = null;
+  let peerId = null;
+  let mediaRecorder = null;
 
-// 1. Get user media
-navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-  .then(stream => {
-    localStream = stream;
-    localVideo.srcObject = stream;
-  })
-  .catch(err => {
-    alert('Error accessing media devices: ' + err);
-  });
-
-// 2. Initialize PeerJS with public server (works across different networks)
-peer = new Peer(undefined, {
-  host: 'peerjs.com',
-  port: 443,
-  secure: true,
-  path: '/'
-});
-
-peer.on('open', id => {
-  myIdSpan.textContent = id;
-  ownPeerIdDiv.textContent = id;
-  statusDiv.textContent = 'Status: Ready. Share your Peer ID to connect.';
-});
-
-// 3. Handle incoming calls
-peer.on('call', call => {
-  // Accept the call
-  call.answer(localStream);
-  currentCall = call;
-  call.on('stream', remoteStream => {
-    remoteVideo.srcObject = remoteStream;
-    videoContainer.style.display = 'block';
-    updateStatus('Connected to ' + call.peer);
-  });
-  call.on('close', () => {
-    updateStatus('Call ended');
-    remoteVideo.srcObject = null;
-  });
-});
-
-// 4. Connect to another peer
-connectBtn.onclick = () => {
-  const peerId = peerIdInput.value.trim();
-  if (!peerId) {
-    alert('Enter a valid Peer ID.');
-    return;
+  // Detect network type
+  function updateNetworkType() {
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (connection && connection.effectiveType) {
+      let type = connection.effectiveType;
+      if (type === '4g' && navigator.userAgent.includes('Android')) {
+        networkDiv.innerText = '4G / 5G (approximate)';
+      } else {
+        networkDiv.innerText = type.toUpperCase();
+      }
+      connection.onchange = updateNetworkType;
+    } else {
+      networkDiv.innerText = 'Unknown (API not supported)';
+    }
   }
-  // Make a call
-  const call = peer.call(peerId, localStream);
-  currentCall = call;
-  call.on('stream', remoteStream => {
-    remoteVideo.srcObject = remoteStream;
-    videoContainer.style.display = 'block';
-    updateStatus('Connected to ' + peerId);
-  });
-  call.on('close', () => {
-    updateStatus('Call ended');
-    remoteVideo.srcObject = null;
-  });
+  updateNetworkType();
 
-  // Create data connection for chat
-  const conn = peer.connect(peerId);
-  setupDataConnection(conn);
+  // Start peer connection
+  startBtn.onclick = async () => {
+    startBtn.disabled = true;
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      peer = new Peer();
+
+      peer.on('open', id => {
+        peerId = id;
+        statusDiv.innerText = 'Your ID: ' + id + ' (Share to connect)';
+        callBtn.disabled = false;
+        holdBtn.disabled = false;
+      });
+
+      peer.on('connection', c => {
+        conn = c;
+        setupConnection();
+      });
+
+      peer.on('call', call => {
+        call.answer(localStream);
+        call.on('stream', stream => {
+          attachStream(stream);
+        });
+      });
+    } catch (e) {
+      alert('Error accessing microphone: ' + e.message);
+    }
+  };
+
+  // Connect to peer
+  callBtn.onclick = () => {
+    const peerIdToCall = prompt('Enter remote peer ID:');
+    if (peerIdToCall) {
+      const call = peer.call(peerIdToCall, localStream);
+      call.on('stream', stream => {
+        attachStream(stream);
+      });
+      setupConnection(call);
+    }
+  };
+
+  function setupConnection(c) {
+    if (c) {
+      conn = c;
+    }
+    if (conn) {
+      conn.on('open', () => {
+        statusDiv.innerText = 'Connected!';
+      });
+      conn.on('data', data => {
+        // handle incoming data if needed
+      });
+    }
+  }
+
+  function attachStream(stream) {
+    remoteAudio.srcObject = stream;
+  }
+
+  // Handle "Hold to Talk" button
+holdBtn.onmousedown = holdBtn.ontouchstart = () => {
+    startPTT();
+};
+holdBtn.onmouseup = holdBtn.ontouchend = () => {
+    stopPTT();
 };
 
-// 5. Handle incoming data connection
-peer.on('connection', conn => {
-  setupDataConnection(conn);
-  updateStatus('Chat connected with ' + conn.peer);
-});
-
-// Function to setup data connection
-function setupDataConnection(conn) {
-  dataConnection = conn;
-  conn.on('data', data => {
-    chatBox.innerHTML += `<div><strong>${conn.peer}:</strong> ${data}</div>`;
-    chatBox.scrollTop = chatBox.scrollHeight;
-  });
+function startPTT() {
+  if (!localStream || !conn || conn.open === false) return;
+  // Use MediaRecorder to send audio chunks
+  mediaRecorder = new MediaRecorder(localStream);
+  mediaRecorder.ondataavailable = e => {
+    if (conn && conn.open) {
+      conn.send(e.data);
+    }
+  };
+  mediaRecorder.start();
+  statusDiv.innerText = 'Transmitting...';
+  holdBtn.innerText = 'Release to Stop';
 }
-
-// 6. Send chat message
-sendBtn.onclick = () => {
-  const message = messageInput.value.trim();
-  if (!message || !dataConnection || dataConnection.open !== true) return;
-  chatBox.innerHTML += `<div><strong>You:</strong> ${message}</div>`;
-  dataConnection.send(message);
-  messageInput.value = '';
-};
-
-// 7. Update status indicator
-function updateStatus(text) {
-  statusDiv.textContent = 'Status: ' + text;
+function stopPTT() {
+  if (mediaRecorder) {
+    mediaRecorder.stop();
+    mediaRecorder = null;
+    statusDiv.innerText = 'Connected!';
+    holdBtn.innerText = 'Hold to Talk';
+  }
 }
 </script>
-
 </body>
 </html>
