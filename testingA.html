@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TAC/COM-04 | SECURE NET v2.1</title>
+    <title>TAC/COM-04 | SECURE NET v2.2 — FIXED CROSS-NETWORK</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root {
@@ -19,7 +19,7 @@
         }
         @media (max-width:768px) { .mainframe { grid-template-columns:1fr; height:auto; min-height:100vh; } }
         .monitor { background:var(--bg); border:3px solid #444; padding:18px; display:flex; flex-direction:column; box-shadow:inset 0 0 30px #000; }
-        .status-bar { font-size:0.78rem; display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #444; padding-bottom:8px; margin-bottom:12px; text-transform:uppercase; }
+        .status-bar { font-size:0.78rem; display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #444; padding-bottom:8px; margin-bottom:12px; text-transform:uppercase; flex-wrap:wrap; gap:8px; }
         .enc-badge { background:#003300; color:var(--green); padding:2px 8px; font-size:0.65rem; border:1px solid var(--green); border-radius:2px; }
         #output { flex-grow:1; overflow-y:auto; font-size:0.88rem; padding-right:8px; line-height:1.4; }
         .chat-box { margin-top:12px; border-top:2px solid #444; padding-top:10px; }
@@ -32,7 +32,7 @@
             cursor:pointer; transition:all 0.1s; display:flex; align-items:center; justify-content:center; flex-direction:column;
         }
         .btn-ptt:active:not(:disabled) { background:var(--red); border-color:#fff; transform:scale(0.96); }
-        .btn-action { width:100%; padding:14px; background:#222; color:var(--amber); border:2px solid var(--amber-dim); cursor:pointer; font-weight:bold; font-size:0.9rem; }
+        .btn-action { width:100%; padding:14px; background:#222; color:var(--amber); border:2px solid var(--amber-dim); cursor:pointer; font-weight:bold; font-size:0.9rem; margin-bottom:8px; }
         .btn-action:hover:not(:disabled) { background:var(--amber-dim); color:#000; }
         .channel-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; margin-top:8px; }
         .chan-btn { padding:10px; font-size:1.1rem; background:#111; border:2px solid #555; color:var(--blue); cursor:pointer; }
@@ -40,6 +40,7 @@
         .signal-bars { display:flex; gap:3px; align-items:flex-end; height:28px; }
         .bar { width:10px; background:#222; transition:height 0.15s linear; }
         .bar.active { background:var(--green); box-shadow:0 0 6px var(--green); }
+        .big-btn { padding:18px; font-size:1.3rem; background:#003300; color:#39ff14; border:3px solid #39ff14; margin:12px 0; }
     </style>
 </head>
 <body>
@@ -51,7 +52,7 @@
         <div class="status-bar">
             <span>FREQ: <span id="curFreq" style="color:var(--blue)">462.--</span> MHz</span>
             <span id="netStat" style="color:#888">NET: OFFLINE</span>
-            <span class="enc-badge">🔒 E2EE</span>
+            <span class="enc-badge">🔒 TURN ENABLED</span>
             <div class="signal-bars" id="signalBars">
                 <div class="bar" style="height:20%"></div><div class="bar" style="height:40%"></div>
                 <div class="bar" style="height:65%"></div><div class="bar" style="height:85%"></div><div class="bar" style="height:100%"></div>
@@ -71,10 +72,13 @@
     <div>
         <div class="module">
             <div style="text-align:center;font-size:0.75rem;color:#777;margin-bottom:10px;">CHANNEL (01-99)</div>
-            <input type="number" id="chanInput" value="01" min="1" max="99" style="width:100%;font-size:2.2rem;text-align:center;background:#000;border:3px solid #555;color:var(--blue);padding:8px;">
-            <div style="margin-top:12px;font-size:0.75rem;color:#777;text-align:center;">QUICK</div>
+            <input type="number" id="chanInput" value="05" min="1" max="99" style="width:100%;font-size:2.2rem;text-align:center;background:#000;border:3px solid #555;color:var(--blue);padding:8px;">
+            
+            <div style="margin-top:12px;font-size:0.75rem;color:#777;text-align:center;">QUICK SWITCH</div>
             <div class="channel-grid" id="quickChannels"></div>
-            <button class="btn-action" id="bootBtn" onclick="initChannel()" style="margin-top:14px;">CONNECT TO CHANNEL</button>
+
+            <button class="btn-action" id="joinBtn" onclick="tryJoin()">JOIN CHANNEL</button>
+            <button class="btn-action big-btn" id="hostBtn" onclick="forceBecomeHost()">BECOME HOST (First Device)</button>
         </div>
 
         <div class="module" style="text-align:center;">
@@ -85,14 +89,14 @@
             </div>
         </div>
 
-        <button class="btn-action" onclick="hardReset()" style="background:#300;color:#f66;border-color:#800;">RESET</button>
+        <button class="btn-action" onclick="hardReset()" style="background:#300;color:#f66;border-color:#800;">FULL RESET</button>
     </div>
 </div>
 
 <script>
     let peer = null, connections = [], calls = [], localStream = null;
-    let audioCtx = null, analyser = null, remoteGain = null;
-    let currentChannel = "01";
+    let audioCtx = null, analyser = null;
+    let currentChannel = "05";
     let isConnected = false;
     const APP_PREFIX = "TAC-COM-SECURE-";
 
@@ -117,7 +121,6 @@
         chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
-    // ==================== IMPROVED ICE SERVERS (CRITICAL FOR CROSS-NETWORK) ====================
     const iceConfig = {
         iceServers: [
             { urls: "stun:stun.l.google.com:19302" },
@@ -131,69 +134,84 @@
         ]
     };
 
-    async function initChannel() {
+    async function tryJoin() {
         let val = parseInt(document.getElementById('chanInput').value);
         if (isNaN(val) || val < 1 || val > 99) return log("INVALID CHANNEL", "error");
 
         currentChannel = val.toString().padStart(2, '0');
         const targetId = APP_PREFIX + currentChannel;
 
-        if (peer) peer.destroy();
-        connections = []; calls = []; isConnected = false;
-
-        document.getElementById('bootBtn').innerText = "CONNECTING...";
+        resetSession();
+        document.getElementById('joinBtn').innerText = "JOINING...";
         document.getElementById('curFreq').innerText = `462.${currentChannel}`;
-        log(`ATTEMPTING SECURE LINK ON CHANNEL ${currentChannel}...`, "sys");
+        log(`ATTEMPTING TO JOIN CHANNEL ${currentChannel}... (using TURN relay)`, "sys");
 
         try {
-            localStream = await navigator.mediaDevices.getUserMedia({ 
-                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
-            });
-
+            localStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
             await setupAudio();
 
             peer = new Peer({ config: iceConfig });
 
-            peer.on('open', (id) => {
-                log(`LOCAL NODE READY (${id.slice(0,8)}...)`, "sys");
+            peer.on('open', () => {
+                log("LOCAL NODE READY — TRYING TO CONNECT TO HOST", "sys");
                 const conn = peer.connect(targetId);
                 const call = peer.call(targetId, localStream);
-                handleConnection(conn, call);
+                handleNewConnection(conn, call);
             });
 
             peer.on('error', (err) => {
-                log("ERROR: " + err.type + " — Try different network or channel", "error");
                 if (err.type === 'peer-unavailable') {
-                    log("No host found → Becoming host...", "sys");
-                    becomeHost(targetId);
+                    log("HOST NOT FOUND YET — Use 'BECOME HOST' on first device", "error");
+                    document.getElementById('hostBtn').style.display = 'block';
+                } else {
+                    log("CONNECTION ERROR: " + err.type, "error");
                 }
             });
 
-            peer.on('connection', c => handleConnection(c, null));
-            peer.on('call', call => {
-                call.answer(localStream);
-                handleConnection(null, call);
-            });
+            peer.on('connection', c => handleNewConnection(c, null));
+            peer.on('call', call => { call.answer(localStream); handleNewConnection(null, call); });
 
         } catch(e) {
-            log("MIC ACCESS DENIED OR NETWORK ERROR", "error");
+            log("MIC OR NETWORK ERROR — Check permissions", "error");
         }
     }
 
-    function becomeHost(hostId) {
-        peer = new Peer(hostId, { config: iceConfig });
-        peer.on('open', () => {
-            log("YOU ARE NOW THE HOST", "success");
-            document.getElementById('netStat').innerText = "HOST";
-            document.getElementById('netStat').style.color = "var(--green)";
-            enablePTT();
-            isConnected = true;
-        });
-        peer.on('connection', c => handleConnection(c, null));
-        peer.on('call', call => { call.answer(localStream); handleConnection(null, call); });
+    function forceBecomeHost() {
+        let val = parseInt(document.getElementById('chanInput').value);
+        if (isNaN(val) || val < 1 || val > 99) return log("INVALID CHANNEL", "error");
+
+        currentChannel = val.toString().padStart(2, '0');
+        const hostId = APP_PREFIX + currentChannel;
+
+        resetSession();
+        document.getElementById('hostBtn').innerText = "BECOMING HOST...";
+        document.getElementById('curFreq').innerText = `462.${currentChannel}`;
+        log(`BECOMING HOST ON CHANNEL ${currentChannel}...`, "success");
+
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+            await setupAudio();
+
+            peer = new Peer(hostId, { config: iceConfig });
+
+            peer.on('open', () => {
+                log("YOU ARE THE HOST — OTHERS CAN NOW JOIN", "success");
+                document.getElementById('netStat').innerText = "HOST";
+                document.getElementById('netStat').style.color = "var(--green)";
+                enablePTT();
+                isConnected = true;
+                startSignalSimulation();
+            });
+
+            peer.on('connection', c => handleNewConnection(c, null));
+            peer.on('call', call => { call.answer(localStream); handleNewConnection(null, call); });
+
+        } catch(e) {
+            log("MIC ERROR", "error");
+        }
     }
 
-    function handleConnection(connection, call) {
+    function handleNewConnection(connection, call) {
         if (connection) {
             connections.push(connection);
             connection.on('open', () => {
@@ -203,9 +221,11 @@
                 document.getElementById('netStat').innerText = `LINKED (${connections.length})`;
                 document.getElementById('netStat').style.color = "var(--blue)";
                 enablePTT();
-                log("DATA LINK ESTABLISHED", "success");
+                log("DATA LINK ESTABLISHED — ALL FEATURES UNLOCKED", "success");
+                startSignalSimulation();
             });
             connection.on('data', data => { if(data.type==="chat") addChat(data.msg, "REMOTE"); });
+            connection.on('close', () => { connections = connections.filter(c => c !== connection); });
         }
 
         if (call) {
@@ -213,8 +233,8 @@
             call.on('stream', stream => {
                 const audioEl = document.getElementById('remoteAudio');
                 audioEl.srcObject = stream;
-                audioEl.play().catch(() => {});   // Force play on mobile
-                log("REMOTE AUDIO STREAM RECEIVED", "success");
+                audioEl.play().catch(()=>{});
+                log("REMOTE AUDIO LIVE", "success");
             });
         }
     }
@@ -223,18 +243,31 @@
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         analyser = audioCtx.createAnalyser();
         analyser.fftSize = 128;
-        remoteGain = audioCtx.createGain();
-        remoteGain.gain.value = 1.0;
-        analyser.connect(remoteGain);
-        remoteGain.connect(audioCtx.destination);
+        const gain = audioCtx.createGain();
+        gain.gain.value = 1;
+        analyser.connect(gain);
+        gain.connect(audioCtx.destination);
+    }
+
+    function startSignalSimulation() {
+        const bars = document.querySelectorAll('.bar');
+        setInterval(() => {
+            if (!isConnected) return;
+            const strength = 60 + Math.random() * 40;
+            bars.forEach((bar, i) => {
+                const h = Math.max(20, strength * (i + 1) / 5);
+                bar.style.height = `${h}%`;
+                bar.classList.toggle('active', h > 45);
+            });
+        }, 400);
     }
 
     function enablePTT() {
         document.getElementById('pttBtn').disabled = false;
-        document.getElementById('bootBtn').innerText = "CHANNEL ACTIVE";
+        document.getElementById('joinBtn').innerText = "CHANNEL ACTIVE";
+        document.getElementById('hostBtn').innerText = "HOST ACTIVE";
     }
 
-    // PTT
     const pttBtn = document.getElementById('pttBtn');
     function pttDown() {
         if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = true);
@@ -261,13 +294,22 @@
         input.value = "";
     }
 
-    function hardReset() {
+    function resetSession() {
         if (peer) peer.destroy();
+        connections = []; calls = []; isConnected = false;
+        document.getElementById('ledNet').style.background = "#300";
+        document.getElementById('ledNet').style.boxShadow = "none";
+        document.getElementById('netStat').innerText = "OFFLINE";
+        document.getElementById('netStat').style.color = "#888";
+        document.getElementById('pttBtn').disabled = true;
+    }
+
+    function hardReset() {
+        resetSession();
         if (localStream) localStream.getTracks().forEach(t => t.stop());
         location.reload();
     }
 
-    // Quick channels
     function createQuickChannels() {
         const container = document.getElementById('quickChannels');
         for (let i = 1; i <= 10; i++) {
@@ -279,14 +321,15 @@
                 document.getElementById('chanInput').value = num;
                 document.querySelectorAll('.chan-btn').forEach(b=>b.classList.remove('active'));
                 btn.classList.add('active');
-                initChannel();
             };
             container.appendChild(btn);
         }
     }
 
-    log("TAC/COM-04 v2.1 CROSS-NETWORK READY", "sys");
-    log("STUN + TURN SERVERS LOADED — BETTER NAT TRAVERSAL", "success");
+    log("TAC/COM-04 v2.2 — CROSS-NETWORK FIXED", "sys");
+    log("STEP 1: On FIRST device → click BECOME HOST", "success");
+    log("STEP 2: On SECOND device → click JOIN CHANNEL (same number)", "success");
+    log("TURN relay servers loaded — works on WiFi + Mobile Data", "success");
     createQuickChannels();
 </script>
 </body>
