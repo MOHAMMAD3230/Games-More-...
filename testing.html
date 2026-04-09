@@ -3,515 +3,167 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OMNI-VOICE V7 | FIXED</title>
-    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <title>OMNI-VOICE V10 | DEBUG_READY</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        :root {
-            --neon: #00ff41;
-            --bg: #050505;
-            --dim: #002200;
-            --amber: #ffaa00;
-            --red: #ff3333;
-        }
-        * { box-sizing: border-box; touch-action: manipulation; margin: 0; padding: 0; }
-        body {
-            background: var(--bg); color: var(--neon);
-            font-family: 'Courier New', monospace;
-            display: flex; flex-direction: column; align-items: center;
-            justify-content: center; min-height: 100vh; min-height: 100dvh;
-            overflow: hidden;
-        }
-        body::after {
-            content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 99;
-            background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.06) 2px, rgba(0,0,0,0.06) 4px);
-        }
+        :root { --neon: #00ff41; --bg: #050505; --err: #ff003c; }
+        * { box-sizing: border-box; touch-action: manipulation; }
+        body { background: var(--bg); color: var(--neon); font-family: 'Courier New', monospace; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; overflow: hidden; }
+        
+        .terminal { border: 2px solid var(--neon); padding: 25px; background: #000; width: 340px; box-shadow: 0 0 20px rgba(0, 255, 65, 0.2); position: relative; }
+        
+        /* Connection Status Map */
+        .node-map { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 10px; border: 1px solid #111; }
+        .node { width: 12px; height: 12px; border-radius: 50%; background: #222; }
+        .node.active { background: var(--neon); box-shadow: 0 0 10px var(--neon); }
+        .line { flex-grow: 1; height: 2px; background: #222; margin: 0 10px; position: relative; overflow: hidden; }
+        .line.active::after { content: ''; position: absolute; width: 40px; height: 100%; background: var(--neon); animation: pulse 1.5s infinite linear; }
+        @keyframes pulse { from { left: -40px; } to { left: 100%; } }
 
-        .terminal {
-            border: 2px solid var(--neon); padding: 24px; background: #000;
-            width: 360px; max-width: 95vw;
-            box-shadow: 0 0 30px rgba(0,255,65,0.15), inset 0 0 80px rgba(0,255,65,0.02);
-            border-radius: 4px;
-        }
-        .title {
-            text-align: center; font-size: 0.6rem; letter-spacing: 3px;
-            color: #006622; margin-bottom: 16px; padding-bottom: 10px;
-            border-bottom: 1px solid var(--dim);
-        }
+        #power-btn { width: 100%; padding: 25px; background: var(--err); color: #fff; border: none; font-weight: bold; cursor: pointer; letter-spacing: 1px; }
+        #ui-layer { display: none; }
+        
+        input { background: #000; border: 1px solid var(--neon); color: var(--neon); padding: 12px; width: 100%; margin-bottom: 10px; text-align: center; outline: none; font-family: inherit; }
+        .modes { display: flex; gap: 5px; margin-bottom: 10px; }
+        .mode-btn { flex: 1; padding: 12px; background: var(--neon); color: #000; border: none; font-weight: bold; cursor: pointer; }
 
-        /* Node map */
-        .node-map {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 16px; padding: 12px; border: 1px solid var(--dim);
-            background: rgba(0,255,65,0.01);
-        }
-        .node-col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-        .node {
-            width: 14px; height: 14px; border-radius: 50%;
-            background: #1a1a1a; border: 2px solid #333; transition: all 0.4s;
-        }
-        .node.on { background: var(--neon); border-color: var(--neon); box-shadow: 0 0 12px var(--neon); }
-        .node-lbl { font-size: 0.5rem; letter-spacing: 1px; color: #333; transition: color 0.4s; }
-        .node.on ~ .node-lbl { color: var(--neon); }
-        .link {
-            flex-grow: 1; height: 2px; background: #1a1a1a; margin: 0 12px;
-            position: relative; overflow: hidden; border-radius: 1px;
-        }
-        .link.on { background: #0a2a0a; }
-        .link.on::after {
-            content: ''; position: absolute; width: 50px; height: 100%;
-            background: linear-gradient(90deg, transparent, var(--neon), transparent);
-            animation: lpulse 1.8s infinite linear;
-        }
-        @keyframes lpulse { from { left: -50px; } to { left: 100%; } }
-
-        /* Input */
-        input {
-            background: #000; border: 1px solid #003300; color: var(--neon);
-            padding: 12px; width: 100%; margin-bottom: 8px; text-transform: uppercase;
-            font-family: inherit; font-size: 0.85rem; text-align: center;
-            outline: none; letter-spacing: 2px; transition: border-color 0.2s;
-        }
-        input:focus { border-color: var(--neon); box-shadow: 0 0 8px rgba(0,255,65,0.1); }
-        input::placeholder { color: #1a3a1a; }
-
-        /* Buttons */
-        .btn-row { display: flex; gap: 6px; margin-bottom: 14px; }
-        .mode-btn {
-            flex: 1; padding: 10px; background: transparent; color: #005500;
-            border: 1px solid #003300; font-weight: bold; cursor: pointer;
-            font-family: inherit; font-size: 0.7rem; letter-spacing: 1px;
-            transition: all 0.15s;
-        }
-        .mode-btn:hover { border-color: #005500; color: #008800; background: rgba(0,255,65,0.03); }
-        .mode-btn.sel { background: var(--neon); color: #000; border-color: var(--neon); }
-
-        /* PTT */
-        #ptt {
-            width: 100%; padding: 30px; background: transparent; color: #224422;
-            border: 2px solid #1a2a1a; cursor: not-allowed;
-            font-size: 0.95rem; font-weight: bold; font-family: inherit;
-            letter-spacing: 2px; user-select: none; -webkit-user-select: none;
-            transition: all 0.1s;
-        }
-        #ptt.ready { cursor: pointer; border-color: #003300; color: #006600; }
-        #ptt.ready:hover { border-color: #005500; color: #008800; }
-        #ptt.tx { background: var(--neon); color: #000; border-color: var(--neon); box-shadow: 0 0 30px rgba(0,255,65,0.3); }
-        #ptt.rx { border-color: var(--amber); color: var(--amber); box-shadow: 0 0 15px rgba(255,170,0,0.15); }
-
-        /* Meter */
-        .meter { width: 100%; height: 5px; background: #0a0a0a; margin-top: 14px; border: 1px solid var(--dim); overflow: hidden; }
-        #mfill { width: 0%; height: 100%; background: var(--neon); box-shadow: 0 0 6px var(--neon); transition: width 0.08s linear; }
-        #mfill.rx { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
-
-        /* Status */
-        #st { font-size: 0.62rem; text-align: center; margin-top: 10px; letter-spacing: 1.5px; color: #224422; transition: color 0.3s; }
-        #st.ok { color: var(--neon); } #st.w { color: var(--amber); } #st.e { color: var(--red); }
-
-        /* Debug panel */
-        .debug {
-            margin-top: 14px; padding: 8px; border: 1px solid var(--dim);
-            background: rgba(0,255,65,0.01); font-size: 0.5rem; color: #336633;
-            letter-spacing: 0.5px; line-height: 1.6; max-height: 80px;
-            overflow-y: auto; word-break: break-all;
-        }
-        .debug .val { color: #00aa33; }
-        .debug .err { color: var(--red); }
+        #ptt { width: 100%; padding: 40px; background: transparent; color: var(--neon); border: 2px solid var(--neon); font-size: 1.2rem; font-weight: bold; display: none; user-select: none; }
+        #status { font-size: 0.65rem; text-align: center; margin-top: 15px; height: 20px; color: var(--neon); border-top: 1px solid #111; padding-top: 10px; }
     </style>
 </head>
 <body>
 
 <div class="terminal">
-    <div class="title">OMNI-VOICE V7 // WEBRTC LINK</div>
-
     <div class="node-map">
-        <div class="node-col">
-            <div id="nl" class="node"></div>
-            <div class="node-lbl">LOCAL</div>
-        </div>
-        <div id="ln" class="link"></div>
-        <div class="node-col">
-            <div id="nr" class="node"></div>
-            <div class="node-lbl">REMOTE</div>
-        </div>
+        <div id="n-local" class="node"></div>
+        <div id="n-line" class="line"></div>
+        <div id="n-remote" class="node"></div>
     </div>
 
-    <input type="text" id="freq" placeholder="CHANNEL_ID" maxlength="20" autocomplete="off" spellcheck="false">
+    <button id="power-btn">SYSTEM POWER: OFF</button>
 
-    <div class="btn-row">
-        <button class="mode-btn" id="ba" onclick="boot('A')">NODE_A</button>
-        <button class="mode-btn" id="bb" onclick="boot('B')">NODE_B</button>
+    <div id="ui-layer">
+        <input type="text" id="freq" placeholder="ENTER FREQUENCY">
+        <div class="modes">
+            <button class="mode-btn" onclick="connect('A')">SET_A</button>
+            <button class="mode-btn" onclick="connect('B')">SET_B</button>
+        </div>
+        <button id="ptt">HOLD TO TALK</button>
     </div>
 
-    <button id="ptt">INITIALIZING...</button>
-
-    <div class="meter"><div id="mfill"></div></div>
-    <div id="st">BOOTING...</div>
-
-    <div class="debug" id="dbg">awaiting hardware...</div>
+    <div id="status">INIT_REQUIRED</div>
 </div>
 
+<audio id="remote-audio" playsinline></audio>
+
 <script>
-// ═══════════════════════════════════════════════════
-// DOM
-// ═══════════════════════════════════════════════════
-const stEl  = document.getElementById('st');
-const pttEl = document.getElementById('ptt');
-const mfill = document.getElementById('mfill');
-const nl    = document.getElementById('nl');
-const nr    = document.getElementById('nr');
-const ln    = document.getElementById('ln');
-const dbg   = document.getElementById('dbg');
-const freqIn= document.getElementById('freq');
-const baEl  = document.getElementById('ba');
-const bbEl  = document.getElementById('bb');
+    const pwr = document.getElementById('power-btn');
+    const ui = document.getElementById('ui-layer');
+    const status = document.getElementById('status');
+    const ptt = document.getElementById('ptt');
+    const audioOut = document.getElementById('remote-audio');
+    const nLocal = document.getElementById('n-local');
+    const nRemote = document.getElementById('n-remote');
+    const nLine = document.getElementById('n-line');
 
-// ═══════════════════════════════════════════════════
-// STATE
-// ═══════════════════════════════════════════════════
-let peer = null;
-let localStream = null;
-let currentCall = null;
-let selectedRole = null;
-let retryTimer = null;
-let isTx = false;
+    let peer = null, localStream = null;
 
-// Audio graph — single AudioContext for EVERYTHING
-let actx = null;           // AudioContext
-let micSource = null;      // MediaStreamSource (mic)
-let micAnalyser = null;    // AnalyserNode (mic levels)
-let micGain = null;        // GainNode (mute/unmute mic)
-let rxSource = null;       // MediaStreamSource (remote)
-let rxGain = null;         // GainNode (remote volume)
-let rxAnalyser = null;     // AnalyserNode (remote levels)
+    // 1. SECURE HARDWARE INITIALIZATION
+    pwr.onclick = async () => {
+        status.innerText = "REQUESTING_HARDWARE...";
+        try {
+            // Check for Secure Context
+            if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+                throw new Error("UNSECURE_CONTEXT");
+            }
 
-// ═══════════════════════════════════════════════════
-// DEBUG LOG
-// ═══════════════════════════════════════════════════
-function log(msg, isError) {
-    const line = document.createElement('div');
-    if (isError) line.className = 'err';
-    line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-    dbg.appendChild(line);
-    dbg.scrollTop = dbg.scrollHeight;
-    // Keep last 30 lines
-    while (dbg.children.length > 30) dbg.removeChild(dbg.firstChild);
-}
+            localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            localStream.getAudioTracks()[0].enabled = false; // Start muted
+            
+            // Wake up Audio Engine
+            audioOut.srcObject = new MediaStream();
+            await audioOut.play();
 
-// ═══════════════════════════════════════════════════
-// STEP 1: INIT AUDIO CONTEXT + MIC
-// ═══════════════════════════════════════════════════
-async function initAudio() {
-    try {
-        // Get mic stream
-        localStream = await navigator.mediaDevices.getUserMedia({
-            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+            pwr.style.display = 'none';
+            ui.style.display = 'block';
+            status.innerText = "HARDWARE_AUTH_SUCCESS";
+            nLocal.classList.add('active');
+        } catch (e) {
+            if (e.message === "UNSECURE_CONTEXT") {
+                status.innerText = "ERR: HTTPS_REQUIRED";
+            } else if (e.name === "NotAllowedError" || e.name === "PermissionDeniedError") {
+                status.innerText = "ERR: MIC_PERMISSION_DENIED";
+            } else {
+                status.innerText = "ERR: " + e.name;
+            }
+            console.error(e);
+        }
+    };
+
+    // 2. NETWORK HANDSHAKE
+    function connect(role) {
+        const ch = document.getElementById('freq').value.trim().toUpperCase();
+        if(!ch) return;
+        
+        if(peer) peer.destroy();
+        status.innerText = "SIGNALING_START...";
+
+        peer = new Peer(`OMNI_V10_${ch}_${role}`, {
+            config: {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' }
+                ]
+            }
         });
-        log('mic stream acquired (' + localStream.getAudioTracks().length + ' tracks)');
 
-        // Create AudioContext
-        actx = new (window.AudioContext || window.webkitAudioContext)();
-        log('AudioContext created, state: ' + actx.state);
+        peer.on('open', () => {
+            status.innerText = `FREQ_${ch} [${role}] ONLINE`;
+            if(role === 'A') {
+                status.innerText = "SEARCHING_FOR_NODE_B...";
+                setTimeout(() => dial(`OMNI_V10_${ch}_B`), 1500);
+            }
+        });
 
-        // Build mic graph: source → gain (muted) → analyser → (nowhere — we don't want local echo)
-        micSource = actx.createMediaStreamSource(localStream);
-        micGain = actx.createGain();
-        micGain.gain.value = 0; // Muted — PTT will set to 1
-        micAnalyser = actx.createAnalyser();
-        micAnalyser.fftSize = 256;
-        micSource.connect(micGain);
-        micGain.connect(micAnalyser);
-        // NOT connected to destination — no local feedback
+        peer.on('call', (call) => {
+            status.innerText = "HANDSHAKE_INCOMING...";
+            call.answer(localStream);
+            attach(call);
+        });
 
-        // Pre-build remote graph: will connect source when stream arrives
-        rxGain = actx.createGain();
-        rxGain.gain.value = 1.0;
-        rxAnalyser = actx.createAnalyser();
-        rxAnalyser.fftSize = 256;
-        rxGain.connect(rxAnalyser);
-        rxAnalyser.connect(actx.destination); // Remote audio → speakers
-
-        setStatus('HARDWARE_READY', 'ok');
-        pttEl.innerText = 'SELECT_NODE';
-        log('audio graph ready');
-        meterLoop();
-
-    } catch (e) {
-        log('MIC ERROR: ' + e.message, true);
-        setStatus('MIC_DENIED', 'e');
-        pttEl.innerText = 'NO_MIC';
-    }
-}
-
-// ═══════════════════════════════════════════════════
-// STEP 2: RESUME AUDIOCONTEXT ON USER GESTURE
-// This is critical — AudioContext starts suspended
-// ═══════════════════════════════════════════════════
-function resumeCtx() {
-    if (actx && actx.state === 'suspended') {
-        actx.resume().then(() => {
-            log('AudioContext resumed');
-        }).catch(e => log('resume failed: ' + e.message, true));
-    }
-}
-
-// Attach to ALL possible gesture targets
-document.addEventListener('click', resumeCtx, { once: false });
-document.addEventListener('touchstart', resumeCtx, { once: false });
-document.addEventListener('keydown', resumeCtx, { once: false });
-
-// ═══════════════════════════════════════════════════
-// STEP 3: CONNECT REMOTE STREAM VIA AUDIOCONTEXT
-// This is the KEY FIX — no <audio> element, no play()
-// ═══════════════════════════════════════════════════
-function connectRemoteStream(stream) {
-    const tracks = stream.getAudioTracks();
-    log('remote stream: ' + tracks.length + ' audio tracks');
-    if (tracks.length === 0) {
-        log('NO AUDIO TRACKS in remote stream!', true);
-        return;
+        peer.on('error', (err) => {
+            status.innerText = "SIG_ERR: " + err.type;
+        });
     }
 
-    tracks.forEach((t, i) => {
-        log(`track[${i}]: enabled=${t.enabled} muted=${t.muted} readyState=${t.readyState} kind=${t.kind}`);
-        t.onended = () => log('remote track ENDED', true);
-        t.onmute = () => log('remote track MUTED', true);
-        t.onunmute = () => log('remote track UNMUTED');
-    });
-
-    // Disconnect previous remote source if any
-    if (rxSource) {
-        try { rxSource.disconnect(); } catch(e) {}
+    function dial(target) {
+        if(!peer || peer.destroyed) return;
+        const call = peer.call(target, localStream);
+        attach(call);
     }
 
-    // Create source from remote stream → connect to rxGain → rxAnalyser → destination
-    // THIS BYPASSES AUTOPLAY COMPLETELY — no play() call needed!
-    rxSource = actx.createMediaStreamSource(stream);
-    rxSource.connect(rxGain);
-
-    log('remote stream connected to audio graph');
-
-    // Make sure context is running
-    resumeCtx();
-
-    // Update UI
-    nr.classList.add('on');
-    ln.classList.add('on');
-    pttEl.classList.add('ready');
-    pttEl.disabled = false;
-    pttEl.innerText = 'HOLD_TO_TALK';
-    setStatus('LINK_SECURED', 'ok');
-}
-
-// ═══════════════════════════════════════════════════
-// STEP 4: PEER CONNECTION
-// ═══════════════════════════════════════════════════
-function boot(role) {
-    // Resume context on button press (user gesture!)
-    resumeCtx();
-
-    const freq = freqIn.value.trim().toUpperCase();
-    if (!freq) {
-        freqIn.style.borderColor = 'var(--red)';
-        setTimeout(() => freqIn.style.borderColor = '', 800);
-        return;
+    // 3. AUDIO ATTACHMENT
+    function attach(call) {
+        call.on('stream', (stream) => {
+            audioOut.srcObject = stream;
+            audioOut.play().then(() => {
+                status.innerText = "LINK_SECURED: AUDIO_ACTIVE";
+                nRemote.classList.add('active');
+                nLine.classList.add('active');
+                ptt.style.display = 'block';
+            }).catch(() => {
+                status.innerText = "TAP_SCREEN_TO_UNMUTE";
+                window.onclick = () => audioOut.play();
+            });
+        });
     }
 
-    if (selectedRole === role && peer && !peer.destroyed) return;
-    selectedRole = role;
-    baEl.classList.toggle('sel', role === 'A');
-    bbEl.classList.toggle('sel', role === 'B');
-
-    // Cleanup
-    if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
-    if (currentCall) { try { currentCall.close(); } catch(e){} currentCall = null; }
-    if (rxSource) { try { rxSource.disconnect(); } catch(e){} rxSource = null; }
-    if (peer) peer.destroy();
-
-    nr.classList.remove('on');
-    ln.classList.remove('on');
-    pttEl.classList.remove('ready', 'tx', 'rx');
-    pttEl.disabled = true;
-    pttEl.innerText = 'SYNCING...';
-    mfill.classList.remove('rx');
-
-    setStatus(`FREQ:${freq} [${role}] SYNCING...`, 'ok');
-    log(`booting as ${role} on freq ${freq}`);
-
-    const myId = `OMNI_V7_${freq}_${role}`;
-    const targetId = `OMNI_V7_${freq}_${role === 'A' ? 'B' : 'A'}`;
-
-    // FIX #1: 'urls' not 'url' — this was causing STUN to fail silently
-    peer = new Peer(myId, {
-        config: {
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' },
-                { urls: 'stun:stun3.l.google.com:19302' },
-                { urls: 'stun:stun4.l.google.com:19302' }
-            ]
-        },
-        debug: 0 // set to 2 for verbose console logging
-    });
-
-    peer.on('open', (id) => {
-        log('peer open: ' + id);
-        nl.classList.add('on');
-        if (role === 'A') {
-            setStatus('DIALING...', 'w');
-            pttEl.innerText = 'DIALING...';
-            dial(targetId);
-        } else {
-            setStatus(`[B] STANDBY`, 'ok');
-            pttEl.innerText = 'AWAITING_LINK';
-        }
-    });
-
-    peer.on('call', (call) => {
-        log('incoming call from: ' + call.peer);
-        setStatus('INCOMING_LINK...', 'w');
-        call.answer(localStream);
-        wireCall(call);
-    });
-
-    peer.on('error', (err) => {
-        log('peer error: ' + err.type + ' — ' + err.message, true);
-        if (err.type === 'peer-unavailable') {
-            setStatus('REMOTE_OFFLINE', 'w');
-            pttEl.innerText = 'RETRYING...';
-            retryTimer = setTimeout(() => dial(targetId), 2500);
-        } else if (err.type === 'unavailable-id') {
-            setStatus('ID_TAKEN', 'e');
-            pttEl.innerText = 'CHANGE_FREQ';
-        } else {
-            setStatus('ERR:' + err.type.toUpperCase(), 'e');
-            pttEl.innerText = 'ERROR';
-        }
-    });
-
-    peer.on('disconnected', () => {
-        log('peer disconnected');
-        setStatus('SIGNAL_LOST', 'e');
-        pttEl.innerText = 'NO_SIGNAL';
-        pttEl.disabled = true;
-        pttEl.classList.remove('ready');
-        nr.classList.remove('on');
-        ln.classList.remove('on');
-        if (!peer.destroyed) setTimeout(() => { try { peer.reconnect(); } catch(e){} }, 2000);
-    });
-}
-
-function dial(tid) {
-    if (!peer || peer.destroyed) return;
-    log('dialing: ' + tid);
-    const call = peer.call(tid, localStream);
-    if (call) wireCall(call);
-    else log('peer.call() returned null!', true);
-}
-
-function wireCall(call) {
-    currentCall = call;
-
-    call.on('stream', (stream) => {
-        log('call.on("stream") fired');
-        connectRemoteStream(stream);
-    });
-
-    call.on('close', () => {
-        log('call closed');
-        setStatus('LINK_LOST', 'e');
-        pttEl.innerText = 'LINK_LOST';
-        pttEl.disabled = true;
-        pttEl.classList.remove('ready', 'rx');
-        nr.classList.remove('on');
-        ln.classList.remove('on');
-        mfill.classList.remove('rx');
-        if (rxSource) { try { rxSource.disconnect(); } catch(e){} rxSource = null; }
-
-        // Auto-retry for NODE_A
-        if (selectedRole === 'A' && peer && !peer.destroyed) {
-            const freq = freqIn.value.trim().toUpperCase();
-            setStatus('RECONNECTING...', 'w');
-            pttEl.innerText = 'RECONNECTING';
-            retryTimer = setTimeout(() => dial(`OMNI_V7_${freq}_B`), 3000);
-        }
-    });
-
-    call.on('error', (err) => {
-        log('call error: ' + err, true);
-    });
-}
-
-// ═══════════════════════════════════════════════════
-// STEP 5: PTT — MUTE/UNMUTE VIA GAIN NODE
-// ═══════════════════════════════════════════════════
-function setTx(on) {
-    resumeCtx(); // Ensure context is running
-    if (!localStream || pttEl.disabled) return;
-    isTx = on;
-
-    // Toggle mic by setting gain 0 ↔ 1
-    // (Not track.enabled, because that can cause WebRTC renegotiation)
-    const t = actx.currentTime;
-    micGain.gain.cancelScheduledValues(t);
-    micGain.gain.setValueAtTime(micGain.gain.value, t);
-    micGain.gain.linearRampToValueAtTime(on ? 1.0 : 0.0, t + 0.02);
-
-    pttEl.classList.toggle('tx', on);
-    pttEl.innerText = on ? 'TRANSMITTING' : 'HOLD_TO_TALK';
-}
-
-pttEl.addEventListener('mousedown', (e) => { e.preventDefault(); setTx(true); });
-pttEl.addEventListener('mouseup', () => setTx(false));
-pttEl.addEventListener('mouseleave', () => { if (isTx) setTx(false); });
-pttEl.addEventListener('touchstart', (e) => { e.preventDefault(); setTx(true); });
-pttEl.addEventListener('touchend', (e) => { e.preventDefault(); setTx(false); });
-pttEl.addEventListener('touchcancel', () => { if (isTx) setTx(false); });
-
-// ═══════════════════════════════════════════════════
-// STEP 6: VU METER
-// ═══════════════════════════════════════════════════
-function meterLoop() {
-    let level = 0;
-
-    if (isTx && micAnalyser) {
-        const buf = new Uint8Array(micAnalyser.frequencyBinCount);
-        micAnalyser.getByteFrequencyData(buf);
-        let sum = 0;
-        for (let i = 0; i < buf.length; i++) sum += buf[i];
-        level = (sum / buf.length) * 4;
-        mfill.classList.remove('rx');
-    } else if (rxAnalyser && rxSource) {
-        const buf = new Uint8Array(rxAnalyser.frequencyBinCount);
-        rxAnalyser.getByteFrequencyData(buf);
-        let sum = 0;
-        for (let i = 0; i < buf.length; i++) sum += buf[i];
-        level = (sum / buf.length) * 4;
-        mfill.classList.add('rx');
-        pttEl.classList.toggle('rx', level > 4);
-    } else {
-        mfill.classList.remove('rx');
-        pttEl.classList.remove('rx');
-    }
-
-    mfill.style.width = Math.min(level, 100) + '%';
-    requestAnimationFrame(meterLoop);
-}
-
-// ═══════════════════════════════════════════════════
-// HELPERS
-// ═══════════════════════════════════════════════════
-function setStatus(msg, cls) {
-    stEl.textContent = msg;
-    stEl.className = cls || '';
-}
-
-freqIn.addEventListener('keydown', (e) => { if (e.key === 'Enter') boot('A'); });
-
-// ═══════════════════════════════════════════════════
-// BOOT
-// ═══════════════════════════════════════════════════
-initAudio();
+    // 4. PTT ENGINE
+    const transmit = (on) => { if(localStream) localStream.getAudioTracks()[0].enabled = on; };
+    ptt.onmousedown = () => transmit(true);
+    ptt.onmouseup = () => transmit(false);
+    ptt.ontouchstart = (e) => { e.preventDefault(); transmit(true); };
+    ptt.ontouchend = (e) => { e.preventDefault(); transmit(false); };
 </script>
 </body>
 </html>
