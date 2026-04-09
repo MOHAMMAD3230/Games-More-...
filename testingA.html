@@ -3,334 +3,215 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TAC/COM-04 | SECURE NET v2.2 — FIXED CROSS-NETWORK</title>
+    <title>TAC/COM-04 | SECURE NET v2.3 — FIXED</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root {
-            --amber: #ffb000; --amber-dim: #8c6600; --bg: #0d0900;
-            --red: #ff3333; --green: #39ff14; --blue: #00d4ff;
-            --panel-bg: #1a1a1a;
+            --amber: #ffb000; --red: #ff3333; --green: #39ff14; --blue: #00d4ff;
         }
-        body { background:#050505; color:var(--amber); font-family:'Courier New',monospace; margin:0; padding:0; overflow:hidden; }
-        .scanlines { position:fixed; top:0; left:0; width:100%; height:100%; background:linear-gradient(rgba(18,16,16,0)50%,rgba(0,0,0,0.25)50%), linear-gradient(90deg,rgba(255,0,0,0.04),rgba(0,255,0,0.01),rgba(0,0,255,0.04)); background-size:100% 3px,4px 100%; pointer-events:none; z-index:999; }
+        body {
+            background:#050505; color:var(--amber); font-family:'Courier New',monospace;
+            margin:0; padding:10px; overflow:auto; touch-action:manipulation;
+        }
         .mainframe {
-            width:96%; max-width:1100px; margin:12px auto; background:#222; border:6px solid #333; padding:15px;
-            box-shadow:0 0 60px #000; display:grid; grid-template-columns:1fr 380px; gap:18px; height:calc(100vh - 24px); box-sizing:border-box;
+            max-width: 1100px; margin: auto; background:#222; border:6px solid #333;
+            padding:15px; box-shadow:0 0 60px #000;
         }
-        @media (max-width:768px) { .mainframe { grid-template-columns:1fr; height:auto; min-height:100vh; } }
-        .monitor { background:var(--bg); border:3px solid #444; padding:18px; display:flex; flex-direction:column; box-shadow:inset 0 0 30px #000; }
-        .status-bar { font-size:0.78rem; display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #444; padding-bottom:8px; margin-bottom:12px; text-transform:uppercase; flex-wrap:wrap; gap:8px; }
-        .enc-badge { background:#003300; color:var(--green); padding:2px 8px; font-size:0.65rem; border:1px solid var(--green); border-radius:2px; }
-        #output { flex-grow:1; overflow-y:auto; font-size:0.88rem; padding-right:8px; line-height:1.4; }
-        .chat-box { margin-top:12px; border-top:2px solid #444; padding-top:10px; }
-        .chat-messages { height:160px; overflow-y:auto; font-size:0.85rem; background:#000; padding:8px; border:1px solid #555; }
-        .chat-input { display:flex; gap:6px; margin-top:6px; }
-        .chat-input input { flex:1; background:#111; border:2px solid #666; color:var(--blue); padding:10px; font-size:1rem; }
-        .module { background:var(--panel-bg); padding:16px; border:2px solid #444; margin-bottom:14px; }
-        .btn-ptt {
-            width:100%; height:138px; background:#222; color:white; border:6px solid #444; font-size:1.65rem; font-weight:bold;
-            cursor:pointer; transition:all 0.1s; display:flex; align-items:center; justify-content:center; flex-direction:column;
+        button {
+            width: 100%; padding: 16px; margin: 8px 0; font-size: 1.1rem;
+            background: #222; color: var(--amber); border: 3px solid #555;
+            cursor: pointer; font-weight: bold;
         }
-        .btn-ptt:active:not(:disabled) { background:var(--red); border-color:#fff; transform:scale(0.96); }
-        .btn-action { width:100%; padding:14px; background:#222; color:var(--amber); border:2px solid var(--amber-dim); cursor:pointer; font-weight:bold; font-size:0.9rem; margin-bottom:8px; }
-        .btn-action:hover:not(:disabled) { background:var(--amber-dim); color:#000; }
-        .channel-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; margin-top:8px; }
-        .chan-btn { padding:10px; font-size:1.1rem; background:#111; border:2px solid #555; color:var(--blue); cursor:pointer; }
-        .chan-btn.active { background:var(--blue); color:#000; border-color:var(--blue); }
-        .signal-bars { display:flex; gap:3px; align-items:flex-end; height:28px; }
-        .bar { width:10px; background:#222; transition:height 0.15s linear; }
-        .bar.active { background:var(--green); box-shadow:0 0 6px var(--green); }
-        .big-btn { padding:18px; font-size:1.3rem; background:#003300; color:#39ff14; border:3px solid #39ff14; margin:12px 0; }
+        button:active { background: #333; transform: scale(0.98); }
+        button:disabled { opacity: 0.4; cursor: not-allowed; }
+        .ptt {
+            height: 160px; font-size: 1.8rem; background: #400; border-color: #f44;
+        }
+        .ptt:active { background: var(--red); border-color: white; }
+        #output { height: 220px; overflow-y: auto; background:#000; padding:10px; font-size:0.9rem; }
+        .status { font-size: 1.1rem; padding: 8px; margin: 8px 0; text-align:center; }
     </style>
 </head>
 <body>
-<div class="scanlines"></div>
 <div class="mainframe">
-    <audio id="remoteAudio" autoplay playsinline style="display:none;"></audio>
 
-    <div class="monitor">
-        <div class="status-bar">
-            <span>FREQ: <span id="curFreq" style="color:var(--blue)">462.--</span> MHz</span>
-            <span id="netStat" style="color:#888">NET: OFFLINE</span>
-            <span class="enc-badge">🔒 TURN ENABLED</span>
-            <div class="signal-bars" id="signalBars">
-                <div class="bar" style="height:20%"></div><div class="bar" style="height:40%"></div>
-                <div class="bar" style="height:65%"></div><div class="bar" style="height:85%"></div><div class="bar" style="height:100%"></div>
-            </div>
-        </div>
-        <div id="output"></div>
-        <div class="chat-box">
-            <div style="font-size:0.75rem;color:#777;margin-bottom:6px;">ENCRYPTED CHAT</div>
-            <div id="chatMessages" class="chat-messages"></div>
-            <div class="chat-input">
-                <input type="text" id="chatInput" placeholder="TYPE MESSAGE..." onkeypress="if(event.key==='Enter') sendChat()">
-                <button class="btn-action" onclick="sendChat()" style="width:90px">SEND</button>
-            </div>
-        </div>
+    <audio id="remoteAudio" autoplay playsinline></audio>
+
+    <div style="text-align:center; margin-bottom:15px; font-size:1.3rem;">
+        TAC/COM-04 <span style="color:#39ff14">v2.3</span> — FIXED
     </div>
 
-    <div>
-        <div class="module">
-            <div style="text-align:center;font-size:0.75rem;color:#777;margin-bottom:10px;">CHANNEL (01-99)</div>
-            <input type="number" id="chanInput" value="05" min="1" max="99" style="width:100%;font-size:2.2rem;text-align:center;background:#000;border:3px solid #555;color:var(--blue);padding:8px;">
-            
-            <div style="margin-top:12px;font-size:0.75rem;color:#777;text-align:center;">QUICK SWITCH</div>
-            <div class="channel-grid" id="quickChannels"></div>
+    <div class="status" id="netStat">NET: OFFLINE</div>
 
-            <button class="btn-action" id="joinBtn" onclick="tryJoin()">JOIN CHANNEL</button>
-            <button class="btn-action big-btn" id="hostBtn" onclick="forceBecomeHost()">BECOME HOST (First Device)</button>
-        </div>
-
-        <div class="module" style="text-align:center;">
-            <button class="btn-ptt" id="pttBtn" disabled>PUSH TO TALK<br><span style="font-size:0.85rem;opacity:0.75">(HOLD)</span></button>
-            <div style="margin-top:18px;display:flex;justify-content:center;gap:40px;">
-                <div style="text-align:center;"><div id="ledNet" style="width:22px;height:22px;border-radius:50%;background:#300;border:3px solid #500;margin:0 auto 6px;"></div><span style="font-size:0.75rem">LINK</span></div>
-                <div style="text-align:center;"><div id="ledTx" style="width:22px;height:22px;border-radius:50%;background:#300;border:3px solid #500;margin:0 auto 6px;"></div><span style="font-size:0.75rem">TX</span></div>
-            </div>
-        </div>
-
-        <button class="btn-action" onclick="hardReset()" style="background:#300;color:#f66;border-color:#800;">FULL RESET</button>
+    <div style="margin:15px 0;">
+        <input type="number" id="chanInput" value="05" min="1" max="99" 
+               style="width:100%; font-size:2rem; text-align:center; padding:12px; background:#111; color:var(--blue); border:3px solid #555;">
     </div>
+
+    <button id="hostBtn" onclick="becomeHost()">1. BECOME HOST (Use on FIRST device)</button>
+    <button id="joinBtn" onclick="joinChannel()">2. JOIN CHANNEL (Use on SECOND device)</button>
+    <button id="pttBtn" class="ptt" disabled>HOLD TO TALK</button>
+
+    <div style="margin-top:15px;">
+        <button onclick="sendTestMessage()">SEND TEST MESSAGE</button>
+        <button onclick="hardReset()" style="background:#300;color:#f66;">FULL RESET</button>
+    </div>
+
+    <div id="output"></div>
 </div>
 
 <script>
-    let peer = null, connections = [], calls = [], localStream = null;
-    let audioCtx = null, analyser = null;
+    let peer = null;
+    let conn = null;
+    let call = null;
+    let localStream = null;
     let currentChannel = "05";
-    let isConnected = false;
-    const APP_PREFIX = "TAC-COM-SECURE-";
+    let isHost = false;
 
     const output = document.getElementById('output');
-    const chatMessages = document.getElementById('chatMessages');
+    const netStat = document.getElementById('netStat');
+    const pttBtn = document.getElementById('pttBtn');
 
-    function log(msg, type="info") {
+    function log(msg, color = "#ffb000") {
         const div = document.createElement('div');
-        const time = new Date().toLocaleTimeString('en-US',{hour12:false,hour:"2-digit",minute:"2-digit",second:"2-digit"});
-        div.textContent = `[${time}] > ${msg}`;
-        if(type==="error") div.style.color="#f66";
-        if(type==="success") div.style.color="#39ff14";
-        if(type==="sys") div.style.color="#888";
+        const time = new Date().toLocaleTimeString('en-US', {hour12:false});
+        div.innerHTML = `<span style="color:#888">[${time}]</span> <span style="color:${color}">${msg}</span>`;
         output.appendChild(div);
         output.scrollTop = output.scrollHeight;
+        console.log(msg);
     }
 
-    function addChat(msg, from="REMOTE") {
-        const div = document.createElement('div');
-        div.innerHTML = `<span style="color:#0af">[${from}]</span> ${msg}`;
-        chatMessages.appendChild(div);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+    function updateStatus(text, color = "#888") {
+        netStat.textContent = text;
+        netStat.style.color = color;
     }
 
-    const iceConfig = {
-        iceServers: [
-            { urls: "stun:stun.l.google.com:19302" },
-            { urls: "stun:stun1.l.google.com:19302" },
-            { urls: "stun:stun2.l.google.com:19302" },
-            { urls: "stun:stun3.l.google.com:19302" },
-            { urls: "stun:stun4.l.google.com:19302" },
-            { urls: "turn:openrelay.metered.ca:80", username: "openrelayproject", credential: "openrelayproject" },
-            { urls: "turn:openrelay.metered.ca:443", username: "openrelayproject", credential: "openrelayproject" },
-            { urls: "turn:openrelay.metered.ca:443?transport=tcp", username: "openrelayproject", credential: "openrelayproject" }
-        ]
+    // ==================== ICE SERVERS ====================
+    const peerConfig = {
+        config: {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'turn:openrelay.metered.ca:80', username: "openrelayproject", credential: "openrelayproject" },
+                { urls: 'turn:openrelay.metered.ca:443', username: "openrelayproject", credential: "openrelayproject" }
+            ]
+        }
     };
 
-    async function tryJoin() {
-        let val = parseInt(document.getElementById('chanInput').value);
-        if (isNaN(val) || val < 1 || val > 99) return log("INVALID CHANNEL", "error");
+    async function becomeHost() {
+        const val = document.getElementById('chanInput').value.padStart(2, '0');
+        currentChannel = val;
+        const hostId = "TAC-COM-SECURE-" + val;
 
-        currentChannel = val.toString().padStart(2, '0');
-        const targetId = APP_PREFIX + currentChannel;
-
-        resetSession();
-        document.getElementById('joinBtn').innerText = "JOINING...";
-        document.getElementById('curFreq').innerText = `462.${currentChannel}`;
-        log(`ATTEMPTING TO JOIN CHANNEL ${currentChannel}... (using TURN relay)`, "sys");
+        log("BECOMING HOST ON CHANNEL " + val, "#39ff14");
+        updateStatus("BECOMING HOST...", "#39ff14");
 
         try {
-            localStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
-            await setupAudio();
-
-            peer = new Peer({ config: iceConfig });
+            localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            peer = new Peer(hostId, peerConfig);
 
             peer.on('open', () => {
-                log("LOCAL NODE READY — TRYING TO CONNECT TO HOST", "sys");
-                const conn = peer.connect(targetId);
-                const call = peer.call(targetId, localStream);
-                handleNewConnection(conn, call);
+                log("HOST STARTED SUCCESSFULLY", "#39ff14");
+                updateStatus("HOST ACTIVE - WAITING FOR OTHERS", "#39ff14");
+                enableAllFeatures();
             });
 
-            peer.on('error', (err) => {
-                if (err.type === 'peer-unavailable') {
-                    log("HOST NOT FOUND YET — Use 'BECOME HOST' on first device", "error");
-                    document.getElementById('hostBtn').style.display = 'block';
-                } else {
-                    log("CONNECTION ERROR: " + err.type, "error");
-                }
+            peer.on('connection', (c) => {
+                conn = c;
+                c.on('open', () => { log("CLIENT CONNECTED", "#39ff14"); enableAllFeatures(); });
+                c.on('data', (data) => log("DATA: " + JSON.stringify(data)));
             });
 
-            peer.on('connection', c => handleNewConnection(c, null));
-            peer.on('call', call => { call.answer(localStream); handleNewConnection(null, call); });
+            peer.on('call', (incomingCall) => {
+                incomingCall.answer(localStream);
+                call = incomingCall;
+                incomingCall.on('stream', handleRemoteStream);
+            });
 
-        } catch(e) {
-            log("MIC OR NETWORK ERROR — Check permissions", "error");
+        } catch (e) {
+            log("ERROR: " + e.message, "#ff3333");
         }
     }
 
-    function forceBecomeHost() {
-        let val = parseInt(document.getElementById('chanInput').value);
-        if (isNaN(val) || val < 1 || val > 99) return log("INVALID CHANNEL", "error");
+    async function joinChannel() {
+        const val = document.getElementById('chanInput').value.padStart(2, '0');
+        currentChannel = val;
+        const targetId = "TAC-COM-SECURE-" + val;
 
-        currentChannel = val.toString().padStart(2, '0');
-        const hostId = APP_PREFIX + currentChannel;
-
-        resetSession();
-        document.getElementById('hostBtn').innerText = "BECOMING HOST...";
-        document.getElementById('curFreq').innerText = `462.${currentChannel}`;
-        log(`BECOMING HOST ON CHANNEL ${currentChannel}...`, "success");
+        log("JOINING CHANNEL " + val, "#00d4ff");
+        updateStatus("JOINING...", "#00d4ff");
 
         try {
-            localStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
-            await setupAudio();
-
-            peer = new Peer(hostId, { config: iceConfig });
+            localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            peer = new Peer(peerConfig);
 
             peer.on('open', () => {
-                log("YOU ARE THE HOST — OTHERS CAN NOW JOIN", "success");
-                document.getElementById('netStat').innerText = "HOST";
-                document.getElementById('netStat').style.color = "var(--green)";
-                enablePTT();
-                isConnected = true;
-                startSignalSimulation();
+                log("CONNECTING TO HOST...", "#00d4ff");
+                conn = peer.connect(targetId);
+                call = peer.call(targetId, localStream);
+
+                conn.on('open', () => {
+                    log("CONNECTED TO HOST!", "#39ff14");
+                    updateStatus("LINKED TO HOST", "#39ff14");
+                    enableAllFeatures();
+                });
+
+                call.on('stream', handleRemoteStream);
             });
 
-            peer.on('connection', c => handleNewConnection(c, null));
-            peer.on('call', call => { call.answer(localStream); handleNewConnection(null, call); });
-
-        } catch(e) {
-            log("MIC ERROR", "error");
+        } catch (e) {
+            log("ERROR: " + e.message, "#ff3333");
         }
     }
 
-    function handleNewConnection(connection, call) {
-        if (connection) {
-            connections.push(connection);
-            connection.on('open', () => {
-                isConnected = true;
-                document.getElementById('ledNet').style.background = "#00d4ff";
-                document.getElementById('ledNet').style.boxShadow = "0 0 12px #00d4ff";
-                document.getElementById('netStat').innerText = `LINKED (${connections.length})`;
-                document.getElementById('netStat').style.color = "var(--blue)";
-                enablePTT();
-                log("DATA LINK ESTABLISHED — ALL FEATURES UNLOCKED", "success");
-                startSignalSimulation();
-            });
-            connection.on('data', data => { if(data.type==="chat") addChat(data.msg, "REMOTE"); });
-            connection.on('close', () => { connections = connections.filter(c => c !== connection); });
-        }
-
-        if (call) {
-            calls.push(call);
-            call.on('stream', stream => {
-                const audioEl = document.getElementById('remoteAudio');
-                audioEl.srcObject = stream;
-                audioEl.play().catch(()=>{});
-                log("REMOTE AUDIO LIVE", "success");
-            });
-        }
+    function handleRemoteStream(stream) {
+        const audio = document.getElementById('remoteAudio');
+        audio.srcObject = stream;
+        audio.play().catch(() => log("Audio autoplay blocked - tap screen", "#ffaa00"));
+        log("REMOTE AUDIO RECEIVED", "#39ff14");
     }
 
-    async function setupAudio() {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 128;
-        const gain = audioCtx.createGain();
-        gain.gain.value = 1;
-        analyser.connect(gain);
-        gain.connect(audioCtx.destination);
+    function enableAllFeatures() {
+        pttBtn.disabled = false;
+        log("ALL FEATURES UNLOCKED - PTT & Chat Ready", "#39ff14");
     }
 
-    function startSignalSimulation() {
-        const bars = document.querySelectorAll('.bar');
-        setInterval(() => {
-            if (!isConnected) return;
-            const strength = 60 + Math.random() * 40;
-            bars.forEach((bar, i) => {
-                const h = Math.max(20, strength * (i + 1) / 5);
-                bar.style.height = `${h}%`;
-                bar.classList.toggle('active', h > 45);
-            });
-        }, 400);
-    }
-
-    function enablePTT() {
-        document.getElementById('pttBtn').disabled = false;
-        document.getElementById('joinBtn').innerText = "CHANNEL ACTIVE";
-        document.getElementById('hostBtn').innerText = "HOST ACTIVE";
-    }
-
-    const pttBtn = document.getElementById('pttBtn');
+    // PTT
     function pttDown() {
-        if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = true);
-        document.getElementById('ledTx').style.background = "#ff3333";
-        connections.forEach(c => { if(c.open) c.send({type:"TX_ON"}); });
+        if (localStream) localStream.getAudioTracks()[0].enabled = true;
+        pttBtn.style.background = "#ff3333";
     }
     function pttUp() {
-        if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = false);
-        document.getElementById('ledTx').style.background = "#300";
-        connections.forEach(c => { if(c.open) c.send({type:"TX_OFF"}); });
+        if (localStream) localStream.getAudioTracks()[0].enabled = false;
+        pttBtn.style.background = "#400";
     }
+
     pttBtn.addEventListener('mousedown', pttDown);
     pttBtn.addEventListener('mouseup', pttUp);
     pttBtn.addEventListener('mouseleave', pttUp);
-    pttBtn.addEventListener('touchstart', e=>{e.preventDefault(); pttDown();});
-    pttBtn.addEventListener('touchend', e=>{e.preventDefault(); pttUp();});
+    pttBtn.addEventListener('touchstart', (e) => { e.preventDefault(); pttDown(); });
+    pttBtn.addEventListener('touchend', (e) => { e.preventDefault(); pttUp(); });
 
-    async function sendChat() {
-        const input = document.getElementById('chatInput');
-        if (!input.value.trim() || connections.length === 0) return;
-        const msg = input.value.trim();
-        addChat(msg, "YOU");
-        connections.forEach(c => { if(c.open) c.send({type:"chat", msg}); });
-        input.value = "";
-    }
-
-    function resetSession() {
-        if (peer) peer.destroy();
-        connections = []; calls = []; isConnected = false;
-        document.getElementById('ledNet').style.background = "#300";
-        document.getElementById('ledNet').style.boxShadow = "none";
-        document.getElementById('netStat').innerText = "OFFLINE";
-        document.getElementById('netStat').style.color = "#888";
-        document.getElementById('pttBtn').disabled = true;
+    function sendTestMessage() {
+        if (conn && conn.open) {
+            conn.send({type: "chat", msg: "Test message from " + (isHost ? "Host" : "Client")});
+            log("Test message sent", "#00d4ff");
+        } else {
+            log("Not connected yet", "#ff3333");
+        }
     }
 
     function hardReset() {
-        resetSession();
+        if (peer) peer.destroy();
         if (localStream) localStream.getTracks().forEach(t => t.stop());
         location.reload();
     }
 
-    function createQuickChannels() {
-        const container = document.getElementById('quickChannels');
-        for (let i = 1; i <= 10; i++) {
-            const num = i.toString().padStart(2, '0');
-            const btn = document.createElement('button');
-            btn.className = 'chan-btn';
-            btn.textContent = num;
-            btn.onclick = () => {
-                document.getElementById('chanInput').value = num;
-                document.querySelectorAll('.chan-btn').forEach(b=>b.classList.remove('active'));
-                btn.classList.add('active');
-            };
-            container.appendChild(btn);
-        }
-    }
-
-    log("TAC/COM-04 v2.2 — CROSS-NETWORK FIXED", "sys");
-    log("STEP 1: On FIRST device → click BECOME HOST", "success");
-    log("STEP 2: On SECOND device → click JOIN CHANNEL (same number)", "success");
-    log("TURN relay servers loaded — works on WiFi + Mobile Data", "success");
-    createQuickChannels();
+    // Initial log
+    log("TAC/COM-04 v2.3 LOADED SUCCESSFULLY", "#39ff14");
+    log("1. First device → click BECOME HOST", "#ffb000");
+    log("2. Second device → click JOIN CHANNEL", "#ffb000");
+    log("Make sure both use SAME channel number", "#ffb000");
 </script>
 </body>
 </html>
