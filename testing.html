@@ -3,29 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OMNI-VOICE V4</title>
+    <title>OMNI-VOICE V5</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        :root { --neon: #00ff41; --bg: #050505; --dim: #003b0f; }
+        :root { --neon: #00ff41; --bg: #050505; --low: #002200; }
         body { background: var(--bg); color: var(--neon); font-family: 'Courier New', monospace; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; overflow: hidden; }
-        .terminal { border: 2px solid var(--neon); padding: 25px; background: #000; width: 340px; box-shadow: 0 0 20px rgba(0, 255, 65, 0.2); }
+        .terminal { border: 2px solid var(--neon); padding: 25px; background: #000; width: 340px; box-shadow: 0 0 20px rgba(0, 255, 65, 0.3); }
         
-        /* Node Connectivity UI */
-        .node-map { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 10px; background: #080808; border: 1px solid var(--dim); }
-        .node { width: 12px; height: 12px; border-radius: 50%; background: #222; position: relative; }
+        /* Indicators */
+        .node-map { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 10px; background: #080808; border: 1px solid var(--low); }
+        .node { width: 12px; height: 12px; border-radius: 50%; background: #222; transition: 0.3s; }
         .node.active { background: var(--neon); box-shadow: 0 0 10px var(--neon); }
         .line { flex-grow: 1; height: 2px; background: #222; margin: 0 10px; position: relative; overflow: hidden; }
-        .line.active::after { content: ''; position: absolute; width: 40px; height: 100%; background: var(--neon); animation: pulse 1.5s infinite; }
-        @keyframes pulse { from { left: -40px; } to { left: 100%; } }
+        .line.active::after { content: ''; position: absolute; width: 50px; height: 100%; background: var(--neon); animation: flow 2s infinite linear; }
+        @keyframes flow { from { left: -50px; } to { left: 100%; } }
 
-        input { background: #000; border: 1px solid var(--neon); color: var(--neon); padding: 12px; width: 100%; margin-bottom: 10px; text-transform: uppercase; font-family: inherit; text-align: center; }
+        input { background: #000; border: 1px solid var(--neon); color: var(--neon); padding: 12px; width: 100%; margin-bottom: 10px; text-transform: uppercase; font-family: inherit; text-align: center; outline: none; }
+        
         #ptt-btn { 
             width: 100%; padding: 35px; background: transparent; color: var(--neon); 
             border: 2px solid var(--neon); cursor: pointer; font-size: 1.2rem; font-weight: bold;
             margin-top: 15px; user-select: none; -webkit-user-select: none;
         }
         #ptt-btn:active:not(:disabled) { background: var(--neon); color: #000; }
-        #ptt-btn:disabled { border-color: #222; color: #222; }
+        #ptt-btn:disabled { border-color: #222; color: #222; opacity: 0.5; }
+        .status-msg { font-size: 0.7rem; margin-top: 10px; text-align: center; min-height: 1em; letter-spacing: 1px; }
     </style>
 </head>
 <body>
@@ -37,15 +39,15 @@
         <div id="n-remote" class="node"></div>
     </div>
 
-    <input type="text" id="freq" placeholder="FREQUENCY_ID">
+    <input type="text" id="freq" placeholder="CHANNEL_NAME">
     
     <div style="display: flex; gap: 5px;">
-        <button onclick="boot('A')" style="flex:1; padding: 10px; background: var(--neon); color: black; border:none; font-weight:bold; cursor:pointer;">MODE_A</button>
-        <button onclick="boot('B')" style="flex:1; padding: 10px; background: var(--neon); color: black; border:none; font-weight:bold; cursor:pointer;">MODE_B</button>
+        <button onclick="init('A')" style="flex:1; padding: 12px; background: var(--neon); color: black; border:none; font-weight:bold; cursor:pointer;">SET_NODE_A</button>
+        <button onclick="init('B')" style="flex:1; padding: 12px; background: var(--neon); color: black; border:none; font-weight:bold; cursor:pointer;">SET_NODE_B</button>
     </div>
 
-    <button id="ptt-btn" disabled>OFFLINE</button>
-    <div id="status" style="font-size: 0.7rem; margin-top: 10px; text-align: center;">SYSTEM_STANDBY</div>
+    <button id="ptt-btn" disabled>LINK_OFFLINE</button>
+    <div id="status" class="status-msg">SYSTEM_READY</div>
 </div>
 
 <audio id="output" autoplay playsinline></audio>
@@ -58,66 +60,73 @@
     const ptt = document.getElementById('ptt-btn');
     const audioOut = document.getElementById('output');
 
-    let peer = null, localStream = null, retryInterval = null;
+    let peer = null, localStream = null, activeCall = null;
 
     // Mic Initialization
     navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } })
-        .then(stream => { localStream = stream; localStream.getAudioTracks()[0].enabled = false; })
-        .catch(() => status.innerText = "MIC_ERROR: CHECK_PERMISSIONS");
+        .then(stream => { 
+            localStream = stream; 
+            localStream.getAudioTracks()[0].enabled = false; 
+            status.innerText = "MIC_INITIALIZED";
+        })
+        .catch(() => status.innerText = "MIC_ACCESS_DENIED");
 
-    function boot(role) {
+    function init(role) {
         const ch = document.getElementById('freq').value.trim().toUpperCase();
-        if(!ch) return alert("ENTER FREQUENCY");
+        if(!ch) return alert("ENTER CHANNEL");
         
         if(peer) peer.destroy();
-        clearInterval(retryInterval);
+        status.innerText = "SYNCING_SIGNAL...";
 
-        // IDs MUST be different for A and B or they kick each other off
-        const myId = `OMNI_V4_${ch}_${role}`;
-        const targetId = `OMNI_V4_${ch}_${role === 'A' ? 'B' : 'A'}`;
+        // Deterministic IDs: Channel + Role ensures no collision
+        const myId = `OMNI_V5_${ch}_${role}`;
+        const targetId = `OMNI_V5_${ch}_${role === 'A' ? 'B' : 'A'}`;
 
         peer = new Peer(myId, {
             config: { 'iceServers': [{ url: 'stun:stun.l.google.com:19302' }, { url: 'stun:stun1.l.google.com:19302' }] },
-            debug: 1
+            debug: 2
         });
 
-        peer.on('open', () => {
-            status.innerText = `READY: ${ch}_${role}`;
+        peer.on('open', (id) => {
+            status.innerText = `ID: ${id.split('_').pop()} ONLINE`;
             nLocal.classList.add('active');
+            // If we are Node A, we actively seek Node B
             if(role === 'A') {
-                status.innerText = "CONNECTING...";
-                retryInterval = setInterval(() => dial(targetId), 4000);
-                dial(targetId);
+                status.innerText = "SEARCHING_FOR_NODE_B...";
+                requestCall(targetId);
             }
         });
 
         peer.on('call', (call) => {
-            status.innerText = "LINK_REQUESTED...";
+            status.innerText = "INCOMING_HANDSHAKE...";
             call.answer(localStream);
-            attach(call);
+            bindStream(call);
         });
 
         peer.on('error', (err) => {
-            console.warn("Peer Error:", err.type);
-            if(err.type === 'peer-unavailable') status.innerText = "TARGET_OFFLINE... SEARCHING";
-            else status.innerText = "ERROR: " + err.type;
+            if(err.type === 'peer-unavailable') {
+                status.innerText = "NODE_B_OFFLINE... RE-SCANNING";
+                setTimeout(() => requestCall(targetId), 3000);
+            } else {
+                status.innerText = "ERR: " + err.type;
+            }
         });
     }
 
-    function dial(tid) {
+    function requestCall(tid) {
         if(!peer || peer.destroyed) return;
         const call = peer.call(tid, localStream);
-        attach(call);
+        bindStream(call);
     }
 
-    function attach(call) {
+    function bindStream(call) {
+        activeCall = call;
         call.on('stream', (stream) => {
-            clearInterval(retryInterval);
             audioOut.srcObject = stream;
             
-            // Forced Wake-Up for Audio
+            // Force play to handle browser autoplay policies
             audioOut.play().catch(() => {
-                status.innerText = "TAP_TERMINAL_TO_UNMUTE";
+                status.innerText = "CLICK_SCREEN_TO_UNMUTE";
                 window.onclick = () => { audioOut.play(); window.onclick = null; };
             });
 
@@ -129,14 +138,20 @@
         });
 
         call.on('close', () => {
-            status.innerText = "LINK_LOST_RECONNECTING...";
+            status.innerText = "LINK_BROKEN_RECONNECTING...";
             nRemote.classList.remove('active');
             nLine.classList.remove('active');
             ptt.disabled = true;
         });
     }
 
-    const setMic = (on) => { if(localStream) localStream.getAudioTracks()[0].enabled = on; ptt.innerText = on ? "TRANSMITTING" : "HOLD_TO_TALK"; };
+    const setMic = (on) => { 
+        if(localStream) {
+            localStream.getAudioTracks()[0].enabled = on; 
+            ptt.innerText = on ? "TRANSMITTING..." : "HOLD_TO_TALK";
+        }
+    };
+
     ptt.onmousedown = () => setMic(true);
     ptt.onmouseup = () => setMic(false);
     ptt.ontouchstart = (e) => { e.preventDefault(); setMic(true); };
