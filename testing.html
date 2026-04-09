@@ -3,145 +3,282 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OMNI-VOICE V18</title>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <title>OMNI-VOICE V7</title>
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <style>
-        :root { --neon: #00ff41; --bg: #050505; }
-        * { box-sizing: border-box; touch-action: manipulation; }
-        body { background: var(--bg); color: var(--neon); font-family: 'Courier New', monospace; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-        .terminal { border: 2px solid var(--neon); padding: 25px; background: #000; width: 340px; box-shadow: 0 0 20px var(--neon); text-align: center; }
-        input { background: #000; border: 1px solid var(--neon); color: var(--neon); padding: 12px; width: 100%; margin-bottom: 10px; text-align: center; outline: none; }
-        .btn { padding: 12px; background: var(--neon); color: #000; border: none; font-weight: bold; cursor: pointer; width: 48%; }
-        #ptt { width: 100%; padding: 40px; background: transparent; color: var(--neon); border: 2px solid var(--neon); font-size: 1.2rem; font-weight: bold; margin-top: 15px; display: none; user-select: none; }
-        .meter { width: 100%; height: 8px; background: #111; margin-top: 15px; border: 1px solid #222; }
-        #fill { height: 100%; width: 0%; background: var(--neon); transition: width 0.1s; }
-        #status { font-size: 0.6rem; margin-top: 15px; min-height: 30px; border-top: 1px solid #111; padding-top: 10px; }
+        :root{--gn:#00ff41;--bg:#050505;--dim:#002200;--am:#ffaa00;--rd:#ff3333}
+        *{box-sizing:border-box;touch-action:manipulation;margin:0;padding:0}
+        body{background:var(--bg);color:var(--gn);font-family:'Courier New',monospace;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;overflow:hidden}
+        body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:99;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.06) 2px,rgba(0,0,0,.06) 4px)}
+        .t{border:2px solid var(--gn);padding:22px;background:#000;width:370px;max-width:95vw;box-shadow:0 0 30px rgba(0,255,65,.12),inset 0 0 80px rgba(0,255,65,.015);border-radius:4px}
+        .tt{text-align:center;font-size:.58rem;letter-spacing:3px;color:#005522;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--dim)}
+        .nm{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding:10px;border:1px solid var(--dim);background:rgba(0,255,65,.008)}
+        .nc{display:flex;flex-direction:column;align-items:center;gap:3px}
+        .nd{width:13px;height:13px;border-radius:50%;background:#1a1a1a;border:2px solid #333;transition:all .4s}
+        .nd.on{background:var(--gn);border-color:var(--gn);box-shadow:0 0 10px var(--gn)}
+        .nb{font-size:.48rem;letter-spacing:1px;color:#333}
+        .lk{flex-grow:1;height:2px;background:#1a1a1a;margin:0 10px;position:relative;overflow:hidden}
+        .lk.on{background:#0a2a0a}
+        .lk.on::after{content:'';position:absolute;width:45px;height:100%;background:linear-gradient(90deg,transparent,var(--gn),transparent);animation:lp 1.8s infinite linear}
+        @keyframes lp{from{left:-45px}to{left:100%}}
+        input{background:#000;border:1px solid #003300;color:var(--gn);padding:11px;width:100%;margin-bottom:7px;text-transform:uppercase;font-family:inherit;font-size:.82rem;text-align:center;outline:none;letter-spacing:2px;transition:border-color .2s}
+        input:focus{border-color:var(--gn);box-shadow:0 0 8px rgba(0,255,65,.08)}
+        input::placeholder{color:#1a3a1a}
+        .br{display:flex;gap:5px;margin-bottom:12px}
+        .mb{flex:1;padding:9px;background:transparent;color:#004400;border:1px solid #003300;font-weight:bold;cursor:pointer;font-family:inherit;font-size:.68rem;letter-spacing:1px;transition:all .15s}
+        .mb:hover{border-color:#005500;color:#007700;background:rgba(0,255,65,.02)}
+        .mb.s{background:var(--gn);color:#000;border-color:var(--gn)}
+        #ptt{width:100%;padding:28px;background:transparent;color:#1a3a1a;border:2px solid #152015;cursor:not-allowed;font-size:.9rem;font-weight:bold;font-family:inherit;letter-spacing:2px;user-select:none;-webkit-user-select:none;transition:all .08s}
+        #ptt.r{cursor:pointer;border-color:#003300;color:#005500}
+        #ptt.r:hover{border-color:#005500;color:#008800}
+        #ptt.tx{background:var(--gn);color:#000;border-color:var(--gn);box-shadow:0 0 30px rgba(0,255,65,.25)}
+        #ptt.rx{border-color:var(--am);color:var(--am);box-shadow:0 0 15px rgba(255,170,0,.12)}
+        .mt{width:100%;height:5px;background:#0a0a0a;margin-top:12px;border:1px solid var(--dim);overflow:hidden}
+        #mf{width:0%;height:100%;background:var(--gn);box-shadow:0 0 5px var(--gn);transition:width .07s linear}
+        #mf.rxm{background:var(--am);box-shadow:0 0 5px var(--am)}
+        #st{font-size:.6rem;text-align:center;margin-top:9px;letter-spacing:1.5px;color:#1a3a1a;transition:color .3s}
+        #st.ok{color:var(--gn)}#st.w{color:var(--am)}#st.e{color:var(--rd)}
+        .ir{display:flex;align-items:center;gap:6px;margin-top:8px;padding:5px 8px;border:1px solid var(--dim);background:rgba(0,255,65,.005)}
+        .id{width:8px;height:8px;border-radius:50%;background:#222;flex-shrink:0;transition:all .3s}
+        .id.new{background:#555}.id.checking{background:var(--am);box-shadow:0 0 6px var(--am)}
+        .id.connected{background:var(--gn);box-shadow:0 0 6px var(--gn)}
+        .id.failed,.id.disconnected{background:var(--rd);box-shadow:0 0 6px var(--rd)}.id.closed{background:#333}
+        .il{font-size:.5rem;letter-spacing:1px;color:#336633}
+        .db{margin-top:10px;padding:7px;border:1px solid var(--dim);background:rgba(0,255,65,.005);font-size:.48rem;color:#2a5a2a;letter-spacing:.3px;line-height:1.7;max-height:90px;overflow-y:auto;word-break:break-all}
+        .db .er{color:var(--rd)}.db .im{color:#00aa33}
     </style>
 </head>
 <body>
-
-<div class="terminal">
-    <div id="init-zone">
-        <button class="btn" style="width:100%;" onclick="initSystem()">INITIALIZE OMNI-V18</button>
+<div class="t">
+    <div class="tt">OMNI-VOICE V7 // WEBRTC</div>
+    <div class="nm">
+        <div class="nc"><div id="nl" class="nd"></div><div class="nb">LOCAL</div></div>
+        <div id="ln" class="lk"></div>
+        <div class="nc"><div id="nr" class="nd"></div><div class="nb">REMOTE</div></div>
     </div>
-
-    <div id="ui-zone" style="display:none;">
-        <input type="text" id="ch" placeholder="CHANNEL_CODE">
-        <div style="display:flex; justify-content: space-between;">
-            <button class="btn" onclick="start('B')">LISTENER</button>
-            <button class="btn" onclick="start('A')">DIALER</button>
-        </div>
-        <div class="meter"><div id="fill"></div></div>
-        <button id="ptt">PUSH TO TALK</button>
+    <input type="text" id="freq" placeholder="CHANNEL_ID" maxlength="20" autocomplete="off" spellcheck="false">
+    <div class="br">
+        <button class="mb" id="ba" onclick="boot('A')">NODE_A</button>
+        <button class="mb" id="bb" onclick="boot('B')">NODE_B</button>
     </div>
-    <div id="status">OFFLINE</div>
+    <button id="ptt">INITIALIZING...</button>
+    <div class="mt"><div id="mf"></div></div>
+    <div id="st">BOOTING...</div>
+    <div class="ir"><div id="iceD" class="id"></div><div id="iceL" class="il">ICE: --</div></div>
+    <div class="db" id="dbg">awaiting hardware...</div>
 </div>
 
-<audio id="vox-out" autoplay playsinline></audio>
-
 <script>
-    let stream, peer;
-    const status = document.getElementById('status');
-    const fill = document.getElementById('fill');
-    const ptt = document.getElementById('ptt');
-    const vox = document.getElementById('vox-out');
+const stE=document.getElementById('st'),ptE=document.getElementById('ptt'),
+mfE=document.getElementById('mf'),nlE=document.getElementById('nl'),
+nrE=document.getElementById('nr'),lnE=document.getElementById('ln'),
+dbE=document.getElementById('dbg'),frE=document.getElementById('freq'),
+baE=document.getElementById('ba'),bbE=document.getElementById('bb'),
+icD=document.getElementById('iceD'),icL=document.getElementById('iceL');
 
-    async function initSystem() {
-        try {
-            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            stream.getAudioTracks()[0].enabled = false;
-            
-            // Basic Visualizer
-            const ctx = new AudioContext();
-            const ana = ctx.createAnalyser();
-            ctx.createMediaStreamSource(stream).connect(ana);
-            const data = new Uint8Array(ana.frequencyBinCount);
-            const loop = () => {
-                ana.getByteFrequencyData(data);
-                fill.style.width = stream.getAudioTracks()[0].enabled ? (data[0] / 2) + "%" : "0%";
-                requestAnimationFrame(loop);
-            };
-            loop();
+let peer=null,ls=null,cc=null,role=null,rt=null,tX=false,unblock=false,
+ax=null,rxS=null,rxG=null,rxA=null,txA=null,fbA=null;
 
-            document.getElementById('init-zone').style.display = 'none';
-            document.getElementById('ui-zone').style.display = 'block';
-            status.innerText = "HARDWARE_ACTIVE";
-        } catch(e) { status.innerText = "ERR: " + e.name; }
+function L(m,e,i){const d=document.createElement('div');if(e)d.className='er';if(i)d.className='im';d.textContent=`[${new Date().toLocaleTimeString()}] ${m}`;dbE.appendChild(d);dbE.scrollTop=dbE.scrollHeight;while(dbE.children.length>50)dbE.removeChild(dbE.firstChild)}
+function ice(s){icD.className='id '+s;icL.textContent='ICE: '+s.toUpperCase()}
+function S(m,c){stE.textContent=m;stE.className=c||''}
+
+/* ═══ MIC + AUDIO CONTEXT ═══ */
+async function init(){
+    try{
+        ls=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+        L('mic ok');
+        ax=new(window.AudioContext||window.webkitAudioContext)();
+        L('ctx: '+ax.state);
+        rxG=ax.createGain();rxG.gain.value=1;
+        rxA=ax.createAnalyser();rxA.fftSize=256;
+        rxG.connect(rxA);rxA.connect(ax.destination);
+        txA=ax.createAnalyser();txA.fftSize=256;
+        ax.createMediaStreamSource(ls).connect(txA);
+        S('HARDWARE_READY','ok');ptE.innerText='SELECT_NODE';L('ready');meter();
+    }catch(e){L('MIC FAIL: '+e.message,true);S('MIC_DENIED','e');ptE.innerText='NO_MIC'}
+}
+
+function resume(){if(ax&&ax.state==='suspended')ax.resume()}
+document.addEventListener('click',resume);
+document.addEventListener('touchstart',resume);
+document.addEventListener('keydown',resume);
+
+/* ═══ CONNECT REMOTE STREAM ═══ */
+function connectRx(stream){
+    const tk=stream.getAudioTracks();
+    L('remote: '+tk.length+' track(s)',false,true);
+    if(!tk.length){L('NO AUDIO TRACKS!',true);return}
+    tk.forEach((t,i)=>{
+        L(`trk[${i}] en=${t.enabled} mute=${t.muted} state=${t.readyState}`);
+        t.onended=()=>{L('TRK ENDED',true);doFB()};
+        t.onmute=()=>L('trk muted');t.onunmute=()=>L('trk unmuted');
+    });
+    try{
+        if(rxS)try{rxS.disconnect()}catch(e){}
+        rxS=ax.createMediaStreamSource(stream.clone());
+        rxS.connect(rxG);
+        L('AudioCtx path OK',false,true);
+    }catch(e){L('AudioCtx fail: '+e.message,true)}
+    unblock=true;
+    nrE.classList.add('on');lnE.classList.add('on');
+    ptE.classList.add('r');ptE.disabled=false;
+    ptE.innerText='HOLD_TO_TALK';S('LINK_SECURED','ok');
+}
+
+function doFB(){
+    if(!unblock||!cc)return;L('<audio> fallback...');
+    try{
+        if(!fbA)fbA=new Audio();
+        const pc=cc.peerConnection,trk=[];
+        pc.getReceivers().forEach(r=>{if(r.track)trk.push(r.track)});
+        if(!trk.length){L('no receivers',true);return}
+        fbA.srcObject=new MediaStream(trk);
+        fbA.play().then(()=>{L('fallback OK',false,true);unblock=false}).catch(e=>L('blocked: '+e.message,true));
+    }catch(e){L('fb err: '+e.message,true)}
+}
+
+/* ═══ PEER CONNECTION ═══ */
+function boot(r){
+    resume();
+    const f=frE.value.trim().toUpperCase();
+    if(!f){frE.style.borderColor='var(--rd)';setTimeout(()=>frE.style.borderColor='',700);return}
+    if(role===r&&peer&&!peer.destroyed)return;
+    role=r;baE.classList.toggle('s',r==='A');bbE.classList.toggle('s',r==='B');
+    if(rt){clearTimeout(rt);rt=null}
+    if(cc){try{cc.close()}catch(e){}cc=null}
+    if(rxS){try{rxS.disconnect()}catch(e){}rxS=null}
+    if(fbA){fbA.pause();fbA=null}
+    if(peer)peer.destroy();
+    unblock=false;
+    nrE.classList.remove('on');lnE.classList.remove('on');
+    ptE.classList.remove('r','tx','rx');ptE.disabled=true;
+    ptE.innerText='SYNCING...';mfE.classList.remove('rxm');
+    ice('new');S(`FREQ:${f} [${r}]`,'ok');L('boot '+r+' @ '+f);
+
+    const myId='OMNI_V7_'+f+'_'+r;
+    const tgt='OMNI_V7_'+f+'_'+(r==='A'?'B':'A');
+
+    /*
+     ★ THE ACTUAL FIX ★
+     PeerJS default cloud (0.peerjs.com) is DOWN right now.
+     We MUST specify a working host. PeerJS uses their cloud for
+     signaling AND provides a free TURN relay through it.
+     Using peerjs.metered.ca as alternate public PeerJS host.
+     Keeping default ICE servers (includes TURN relay).
+    */
+    peer=new Peer(myId,{
+        host:'peerjs.metered.ca',
+        port:443,
+        secure:true,
+        path:'/'
+    });
+
+    peer.on('open',id=>{
+        L('OPEN: '+id,false,true);nlE.classList.add('on');ice('new');
+        if(r==='A'){S('DIALING...','w');ptE.innerText='DIALING...';dial(tgt)}
+        else{S('[B] STANDBY','ok');ptE.innerText='AWAITING_LINK'}
+    });
+
+    peer.on('call',c=>{
+        L('INCOMING: '+c.peer,false,true);S('INCOMING...','w');
+        c.answer(ls);wire(c);
+    });
+
+    peer.on('error',err=>{
+        L('ERR: '+err.type+' — '+err.message,true);
+        if(err.type==='peer-unavailable'){
+            S('REMOTE_OFFLINE','w');ptE.innerText='RETRYING...';
+            rt=setTimeout(()=>dial(tgt),2500);
+        }else if(err.type==='unavailable-id'){
+            S('ID_TAKEN','e');ptE.innerText='CHANGE_FREQ';
+        }else if(err.type==='network'||err.type==='server-error'||err.type==='socket-error'||err.type==='socket-closed'){
+            /* These all mean the signaling server is unreachable */
+            S('SIGNAL_LOST','e');ptE.innerText='NO_SIGNAL';
+            ptE.disabled=true;ptE.classList.remove('r');
+            nrE.classList.remove('on');lnE.classList.remove('on');ice('failed');
+            L('Signaling server unreachable — check internet',true);
+        }else if(err.type==='disconnected'){
+            S('SIGNAL_LOST','e');ptE.innerText='NO_SIGNAL';
+            ptE.disabled=true;ptE.classList.remove('r');
+            ice('disconnected');
+            if(!peer.destroyed)setTimeout(()=>{try{peer.reconnect()}catch(e){}},2000);
+        }else{
+            S('ERR:'+err.type.toUpperCase(),'e');ptE.innerText='ERROR';
+        }
+    });
+
+    peer.on('disconnected',()=>{
+        L('peer disconnect',true);S('SIGNAL_LOST','e');
+        ptE.innerText='NO_SIGNAL';ptE.disabled=true;ptE.classList.remove('r');
+        nrE.classList.remove('on');lnE.classList.remove('on');ice('disconnected');
+        if(!peer.destroyed)setTimeout(()=>{try{peer.reconnect()}catch(e){}},2000);
+    });
+}
+
+function dial(tid){
+    if(!peer||peer.destroyed)return;L('dialing '+tid);
+    const c=peer.call(tid,ls);if(c)wire(c);else L('call() null!',true);
+}
+
+function wire(call){
+    cc=call;
+    const pc=call.peerConnection;
+
+    pc.oniceconnectionstatechange=()=>{
+        const s=pc.iceConnectionState;
+        L('ICE → '+s,s==='connected'||s==='completed',s==='failed'||s==='disconnected');
+        ice(s);
+        if(s==='failed')L('ICE FAILED — NAT/firewall blocking',true);
+        if(s==='connected'||s==='completed')L('ICE OK — audio flowing',false,true);
+    };
+    pc.onconnectionstatechange=()=>L('CONN → '+pc.connectionState);
+
+    call.on('stream',stream=>{L('STREAM',false,true);connectRx(stream)});
+    call.on('close',()=>{
+        L('CLOSED');S('LINK_LOST','e');ptE.innerText='LINK_LOST';
+        ptE.disabled=true;ptE.classList.remove('r','rx');
+        nrE.classList.remove('on');lnE.classList.remove('on');mfE.classList.remove('rxm');ice('closed');
+        if(rxS){try{rxS.disconnect()}catch(e){}rxS=null}
+        if(role==='A'&&peer&&!peer.destroyed){
+            const f=frE.value.trim().toUpperCase();S('RECONNECTING...','w');ptE.innerText='RECONNECTING';
+            rt=setTimeout(()=>dial('OMNI_V7_'+f+'_B'),3000);
+        }
+    });
+    call.on('error',e=>L('call err: '+e,true));
+}
+
+/* ═══ PTT ═══ */
+function setTx(on){
+    resume();if(!ls||ptE.disabled)return;tX=on;
+    ls.getAudioTracks().forEach(t=>t.enabled=on);
+    if(on&&unblock&&cc){
+        L('PTT gesture → unblock <audio>');try{
+            const pc=cc.peerConnection,trk=[];
+            pc.getReceivers().forEach(r=>{if(r.track)trk.push(r.track)});
+            if(trk.length){if(!fbA)fbA=new Audio();fbA.srcObject=new MediaStream(trk);fbA.play().then(()=>{L('unblocked',false,true);unblock=false}).catch(()=>{})}
+        }catch(e){}
     }
+    ptE.classList.toggle('tx',on);ptE.innerText=on?'TRANSMITTING':'HOLD_TO_TALK';
+}
+ptE.addEventListener('mousedown',e=>{e.preventDefault();setTx(true)});
+ptE.addEventListener('mouseup',()=>setTx(false));
+ptE.addEventListener('mouseleave',()=>{if(tX)setTx(false)});
+ptE.addEventListener('touchstart',e=>{e.preventDefault();setTx(true)});
+ptE.addEventListener('touchend',e=>{e.preventDefault();setTx(false)});
+ptE.addEventListener('touchcancel',()=>{if(tX)setTx(false)});
 
-    function start(role) {
-        const cid = document.getElementById('ch').value.toUpperCase().trim();
-        if(!cid) return;
+/* ═══ VU METER ═══ */
+function meter(){
+    let v=0;
+    if(tX&&txA){const b=new Uint8Array(txA.frequencyBinCount);txA.getByteFrequencyData(b);let s=0;for(let i=0;i<b.length;i++)s+=b[i];v=(s/b.length)*4;mfE.classList.remove('rxm')}
+    else if(rxA&&rxS){const b=new Uint8Array(rxA.frequencyBinCount);rxA.getByteFrequencyData(b);let s=0;for(let i=0;i<b.length;i++)s+=b[i];v=(s/b.length)*4;mfE.classList.add('rxm');ptE.classList.toggle('rx',v>4)}
+    else{mfE.classList.remove('rxm');ptE.classList.remove('rx')}
+    mfE.style.width=Math.min(v,100)+'%';requestAnimationFrame(meter);
+}
 
-        if(peer) peer.destroy();
-
-        // V18 STEALTH CONFIG
-        // Uses explicit Google STUNs and longer timeouts to survive firewall inspections
-        peer = new Peer(`V18-${cid}-${role}`, {
-            host: '0.peerjs.com',
-            secure: true,
-            port: 443,
-            pingInterval: 5000,
-            config: {
-                iceServers: [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' },
-                    { urls: 'stun:stun2.l.google.com:19302' },
-                    { urls: 'stun:stun3.l.google.com:19302' }
-                ],
-                iceCandidatePoolSize: 10
-            }
-        });
-
-        peer.on('open', () => {
-            status.innerText = `NODE_${role}_ONLINE`;
-            if(role === 'A') {
-                status.innerText = "TUNNELING...";
-                // Retry dial 3 times to bypass temporary firewall drops
-                let attempts = 0;
-                const tryDial = () => {
-                    attempts++;
-                    status.innerText = `DIALING_B (TRY ${attempts}/3)...`;
-                    const c = peer.call(`V18-${cid}-B`, stream);
-                    
-                    c.on('stream', s => {
-                        vox.srcObject = s;
-                        vox.play();
-                        status.innerText = "TUNNEL_ESTABLISHED";
-                        ptt.style.display = 'block';
-                    });
-
-                    // If it fails, wait 3 seconds and try again
-                    setTimeout(() => {
-                        if(status.innerText.includes("DIALING")) tryDial();
-                    }, 5000);
-                };
-                tryDial();
-            }
-        });
-
-        peer.on('call', c => {
-            status.innerText = "INCOMING_CONNECTION";
-            c.answer(stream);
-            c.on('stream', s => {
-                vox.srcObject = s;
-                vox.play();
-                status.innerText = "TUNNEL_ESTABLISHED";
-                ptt.style.display = 'block';
-            });
-        });
-
-        peer.on('error', e => {
-            status.innerText = "SIGNAL_LOST: " + e.type.toUpperCase();
-            if(e.type === 'network') status.innerText = "WIFI_FIREWALL_BLOCKING_SIGNAL";
-        });
-    }
-
-    const tx = (s) => { if(stream) stream.getAudioTracks()[0].enabled = s; ptt.innerText = s ? "TRANSMITTING..." : "PUSH TO TALK"; };
-    ptt.onmousedown = () => tx(true);
-    ptt.onmouseup = () => tx(false);
-    ptt.ontouchstart = (e) => { e.preventDefault(); tx(true); };
-    ptt.ontouchend = (e) => { e.preventDefault(); tx(false); };
+frE.addEventListener('keydown',e=>{if(e.key==='Enter')boot('A')});
+init();
 </script>
 </body>
 </html>
