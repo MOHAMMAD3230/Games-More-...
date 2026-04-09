@@ -40,7 +40,7 @@
     <div id="debug-info" style="font-size: 0.6rem; margin-top: 15px; color: #333; text-align: center;"></div>
 </div>
 
-<audio id="receiver" autoplay></audio>
+<audio id="receiver" autoplay playsinline></audio>
 
 <script>
     const log = document.getElementById('log');
@@ -104,18 +104,45 @@
         });
     }
 
-    function handleCall(call) {
-        call.on('stream', (rStream) => {
-            document.getElementById('receiver').srcObject = rStream;
-            log.innerText = "LINK_SECURED";
-            ptt.disabled = false;
-            ptt.innerText = "HOLD_TO_TALK";
+  function handleCall(call) {
+    call.on('stream', (rStream) => {
+        const audio = document.getElementById('receiver');
+        audio.srcObject = rStream;
+        
+        // Force play logic
+        audio.play().catch(e => {
+            console.log("Autoplay blocked. Click the screen to hear audio.");
+            log.innerText = "CLICK_TO_HEAR_AUDIO";
         });
-    }
+
+        log.innerText = "LINK_SECURED";
+        ptt.disabled = false;
+        ptt.innerText = "HOLD_TO_TALK";
+    });
+}
 
     // PTT Controls
-    ptt.onmousedown = () => { if(localStream) { localStream.getAudioTracks()[0].enabled = true; ptt.innerText = "TRANSMITTING"; } };
-    ptt.onmouseup = () => { if(localStream) { localStream.getAudioTracks()[0].enabled = false; ptt.innerText = "HOLD_TO_TALK"; } };
+// Works for both PC (Mouse) and Mobile (Touch)
+function startTalking() {
+    if(localStream) {
+        localStream.getAudioTracks()[0].enabled = true;
+        ptt.innerText = "TRANSMITTING";
+    }
+}
+
+function stopTalking() {
+    if(localStream) {
+        localStream.getAudioTracks()[0].enabled = false;
+        ptt.innerText = "HOLD_TO_TALK";
+    }
+}
+
+ptt.onmousedown = startTalking;
+ptt.ontouchstart = startTalking; // Mobile support
+
+ptt.onmouseup = stopTalking;
+ptt.ontouchend = stopTalking;   // Mobile support
+    
 </script>
 </body>
 </html>
