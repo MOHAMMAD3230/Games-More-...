@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TAC/COM-04 | FINAL 5G + E2EE</title>
+    <title>TAC/COM-04 | CROSS-NETWORK E2EE</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root { --amber: #ffb000; --bg: #0d0900; --red: #8c3024; --blue: #00d4ff; --green: #39ff14; }
         body { background: #050505; color: var(--amber); font-family: 'Courier New', monospace; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; touch-action: manipulation; overflow: hidden; }
         .mainframe { width: 95%; max-width: 850px; background: #222; border: 6px solid #111; padding: 15px; display: flex; flex-direction: column; box-shadow: 0 0 60px #000; box-sizing: border-box; }
-        @media (min-width: 768px) { .mainframe { display: grid; grid-template-columns: 1fr 320px; height: 640px; gap: 20px; } }
-        .monitor { background: var(--bg); border: 10px solid #1a1a1a; border-radius: 15px; padding: 20px; flex-grow: 1; display: flex; flex-direction: column; position: relative; box-shadow: inset 0 0 20px #000; }
-        #output { height: 240px; overflow-y: auto; font-size: 0.78rem; scrollbar-width: none; border-bottom: 1px solid #333; margin-bottom: 12px; color: var(--amber); }
+        @media (min-width: 768px) { .mainframe { display: grid; grid-template-columns: 1fr 320px; height: 660px; gap: 20px; } }
+        .monitor { background: var(--bg); border: 10px solid #1a1a1a; border-radius: 15px; padding: 20px; flex-grow: 1; display: flex; flex-direction: column; box-shadow: inset 0 0 20px #000; }
+        #output { height: 280px; overflow-y: auto; font-size: 0.78rem; scrollbar-width: none; border-bottom: 1px solid #333; margin-bottom: 12px; color: var(--amber); }
         .module { background: #111; padding: 12px; border: 1px solid #333; margin-bottom: 10px; }
         .btn-ptt { width: 100%; height: 145px; background: var(--red); color: white; border: 5px solid #5e1e16; font-weight: bold; font-size: 1.35rem; cursor: pointer; transition: 0.1s; box-shadow: 0 6px 0 #401010; }
         .btn-ptt:active:not(:disabled) { background: #f00; transform: translateY(4px); box-shadow: 0 2px 0 #401010; }
@@ -33,15 +33,15 @@
             <span>FREQ: <span id="curFreq" style="color:var(--blue)">UNSET</span></span>
             <span>UPLINK: <span id="stat">OFFLINE</span></span>
         </div>
-        <div id="output"><div>> TAC/COM-04 FINAL + E2EE LOADED</div></div>
+        <div id="output"><div>> CROSS-NETWORK MODE (Wi-Fi + 5G) LOADED</div></div>
         <div id="meter"><div id="meter-fill"></div></div>
     </div>
     <div class="side-panel">
         <div class="module">
-            <div style="font-size: 0.6rem; color: #555; margin-bottom: 5px; text-align: center;">CHANNEL (1-99)</div>
+            <div style="font-size: 0.6rem; color: #555; margin-bottom: 5px;">CHANNEL (1-99)</div>
             <input type="number" id="chanInput" value="42" min="1" max="99">
-            <div style="font-size: 0.6rem; color: #555; margin: 8px 0 5px;">SHARED SECRET (for E2EE)</div>
-            <input type="password" id="secretInput" value="tacsecure2026" placeholder="Enter shared password">
+            <div style="font-size: 0.6rem; color: #555; margin: 8px 0 5px;">SHARED SECRET (E2EE)</div>
+            <input type="password" id="secretInput" value="tacsecure2026">
             <button class="btn-action" id="bootBtn" onclick="initChannel()" style="margin-top:8px; border-color:var(--green); color:var(--green);">INITIATE SECURE LINK</button>
         </div>
         <div class="module" style="text-align:center;">
@@ -56,9 +56,8 @@
 </div>
 
 <script>
-    let peer, conn, localStream, audioCtx, recorder, analyser, streamSource;
+    let peer, conn, localStream, audioCtx, recorder, analyser, streamSource, cryptoKey;
     let isPTTActive = false;
-    let cryptoKey = null;   // AES-GCM key
     const APP_PREFIX = "TAC-SECURE-V33-";
 
     function log(msg, color = "#ffb000") {
@@ -68,69 +67,43 @@
         div.style.color = color;
         out.appendChild(div);
         out.scrollTop = out.scrollHeight;
+        console.log("[TAC]", msg);
     }
 
-    // === Web Crypto Helper Functions ===
     async function deriveKey(password) {
         const enc = new TextEncoder();
-        const baseKey = await crypto.subtle.importKey(
-            "raw", enc.encode(password), "PBKDF2", false, ["deriveBits", "deriveKey"]
-        );
+        const base = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]);
         return crypto.subtle.deriveKey(
-            { name: "PBKDF2", salt: enc.encode("tac-com-salt"), iterations: 100000, hash: "SHA-256" },
-            baseKey,
-            { name: "AES-GCM", length: 256 },
-            false,
-            ["encrypt", "decrypt"]
+            { name: "PBKDF2", salt: enc.encode("tac-salt"), iterations: 100000, hash: "SHA-256" },
+            base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]
         );
     }
 
     async function encryptData(data) {
-        if (!cryptoKey) throw new Error("No encryption key");
         const iv = crypto.getRandomValues(new Uint8Array(12));
-        const encrypted = await crypto.subtle.encrypt(
-            { name: "AES-GCM", iv: iv },
-            cryptoKey,
-            data
-        );
-        const combined = new Uint8Array(iv.byteLength + encrypted.byteLength);
-        combined.set(iv, 0);
-        combined.set(new Uint8Array(encrypted), iv.byteLength);
+        const enc = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, cryptoKey, data);
+        const combined = new Uint8Array(12 + enc.byteLength);
+        combined.set(iv); combined.set(new Uint8Array(enc), 12);
         return combined.buffer;
     }
 
-    async function decryptData(combinedBuffer) {
-        if (!cryptoKey) throw new Error("No encryption key");
-        const combined = new Uint8Array(combinedBuffer);
-        const iv = combined.slice(0, 12);
-        const ciphertext = combined.slice(12);
-        return crypto.subtle.decrypt(
-            { name: "AES-GCM", iv: iv },
-            cryptoKey,
-            ciphertext
-        );
+    async function decryptData(buffer) {
+        const data = new Uint8Array(buffer);
+        const iv = data.slice(0, 12);
+        const ct = data.slice(12);
+        return crypto.subtle.decrypt({ name: "AES-GCM", iv }, cryptoKey, ct);
     }
 
     async function initChannel() {
-        const chanNum = document.getElementById('chanInput').value.trim();
-        const password = document.getElementById('secretInput').value.trim();
+        const chan = document.getElementById('chanInput').value.trim();
+        const pass = document.getElementById('secretInput').value.trim();
 
-        if (!chanNum || chanNum < 1 || chanNum > 99) {
-            log("INVALID CHANNEL (1-99)", "red");
-            return;
-        }
-        if (!password || password.length < 6) {
-            log("SHARED SECRET TOO SHORT (min 6 chars)", "red");
-            return;
-        }
-
-        const fullId = APP_PREFIX + chanNum;
+        if (!chan || chan < 1 || chan > 99) return log("INVALID CHANNEL", "red");
+        if (pass.length < 6) return log("SECRET TOO SHORT", "red");
 
         try {
-            cryptoKey = await deriveKey(password);
-            log("AES-256-GCM KEY DERIVED FROM SHARED SECRET", "#39ff14");
-
-            localStream = await navigator.mediaDevices.getUserMedia({
+            cryptoKey = await deriveKey(pass);
+            localStream = await navigator.mediaDevices.getUserMedia({ 
                 audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, sampleRate: 48000 }
             });
 
@@ -143,63 +116,57 @@
             recorder = new MediaRecorder(localStream, { mimeType: 'audio/webm;codecs=opus' });
 
             recorder.ondataavailable = async (e) => {
-                if (!conn || !conn.open || !e.data || e.data.size < 60 || !isPTTActive) return;
-                try {
-                    const arrayBuffer = await e.data.arrayBuffer();
-                    const encrypted = await encryptData(arrayBuffer);
-                    conn.send(encrypted);
-                } catch (err) {
-                    log("ENCRYPT ERROR: " + err.message, "red");
-                }
+                if (!conn?.open || !isPTTActive || !e.data?.size) return;
+                const buf = await e.data.arrayBuffer();
+                const encrypted = await encryptData(buf);
+                conn.send(encrypted);
             };
 
             document.getElementById('bootBtn').disabled = true;
-            document.getElementById('curFreq').innerText = "CH-" + chanNum;
-            document.getElementById('stat').innerText = "CONNECTING (E2EE)...";
+            document.getElementById('curFreq').innerText = "CH-" + chan;
+            document.getElementById('stat').innerText = "CONNECTING ACROSS NETWORKS...";
 
-            initPeer(fullId);
+            initPeer(APP_PREFIX + chan);
             updateMeter();
-            log("MIC + E2EE READY", "#39ff14");
-        } catch (e) {
-            log("INIT FAILED: " + e.message, "red");
-            console.error(e);
+            log("READY - WAITING FOR CROSS-NETWORK CONNECTION", "#39ff14");
+        } catch(e) {
+            log("MIC ACCESS DENIED", "red");
         }
     }
 
     function initPeer(myId) {
-        const iceConfig = {
+        const config = {
             iceServers: [
-                { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
-                { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-                { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-                { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
-                { urls: 'turn:global.relay.metered.ca:80', username: 'metered', credential: 'metered' },
-                { urls: 'turn:global.relay.metered.ca:443', username: 'metered', credential: 'metered' }
-            ],
-            iceTransportPolicy: 'relay',
-            iceCandidatePoolSize: 15
+                { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302", "stun:stun2.l.google.com:19302"] },
+                { urls: "turn:openrelay.metered.ca:80", username: "openrelayproject", credential: "openrelayproject" },
+                { urls: "turn:openrelay.metered.ca:443", username: "openrelayproject", credential: "openrelayproject" },
+                { urls: "turn:openrelay.metered.ca:443?transport=tcp", username: "openrelayproject", credential: "openrelayproject" },
+                { urls: "turn:global.relay.metered.ca:80", username: "metered", credential: "metered" },
+                { urls: "turn:global.relay.metered.ca:443", username: "metered", credential: "metered" }
+            ]
         };
 
-        peer = new Peer(myId, { config: iceConfig, debug: 2 });
+        peer = new Peer(myId, { config, debug: 3 });
 
-        peer.on('open', (id) => {
-            log("CHANNEL READY: " + id.split('-').pop(), "#39ff14");
+        peer.on('open', () => {
+            log("YOUR DEVICE IS ONLINE", "#39ff14");
             setTimeout(() => {
                 if (!conn) {
+                    log("ATTEMPTING CONNECTION TO OTHER DEVICE...", "#ffb000");
                     const c = peer.connect(myId, { reliable: true });
                     setupConnection(c);
                 }
-            }, 800);
+            }, 1000);
         });
 
-        peer.on('connection', (c) => setupConnection(c));
+        peer.on('connection', c => setupConnection(c));
 
-        peer.on('error', (err) => {
-            log("ERROR: " + err.type, "red");
-            if (err.type === 'unavailable-id') {
-                log("CHANNEL BUSY - RETRYING...", "#ffb000");
-                if (peer) peer.destroy();
-                setTimeout(() => initPeer(myId), 1200);
+        peer.on('error', err => {
+            log("WEBRTC ERROR: " + err.type, "red");
+            console.error(err);
+            if (err.type === "unavailable-id") {
+                log("RETRYING...", "#ffb000");
+                setTimeout(() => initPeer(myId), 1500);
             }
         });
     }
@@ -209,87 +176,75 @@
         conn.on('open', () => {
             document.getElementById('ledNet').classList.add('online');
             document.getElementById('pttBtn').disabled = false;
-            document.getElementById('stat').innerText = "SECURE LINK ACTIVE (E2EE)";
-            log("E2EE TUNNEL ESTABLISHED - HOLD TO TALK", "#39ff14");
-            playBeep(950, 0.1);
+            document.getElementById('stat').innerText = "CROSS-NETWORK LINK ACTIVE (E2EE)";
+            log("✅ SUCCESSFULLY CONNECTED ACROSS DIFFERENT NETWORKS", "#39ff14");
+            playBeep(900, 0.15);
         });
 
-        conn.on('data', async (data) => {
+        conn.on('data', async data => {
             if (!(data instanceof ArrayBuffer)) return;
             document.getElementById('ledTx').classList.add('tx');
             try {
-                const decrypted = await decryptData(data);
-                const blob = new Blob([decrypted], { type: 'audio/webm' });
-                const url = URL.createObjectURL(blob);
-                const audio = new Audio(url);
-                audio.volume = 1.0;
-                audio.onended = () => URL.revokeObjectURL(url);
-                await audio.play().catch(() => {});
-            } catch (err) {
+                const dec = await decryptData(data);
+                const blob = new Blob([dec], { type: 'audio/webm' });
+                const audio = new Audio(URL.createObjectURL(blob));
+                audio.onended = () => URL.revokeObjectURL(audio.src);
+                await audio.play();
+            } catch(e) {
                 log("DECRYPT FAILED - Wrong secret?", "red");
-                console.error(err);
             }
             setTimeout(() => document.getElementById('ledTx').classList.remove('tx'), 900);
         });
 
-        conn.on('close', () => {
-            log("DISCONNECTED", "red");
-            document.getElementById('ledNet').classList.remove('online');
-            document.getElementById('pttBtn').disabled = true;
-        });
+        conn.on('close', () => log("CONNECTION CLOSED", "red"));
     }
 
-    function playBeep(freq, dur) {
+    function playBeep(f, d) {
         if (!audioCtx) return;
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.frequency.value = freq;
-        gain.gain.value = 0.04;
-        osc.connect(gain).connect(audioCtx.destination);
-        osc.start();
-        gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + dur);
-        osc.stop(audioCtx.currentTime + dur);
+        const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.frequency.value = f; g.gain.value = 0.04;
+        o.connect(g).connect(audioCtx.destination);
+        o.start(); g.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + d);
+        o.stop(audioCtx.currentTime + d);
     }
 
     function updateMeter() {
         if (!analyser) return;
         const data = new Uint8Array(analyser.frequencyBinCount);
         analyser.getByteFrequencyData(data);
-        let sum = 0;
-        for (let v of data) sum += v;
-        const avg = sum / data.length;
-        document.getElementById('meter-fill').style.width = Math.min(100, avg * 2.8) + "%";
+        const avg = data.reduce((a,b) => a+b,0) / data.length;
+        document.getElementById('meter-fill').style.width = Math.min(100, avg*2.8) + "%";
         requestAnimationFrame(updateMeter);
     }
 
     // PTT
     const pttBtn = document.getElementById('pttBtn');
-
-    function startPTT() {
-        if (!conn || !conn.open || !recorder) return;
-        if (recorder.state === 'inactive') recorder.start(160);
-        isPTTActive = true;
-        document.getElementById('ledTx').classList.add('tx');
+    function startPTT() { 
+        if (conn?.open && recorder) { 
+            if (recorder.state === 'inactive') recorder.start(160); 
+            isPTTActive = true; 
+            document.getElementById('ledTx').classList.add('tx'); 
+        }
     }
-
-    function stopPTT() {
-        isPTTActive = false;
-        if (recorder && recorder.state === 'recording') recorder.stop();
-        document.getElementById('ledTx').classList.remove('tx');
+    function stopPTT() { 
+        isPTTActive = false; 
+        if (recorder?.state === 'recording') recorder.stop(); 
+        document.getElementById('ledTx').classList.remove('tx'); 
     }
 
     pttBtn.onmousedown = startPTT;
     pttBtn.onmouseup = stopPTT;
-    pttBtn.ontouchstart = (e) => { e.preventDefault(); startPTT(); };
-    pttBtn.ontouchend = (e) => { e.preventDefault(); stopPTT(); };
+    pttBtn.ontouchstart = e => { e.preventDefault(); startPTT(); };
+    pttBtn.ontouchend = e => { e.preventDefault(); stopPTT(); };
 
     window.addEventListener('beforeunload', () => {
-        if (recorder && recorder.state === 'recording') recorder.stop();
+        if (recorder?.state === 'recording') recorder.stop();
         if (localStream) localStream.getTracks().forEach(t => t.stop());
         if (peer) peer.destroy();
     });
 
-    log("FINAL E2EE VERSION - Use SAME channel + SAME secret on both devices", "#39ff14");
+    log("OPTIMIZED FOR DIFFERENT NETWORKS (Wi-Fi + 5G)", "#39ff14");
+    log("Use SAME channel and SAME secret on BOTH devices", "#ffb000");
 </script>
 </body>
 </html>
