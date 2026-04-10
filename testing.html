@@ -1,200 +1,245 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TACTICAL COMMS v2</title>
-<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-
-<style>
-body {
-    background:#050505;
-    color:#0f0;
-    font-family:monospace;
-    text-align:center;
-}
-button, input {
-    padding:10px;
-    margin:5px;
-}
-#log {
-    height:200px;
-    overflow:auto;
-    border:1px solid #333;
-    padding:5px;
-    font-size:12px;
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TAC/COM-04 | GLOBAL TUNER</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root { --amber: #ffb000; --bg: #0d0900; --red: #8c3024; --blue: #00d4ff; --green: #39ff14; }
+        body { background: #050505; color: var(--amber); font-family: 'Courier New', monospace; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; touch-action: manipulation; overflow: hidden; }
+        .mainframe { width: 95%; max-width: 850px; background: #222; border: 6px solid #111; padding: 15px; display: flex; flex-direction: column; box-shadow: 0 0 60px #000; box-sizing: border-box; }
+        @media (min-width: 768px) { .mainframe { display: grid; grid-template-columns: 1fr 320px; height: 600px; gap: 20px; } }
+        .monitor { background: var(--bg); border: 10px solid #1a1a1a; border-radius: 15px; padding: 20px; flex-grow: 1; display: flex; flex-direction: column; position: relative; }
+        #output { height: 220px; overflow-y: auto; font-size: 0.8rem; scrollbar-width: none; border-bottom: 1px solid #333; margin-bottom: 10px; }
+        .module { background: #111; padding: 12px; border: 1px solid #333; margin-bottom: 10px; }
+        .btn-ptt { width: 100%; height: 140px; background: var(--red); color: white; border: 5px solid #5e1e16; font-weight: bold; font-size: 1.3rem; cursor: pointer; transition: 0.1s; -webkit-user-select: none; user-select: none; }
+        .btn-ptt:active:not(:disabled) { background: #f00; transform: scale(0.98); }
+        .btn-ptt:disabled { background: #333; opacity: 0.2; }
+        .btn-action { width: 100%; padding: 10px; background: #333; color: #fff; border: 1px solid #555; cursor: pointer; font-weight: bold; font-size: 0.7rem; }
+        input { width: 100%; background: #000; border: 1px solid #444; color: var(--amber); padding: 10px; box-sizing: border-box; outline: none; text-align: center; font-size: 1.2rem; letter-spacing: 2px; }
+        .status-led { width: 12px; height: 12px; border-radius: 50%; background: #200; display: inline-block; }
+        .online { background: var(--blue); box-shadow: 0 0 10px var(--blue); }
+        .tx { background: #f00; box-shadow: 0 0 10px #f00; }
+        #meter { width: 100%; height: 10px; background: #000; border: 1px solid #333; margin-top: auto; }
+        #meter-fill { width: 0%; height: 100%; background: var(--green); transition: width 0.1s; }
+    </style>
 </head>
-
 <body>
 
-<h2>📡 TAC-COM v2</h2>
+<div class="mainframe">
+    <audio id="remoteAudio" autoplay playsinline></audio>
 
-<input id="channel" type="number" min="1" max="99" value="1">
-<button onclick="start()">JOIN CHANNEL</button>
+    <div class="monitor">
+        <div style="font-size: 0.6rem; display:flex; justify-content:space-between; margin-bottom:10px;">
+            <span>FREQ: <span id="curFreq" style="color:var(--blue)">UNSET</span></span>
+            <span>UPLINK: <span id="stat">OFFLINE</span></span>
+        </div>
+        <div id="output"><div>> CROSS-NETWORK LINK READY. SELECT CHANNEL...</div></div>
+        <div id="meter"><div id="meter-fill"></div></div>
+    </div>
 
-<br><br>
+    <div class="side-panel">
+        <div class="module">
+            <div style="font-size: 0.6rem; color: #555; margin-bottom: 5px; text-align: center;">GLOBAL FREQUENCY (1-999)</div>
+            <input type="number" id="chanInput" value="1" min="1" max="999">
+            <button class="btn-action" id="bootBtn" onclick="initChannel()" style="margin-top:10px; border-color:var(--green); color:var(--green);">INITIALIZE LINK</button>
+        </div>
 
-<button id="ptt" disabled>HOLD TO TALK</button>
-
-<div id="log"></div>
+        <div class="module" style="text-align:center;">
+            <button class="btn-ptt" id="pttBtn" disabled>HOLD TO TALK</button>
+            <div style="margin-top:10px; font-size:0.5rem; display:flex; justify-content:space-around;">
+                <span><div class="status-led" id="ledNet"></div> SYNC</span>
+                <span><div class="status-led" id="ledTx"></div> TRANS</span>
+            </div>
+        </div>
+        <button class="btn-action" onclick="location.reload()" style="background:#200;">RESET SYSTEM</button>
+    </div>
+</div>
 
 <script>
-let peer;
-let localStream;
-let connections = {};
-let currentChannel = null;
-let heartbeatInterval;
+    let peer, conn, localStream, audioCtx, analyser, speakerGain;
+    // Use a unique prefix to ensure you don't accidentally connect to strangers
+    const APP_PREFIX = "TAC-COM-GLOBAL-XYZ-"; 
 
-const ICE_CONFIG = {
-    iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        {
-            urls: 'turn:openrelay.metered.ca:80',
-            username: 'openrelayproject',
-            credential: 'openrelayproject'
+    // Enhanced STUN configuration for better NAT traversal across mobile/wifi
+    const ICE_CONFIG = {
+        config: { 
+            'iceServers': [
+                { 'urls': 'stun:stun.l.google.com:19302' },
+                { 'urls': 'stun:stun1.l.google.com:19302' },
+                { 'urls': 'stun:stun2.l.google.com:19302' },
+                { 'urls': 'stun:stun3.l.google.com:19302' },
+                { 'urls': 'stun:stun4.l.google.com:19302' }
+            ]
         }
-    ]
-};
+    };
 
-function log(msg){
-    const el = document.getElementById('log');
-    el.innerHTML += "> " + msg + "<br>";
-    el.scrollTop = el.scrollHeight;
-}
+    function log(msg, color="#ffb000") {
+        const div = document.createElement('div');
+        div.innerText = `> ${msg}`; div.style.color = color;
+        const out = document.getElementById('output');
+        out.appendChild(div); out.scrollTop = out.scrollHeight;
+    }
 
-async function start(){
-    currentChannel = "room-" + document.getElementById('channel').value;
-
-    localStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-            echoCancellation:true,
-            noiseSuppression:true,
-            autoGainControl:true,
-            latency:0
-        }
-    });
-
-    createPeer();
-}
-
-function createPeer(){
-    peer = new Peer(undefined, { config: ICE_CONFIG });
-
-    peer.on('open', id=>{
-        log("My ID: " + id);
-        discoverPeers();
-        startHeartbeat();
-    });
-
-    peer.on('connection', conn=>{
-        setupConnection(conn);
-    });
-
-    peer.on('call', call=>{
-        call.answer(localStream);
-        call.on('stream', stream=>{
-            playStream(stream);
-        });
-    });
-
-    peer.on('disconnected', ()=>{
-        log("Disconnected. Reconnecting...");
-        reconnect();
-    });
-
-    peer.on('error', err=>{
-        log("Error: " + err);
-    });
-}
-
-function discoverPeers(){
-    // brute-force scan nearby IDs
-    for(let i=0;i<20;i++){
-        let testId = currentChannel + "-" + i;
-        if(peer.id === testId) continue;
-
-        let conn = peer.connect(testId, { reliable:false });
-
-        conn.on('open', ()=>{
-            setupConnection(conn);
-
-            const call = peer.call(testId, localStream);
-            call.on('stream', stream=>{
-                playStream(stream);
+    async function initChannel() {
+        const chanNum = document.getElementById('chanInput').value;
+        const fullId = APP_PREFIX + chanNum;
+        
+        try {
+            log("ACQUIRING HARDWARE ACCESS...");
+            localStream = await navigator.mediaDevices.getUserMedia({ 
+                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
             });
+
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            speakerGain = audioCtx.createGain();
+            analyser = audioCtx.createAnalyser();
+            
+            analyser.connect(speakerGain);
+            speakerGain.connect(audioCtx.destination);
+            
+            muteMic(true);
+            document.getElementById('bootBtn').disabled = true;
+            document.getElementById('curFreq').innerText = "CH-" + chanNum;
+            updateMeter();
+            
+            initPeer(fullId);
+            log("SEARCHING FOR PEERS ON GLOBAL CH-" + chanNum + "...", "var(--blue)");
+        } catch(e) { 
+            log("CRITICAL ERROR: MICROPHONE ACCESS DENIED OR NO HTTPS", "red"); 
+        }
+    }
+
+    function initPeer(myId) {
+        // The Signaling Server helps the devices find each other initially
+        peer = new Peer(myId, ICE_CONFIG);
+
+        peer.on('open', id => { 
+            log("ID REGISTERED ON SIGNAL SERVER.", "var(--green)"); 
+            // If we are first, we just wait. If we are second, initPeer handles error.
+        });
+
+        // Event for when someone else initiates the data connection
+        peer.on('connection', c => { 
+            conn = c; 
+            setupHandlers(); 
+        });
+
+        // Event for when someone else initiates the voice call
+        peer.on('call', call => {
+            call.answer(localStream);
+            call.on('stream', stream => attachStream(stream));
+        });
+
+        peer.on('error', (err) => {
+            if(err.type === 'unavailable-id') {
+                log("CHANNEL OCCUPIED. ATTEMPTING SYNC...", "var(--amber)");
+                peer.destroy();
+                initCallerMode(myId);
+            } else {
+                log("NETWORK ERROR: " + err.type, "red");
+            }
         });
     }
 
-    // also assign self ID in pool
-    peer.id = currentChannel + "-" + Math.floor(Math.random()*20);
-}
-
-function setupConnection(conn){
-    if(connections[conn.peer]) return;
-
-    connections[conn.peer] = conn;
-    log("Connected: " + conn.peer);
-
-    document.getElementById('ptt').disabled = false;
-
-    conn.on('data', data=>{
-        if(data === "PING"){
-            conn.send("PONG");
-        }
-    });
-
-    conn.on('close', ()=>{
-        log("Lost: " + conn.peer);
-        delete connections[conn.peer];
-        retryConnection(conn.peer);
-    });
-}
-
-function retryConnection(id){
-    setTimeout(()=>{
-        log("Retrying " + id);
-        let conn = peer.connect(id);
-        conn.on('open', ()=> setupConnection(conn));
-    }, 2000);
-}
-
-function startHeartbeat(){
-    heartbeatInterval = setInterval(()=>{
-        Object.values(connections).forEach(conn=>{
-            conn.send("PING");
+    // This runs if the Channel ID is already taken (meaning someone else is hosting)
+    function initCallerMode(targetId) {
+        peer = new Peer(ICE_CONFIG); 
+        peer.on('open', () => {
+            log("HANDSHAKE SENT TO HOST...");
+            conn = peer.connect(targetId);
+            const call = peer.call(targetId, localStream);
+            call.on('stream', stream => attachStream(stream));
+            setupHandlers();
         });
-    }, 3000);
-}
+    }
 
-function reconnect(){
-    peer.reconnect();
-    setTimeout(discoverPeers,2000);
-}
+    function attachStream(stream) {
+        const audioEl = document.getElementById('remoteAudio');
+        audioEl.srcObject = stream;
+        const source = audioCtx.createMediaStreamSource(stream);
+        source.connect(analyser); // Connect remote audio to our visualizer
+        log("VOICE LINK ESTABLISHED.", "var(--green)");
+    }
 
-function playStream(stream){
-    const audio = new Audio();
-    audio.srcObject = stream;
-    audio.play();
-}
+    function setupHandlers() {
+        conn.on('open', () => {
+            document.getElementById('ledNet').classList.add('online');
+            document.getElementById('pttBtn').disabled = false;
+            document.getElementById('stat').innerText = "SYNCED";
+            log("REMOTE DATA SYNC COMPLETE.", "var(--blue)");
+        });
 
-function muteMic(mute){
-    localStream.getAudioTracks().forEach(t=>t.enabled = !mute);
-}
+        conn.on('data', data => {
+            if(data === 'TX_ON') document.getElementById('ledTx').classList.add('tx');
+            if(data === 'TX_OFF') {
+                document.getElementById('ledTx').classList.remove('tx');
+                playBeep(450, 0.1); 
+            }
+        });
+        
+        conn.on('close', () => {
+            log("CONNECTION CLOSED BY PEER.", "red");
+            setTimeout(() => location.reload(), 2000);
+        });
+    }
 
-const ptt = document.getElementById('ptt');
+    function muteMic(shouldMute) {
+        if (localStream) {
+            localStream.getAudioTracks().forEach(t => t.enabled = !shouldMute);
+        }
+        // Feedback protection: Mute your speakers while you are talking
+        if (speakerGain) {
+            speakerGain.gain.setValueAtTime(shouldMute ? 1 : 0, audioCtx.currentTime);
+        }
+    }
 
-ptt.onmousedown = ()=> transmit(true);
-ptt.onmouseup = ()=> transmit(false);
+    function updateMeter() {
+        if(!analyser) return;
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(dataArray);
+        let sum = dataArray.reduce((a, b) => a + b, 0);
+        document.getElementById('meter-fill').style.width = Math.min(100, (sum/dataArray.length)*5) + "%";
+        requestAnimationFrame(updateMeter);
+    }
 
-ptt.ontouchstart = (e)=>{ e.preventDefault(); transmit(true); }
-ptt.ontouchend = (e)=>{ e.preventDefault(); transmit(false); }
+    function playBeep(f, d) {
+        if(!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.frequency.value = f; g.gain.value = 0.05;
+        osc.connect(g); g.connect(audioCtx.destination);
+        osc.start();
+        g.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + d);
+        osc.stop(audioCtx.currentTime + d);
+    }
 
-function transmit(on){
-    muteMic(!on);
-}
+    const ptt = document.getElementById('pttBtn');
+    
+    const pttOn = (e) => { 
+        if(e) e.preventDefault();
+        if(!conn || ptt.disabled) return; 
+        muteMic(false); 
+        conn.send('TX_ON'); 
+        document.getElementById('ledTx').classList.add('tx'); 
+        playBeep(1000, 0.05); 
+    };
+    
+    const pttOff = (e) => { 
+        if(e) e.preventDefault();
+        if(!conn || ptt.disabled) return; 
+        muteMic(true); 
+        conn.send('TX_OFF'); 
+        document.getElementById('ledTx').classList.remove('tx'); 
+    };
+
+    // Events for all devices
+    ptt.addEventListener('mousedown', pttOn);
+    ptt.addEventListener('mouseup', pttOff);
+    ptt.addEventListener('touchstart', pttOn, {passive: false});
+    ptt.addEventListener('touchend', pttOff, {passive: false});
+
 </script>
-
 </body>
 </html>
