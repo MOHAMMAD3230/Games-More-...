@@ -5,22 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>TAC/COM-04 | CH-TUNER</title>
     
-    <!-- 
-        CSP via HTTP header only (not meta tag).
-        For GitHub Pages, create a "_headers" file in repo root:
-        
-        /index.html
-          Content-Security-Policy: default-src 'none'; script-src 'self' 'unsafe-inline' https://unpkg.com; connect-src https: wss: ws: stun: turn: turns:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'self'; form-action 'none';
-          X-Frame-Options: DENY
-          Referrer-Policy: no-referrer
-    -->
-    <meta name="referrer" content="no-referrer">
-    
+    <!-- Google Tag Manager -->
     <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
     new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
     j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
     })(window,document,'script','dataLayer','GTM-K98KWTPT');</script>
+    <!-- End Google Tag Manager -->
 
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
@@ -38,14 +29,7 @@
             height: 100vh; height: 100dvh; padding: 10px;
         }
 
-        #jsCheck {
-            position: fixed; top: 5px; left: 50%; transform: translateX(-50%);
-            background: #0f0; color: #000; font-size: 10px; padding: 2px 8px;
-            font-family: monospace; z-index: 99999; border-radius: 3px;
-            opacity: 1; transition: opacity 0.5s;
-        }
-        #jsCheck.hide { opacity: 0; pointer-events: none; }
-
+        /* ── DEVICE SCALING ── */
         .radio-container {
             width: 100%; max-width: 400px; 
             height: 100%; max-height: 950px;
@@ -53,6 +37,7 @@
             filter: drop-shadow(0 25px 50px rgba(0,0,0,0.9));
         }
 
+        /* DESKTOP TWEAKS */
         @media (min-width: 768px) {
             .radio-container { max-width: 440px; max-height: 920px; }
             .hud-bar, #output { font-size: 0.85rem !important; }
@@ -60,12 +45,14 @@
             .channel-box input, .sub-box select { font-size: 1.5rem !important; }
             .brand { font-size: 0.9rem !important; }
             .spacebar-hint { display: block !important; opacity: 0.5; }
+            /* Show spinners for desktop users */
             .channel-box input::-webkit-outer-spin-button,
             .channel-box input::-webkit-inner-spin-button { -webkit-appearance: auto !important; margin: 0; }
             .channel-box input { -moz-appearance: auto !important; }
             .btn-set:hover:not(:disabled), .btn-prog:hover { background: linear-gradient(180deg, #444, #222) !important; color: #aaa !important; }
         }
 
+        /* MOBILE TWEAKS */
         @media (max-width: 767px) {
             .radio-container { max-width: 100%; border-radius: 0; }
             .radio-body { border-radius: 0; border-left: none; border-right: none; }
@@ -91,7 +78,6 @@
             width: 22px; height: 22px; background: #111; border-radius: 50%;
             border: 3px solid #000; box-shadow: inset 0 2px 4px rgba(0,0,0,0.8), 0 1px 0 #333;
             display: flex; align-items: center; justify-content: center; z-index: 20;
-            pointer-events: none;
         }
         .top-led {
             width: 12px; height: 12px; border-radius: 50%; background: #1a0500;
@@ -130,17 +116,15 @@
             width: 46px; height: 46px; border-radius: 50%; cursor: pointer;
             background: radial-gradient(circle at 30% 30%, #aa2020, #500000);
             border: 3px solid #111; box-shadow: 0 4px 0 #220000, inset 0 2px 2px rgba(255,255,255,0.2);
-            transition: all 0.1s; position: relative; z-index: 30;
+            transition: all 0.1s; position: relative;
+            animation: pulsePower 2s infinite;
         }
-        .power-switch.on { 
-            background: radial-gradient(circle at 30% 30%, #30cc30, #004400); 
-            box-shadow: 0 4px 0 #002200, 0 0 15px rgba(57, 255, 20, 0.4); 
-        }
+        @keyframes pulsePower { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+        .power-switch.on { animation: none; background: radial-gradient(circle at 30% 30%, #30cc30, #004400); box-shadow: 0 4px 0 #002200, 0 0 15px rgba(57, 255, 20, 0.4); }
         .power-switch::after {
             content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             width: 0; height: 16px; border-left: 3px solid rgba(0,0,0,0.8);
             border-top: 9px solid transparent; border-bottom: 9px solid transparent;
-            pointer-events: none;
         }
         .power-switch:active { transform: translateY(3px) scale(0.95) !important; box-shadow: 0 1px 0 #000; }
 
@@ -161,6 +145,7 @@
         .bat-fill { height: 100%; width: 100%; background: #111; border-radius: 2px; transition: all 0.3s; }
         .bat-fill.active { background: var(--green); box-shadow: inset 0 0 3px #fff; }
 
+        /* ── SCREEN LOCK ── */
         .screen-bezel { 
             background: var(--inset); border-radius: 8px; padding: 8px;
             border: 3px solid #050505; box-shadow: inset 0 4px 12px rgba(0,0,0,1), 0 1px 0 #333; 
@@ -198,6 +183,7 @@
         #meter { width: 100%; height: 10px; background: #000; border: 1px solid #222; border-radius: 2px; position: relative; }
         #meter-fill { width: 0%; height: 100%; background: linear-gradient(90deg, var(--green) 0%, var(--amber) 80%, #f44 100%); transition: width 0.08s; border-radius: 2px; }
 
+        /* ── ISOLATED MID CONTROLS ── */
         .controls-mid { opacity: 0.2; pointer-events: none; transition: all 0.3s; flex-shrink: 0; }
         .controls-mid.active { opacity: 1; pointer-events: auto; }
         
@@ -290,7 +276,6 @@
     </style>
 </head>
 <body>
-    <div id="jsCheck">JS:FAIL</div>
     <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-K98KWTPT"
     height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
@@ -305,7 +290,7 @@
             <div class="z-content">
                 <div class="controls-top">
                     <div class="brand">TAC/COM-04</div>
-                    <div class="power-switch" id="powerBtn"></div>
+                    <div class="power-switch" id="powerBtn" onclick="togglePower()"></div>
                 </div>
 
                 <div class="indicator-strip">
@@ -342,19 +327,19 @@
                     <div class="channel-row">
                         <div class="channel-box">
                             <div class="ctrl-label">Channel</div>
-                            <input type="number" id="chanInput" value="1" min="1" max="999" disabled inputmode="numeric" autocomplete="off">
+                            <input type="number" id="chanInput" value="1" min="1" max="999" disabled>
                         </div>
                         <div class="sub-box">
                             <div class="ctrl-label">Grp</div>
-                            <select id="subChan" disabled autocomplete="off">
+                            <select id="subChan" disabled>
                                 <option value="A">A</option><option value="B">B</option>
                                 <option value="C">C</option><option value="D">D</option>
                             </select>
                         </div>
                     </div>
                     <div class="btn-action-row">
-                        <button class="btn-set" id="bootBtn" disabled>CONNECT</button>
-                        <button class="btn-prog" id="gearBtn" disabled>PROG</button>
+                        <button class="btn-set" id="bootBtn" onclick="initChannel()" disabled>CONNECT</button>
+                        <button class="btn-prog" id="gearBtn" onclick="toggleSettings()" disabled>PROG</button>
                     </div>
                 </div>
 
@@ -376,507 +361,287 @@
                 <div class="modal-title">PROGRAM MODE</div>
                 <div class="toggle-row">ROGER BEEP (END OF TX)<label class="toggle-switch"><input type="checkbox" id="togRoger" checked><span class="slider"></span></label></div>
                 <div class="toggle-row">VOX LED (REMOTE AUDIO)<label class="toggle-switch"><input type="checkbox" id="togVox" checked><span class="slider"></span></label></div>
-                <button class="btn-modal btn-exit" id="btnExitSettings">[ EXIT ]</button>
-                <button class="btn-modal btn-reset-sys" id="btnResetSys">DISCONNECT & RESET</button>
+                <button class="btn-modal btn-exit" onclick="toggleSettings()">[ EXIT ]</button>
+                <button class="btn-modal btn-reset-sys" onclick="fullReset()">DISCONNECT & RESET</button>
             </div>
         </div>
     </div>
 
 <script>
-document.getElementById('jsCheck').textContent = 'JS:OK';
-setTimeout(function() { document.getElementById('jsCheck').classList.add('hide'); }, 2000);
-
-document.addEventListener('DOMContentLoaded', function() {
-
-    var APP_PREFIX = "TACCOM4-";
-    var METERED_ICE_CONFIG = {
+    const APP_PREFIX = "TACCOM4-";
+    const METERED_ICE_CONFIG = {
         iceServers: [
             { urls: "stun:stun.relay.metered.ca:80" },
             { urls: "turn:global.relay.metered.ca:80", username: "ce97feaaa435bc128230c5bd", credential: "+qT5rVgsuGkqWX6o" },
             { urls: "turn:global.relay.metered.ca:80?transport=tcp", username: "ce97feaaa435bc128230c5bd", credential: "+qT5rVgsuGkqWX6o" },
             { urls: "turn:global.relay.metered.ca:443", username: "ce97feaaa435bc128230c5bd", credential: "+qT5rVgsuGkqWX6o" },
             { urls: "turns:global.relay.metered.ca:443?transport=tcp", username: "ce97feaaa435bc128230c5bd", credential: "+qT5rVgsuGkqWX6o" }
-        ], 
-        iceCandidatePoolSize: 10
+        ], iceCandidatePoolSize: 10
     };
 
-    var isPoweredOn = false, channelNum = null, subChan = 'A';
-    var peer = null, conn = null, activeCall = null, localStream = null;
-    var audioCtx, delayNode, analyser, speakerGain, remoteAnalyser;
-    var state = 'IDLE', myRole = null, scanTimer = null, attemptTimer = null, regTimer = null, scanCount = 0;
-
-    function sanitizeInput(val, maxLen) {
-        maxLen = maxLen || 3;
-        if (typeof val !== 'string') return '1';
-        return val.replace(/[^0-9]/g, '').substring(0, maxLen) || '1';
-    }
+    let isPoweredOn = false, channelNum = null, subChan = 'A';
+    let peer = null, conn = null, activeCall = null, localStream = null;
+    let audioCtx, delayNode, analyser, speakerGain, remoteAnalyser;
+    let state = 'IDLE', myRole = null, scanTimer = null, scanCount = 0;
 
     function updateChReadout() {
-        var num = sanitizeInput(document.getElementById('chanInput').value, 3);
-        var grp = document.getElementById('subChan').value;
-        document.getElementById('chReadout').textContent = 'CH ' + num.padStart(3, '0') + ' - GRP ' + grp;
+        const num = document.getElementById('chanInput').value || '0';
+        const grp = document.getElementById('subChan').value;
+        document.getElementById('chReadout').textContent = `CH ${String(num).padStart(3, '0')} - GRP ${grp}`;
     }
+    document.getElementById('chanInput').addEventListener('input', updateChReadout);
+    document.getElementById('subChan').addEventListener('change', updateChReadout);
 
     function togglePower() {
         isPoweredOn = !isPoweredOn;
-        var btn = document.getElementById('powerBtn');
-        var screen = document.getElementById('screen');
-        var offMsg = document.getElementById('offMsg');
-        var controls = document.getElementById('controlsMid');
-        var ptt = document.getElementById('pttBtn');
-        var gear = document.getElementById('gearBtn');
-        var inputs = document.querySelectorAll('#chanInput, #subChan');
+        const btn = document.getElementById('powerBtn'), screen = document.getElementById('screen');
+        const offMsg = document.getElementById('offMsg'), controls = document.getElementById('controlsMid');
+        const ptt = document.getElementById('pttBtn'), gear = document.getElementById('gearBtn');
+        const inputs = document.querySelectorAll('#chanInput, #subChan');
 
         if (isPoweredOn) {
-            btn.classList.add('on');
-            screen.classList.add('on');
-            offMsg.style.display = 'none';
-            controls.classList.add('active');
-            ptt.classList.add('active');
-            gear.classList.remove('active');
-            inputs.forEach(function(i) { i.disabled = false; });
+            btn.classList.add('on'); screen.classList.add('on'); offMsg.style.display = 'none';
+            controls.classList.add('active'); ptt.classList.add('active'); gear.classList.add('active');
+            inputs.forEach(i => i.disabled = false);
             document.getElementById('bootBtn').disabled = false;
             document.getElementById('topLed').className = 'top-led scan';
             updateChReadout();
-            log('SYSTEM BOOT...', '#39ff14');
-            setStatus('READY', 'warn');
-            playBootBeep();
+            log('SYSTEM BOOT...', '#39ff14'); setStatus('READY', 'warn'); playBootBeep();
         } else {
-            btn.classList.remove('on');
-            screen.classList.remove('on');
-            offMsg.style.display = 'block';
-            controls.classList.remove('active');
-            ptt.classList.remove('active');
-            gear.classList.remove('active');
-            inputs.forEach(function(i) { i.disabled = true; });
+            btn.classList.remove('on'); screen.classList.remove('on'); offMsg.style.display = 'block';
+            controls.classList.remove('active'); ptt.classList.remove('active'); gear.classList.remove('active');
+            inputs.forEach(i => i.disabled = true);
             document.getElementById('bootBtn').disabled = true;
-            document.getElementById('topLed').className = 'top-led';
-            resetIndicators();
-            fullReset(true);
+            document.getElementById('topLed').className = 'top-led'; resetIndicators(); fullReset(true);
         }
     }
 
     function resetIndicators() { updateSignalBars(0); document.getElementById('batLvl').classList.remove('active'); }
-
-    function updateSignalBars(count, type) {
-        type = type || 'active';
-        for (var i = 1; i <= 4; i++) {
-            var bar = document.getElementById('sig' + i);
-            bar.className = 'sig-dot';
-            if (state === 'LINKED' && i <= count) bar.classList.add(type);
-        }
-        var bat = document.getElementById('batLvl');
-        if (state === 'LINKED') bat.classList.add('active'); else bat.classList.remove('active');
+    function updateSignalBars(count, type = 'active') {
+        for(let i=1; i<=4; i++) { const bar = document.getElementById('sig'+i); bar.className = 'sig-dot'; if (state === 'LINKED' && i <= count) bar.classList.add(type); }
+        const bat = document.getElementById('batLvl'); if (state === 'LINKED') bat.classList.add('active'); else bat.classList.remove('active');
     }
 
-    function playBootBeep() { setTimeout(function() { playTone(800, 0.05); }, 100); setTimeout(function() { playTone(1200, 0.1); }, 200); }
-
-    function playTone(freq, dur) {
-        try {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            var o = audioCtx.createOscillator(), g = audioCtx.createGain();
-            o.frequency.value = freq; g.gain.value = 0.05;
-            o.connect(g); g.connect(audioCtx.destination); o.start();
-            g.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + dur);
-            o.stop(audioCtx.currentTime + dur + 0.05);
-        } catch (e) {}
+    function playBootBeep() { setTimeout(()=>playTone(800, 0.05), 100); setTimeout(()=>playTone(1200, 0.1), 200); }
+    function playTone(f, dur) {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.frequency.value = f; g.gain.value = 0.05; o.connect(g); g.connect(audioCtx.destination);
+        o.start(); g.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + dur); o.stop(audioCtx.currentTime + dur + 0.05);
     }
 
     function toggleSettings() { 
-        var modal = document.getElementById('settingsModal');
-        modal.classList.toggle('open'); 
-        if (modal.classList.contains('open')) playTone(600, 0.05);
+        document.getElementById('settingsModal').classList.toggle('open'); 
+        if (document.getElementById('settingsModal').classList.contains('open')) playTone(600, 0.05);
     }
 
-    function getPeerOptions(id) { var o = { config: METERED_ICE_CONFIG, debug: 0, secure: true }; if (id) o.id = id; return o; }
+    function getPeerOptions(id) { const o = { config: METERED_ICE_CONFIG, debug: 0 }; if(id) o.id = id; return o; }
     function getFullChannelId() { return APP_PREFIX + channelNum + subChan; }
 
-    function log(msg, color) {
+    function log(msg, color = '#ffb000') {
         if (!isPoweredOn) return;
-        color = color || '#ffb000';
-        var div = document.createElement('div'); div.className = 'log-line'; div.style.color = color;
-        div.textContent = '> ' + msg;
-        var out = document.getElementById('output'); out.appendChild(div); out.scrollTop = out.scrollHeight;
+        const div = document.createElement('div'); div.className = 'log-line'; div.style.color = color; div.textContent = '> ' + msg;
+        const out = document.getElementById('output'); out.appendChild(div); out.scrollTop = out.scrollHeight;
         while (out.children.length > 80) out.removeChild(out.firstChild);
     }
 
-    function setStatus(t, c) { var e = document.getElementById('stat'); e.textContent = t; e.className = 'hud-val' + (c ? ' ' + c : ''); }
-    function setScanLed(on) { var el = document.getElementById('ledScan'); el.classList.toggle('blink', on); el.classList.toggle('on', on); }
+    function setStatus(t, c) { const e = document.getElementById('stat'); e.textContent = t; e.className = 'hud-val' + (c ? ' ' + c : ''); }
+    function setScanLed(on) { document.getElementById('ledScan').classList.toggle('blink', on); document.getElementById('ledScan').classList.toggle('on', on); }
+    
+    function updateTypeDisplay(type) {
+        const el = document.getElementById('routeType');
+        const map = { host: 'LOCAL', srflx: 'P2P', relay: 'RELAY', prflx: 'P2P' };
+        el.textContent = map[type] || type || '--'; el.className = 'hud-val ok';
+        if(type === 'srflx' || type === 'prflx') updateSignalBars(4); 
+        if(type === 'relay') updateSignalBars(2, 'warn');
+    }
+
     function vibrate(ms) { if (navigator.vibrate) navigator.vibrate(ms); }
 
-    function updateTypeDisplay(type) {
-        var el = document.getElementById('routeType');
-        var map = { host: 'LOCAL', srflx: 'P2P', relay: 'RELAY', prflx: 'P2P' };
-        el.textContent = map[type] || type || '--'; el.className = 'hud-val ok';
-        if (type === 'srflx' || type === 'prflx') updateSignalBars(4);
-        if (type === 'relay') updateSignalBars(2, 'warn');
-    }
-
-    function clearAllTimers() {
-        if (scanTimer) { clearTimeout(scanTimer); scanTimer = null; }
-        if (attemptTimer) { clearTimeout(attemptTimer); attemptTimer = null; }
-        if (regTimer) { clearTimeout(regTimer); regTimer = null; }
-    }
-
-    /* ══════════════════════════════════════════════════════
-       STATE MACHINE — THE CRITICAL FIX
-       SCANNING now correctly transitions to ATTEMPTING,
-       which then calls executeAttempt().
-       Previously, SCANNING called executeAttempt() directly,
-       but executeAttempt() required state === 'ATTEMPTING',
-       creating an infinite loop that never connected.
-       ══════════════════════════════════════════════════════ */
     function transitionState(newState) {
         state = newState;
-        
         if (newState === 'SCANNING') {
-            clearAllTimers();
-            setScanLed(true);
-            setStatus('SCANNING', 'warn');
-            document.getElementById('topLed').className = 'top-led scan';
-            updateSignalBars(0);
+            if (scanTimer) { clearTimeout(scanTimer); clearInterval(scanTimer); scanTimer = null; }
+            setScanLed(true); setStatus('SCANNING', 'warn');
+            document.getElementById('topLed').className = 'top-led scan'; updateSignalBars(0);
             scanCount++;
-            if (scanCount === 1 || scanCount % 5 === 0) {
-                log('SCAN #' + scanCount + ' [' + myRole + ']', '#555');
-            }
-            /* FIX: Transition to ATTEMPTING after delay, instead of calling executeAttempt directly */
-            scanTimer = setTimeout(function() {
-                if (state === 'SCANNING' && isPoweredOn) {
-                    transitionState('ATTEMPTING');
-                }
-            }, 2500);
+            if (scanCount === 1 || scanCount % 5 === 0) log('SCAN #' + scanCount + ' [' + myRole + ']', '#333');
+            scanTimer = setTimeout(() => executeAttempt(), 2500);
         }
-        
-        if (newState === 'ATTEMPTING') {
-            setStatus('ATTEMPTING', 'warn');
-            log('PINGING ' + getFullChannelId() + '...', '#00d4ff');
-            executeAttempt();
-        }
-        
+        if (newState === 'ATTEMPTING') executeAttempt();
         if (newState === 'LINKED') {
-            clearAllTimers();
-            setScanLed(false);
-            setStatus('CONNECTED', 'ok');
+            if (scanTimer) { clearTimeout(scanTimer); clearInterval(scanTimer); scanTimer = null; }
+            setScanLed(false); setStatus('CONNECTED', 'ok');
             document.getElementById('topLed').className = 'top-led link';
             document.getElementById('ledNet').classList.add('on');
             document.getElementById('pttBtn').disabled = false;
             document.getElementById('pttBtn').textContent = 'TRANSMIT';
-            document.getElementById('gearBtn').classList.add('active');
             log('VOICE LINK ESTABLISHED', '#39ff14');
             vibrate(200);
         }
     }
 
     function executeAttempt() {
-        if (state !== 'ATTEMPTING' || !peer || peer.destroyed || !isPoweredOn) {
-            if (isPoweredOn && state === 'ATTEMPTING') transitionState('SCANNING');
-            return;
-        }
-
-        /* Don't try to connect to yourself (HOST optimization) */
-        var targetId = getFullChannelId();
-        if (peer.id === targetId) {
-            /* I own this channel ID, just wait for incoming. Go back to scanning. */
-            transitionState('SCANNING');
-            return;
-        }
-
-        /* Clean up any previous failed attempt */
-        if (conn && !conn.open) try { conn.close(); } catch(e) {}
-        conn = null;
-        if (activeCall) try { activeCall.close(); } catch(e) {}
-        activeCall = null;
-
-        /* Attempt data connection */
-        try {
-            conn = peer.connect(targetId, { reliable: true });
-            setupConnHandlers(conn);
-        } catch(e) {
-            transitionState('SCANNING');
-            return;
-        }
-
-        /* Attempt media call */
-        try {
-            if (localStream) {
-                activeCall = peer.call(targetId, localStream);
-                if (activeCall) {
-                    activeCall.on('stream', function(stream) { attachStream(stream); });
-                    (function(call) {
-                        setTimeout(function() {
-                            if (call && call.peerConnection) monitorIce(call.peerConnection);
-                        }, 1000);
-                    })(activeCall);
-                }
-            }
-        } catch(e) {}
-
-        /* If neither data nor media connected after 10s, try again */
-        attemptTimer = setTimeout(function() {
-            if (state === 'ATTEMPTING' && isPoweredOn) {
-                if (conn && !conn.open) try { conn.close(); } catch(e) {}
-                if (activeCall) try { activeCall.close(); } catch(e) {}
-                log('NO RESPONSE, RE-SCAN', '#555');
-                transitionState('SCANNING');
-            }
-        }, 10000);
+        if (state !== 'ATTEMPTING' || !peer || peer.destroyed || !isPoweredOn) { if(isPoweredOn) transitionState('SCANNING'); return; }
+        if (conn && !conn.open) try { conn.close(); } catch(e){} conn = null;
+        if (activeCall) try { activeCall.close(); } catch(e){} activeCall = null;
+        const targetId = getFullChannelId();
+        try { conn = peer.connect(targetId, { reliable: true }); setupConnHandlers(conn); } catch(e) { transitionState('SCANNING'); return; }
+        try { if (localStream) { activeCall = peer.call(targetId, localStream); if (activeCall) { activeCall.on('stream', stream => attachStream(stream)); setTimeout(() => { if (activeCall && activeCall.peerConnection) monitorIce(activeCall.peerConnection); }, 500); } } } catch(e) {}
+        setTimeout(() => { if (state === 'ATTEMPTING' && isPoweredOn) { if (conn && !conn.open) try { conn.close(); } catch(e){} if (activeCall) try { activeCall.close(); } catch(e){} transitionState('SCANNING'); } }, 12000);
     }
 
     function monitorIce(pc) {
         if (!pc) return;
-        pc.oniceconnectionstatechange = function() {
-            var s = pc.iceConnectionState;
-            log('ICE: ' + s, s === 'connected' || s === 'completed' ? '#39ff14' : s === 'failed' ? '#f44' : '#555');
-            if (s === 'failed') document.getElementById('topLed').className = 'top-led err';
-            if (s === 'connected' || s === 'completed') updateSignalBars(4);
-        };
-        setInterval(function() {
-            if (!pc || pc.connectionState === 'closed') return;
-            pc.getStats().then(function(stats) {
-                stats.forEach(function(r) {
-                    if (r.type === 'candidate-pair' && r.state === 'succeeded') {
-                        var l = stats.get(r.localCandidateId);
-                        if (l && l.candidateType) updateTypeDisplay(l.candidateType);
-                    }
-                });
-            }).catch(function() {});
-        }, 3000);
+        pc.oniceconnectionstatechange = () => { const s = pc.iceConnectionState; log('ICE: ' + s, s === 'connected' ? '#39ff14' : s === 'failed' ? '#f44' : '#555'); if(s === 'failed') document.getElementById('topLed').className = 'top-led err'; };
+        setInterval(async () => { if (!pc || pc.connectionState === 'closed') return; try { const stats = await pc.getStats(); stats.forEach(r => { if (r.type === 'candidate-pair' && r.state === 'succeeded') { const l = stats.get(r.localCandidateId); if (l && l.candidateType) updateTypeDisplay(l.candidateType); } }); } catch(e) {} }, 3000);
     }
 
-    /* ── Channel init ── */
     async function initChannel() {
         if (!isPoweredOn) return;
-        var rawNum = sanitizeInput(document.getElementById('chanInput').value, 3);
+        const rawNum = document.getElementById('chanInput').value.trim();
         subChan = document.getElementById('subChan').value;
         if (!rawNum || rawNum < 1) { log('INVALID FREQ', '#f44'); return; }
-
-        channelNum = rawNum;
-        myRole = 'HOST';
-        scanCount = 0;
+        
+        channelNum = rawNum; myRole = 'HOST'; scanCount = 0;
         document.getElementById('bootBtn').disabled = true;
         document.getElementById('bootBtn').textContent = 'SYNCING...';
         log('ACCESSING MIC...', '#00d4ff');
-
+        
         try {
-            localStream = await navigator.mediaDevices.getUserMedia({
-                audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true }
-            });
+            localStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true } });
             muteMic(true);
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
             speakerGain = audioCtx.createGain(); speakerGain.gain.value = 1;
             delayNode = audioCtx.createDelay(5.0); delayNode.delayTime.value = 1.5;
             analyser = audioCtx.createAnalyser(); analyser.fftSize = 256;
             remoteAnalyser = audioCtx.createAnalyser(); remoteAnalyser.fftSize = 256;
             delayNode.connect(analyser); analyser.connect(speakerGain); speakerGain.connect(audioCtx.destination);
-
-            document.getElementById('curFreq').textContent = rawNum.padStart(3, '0') + subChan;
+            
+            document.getElementById('curFreq').textContent = String(rawNum).padStart(3, '0') + subChan;
             updateMeter(); updateVox();
-            log('TUNING CH-' + rawNum.padStart(3, '0') + ' GRP-' + subChan, '#00d4ff');
+            log('TUNING CH-' + String(rawNum).padStart(3, '0') + ' GRP-' + subChan, '#00d4ff');
             initPeer(getFullChannelId());
-        } catch (e) {
-            log('MIC ERR: ' + e.message, '#f44');
-            document.getElementById('bootBtn').disabled = false;
-            document.getElementById('bootBtn').textContent = 'CONNECT';
-        }
+        } catch (e) { log('MIC ERR', '#f44'); document.getElementById('bootBtn').disabled = false; document.getElementById('bootBtn').textContent = 'CONNECT'; }
     }
 
     function initPeer(myId) {
-        cleanupConnections();
-        state = 'REGISTERING';
-        setStatus('REG', 'warn');
-        log('REGISTERING SIGNAL...', '#555');
-
-        /* Timeout: if PeerJS server doesn't respond in 15s, warn user */
-        regTimer = setTimeout(function() {
-            if (state === 'REGISTERING') {
-                log('SIGNAL SERVER TIMEOUT', '#f44');
-                log('CHECK NETWORK / FIREWALL', '#f44');
-                setStatus('SIG FAIL', 'err');
-                document.getElementById('topLed').className = 'top-led err';
-            }
-        }, 15000);
-
+        cleanupConnections(); state = 'REGISTERING'; setStatus('REG', 'warn');
         peer = new Peer(getPeerOptions(myId));
-
-        peer.on('open', function(id) {
-            if (regTimer) { clearTimeout(regTimer); regTimer = null; }
-            log('REGISTERED [' + id + ']', '#39ff14');
-            transitionState('SCANNING');
-        });
-
-        peer.on('connection', function(c) {
-            log('HANDSHAKE IN FROM ' + c.peer, '#00d4ff');
-            clearAllTimers();
-            setScanLed(false);
-            /* Kill any outgoing attempt — we got an incoming one */
-            if (conn && !conn.open) try { conn.close(); } catch(e) {}
-            if (activeCall) try { activeCall.close(); } catch(e) {}
-            activeCall = null;
-            conn = c;
-            setupConnHandlers(c);
-        });
-
-        peer.on('call', function(call) {
-            log('VOICE IN FROM ' + call.peer, '#00d4ff');
-            if (activeCall) try { activeCall.close(); } catch(e) {}
-            activeCall = call;
-            call.answer(localStream);
-            call.on('stream', function(stream) { attachStream(stream); });
-            (function(c) {
-                setTimeout(function() { if (c.peerConnection) monitorIce(c.peerConnection); }, 1000);
-            })(call);
-        });
-
-        peer.on('disconnected', function() {
-            log('SIGNAL LOST', '#ffb000');
-            setStatus('RECONN', 'err');
-            if (peer && !peer.destroyed) try { peer.reconnect(); } catch(e) {}
-        });
-
-        peer.on('error', function(err) {
-            if (err.type === 'unavailable-id') {
-                log('CH OCCUPIED -> CALLER MODE', '#ffb000');
-                if (peer) try { peer.destroy(); } catch(e) {}
-                peer = null;
-                myRole = 'CALLER';
-                setTimeout(function() { initPeer(null); }, 500);
-            } else if (err.type === 'peer-unavailable') {
-                /* Expected — target not online yet, will retry on next scan cycle */
-            } else if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error' || err.type === 'socket-closed' || err.type === 'unreachable-peer') {
-                log('SIGNAL ERR: ' + err.type, '#f44');
-                setStatus('SIG ERR', 'err');
-                document.getElementById('topLed').className = 'top-led err';
-            } else if (err.type === 'webrtc') {
-                log('WEBRTC ERR: ' + (err.message || ''), '#f44');
-            } else {
-                log('ERR: ' + err.type, '#f44');
-            }
+        peer.on('open', () => { log('REGISTERED', '#39ff14'); transitionState('SCANNING'); });
+        peer.on('connection', c => { log('HANDSHAKE IN', '#00d4ff'); if(scanTimer){clearTimeout(scanTimer);clearInterval(scanTimer);scanTimer=null;} setScanLed(false); if(conn&&!conn.open)try{conn.close();}catch(e){} conn=c; setupConnHandlers(c); });
+        peer.on('call', call => { if(activeCall)try{activeCall.close();}catch(e){} activeCall=call; call.answer(localStream); call.on('stream', stream => attachStream(stream)); setTimeout(()=>{if(call.peerConnection)monitorIce(call.peerConnection);}, 500); });
+        peer.on('disconnected', () => { log('SIGNAL LOST', 'var(--amber)'); setStatus('RECONN', 'err'); if(peer&&!peer.destroyed)try{peer.reconnect();}catch(e){} });
+        peer.on('error', err => {
+            if (err.type === 'unavailable-id') { log('CH TAKEN -> CALLER', 'var(--amber)'); if(peer)try{peer.destroy();}catch(e){} peer=null; myRole='CALLER'; setTimeout(()=>initPeer(null), 500); }
+            else if (err.type === 'peer-unavailable') {}
+            else if (['network', 'server-error', 'socket-error', 'socket-closed'].includes(err.type)) log('SIGNAL ERR', '#f44');
         });
     }
 
     function setupConnHandlers(c) {
-        if (!c) return;
-        c.on('open', function() {
-            log('DATA LINK OPEN', '#39ff14');
-            transitionState('LINKED');
-        });
-        c.on('data', function(data) {
-            if (typeof data !== 'string') return;
+        if(!c) return;
+        c.on('open', () => transitionState('LINKED'));
+        c.on('data', data => {
             if (data === 'TX_ON') document.getElementById('ledTx').classList.add('tx');
-            if (data === 'TX_OFF') {
-                document.getElementById('ledTx').classList.remove('tx');
-                if (document.getElementById('togRoger').checked) {
-                    setTimeout(function() { playTone(600, 0.1); }, 100);
-                    setTimeout(function() { playTone(900, 0.1); }, 200);
-                }
-            }
+            if (data === 'TX_OFF') { document.getElementById('ledTx').classList.remove('tx'); if (document.getElementById('togRoger').checked) { setTimeout(()=>playTone(600,0.1),100); setTimeout(()=>playTone(900,0.1),200); } }
         });
-        c.on('close', function() {
+        c.on('close', () => {
             if (state === 'LINKED') {
-                log('LINK LOST', '#f44');
-                document.getElementById('ledNet').classList.remove('on');
-                document.getElementById('pttBtn').disabled = true;
-                document.getElementById('pttBtn').textContent = 'TRANSMIT';
-                document.getElementById('gearBtn').classList.remove('active');
-                setStatus('LOST', 'err');
-                scanCount = 0;
-                resetIndicators();
+                log('LINK LOST', '#f44'); document.getElementById('ledNet').classList.remove('on'); 
+                document.getElementById('pttBtn').disabled = true; document.getElementById('pttBtn').textContent = 'TRANSMIT';
+                setStatus('LOST', 'err'); scanCount = 0; resetIndicators();
                 document.getElementById('topLed').className = 'top-led scan';
-                /* Retry after 2s */
-                setTimeout(function() {
-                    if (peer && !peer.destroyed && channelNum && isPoweredOn) {
-                        state = 'IDLE';
-                        transitionState('SCANNING');
-                    }
-                }, 2000);
+                setTimeout(() => { if(peer&&!peer.destroyed&&channelNum&&state==='LINKED'){state='IDLE';transitionState('SCANNING');} }, 2000);
             }
         });
-        c.on('error', function(err) { log('DATA ERR: ' + err, '#f44'); });
     }
 
     function attachStream(stream) {
         document.getElementById('remoteAudio').srcObject = stream;
-        try {
-            audioCtx.createMediaStreamSource(stream).connect(remoteAnalyser);
-            remoteAnalyser.connect(delayNode);
-            log('AUDIO SYNCED', '#39ff14');
-            playTone(400, 0.15);
-        } catch(e) {}
+        try { audioCtx.createMediaStreamSource(stream).connect(remoteAnalyser); remoteAnalyser.connect(delayNode); log('AUDIO SYNCED', '#39ff14'); } catch(e) {}
     }
 
-    function muteMic(m) {
-        if (localStream) localStream.getAudioTracks().forEach(function(t) { t.enabled = !m; });
-        if (speakerGain) speakerGain.gain.setValueAtTime(m ? 1 : 0, audioCtx.currentTime);
-    }
+    function muteMic(m) { if(localStream) localStream.getAudioTracks().forEach(t => t.enabled = !m); if(speakerGain) speakerGain.gain.setValueAtTime(m?1:0, audioCtx.currentTime); }
 
     function updateMeter() {
         if (!analyser) { requestAnimationFrame(updateMeter); return; }
-        var d = new Uint8Array(analyser.frequencyBinCount); analyser.getByteFrequencyData(d);
-        var sum = 0; for (var i = 0; i < d.length; i++) sum += d[i];
-        document.getElementById('meter-fill').style.width = Math.min(100, (sum / d.length) * 4) + '%';
+        const d = new Uint8Array(analyser.frequencyBinCount); analyser.getByteFrequencyData(d);
+        document.getElementById('meter-fill').style.width = Math.min(100, (d.reduce((a,b)=>a+b,0)/d.length) * 4) + '%';
         requestAnimationFrame(updateMeter);
     }
 
     function updateVox() {
         if (!remoteAnalyser) { requestAnimationFrame(updateVox); return; }
-        var rxLed = document.getElementById('ledRx');
-        if (!document.getElementById('togVox').checked || state !== 'LINKED') {
-            rxLed.classList.remove('rx'); requestAnimationFrame(updateVox); return;
-        }
-        var d = new Uint8Array(remoteAnalyser.frequencyBinCount); remoteAnalyser.getByteFrequencyData(d);
-        var sum = 0; for (var i = 0; i < d.length; i++) sum += d[i];
-        if ((sum / d.length) > 10) rxLed.classList.add('rx'); else rxLed.classList.remove('rx');
+        const rxLed = document.getElementById('ledRx');
+        if (!document.getElementById('togVox').checked || state !== 'LINKED') { rxLed.classList.remove('rx'); requestAnimationFrame(updateVox); return; }
+        const d = new Uint8Array(remoteAnalyser.frequencyBinCount); remoteAnalyser.getByteFrequencyData(d);
+        if ((d.reduce((a,b)=>a+b,0)/d.length) > 10) rxLed.classList.add('rx'); else rxLed.classList.remove('rx');
         requestAnimationFrame(updateVox);
     }
     requestAnimationFrame(updateVox);
 
-    /* ── PTT ── */
-    var pttBtn = document.getElementById('pttBtn');
-    function isInputFocused() { var t = document.activeElement ? document.activeElement.tagName : ''; return t === 'INPUT' || t === 'SELECT' || t === 'TEXTAREA'; }
-    function pttOn() {
-        if (!conn || !conn.open || pttBtn.disabled || isInputFocused()) return;
-        muteMic(false); try { conn.send('TX_ON'); } catch(e) {}
-        document.getElementById('ledTx').classList.add('tx'); pttBtn.textContent = 'TX ACTIVE';
-        playTone(1200, 0.05); vibrate(50);
-    }
-    function pttOff() {
-        if (!conn || !conn.open || pttBtn.disabled) return;
-        muteMic(true); try { conn.send('TX_OFF'); } catch(e) {}
-        document.getElementById('ledTx').classList.remove('tx'); pttBtn.textContent = 'TRANSMIT'; vibrate(30);
+    // ── PTT LOGIC (Mouse, Touch, Spacebar) ──
+    const pttBtn = document.getElementById('pttBtn');
+    
+    // Guard to prevent Spacebar triggering if typing in inputs
+    function isInputFocused() {
+        const tag = document.activeElement?.tagName;
+        return tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA';
     }
 
-    pttBtn.addEventListener('mousedown', function(e) { e.preventDefault(); pttOn(); });
-    pttBtn.addEventListener('mouseup', function(e) { e.preventDefault(); pttOff(); });
-    pttBtn.addEventListener('mouseleave', function() { if (pttBtn.matches(':active')) pttOff(); });
-    pttBtn.addEventListener('touchstart', function(e) { e.preventDefault(); pttOn(); }, { passive: false });
-    pttBtn.addEventListener('touchend', function(e) { e.preventDefault(); pttOff(); }, { passive: false });
-    pttBtn.addEventListener('touchcancel', function(e) { e.preventDefault(); pttOff(); }, { passive: false });
-    document.addEventListener('keydown', function(e) { if (e.code === 'Space' && !e.repeat && !isInputFocused()) { e.preventDefault(); pttOn(); } });
-    document.addEventListener('keyup', function(e) { if (e.code === 'Space' && !isInputFocused()) { e.preventDefault(); pttOff(); } });
+    function pttOn() { 
+        if (!conn || !conn.open || pttBtn.disabled || isInputFocused()) return; 
+        muteMic(false); try { conn.send('TX_ON'); } catch(e){} 
+        document.getElementById('ledTx').classList.add('tx'); 
+        pttBtn.textContent = 'TX ACTIVE'; playTone(1200, 0.05); vibrate(50); 
+    }
+    function pttOff() { 
+        if (!conn || !conn.open || pttBtn.disabled) return; 
+        muteMic(true); try { conn.send('TX_OFF'); } catch(e){} 
+        document.getElementById('ledTx').classList.remove('tx'); 
+        pttBtn.textContent = 'TRANSMIT'; vibrate(30); 
+    }
 
-    /* ── Cleanup ── */
+    pttBtn.onmousedown = pttOn; pttBtn.onmouseup = pttOff; 
+    pttBtn.onmouseleave = () => { if (pttBtn.matches(':active')) pttOff(); };
+    pttBtn.addEventListener('touchstart', e => { e.preventDefault(); pttOn(); }, { passive: false });
+    pttBtn.addEventListener('touchend', e => { e.preventDefault(); pttOff(); }, { passive: false });
+    pttBtn.addEventListener('touchcancel', e => { e.preventDefault(); pttOff(); }, { passive: false });
+
+    // Desktop Spacebar Support
+    document.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' && !e.repeat) {
+            e.preventDefault(); // Prevent page scrolling
+            pttOn();
+        }
+    });
+    document.addEventListener('keyup', (e) => {
+        if (e.code === 'Space') {
+            e.preventDefault();
+            pttOff();
+        }
+    });
+
     function cleanupConnections() {
-        clearAllTimers();
-        if (activeCall) try { activeCall.close(); } catch(e) {} activeCall = null;
-        if (conn) try { conn.close(); } catch(e) {} conn = null;
+        if (scanTimer) { clearTimeout(scanTimer); clearInterval(scanTimer); scanTimer = null; }
+        if (activeCall) try { activeCall.close(); } catch(e){} activeCall = null;
+        if (conn) try { conn.close(); } catch(e){} conn = null;
         setScanLed(false);
-        ['ledNet', 'ledTx', 'ledRx'].forEach(function(id) { document.getElementById(id).className = 'led'; });
+        ['ledNet', 'ledTx', 'ledRx'].forEach(id => document.getElementById(id).className = 'led');
         document.getElementById('pttBtn').disabled = true;
     }
 
-    function fullReset(silent) {
+    function fullReset(silent = false) {
         cleanupConnections();
-        if (peer) try { peer.destroy(); } catch(e) {} peer = null;
-        if (localStream) { localStream.getTracks().forEach(function(t) { t.stop(); }); localStream = null; }
-        if (!isPoweredOn && audioCtx) { try { audioCtx.close(); } catch(e) {} audioCtx = null; }
+        if (peer) try { peer.destroy(); } catch(e){} peer = null;
+        if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+        if (!isPoweredOn && audioCtx) { try { audioCtx.close(); } catch(e){} audioCtx = null; }
         channelNum = null; myRole = null; state = 'IDLE'; scanCount = 0;
         document.getElementById('bootBtn').disabled = !isPoweredOn;
         document.getElementById('bootBtn').textContent = 'CONNECT';
         document.getElementById('curFreq').textContent = '---';
         document.getElementById('pttBtn').textContent = 'TRANSMIT';
-        document.getElementById('gearBtn').classList.remove('active');
         setStatus(isPoweredOn ? 'READY' : 'OFF', isPoweredOn ? 'warn' : '');
         document.getElementById('routeType').textContent = '---';
         document.getElementById('routeType').className = 'hud-val';
@@ -886,18 +651,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!silent) document.getElementById('output').innerHTML = '<div class="log-line">> SYSTEM RESET.</div>';
         else document.getElementById('output').innerHTML = '';
     }
-
-    /* ── Wire events ── */
-    document.getElementById('powerBtn').addEventListener('click', togglePower);
-    document.getElementById('bootBtn').addEventListener('click', initChannel);
-    document.getElementById('gearBtn').addEventListener('click', toggleSettings);
-    document.getElementById('btnExitSettings').addEventListener('click', toggleSettings);
-    document.getElementById('btnResetSys').addEventListener('click', function() { fullReset(false); });
-    document.getElementById('chanInput').addEventListener('input', updateChReadout);
-    document.getElementById('subChan').addEventListener('change', updateChReadout);
-
-    console.log('[TACCOM4] Ready. Power button:', document.getElementById('powerBtn'));
-});
 </script>
 </body>
 </html>
