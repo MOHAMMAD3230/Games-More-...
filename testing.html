@@ -6,17 +6,12 @@
     <title>TAC/COM-04 | CH-TUNER</title>
     
     <!-- 
-        SECURITY: CSP removed from here.
-        Browsers often block inline <script> blocks when CSP is in a <meta> tag,
-        even with 'unsafe-inline'. This is a known limitation.
-        
-        FOR GITHUB PAGES: Create a file called "_headers" (no extension) in your
-        repo root with this content to get real CSP via HTTP headers:
+        CSP via HTTP header only (not meta tag).
+        For GitHub Pages, create a "_headers" file in repo root:
         
         /index.html
           Content-Security-Policy: default-src 'none'; script-src 'self' 'unsafe-inline' https://unpkg.com; connect-src https: wss: ws: stun: turn: turns:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'self'; form-action 'none';
           X-Frame-Options: DENY
-          X-Content-Type-Options: nosniff
           Referrer-Policy: no-referrer
     -->
     <meta name="referrer" content="no-referrer">
@@ -43,7 +38,6 @@
             height: 100vh; height: 100dvh; padding: 10px;
         }
 
-        /* JS health check - disappears after 2 seconds if script is running */
         #jsCheck {
             position: fixed; top: 5px; left: 50%; transform: translateX(-50%);
             background: #0f0; color: #000; font-size: 10px; padding: 2px 8px;
@@ -296,7 +290,6 @@
     </style>
 </head>
 <body>
-    <!-- JS HEALTH CHECK: If you see "JS:OK" flash at top, script is executing -->
     <div id="jsCheck">JS:FAIL</div>
     <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-K98KWTPT"
     height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
@@ -390,11 +383,9 @@
     </div>
 
 <script>
-/* ── Immediate JS health check ── */
 document.getElementById('jsCheck').textContent = 'JS:OK';
 setTimeout(function() { document.getElementById('jsCheck').classList.add('hide'); }, 2000);
 
-/* ── Wait for DOM to be fully ready ── */
 document.addEventListener('DOMContentLoaded', function() {
 
     var APP_PREFIX = "TACCOM4-";
@@ -412,7 +403,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var isPoweredOn = false, channelNum = null, subChan = 'A';
     var peer = null, conn = null, activeCall = null, localStream = null;
     var audioCtx, delayNode, analyser, speakerGain, remoteAnalyser;
-    var state = 'IDLE', myRole = null, scanTimer = null, scanCount = 0;
+    var state = 'IDLE', myRole = null, scanTimer = null, attemptTimer = null, regTimer = null, scanCount = 0;
 
     function sanitizeInput(val, maxLen) {
         maxLen = maxLen || 3;
@@ -426,9 +417,6 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('chReadout').textContent = 'CH ' + num.padStart(3, '0') + ' - GRP ' + grp;
     }
 
-    /* ═══════════════════════════════════════
-       POWER BUTTON — the core fix
-       ═══════════════════════════════════════ */
     function togglePower() {
         isPoweredOn = !isPoweredOn;
         var btn = document.getElementById('powerBtn');
@@ -468,10 +456,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function resetIndicators() { 
-        updateSignalBars(0); 
-        document.getElementById('batLvl').classList.remove('active'); 
-    }
+    function resetIndicators() { updateSignalBars(0); document.getElementById('batLvl').classList.remove('active'); }
 
     function updateSignalBars(count, type) {
         type = type || 'active';
@@ -481,26 +466,18 @@ document.addEventListener('DOMContentLoaded', function() {
             if (state === 'LINKED' && i <= count) bar.classList.add(type);
         }
         var bat = document.getElementById('batLvl');
-        if (state === 'LINKED') bat.classList.add('active'); 
-        else bat.classList.remove('active');
+        if (state === 'LINKED') bat.classList.add('active'); else bat.classList.remove('active');
     }
 
-    function playBootBeep() { 
-        setTimeout(function() { playTone(800, 0.05); }, 100); 
-        setTimeout(function() { playTone(1200, 0.1); }, 200); 
-    }
+    function playBootBeep() { setTimeout(function() { playTone(800, 0.05); }, 100); setTimeout(function() { playTone(1200, 0.1); }, 200); }
 
     function playTone(freq, dur) {
         try {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            var o = audioCtx.createOscillator();
-            var g = audioCtx.createGain();
-            o.frequency.value = freq;
-            g.gain.value = 0.05;
-            o.connect(g);
-            g.connect(audioCtx.destination);
-            o.start();
+            var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+            o.frequency.value = freq; g.gain.value = 0.05;
+            o.connect(g); g.connect(audioCtx.destination); o.start();
             g.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + dur);
             o.stop(audioCtx.currentTime + dur + 0.05);
         } catch (e) {}
@@ -512,66 +489,74 @@ document.addEventListener('DOMContentLoaded', function() {
         if (modal.classList.contains('open')) playTone(600, 0.05);
     }
 
-    function getPeerOptions(id) { 
-        var o = { config: METERED_ICE_CONFIG, debug: 0, secure: true }; 
-        if (id) o.id = id; 
-        return o; 
-    }
-
+    function getPeerOptions(id) { var o = { config: METERED_ICE_CONFIG, debug: 0, secure: true }; if (id) o.id = id; return o; }
     function getFullChannelId() { return APP_PREFIX + channelNum + subChan; }
 
     function log(msg, color) {
         if (!isPoweredOn) return;
         color = color || '#ffb000';
-        var div = document.createElement('div'); 
-        div.className = 'log-line'; 
-        div.style.color = color; 
-        div.textContent = '> ' + msg; 
-        var out = document.getElementById('output'); 
-        out.appendChild(div); 
-        out.scrollTop = out.scrollHeight;
+        var div = document.createElement('div'); div.className = 'log-line'; div.style.color = color;
+        div.textContent = '> ' + msg;
+        var out = document.getElementById('output'); out.appendChild(div); out.scrollTop = out.scrollHeight;
         while (out.children.length > 80) out.removeChild(out.firstChild);
     }
 
-    function setStatus(t, c) { 
-        var e = document.getElementById('stat'); 
-        e.textContent = t; 
-        e.className = 'hud-val' + (c ? ' ' + c : ''); 
-    }
+    function setStatus(t, c) { var e = document.getElementById('stat'); e.textContent = t; e.className = 'hud-val' + (c ? ' ' + c : ''); }
+    function setScanLed(on) { var el = document.getElementById('ledScan'); el.classList.toggle('blink', on); el.classList.toggle('on', on); }
+    function vibrate(ms) { if (navigator.vibrate) navigator.vibrate(ms); }
 
-    function setScanLed(on) { 
-        var el = document.getElementById('ledScan');
-        el.classList.toggle('blink', on); 
-        el.classList.toggle('on', on); 
-    }
-    
     function updateTypeDisplay(type) {
         var el = document.getElementById('routeType');
         var map = { host: 'LOCAL', srflx: 'P2P', relay: 'RELAY', prflx: 'P2P' };
-        el.textContent = map[type] || type || '--'; 
-        el.className = 'hud-val ok';
-        if (type === 'srflx' || type === 'prflx') updateSignalBars(4); 
+        el.textContent = map[type] || type || '--'; el.className = 'hud-val ok';
+        if (type === 'srflx' || type === 'prflx') updateSignalBars(4);
         if (type === 'relay') updateSignalBars(2, 'warn');
     }
 
-    function vibrate(ms) { if (navigator.vibrate) navigator.vibrate(ms); }
+    function clearAllTimers() {
+        if (scanTimer) { clearTimeout(scanTimer); scanTimer = null; }
+        if (attemptTimer) { clearTimeout(attemptTimer); attemptTimer = null; }
+        if (regTimer) { clearTimeout(regTimer); regTimer = null; }
+    }
 
+    /* ══════════════════════════════════════════════════════
+       STATE MACHINE — THE CRITICAL FIX
+       SCANNING now correctly transitions to ATTEMPTING,
+       which then calls executeAttempt().
+       Previously, SCANNING called executeAttempt() directly,
+       but executeAttempt() required state === 'ATTEMPTING',
+       creating an infinite loop that never connected.
+       ══════════════════════════════════════════════════════ */
     function transitionState(newState) {
         state = newState;
+        
         if (newState === 'SCANNING') {
-            clearScanTimer();
-            setScanLed(true); 
+            clearAllTimers();
+            setScanLed(true);
             setStatus('SCANNING', 'warn');
-            document.getElementById('topLed').className = 'top-led scan'; 
+            document.getElementById('topLed').className = 'top-led scan';
             updateSignalBars(0);
             scanCount++;
-            if (scanCount === 1 || scanCount % 5 === 0) log('SCAN #' + scanCount + ' [' + myRole + ']', '#333');
-            scanTimer = setTimeout(function() { executeAttempt(); }, 2500);
+            if (scanCount === 1 || scanCount % 5 === 0) {
+                log('SCAN #' + scanCount + ' [' + myRole + ']', '#555');
+            }
+            /* FIX: Transition to ATTEMPTING after delay, instead of calling executeAttempt directly */
+            scanTimer = setTimeout(function() {
+                if (state === 'SCANNING' && isPoweredOn) {
+                    transitionState('ATTEMPTING');
+                }
+            }, 2500);
         }
-        if (newState === 'ATTEMPTING') executeAttempt();
+        
+        if (newState === 'ATTEMPTING') {
+            setStatus('ATTEMPTING', 'warn');
+            log('PINGING ' + getFullChannelId() + '...', '#00d4ff');
+            executeAttempt();
+        }
+        
         if (newState === 'LINKED') {
-            clearScanTimer();
-            setScanLed(false); 
+            clearAllTimers();
+            setScanLed(false);
             setStatus('CONNECTED', 'ok');
             document.getElementById('topLed').className = 'top-led link';
             document.getElementById('ledNet').classList.add('on');
@@ -583,87 +568,99 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function clearScanTimer() {
-        if (scanTimer) { clearTimeout(scanTimer); scanTimer = null; }
-    }
-
     function executeAttempt() {
-        if (state !== 'ATTEMPTING' || !peer || peer.destroyed || !isPoweredOn) { 
-            if (isPoweredOn) transitionState('SCANNING'); 
-            return; 
+        if (state !== 'ATTEMPTING' || !peer || peer.destroyed || !isPoweredOn) {
+            if (isPoweredOn && state === 'ATTEMPTING') transitionState('SCANNING');
+            return;
         }
-        if (conn && !conn.open) try { conn.close(); } catch(e) {} 
+
+        /* Don't try to connect to yourself (HOST optimization) */
+        var targetId = getFullChannelId();
+        if (peer.id === targetId) {
+            /* I own this channel ID, just wait for incoming. Go back to scanning. */
+            transitionState('SCANNING');
+            return;
+        }
+
+        /* Clean up any previous failed attempt */
+        if (conn && !conn.open) try { conn.close(); } catch(e) {}
         conn = null;
-        if (activeCall) try { activeCall.close(); } catch(e) {} 
+        if (activeCall) try { activeCall.close(); } catch(e) {}
         activeCall = null;
 
-        var targetId = getFullChannelId();
-        try { 
-            conn = peer.connect(targetId, { reliable: true }); 
-            setupConnHandlers(conn); 
-        } catch(e) { 
-            transitionState('SCANNING'); 
-            return; 
+        /* Attempt data connection */
+        try {
+            conn = peer.connect(targetId, { reliable: true });
+            setupConnHandlers(conn);
+        } catch(e) {
+            transitionState('SCANNING');
+            return;
         }
-        try { 
-            if (localStream) { 
-                activeCall = peer.call(targetId, localStream); 
-                if (activeCall) { 
-                    activeCall.on('stream', function(stream) { attachStream(stream); }); 
+
+        /* Attempt media call */
+        try {
+            if (localStream) {
+                activeCall = peer.call(targetId, localStream);
+                if (activeCall) {
+                    activeCall.on('stream', function(stream) { attachStream(stream); });
                     (function(call) {
-                        setTimeout(function() { 
-                            if (call && call.peerConnection) monitorIce(call.peerConnection); 
-                        }, 500);
+                        setTimeout(function() {
+                            if (call && call.peerConnection) monitorIce(call.peerConnection);
+                        }, 1000);
                     })(activeCall);
-                } 
-            } 
+                }
+            }
         } catch(e) {}
 
-        setTimeout(function() { 
-            if (state === 'ATTEMPTING' && isPoweredOn) { 
-                if (conn && !conn.open) try { conn.close(); } catch(e) {} 
-                if (activeCall) try { activeCall.close(); } catch(e) {} 
-                transitionState('SCANNING'); 
-            } 
-        }, 12000);
+        /* If neither data nor media connected after 10s, try again */
+        attemptTimer = setTimeout(function() {
+            if (state === 'ATTEMPTING' && isPoweredOn) {
+                if (conn && !conn.open) try { conn.close(); } catch(e) {}
+                if (activeCall) try { activeCall.close(); } catch(e) {}
+                log('NO RESPONSE, RE-SCAN', '#555');
+                transitionState('SCANNING');
+            }
+        }, 10000);
     }
 
     function monitorIce(pc) {
         if (!pc) return;
-        pc.oniceconnectionstatechange = function() { 
-            var s = pc.iceConnectionState; 
-            log('ICE: ' + s, s === 'connected' ? '#39ff14' : s === 'failed' ? '#f44' : '#555'); 
-            if (s === 'failed') document.getElementById('topLed').className = 'top-led err'; 
+        pc.oniceconnectionstatechange = function() {
+            var s = pc.iceConnectionState;
+            log('ICE: ' + s, s === 'connected' || s === 'completed' ? '#39ff14' : s === 'failed' ? '#f44' : '#555');
+            if (s === 'failed') document.getElementById('topLed').className = 'top-led err';
+            if (s === 'connected' || s === 'completed') updateSignalBars(4);
         };
-        setInterval(function() { 
-            if (!pc || pc.connectionState === 'closed') return; 
-            pc.getStats().then(function(stats) { 
-                stats.forEach(function(r) { 
-                    if (r.type === 'candidate-pair' && r.state === 'succeeded') { 
-                        var l = stats.get(r.localCandidateId); 
-                        if (l && l.candidateType) updateTypeDisplay(l.candidateType); 
-                    } 
-                }); 
-            }).catch(function() {}); 
+        setInterval(function() {
+            if (!pc || pc.connectionState === 'closed') return;
+            pc.getStats().then(function(stats) {
+                stats.forEach(function(r) {
+                    if (r.type === 'candidate-pair' && r.state === 'succeeded') {
+                        var l = stats.get(r.localCandidateId);
+                        if (l && l.candidateType) updateTypeDisplay(l.candidateType);
+                    }
+                });
+            }).catch(function() {});
         }, 3000);
     }
 
+    /* ── Channel init ── */
     async function initChannel() {
         if (!isPoweredOn) return;
         var rawNum = sanitizeInput(document.getElementById('chanInput').value, 3);
         subChan = document.getElementById('subChan').value;
         if (!rawNum || rawNum < 1) { log('INVALID FREQ', '#f44'); return; }
-        
-        channelNum = rawNum; 
-        myRole = 'HOST'; 
+
+        channelNum = rawNum;
+        myRole = 'HOST';
         scanCount = 0;
         document.getElementById('bootBtn').disabled = true;
         document.getElementById('bootBtn').textContent = 'SYNCING...';
         log('ACCESSING MIC...', '#00d4ff');
-        
+
         try {
-            localStream = await navigator.mediaDevices.getUserMedia({ 
-                audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true } 
+            localStream = await navigator.mediaDevices.getUserMedia({
+                audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true }
             });
             muteMic(true);
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -673,103 +670,145 @@ document.addEventListener('DOMContentLoaded', function() {
             analyser = audioCtx.createAnalyser(); analyser.fftSize = 256;
             remoteAnalyser = audioCtx.createAnalyser(); remoteAnalyser.fftSize = 256;
             delayNode.connect(analyser); analyser.connect(speakerGain); speakerGain.connect(audioCtx.destination);
-            
+
             document.getElementById('curFreq').textContent = rawNum.padStart(3, '0') + subChan;
             updateMeter(); updateVox();
             log('TUNING CH-' + rawNum.padStart(3, '0') + ' GRP-' + subChan, '#00d4ff');
             initPeer(getFullChannelId());
-        } catch (e) { 
-            log('MIC ERR: ' + e.message, '#f44'); 
-            document.getElementById('bootBtn').disabled = false; 
-            document.getElementById('bootBtn').textContent = 'CONNECT'; 
+        } catch (e) {
+            log('MIC ERR: ' + e.message, '#f44');
+            document.getElementById('bootBtn').disabled = false;
+            document.getElementById('bootBtn').textContent = 'CONNECT';
         }
     }
 
     function initPeer(myId) {
-        cleanupConnections(); 
-        state = 'REGISTERING'; 
+        cleanupConnections();
+        state = 'REGISTERING';
         setStatus('REG', 'warn');
+        log('REGISTERING SIGNAL...', '#555');
+
+        /* Timeout: if PeerJS server doesn't respond in 15s, warn user */
+        regTimer = setTimeout(function() {
+            if (state === 'REGISTERING') {
+                log('SIGNAL SERVER TIMEOUT', '#f44');
+                log('CHECK NETWORK / FIREWALL', '#f44');
+                setStatus('SIG FAIL', 'err');
+                document.getElementById('topLed').className = 'top-led err';
+            }
+        }, 15000);
+
         peer = new Peer(getPeerOptions(myId));
-        
-        peer.on('open', function(id) { 
-            log('REGISTERED [' + id + ']', '#39ff14'); 
-            transitionState('SCANNING'); 
+
+        peer.on('open', function(id) {
+            if (regTimer) { clearTimeout(regTimer); regTimer = null; }
+            log('REGISTERED [' + id + ']', '#39ff14');
+            transitionState('SCANNING');
         });
-        peer.on('connection', function(c) { 
-            log('HANDSHAKE IN', '#00d4ff'); 
-            clearScanTimer(); setScanLed(false); 
-            if (conn && !conn.open) try { conn.close(); } catch(e) {} 
-            conn = c; setupConnHandlers(c); 
+
+        peer.on('connection', function(c) {
+            log('HANDSHAKE IN FROM ' + c.peer, '#00d4ff');
+            clearAllTimers();
+            setScanLed(false);
+            /* Kill any outgoing attempt — we got an incoming one */
+            if (conn && !conn.open) try { conn.close(); } catch(e) {}
+            if (activeCall) try { activeCall.close(); } catch(e) {}
+            activeCall = null;
+            conn = c;
+            setupConnHandlers(c);
         });
-        peer.on('call', function(call) { 
-            log('INCOMING VOICE', '#00d4ff');
-            if (activeCall) try { activeCall.close(); } catch(e) {} 
-            activeCall = call; call.answer(localStream); 
-            call.on('stream', function(stream) { attachStream(stream); }); 
+
+        peer.on('call', function(call) {
+            log('VOICE IN FROM ' + call.peer, '#00d4ff');
+            if (activeCall) try { activeCall.close(); } catch(e) {}
+            activeCall = call;
+            call.answer(localStream);
+            call.on('stream', function(stream) { attachStream(stream); });
             (function(c) {
-                setTimeout(function() { if (c.peerConnection) monitorIce(c.peerConnection); }, 500);
+                setTimeout(function() { if (c.peerConnection) monitorIce(c.peerConnection); }, 1000);
             })(call);
         });
-        peer.on('disconnected', function() { 
-            log('SIGNAL LOST', '#ffb000'); setStatus('RECONN', 'err'); 
+
+        peer.on('disconnected', function() {
+            log('SIGNAL LOST', '#ffb000');
+            setStatus('RECONN', 'err');
             if (peer && !peer.destroyed) try { peer.reconnect(); } catch(e) {}
         });
+
         peer.on('error', function(err) {
-            if (err.type === 'unavailable-id') { 
-                log('CH TAKEN -> CALLER', '#ffb000'); 
-                if (peer) try { peer.destroy(); } catch(e) {} 
-                peer = null; myRole = 'CALLER'; 
-                setTimeout(function() { initPeer(null); }, 500); 
-            } else if (err.type === 'peer-unavailable') { /* scanning */ }
-            else if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error' || err.type === 'socket-closed') { 
-                log('SIGNAL ERR [' + err.type + ']', '#f44'); 
-            } else if (err.type === 'webrtc') { log('WEBRTC ERR', '#f44'); }
+            if (err.type === 'unavailable-id') {
+                log('CH OCCUPIED -> CALLER MODE', '#ffb000');
+                if (peer) try { peer.destroy(); } catch(e) {}
+                peer = null;
+                myRole = 'CALLER';
+                setTimeout(function() { initPeer(null); }, 500);
+            } else if (err.type === 'peer-unavailable') {
+                /* Expected — target not online yet, will retry on next scan cycle */
+            } else if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error' || err.type === 'socket-closed' || err.type === 'unreachable-peer') {
+                log('SIGNAL ERR: ' + err.type, '#f44');
+                setStatus('SIG ERR', 'err');
+                document.getElementById('topLed').className = 'top-led err';
+            } else if (err.type === 'webrtc') {
+                log('WEBRTC ERR: ' + (err.message || ''), '#f44');
+            } else {
+                log('ERR: ' + err.type, '#f44');
+            }
         });
     }
 
     function setupConnHandlers(c) {
         if (!c) return;
-        c.on('open', function() { transitionState('LINKED'); });
+        c.on('open', function() {
+            log('DATA LINK OPEN', '#39ff14');
+            transitionState('LINKED');
+        });
         c.on('data', function(data) {
             if (typeof data !== 'string') return;
             if (data === 'TX_ON') document.getElementById('ledTx').classList.add('tx');
-            if (data === 'TX_OFF') { 
-                document.getElementById('ledTx').classList.remove('tx'); 
-                if (document.getElementById('togRoger').checked) { 
-                    setTimeout(function() { playTone(600, 0.1); }, 100); 
-                    setTimeout(function() { playTone(900, 0.1); }, 200); 
-                } 
+            if (data === 'TX_OFF') {
+                document.getElementById('ledTx').classList.remove('tx');
+                if (document.getElementById('togRoger').checked) {
+                    setTimeout(function() { playTone(600, 0.1); }, 100);
+                    setTimeout(function() { playTone(900, 0.1); }, 200);
+                }
             }
         });
         c.on('close', function() {
             if (state === 'LINKED') {
-                log('LINK LOST', '#f44'); 
-                document.getElementById('ledNet').classList.remove('on'); 
-                document.getElementById('pttBtn').disabled = true; 
+                log('LINK LOST', '#f44');
+                document.getElementById('ledNet').classList.remove('on');
+                document.getElementById('pttBtn').disabled = true;
                 document.getElementById('pttBtn').textContent = 'TRANSMIT';
                 document.getElementById('gearBtn').classList.remove('active');
-                setStatus('LOST', 'err'); scanCount = 0; resetIndicators();
+                setStatus('LOST', 'err');
+                scanCount = 0;
+                resetIndicators();
                 document.getElementById('topLed').className = 'top-led scan';
-                setTimeout(function() { 
-                    if (peer && !peer.destroyed && channelNum && state === 'LINKED') { 
-                        state = 'IDLE'; transitionState('SCANNING'); 
-                    } 
+                /* Retry after 2s */
+                setTimeout(function() {
+                    if (peer && !peer.destroyed && channelNum && isPoweredOn) {
+                        state = 'IDLE';
+                        transitionState('SCANNING');
+                    }
                 }, 2000);
             }
         });
+        c.on('error', function(err) { log('DATA ERR: ' + err, '#f44'); });
     }
 
     function attachStream(stream) {
         document.getElementById('remoteAudio').srcObject = stream;
-        try { 
-            audioCtx.createMediaStreamSource(stream).connect(remoteAnalyser); 
-            remoteAnalyser.connect(delayNode); log('AUDIO SYNCED', '#39ff14'); 
+        try {
+            audioCtx.createMediaStreamSource(stream).connect(remoteAnalyser);
+            remoteAnalyser.connect(delayNode);
+            log('AUDIO SYNCED', '#39ff14');
+            playTone(400, 0.15);
         } catch(e) {}
     }
 
-    function muteMic(m) { 
-        if (localStream) localStream.getAudioTracks().forEach(function(t) { t.enabled = !m; }); 
-        if (speakerGain) speakerGain.gain.setValueAtTime(m ? 1 : 0, audioCtx.currentTime); 
+    function muteMic(m) {
+        if (localStream) localStream.getAudioTracks().forEach(function(t) { t.enabled = !m; });
+        if (speakerGain) speakerGain.gain.setValueAtTime(m ? 1 : 0, audioCtx.currentTime);
     }
 
     function updateMeter() {
@@ -783,8 +822,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateVox() {
         if (!remoteAnalyser) { requestAnimationFrame(updateVox); return; }
         var rxLed = document.getElementById('ledRx');
-        if (!document.getElementById('togVox').checked || state !== 'LINKED') { 
-            rxLed.classList.remove('rx'); requestAnimationFrame(updateVox); return; 
+        if (!document.getElementById('togVox').checked || state !== 'LINKED') {
+            rxLed.classList.remove('rx'); requestAnimationFrame(updateVox); return;
         }
         var d = new Uint8Array(remoteAnalyser.frequencyBinCount); remoteAnalyser.getByteFrequencyData(d);
         var sum = 0; for (var i = 0; i < d.length; i++) sum += d[i];
@@ -795,20 +834,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     /* ── PTT ── */
     var pttBtn = document.getElementById('pttBtn');
-    function isInputFocused() { 
-        var t = document.activeElement ? document.activeElement.tagName : ''; 
-        return t === 'INPUT' || t === 'SELECT' || t === 'TEXTAREA'; 
+    function isInputFocused() { var t = document.activeElement ? document.activeElement.tagName : ''; return t === 'INPUT' || t === 'SELECT' || t === 'TEXTAREA'; }
+    function pttOn() {
+        if (!conn || !conn.open || pttBtn.disabled || isInputFocused()) return;
+        muteMic(false); try { conn.send('TX_ON'); } catch(e) {}
+        document.getElementById('ledTx').classList.add('tx'); pttBtn.textContent = 'TX ACTIVE';
+        playTone(1200, 0.05); vibrate(50);
     }
-    function pttOn() { 
-        if (!conn || !conn.open || pttBtn.disabled || isInputFocused()) return; 
-        muteMic(false); try { conn.send('TX_ON'); } catch(e) {} 
-        document.getElementById('ledTx').classList.add('tx'); pttBtn.textContent = 'TX ACTIVE'; 
-        playTone(1200, 0.05); vibrate(50); 
-    }
-    function pttOff() { 
-        if (!conn || !conn.open || pttBtn.disabled) return; 
-        muteMic(true); try { conn.send('TX_OFF'); } catch(e) {} 
-        document.getElementById('ledTx').classList.remove('tx'); pttBtn.textContent = 'TRANSMIT'; vibrate(30); 
+    function pttOff() {
+        if (!conn || !conn.open || pttBtn.disabled) return;
+        muteMic(true); try { conn.send('TX_OFF'); } catch(e) {}
+        document.getElementById('ledTx').classList.remove('tx'); pttBtn.textContent = 'TRANSMIT'; vibrate(30);
     }
 
     pttBtn.addEventListener('mousedown', function(e) { e.preventDefault(); pttOn(); });
@@ -822,7 +858,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     /* ── Cleanup ── */
     function cleanupConnections() {
-        clearScanTimer();
+        clearAllTimers();
         if (activeCall) try { activeCall.close(); } catch(e) {} activeCall = null;
         if (conn) try { conn.close(); } catch(e) {} conn = null;
         setScanLed(false);
@@ -851,9 +887,7 @@ document.addEventListener('DOMContentLoaded', function() {
         else document.getElementById('output').innerHTML = '';
     }
 
-    /* ═══════════════════════════════════════
-       WIRE ALL EVENT LISTENERS HERE
-       ═══════════════════════════════════════ */
+    /* ── Wire events ── */
     document.getElementById('powerBtn').addEventListener('click', togglePower);
     document.getElementById('bootBtn').addEventListener('click', initChannel);
     document.getElementById('gearBtn').addEventListener('click', toggleSettings);
@@ -862,10 +896,8 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('chanInput').addEventListener('input', updateChReadout);
     document.getElementById('subChan').addEventListener('change', updateChReadout);
 
-    /* Prove the power button listener is attached */
-    console.log('[TACCOM4] All listeners wired. Power button:', document.getElementById('powerBtn'));
-
-}); /* end DOMContentLoaded */
+    console.log('[TACCOM4] Ready. Power button:', document.getElementById('powerBtn'));
+});
 </script>
 </body>
 </html>
