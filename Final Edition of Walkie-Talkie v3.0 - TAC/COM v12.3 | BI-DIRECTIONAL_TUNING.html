@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TAC/COM v12.3 | BI-ROTARY</title>
+    <script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.4/dist/mqtt.min.js"></script>
+    <style>
+        :root {
+            --g: #39ff14; --b: #00d4ff; --r: #ff3131; --y: #ffcc00;
+            --case: #1a1a1a; --chassis-w: clamp(320px, 95vw, 380px);
+        }
+        * { box-sizing: border-box; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+        body { background: #000; color: var(--g); font-family: 'Courier New', monospace; margin: 0; padding: 20px; min-height: 100vh; display: flex; justify-content: center; align-items: center; overflow-x: hidden; }
+        
+        #scannerCanvas { position: fixed; inset: 0; z-index: -1; opacity: 0.1; }
+
+        .chassis {
+            width: var(--chassis-w); min-height: 95vh; 
+            background: linear-gradient(180deg, #1e1e1e 0%, #0a0a0a 100%);
+            border: 12px solid #2a2a2a; border-radius: 35px 35px 75px 75px;
+            padding: 20px; box-shadow: 0 50px 100px rgba(0,0,0,1);
+            position: relative; border-bottom: 35px solid #050505;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+
+        .antenna-stub { position: absolute; top: -60px; left: 40px; width: 12px; height: 70px; background: #111; border: 3px solid #333; border-radius: 4px 4px 0 0; z-index: -1; }
+        
+        /* TOP HEADER */
+        .top-deck { height: 50px; display: flex; align-items: center; justify-content: space-between; position: relative; padding: 0 5px; margin-bottom: 10px; }
+        
+        .signal-block { display: flex; flex-direction: column; }
+        .sig-bars { display: flex; gap: 3px; align-items: flex-end; height: 22px; }
+        .bar { width: 5px; background: #111; border-radius: 1px; transition: 0.2s; }
+
+        .indicator-cluster { display: flex; align-items: center; gap: 15px; }
+        
+        .nozzle-dial { 
+            width: 44px; height: 44px; 
+            background: conic-gradient(#222 0deg 90deg, #111 90deg 180deg, #222 180deg 270deg, #111 270deg 360deg); 
+            border-radius: 50%; border: 4px solid #444; cursor: pointer; 
+            position: relative; transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+            box-shadow: 0 4px 12px #000;
+        }
+        .nozzle-dial::after { content: ''; position: absolute; top: 4px; left: 50%; width: 4px; height: 10px; background: var(--r); transform: translateX(-50%); border-radius: 2px; }
+
+        .status-led { width: 18px; height: 18px; background: #000; border-radius: 50%; border: 2px solid #333; }
+
+        /* NORMAL BLINK */
+        @keyframes blink-r { 0%, 49% { background: var(--r); } 50%, 100% { background: #300; } }
+        @keyframes blink-g { 0%, 49% { background: var(--g); } 50%, 100% { background: #030; } }
+        @keyframes blink-y { 0%, 49% { background: var(--y); } 50%, 100% { background: #330; } }
+        
+        .led-red, .sig-red .bar { animation: blink-r 1s steps(1) infinite; }
+        .led-green, .sig-green .bar { animation: blink-g 1s steps(1) infinite; }
+        .led-orange, .sig-orange .bar { animation: blink-y 1s steps(1) infinite; }
+
+        /* INTERFACE ELEMENTS */
+        .speaker-grille { width: 100%; height: 45px; background: radial-gradient(circle, #222 1.5px, transparent 2px); background-size: 7px 7px; border: 1px solid #1a1a1a; border-radius: 4px; opacity: 0.4; }
+
+        .pwr-strip { display: flex; gap: 10px; margin-top: 10px; }
+        .mech-btn { flex: 1; padding: 12px; background: #151515; color: #444; font-weight: 900; font-size: 0.65rem; border: 1px solid #333; border-bottom: 5px solid #000; cursor: pointer; border-radius: 4px; text-transform: uppercase; }
+        .pwr-on.active { color: var(--g); border-color: var(--g); }
+        .pwr-off.active { color: var(--r); border-color: var(--r); }
+
+        .screen { background: #050505; border: 4px solid #222; border-radius: 6px; height: 110px; position: relative; padding: 10px; box-shadow: inset 0 0 30px #000; }
+        .lit.screen { background: #000a00; border-color: #333; }
+        #scope { width: 100%; height: 45px; opacity: 0; }
+        .lit #scope { opacity: 1; }
+
+        .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .field { background: #000; border: 1px solid #333; color: var(--b); padding: 10px; font-family: inherit; text-align: center; width: 100%; font-weight: bold; border-radius: 4px; font-size: 1rem; }
+
+        .action-bay { display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 15px; border: 2px solid #222; margin-top: auto; }
+        .anc-stack { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+        .anc-led { width: 12px; height: 12px; background: #111; border-radius: 50%; border: 2px solid #333; }
+        .anc-toggle { width: 60px; padding: 8px 0; background: #111; border: 1px solid #333; border-bottom: 3px solid #000; border-radius: 4px; color: #444; font-size: 0.5rem; font-weight: 900; cursor: pointer; }
+        .anc-toggle.on { color: var(--b); border-color: var(--b); }
+
+        .ptt-lever { flex-grow: 1; margin-left: 15px; height: 70px; background: #111; border: 3px solid #222; border-bottom: 8px solid #000; border-radius: 12px; color: #222; font-weight: 900; font-size: 1.1rem; cursor: not-allowed; transition: 0.1s; }
+        .ptt-lever.unlocked { background: #1a0a0a; border-color: #333; color: #333; cursor: pointer; pointer-events: auto; }
+        .ptt-lever.unlocked.ready { border-color: var(--r); color: var(--r); }
+        .ptt-lever.unlocked:active { transform: translateY(4px); border-bottom-width: 2px; background: var(--r); color: #000; }
+
+        .stats-footer { border-top: 1px solid #222; padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+        .stat-line { display: flex; flex-direction: column; }
+        .stat-label { font-size: 0.55rem; font-weight: 900; color: #444; }
+        .val-norm { font-size: 0.8rem; font-weight: 900; letter-spacing: 1px; }
+    </style>
+</head>
+<body>
+
+<canvas id="scannerCanvas"></canvas>
+
+<div class="chassis">
+    <div class="antenna-stub"></div>
+
+    <div class="top-deck">
+        <div id="rssi" class="signal-block">
+            <div class="sig-bars">
+                <div class="bar" style="height:6px"></div>
+                <div class="bar" style="height:10px"></div>
+                <div class="bar" style="height:14px"></div>
+                <div class="bar" style="height:18px"></div>
+                <div class="bar" style="height:22px"></div>
+            </div>
+        </div>
+        
+        <div class="indicator-cluster">
+            <div id="nozzle" class="nozzle-dial" onclick="handleNozzle(event)"></div>
+            <div id="led" class="status-led"></div>
+        </div>
+    </div>
+
+    <div class="module-controls">
+        <div class="pwr-strip">
+            <button id="bOn" class="mech-btn pwr-on" onclick="pwr(true)">Master On</button>
+            <button id="bOff" class="mech-btn pwr-off active" onclick="pwr(false)">Master Off</button>
+        </div>
+        <div class="screen" id="scr">
+            <canvas id="scope"></canvas>
+            <div id="sys" style="height:35px; overflow-y:auto; font-size:0.6rem; opacity:0; color:var(--g); padding:2px;"></div>
+        </div>
+    </div>
+
+    <div class="speaker-grille"></div>
+
+    <div class="input-grid">
+        <input type="number" id="ch" class="field" value="88">
+        <input type="password" id="key" class="field" value="TAC">
+        <button id="hBtn" class="mech-btn" onclick="conn('host')">Host</button>
+        <button id="jBtn" class="mech-btn" onclick="conn('client')">Join</button>
+    </div>
+
+    <div class="action-bay">
+        <div class="anc-stack">
+            <div id="ancLed" class="anc-led"></div>
+            <button id="ancBtn" class="anc-toggle" onclick="toggleAnc()">ANC OFF</button>
+        </div>
+        <button id="ptt" class="ptt-lever">LOCKED</button>
+    </div>
+
+    <div class="stats-footer">
+        <div class="stat-line">
+            <span class="stat-label">RF_LINK:</span>
+            <span id="rfSt" class="val-norm" style="color:var(--r)">OFFLINE</span>
+        </div>
+        <div class="stat-line">
+            <span class="stat-label">ANC_STAT:</span>
+            <span id="ancSt" class="val-norm" style="color:var(--r)">NO_DATA</span>
+        </div>
+    </div>
+</div>
+
+<script>
+let mc, mic, actx, ana, pG, ck, isTx=false, isPwr=false, isConn=false, isAnc=false, nxt=0, rotAngle=0;
+const SR=12000, TP='norm_v12_3/';
+
+function handleNozzle(event) {
+    if(!isPwr) return;
+    
+    const rect = event.target.getBoundingClientRect();
+    const x = event.clientX - rect.left; 
+    const mid = rect.width / 2;
+    const cin = document.getElementById('ch');
+
+    if (x > mid) {
+        // Clockwise - Increment
+        rotAngle += 30;
+        cin.value = parseInt(cin.value) + 1;
+        log(`FREQ_INC: ${cin.value} MHz`);
+    } else {
+        // Anticlockwise - Decrement
+        rotAngle -= 30;
+        cin.value = parseInt(cin.value) - 1;
+        log(`FREQ_DEC: ${cin.value} MHz`);
+    }
+
+    document.getElementById('nozzle').style.transform = `rotate(${rotAngle}deg)`;
+}
+
+function updateUI(mode, noise = 0) {
+    const rf = document.getElementById('rfSt');
+    const anc = document.getElementById('ancSt');
+    const led = document.getElementById('led');
+    const rssi = document.getElementById('rssi');
+    const ancLed = document.getElementById('ancLed');
+
+    rf.className = "val-norm"; anc.className = "val-norm"; 
+    led.className = "status-led"; rssi.className = "signal-block"; ancLed.className = "anc-led";
+
+    if (!isPwr) return;
+
+    if (mode === 'idle') {
+        rf.innerText = "OFFLINE"; rf.style.color = "var(--r)";
+        anc.innerText = "NO_DATA"; anc.style.color = "var(--r)";
+        led.classList.add('led-red'); rssi.classList.add('sig-red');
+    } else if (mode === 'connecting') {
+        rf.innerText = "LINKING..."; rf.style.color = "var(--y)";
+        led.classList.add('led-orange'); rssi.classList.add('sig-orange');
+    } else if (mode === 'connected') {
+        rf.innerText = "SECURE_UPLINK"; rf.style.color = "var(--g)";
+        led.classList.add('led-green'); rssi.classList.add('sig-green');
+
+        if (noise > 0.7) { anc.innerText = "ECHO_HIGH"; anc.style.color = "var(--r)"; ancLed.classList.add('led-red'); }
+        else if (noise > 0.3) { anc.innerText = "NOISE_WARN"; anc.style.color = "var(--y)"; ancLed.classList.add('led-orange'); }
+        else { anc.innerText = "CLEAN_DATA"; anc.style.color = "var(--g)"; ancLed.classList.add('led-green'); }
+    }
+}
+
+function pwr(s) {
+    isPwr = s;
+    const scr = document.getElementById('scr');
+    document.getElementById('bOn').classList.toggle('active', s);
+    document.getElementById('bOff').classList.toggle('active', !s);
+    if(s) {
+        scr.classList.add('lit');
+        document.getElementById('sys').style.opacity = "1";
+        updateUI('idle');
+        log("BI_ROTARY_SYS_v12.3_READY");
+    } else { location.reload(); }
+}
+
+function toggleAnc() {
+    if(!isPwr) return;
+    isAnc = !isAnc;
+    const btn = document.getElementById('ancBtn');
+    btn.innerText = isAnc ? "ANC ON" : "ANC OFF";
+    btn.classList.toggle('on', isAnc);
+    log(isAnc ? "FILTER_ENABLED" : "FILTER_DISABLED");
+}
+
+function log(m) {
+    const el = document.getElementById("sys");
+    const d = document.createElement('div');
+    d.innerText = `> ${m}`;
+    el.appendChild(d); el.scrollTop = el.scrollHeight;
+}
+
+const bcvs = document.getElementById('scannerCanvas');
+const bctx = bcvs.getContext('2d');
+let bgCols = [];
+function initBg() { bcvs.width = window.innerWidth; bcvs.height = window.innerHeight; bgCols = new Array(Math.floor(bcvs.width/20)).fill(0).map(()=>Math.random()*bcvs.height); }
+window.onresize = initBg; initBg();
+
+function draw() {
+    bctx.fillStyle = 'rgba(0,0,0,0.1)'; bctx.fillRect(0,0,bcvs.width,bcvs.height);
+    bctx.font = 'bold 12px monospace'; bctx.fillStyle = '#010';
+    bgCols.forEach((y, i) => { bctx.fillText(Math.random()>0.8?"1":"0", i*20, y); bgCols[i] = y > bcvs.height ? 0 : y + 10; });
+    
+    if(ana && isPwr) {
+        const scvs = document.getElementById('scope');
+        const sctx = scvs.getContext('2d');
+        const data = new Uint8Array(ana.frequencyBinCount);
+        ana.getByteTimeDomainData(data);
+        
+        let sum = 0; for(let i=0; i<data.length; i++) sum += Math.abs(data[i]-128);
+        if(isTx) updateUI('connected', sum/data.length/50);
+
+        sctx.clearRect(0,0,scvs.width,scvs.height);
+        sctx.lineWidth = 3; sctx.strokeStyle = isAnc ? '#00d4ff' : '#39ff14';
+        sctx.beginPath();
+        let x = 0; const step = scvs.width/data.length;
+        for(let i=0; i<data.length; i++) {
+            let v = data[i]/128.0; let y = v * scvs.height/2;
+            if(i===0) sctx.moveTo(x,y); else sctx.lineTo(x,y);
+            x += step;
+        }
+        sctx.stroke();
+    }
+    requestAnimationFrame(draw);
+}
+draw();
+
+async function conn(role) {
+    if(!isPwr || isConn) return;
+    updateUI('connecting');
+    const ch = document.getElementById('ch').value;
+    const pass = document.getElementById('key').value;
+    
+    try {
+        mic = await navigator.mediaDevices.getUserMedia({audio: { echoCancellation: true, noiseSuppression: true }});
+        actx = new (window.AudioContext || window.webkitAudioContext)();
+        const src = actx.createMediaStreamSource(mic);
+        ana = actx.createAnalyser(); src.connect(ana);
+        const proc = actx.createScriptProcessor(2048, 1, 1);
+        proc.onaudioprocess = (e) => { if(isTx) transmit(e.inputBuffer.getChannelData(0), ch, role); };
+        ana.connect(proc); proc.connect(actx.destination);
+        pG = actx.createGain(); pG.gain.value = 2.5; pG.connect(actx.destination);
+
+        const enc = new TextEncoder();
+        const km = await crypto.subtle.importKey('raw', enc.encode(pass), 'PBKDF2', false, ['deriveKey']);
+        ck = await crypto.subtle.deriveKey({name:'PBKDF2', salt:enc.encode('X'), iterations:1000, hash:'SHA-256'}, km, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
+
+        mc = mqtt.connect('wss://broker.emqx.io:8084/mqtt');
+        mc.on('connect', () => {
+            isConn = true;
+            updateUI('connected');
+            const ptt = document.getElementById('ptt');
+            ptt.innerText = "PRESS TO TALK";
+            ptt.classList.add('unlocked', 'ready');
+            mc.subscribe(`${TP}${ch}/${role==='host'?'client':'host'}`);
+            log("CHANNEL_UPLINKED");
+        });
+
+        mc.on('message', async (t, pay) => {
+            try {
+                const iv = pay.slice(0, 12);
+                const dec = await crypto.subtle.decrypt({name:'AES-GCM', iv}, ck, pay.slice(12));
+                play(dec);
+            } catch(e) {}
+        });
+
+        const ptt = document.getElementById('ptt');
+        const down = (e) => { if(isConn) { e.preventDefault(); isTx = true; } };
+        const up = (e) => { if(isConn) { e.preventDefault(); isTx = false; } };
+        ptt.onmousedown = down; ptt.onmouseup = up;
+        ptt.ontouchstart = down; ptt.ontouchend = up;
+
+    } catch(err) { log("IO_LINK_FAILED"); }
+}
+
+async function transmit(samples, ch, role) {
+    if(isAnc) { for(let i=0; i<samples.length; i++) { if(Math.abs(samples[i]) < 0.02) samples[i] = 0; } }
+    const i16 = new Int16Array(samples.length);
+    for(let i=0; i<samples.length; i++) i16[i] = samples[i] * 32767;
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const enc = await crypto.subtle.encrypt({name:'AES-GCM', iv}, ck, i16.buffer);
+    const pkt = new Uint8Array(12 + enc.byteLength);
+    pkt.set(iv); pkt.set(new Uint8Array(enc), 12);
+    mc.publish(`${TP}${ch}/${role}`, pkt);
+}
+
+function play(d) {
+    const i16 = new Int16Array(d); const f32 = new Float32Array(i16.length);
+    for(let i=0; i<i16.length; i++) f32[i] = i16[i] / 32768;
+    const buffer = actx.createBuffer(1, f32.length, SR);
+    buffer.getChannelData(0).set(f32);
+    const src = actx.createBufferSource();
+    src.buffer = buffer; src.connect(pG);
+    let start = Math.max(actx.currentTime + 0.05, nxt);
+    src.start(start); nxt = start + buffer.duration;
+}
+</script>
+</body>
+</html>
