@@ -665,16 +665,32 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
      * Only allows http:, https:, and same-origin relative paths.
      */
     function isSafeUrl(url) {
-        if (typeof url !== 'string') return false;
-        var cleaned = url.replace(/[\s\x00-\x1f]/g, '').toLowerCase();
-        var blocked = ['javascript:', 'data:', 'vbscript:', 'blob:'];
-        for (var i = 0; i < blocked.length; i++) {
-            if (cleaned.indexOf(blocked[i]) === 0) return false;
-        }
-        if (cleaned.indexOf('//') === 0) return false;
-        if (cleaned.indexOf('http://') === 0 || cleaned.indexOf('https://') === 0 || cleaned.indexOf('/') === 0) return true;
-        return false;
+    if (typeof url !== 'string') return false;
+    /* Strip control chars that browsers silently ignore inside schemes */
+    var cleaned = url.replace(/[\s\x00-\x1f]/g, '');
+    var lower = cleaned.toLowerCase();
+
+    /* Block known dangerous schemes */
+    var blocked = ['javascript:', 'data:', 'vbscript:', 'blob:'];
+    for (var i = 0; i < blocked.length; i++) {
+        if (lower.indexOf(blocked[i]) === 0) return false;
     }
+
+    /* Block protocol-relative URLs (//evil.com) */
+    if (lower.indexOf('//') === 0) return false;
+
+    /* Block any unknown scheme (contains ':' but isn't http: or https:)
+       This catches things like customprotocol:attack  */
+    var colonPos = lower.indexOf(':');
+    if (colonPos > -1) {
+        var scheme = lower.substring(0, colonPos);
+        if (scheme !== 'http' && scheme !== 'https') return false;
+    }
+
+    /* Everything else passes: https://, http://, /abs/path, rel/path.html,
+       filename.html, #anchor, ?query — all valid, all safe */
+    return true;
+}
 
     /* =================================================================
        STATE
