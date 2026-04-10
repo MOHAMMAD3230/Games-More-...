@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TAC/COM-04 | ULTIMATE MOBILE</title>
+    <title>TAC/COM | HARD-SWITCH RELAY</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root { --amber: #ffb000; --bg: #0d0900; --red: #8c3024; --blue: #00d4ff; --green: #39ff14; }
@@ -34,14 +34,14 @@
             <span>FREQ: <span id="curFreq" style="color:var(--blue)">UNSET</span></span>
             <span>UPLINK: <span id="stat">OFFLINE</span></span>
         </div>
-        <div id="output"><div>> NOISE-ISOLATION & ECHO-KILLED FIRMWARE LOADED...</div></div>
+        <div id="output"><div>> ANTI-ECHO / HARD-SWITCH FIRMWARE LOADED...</div></div>
         <div id="meter"><div id="meter-fill"></div></div>
     </div>
 
     <div class="side-panel">
         <div class="module">
-            <div style="font-size: 0.6rem; color: #555; margin-bottom: 5px; text-align: center;">GLOBAL CHANNEL</div>
-            <input type="number" id="chanInput" value="50">
+            <div style="font-size: 0.6rem; color: #555; margin-bottom: 5px; text-align: center;">COMMS CHANNEL</div>
+            <input type="number" id="chanInput" value="77">
             <button class="btn-action" id="bootBtn" onclick="initChannel()" style="margin-top:10px; border-color:var(--green); color:var(--green);">INITIALIZE LINK</button>
         </div>
         <div class="module" style="text-align:center;">
@@ -51,17 +51,14 @@
                 <span><div class="status-led" id="ledTx"></div> TRANS</span>
             </div>
         </div>
-        <button class="btn-action" onclick="location.reload()" style="background:#200;">SYSTEM RESET</button>
+        <button class="btn-action" onclick="location.reload()" style="background:#200;">FORCE REBOOT</button>
     </div>
 </div>
 
 <script>
-    let peer, conn, localStream, audioCtx, analyser, speakerGain;
-    
-    // Unique prefix to prevent accidental connections
-    const APP_PREFIX = "G-COMMS-MOBILE-V5-"; 
+    let peer, conn, localStream, audioCtx, analyser, speakerGain, noiseFilter;
+    const APP_PREFIX = "TAC-COM-V6-"; 
 
-    // METERED.CA FORCE RELAY CONFIG
     const PEER_OPTIONS = {
         config: { 
             'iceServers': [
@@ -69,16 +66,10 @@
                     'urls': 'turns:global.relay.metered.ca:443?transport=tcp',
                     'username': 'ce97feaaa435bc128230c5bd',
                     'credential': '+qT5rVgsuGkqWX6o'
-                },
-                {
-                    'urls': 'turn:global.relay.metered.ca:443',
-                    'username': 'ce97feaaa435bc128230c5bd',
-                    'credential': '+qT5rVgsuGkqWX6o'
                 }
-            ],
-            'sdpSemantics': 'unified-plan'
+            ]
         },
-        iceTransportPolicy: 'relay' // Bypass mobile NAT by going straight to Metered
+        iceTransportPolicy: 'relay' 
     };
 
     function log(msg, color="#ffb000") {
@@ -90,21 +81,30 @@
 
     async function initChannel() {
         try {
-            log("HARDWARE ISOLATION ACTIVE...");
+            log("BOOTING AUDIO DSP...");
             localStream = await navigator.mediaDevices.getUserMedia({ 
                 audio: { 
                     echoCancellation: true, 
                     noiseSuppression: true, 
-                    autoGainControl: true,
-                    googHighpassFilter: true 
+                    autoGainControl: true 
                 } 
             });
 
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            speakerGain = audioCtx.createGain();
-            speakerGain.gain.value = 0.7; // Moderate volume to reduce physical vibration
             
+            // 1. High-Pass Filter to remove background rumble
+            noiseFilter = audioCtx.createBiquadFilter();
+            noiseFilter.type = "highpass";
+            noiseFilter.frequency.value = 350; 
+
+            // 2. Master Gain
+            speakerGain = audioCtx.createGain();
+            speakerGain.gain.value = 0.6; 
+
             analyser = audioCtx.createAnalyser();
+            
+            // ROUTING: Remote Source -> Filter -> Analyser -> Gain -> Speakers
+            noiseFilter.connect(analyser);
             analyser.connect(speakerGain);
             speakerGain.connect(audioCtx.destination);
             
@@ -115,12 +115,12 @@
             const chanNum = document.getElementById('chanInput').value;
             document.getElementById('curFreq').innerText = "CH-" + chanNum;
             initPeer(APP_PREFIX + chanNum);
-        } catch(e) { log("HARDWARE ERROR: ENSURE HTTPS", "red"); }
+        } catch(e) { log("HARDWARE REJECTED.", "red"); }
     }
 
     function initPeer(myId) {
         peer = new Peer(myId, PEER_OPTIONS);
-        peer.on('open', id => log("RELAY UPLINK BROADCASTING...", "var(--green)"));
+        peer.on('open', id => log("RELAY UPLINK ESTABLISHED.", "var(--green)"));
         peer.on('connection', c => { conn = c; setupHandlers(); });
         peer.on('call', call => {
             call.answer(localStream);
@@ -128,11 +128,9 @@
         });
         peer.on('error', (err) => {
             if(err.type === 'unavailable-id') {
-                log("UPLINK OCCUPIED. ATTEMPTING SYNC...");
+                log("SYNCING WITH REMOTE...");
                 peer.destroy();
                 initCallerMode(myId);
-            } else {
-                log("NET ERR: " + err.type, "red");
             }
         });
     }
@@ -151,8 +149,8 @@
         const audioEl = document.getElementById('remoteAudio');
         audioEl.srcObject = stream;
         const source = audioCtx.createMediaStreamSource(stream);
-        source.connect(analyser);
-        log("REMOTE LINK ESTABLISHED.");
+        source.connect(noiseFilter); // Run remote audio through our rumble filter
+        log("LINK SECURED.");
     }
 
     function setupHandlers() {
@@ -160,7 +158,7 @@
             document.getElementById('ledNet').classList.add('online');
             document.getElementById('pttBtn').disabled = false;
             document.getElementById('stat').innerText = "SYNCED";
-            log("CHANNEL READY.");
+            log("COMS ACTIVE.");
         });
         conn.on('data', data => {
             if(data === 'TX_ON') document.getElementById('ledTx').classList.add('tx');
@@ -169,17 +167,27 @@
     }
 
     function muteMic(shouldMute) {
+        // Toggle Local Mic
         if (localStream) {
             localStream.getAudioTracks().forEach(t => t.enabled = !shouldMute);
         }
         
-        // ANTI-ECHO LOGIC:
-        // When you press to talk, we drop your speaker volume to 0.
-        // This makes it impossible for the mic to catch your speaker's sound.
+        // HARD HALF-DUPLEX SWITCH
+        // Disconnects speakers entirely when you talk to prevent any loop
         if (speakerGain) {
-            const vol = shouldMute ? 0.7 : 0;
-            speakerGain.gain.setTargetAtTime(vol, audioCtx.currentTime, 0.02);
+            if (!shouldMute) {
+                // TALKING: Hard Cut
+                speakerGain.gain.cancelScheduledValues(audioCtx.currentTime);
+                speakerGain.gain.setValueAtTime(0, audioCtx.currentTime);
+            } else {
+                // LISTENING: Soft restore to prevent audio pop
+                speakerGain.gain.setTargetAtTime(0.6, audioCtx.currentTime, 0.05);
+            }
         }
+
+        // Mute the actual HTML element as a secondary failsafe
+        const remoteAudio = document.getElementById('remoteAudio');
+        if (remoteAudio) { remoteAudio.muted = !shouldMute; }
     }
 
     function updateMeter() {
@@ -192,8 +200,6 @@
     }
 
     const ptt = document.getElementById('pttBtn');
-    
-    // Prevent default touch behaviors like zooming or context menus
     const pttOn = (e) => { 
         if(e) e.preventDefault(); 
         if(!conn || ptt.disabled) return; 
@@ -201,7 +207,6 @@
         conn.send('TX_ON'); 
         document.getElementById('ledTx').classList.add('tx'); 
     };
-    
     const pttOff = (e) => { 
         if(e) e.preventDefault(); 
         if(!conn || ptt.disabled) return; 
