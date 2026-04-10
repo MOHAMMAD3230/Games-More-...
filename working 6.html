@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TAC/COM-07 | WALKIE</title>
+    <script async src="https://cdn.jsdelivr.net/npm/mqtt@5.10.4/dist/mqtt.min.js"></script>
+    <style>
+        :root{--amber:#ffb000;--bg:#0a0800;--red:#ff3333;--blue:#00d4ff;--green:#39ff14;--panel:#0c0c0c;--border:#1e1e1e;--muted:#444}
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+        body{background:#030303;color:var(--amber);font-family:'Courier New',Courier,monospace;display:flex;justify-content:center;align-items:center;min-height:100vh;overflow:hidden;touch-action:manipulation}
+        .frame{width:96%;max-width:860px;background:#151515;border:5px solid #0a0a0a;border-radius:6px;padding:10px;display:flex;flex-direction:column;box-shadow:0 0 100px rgba(0,0,0,.8)}
+        @media(min-width:780px){.frame{display:grid;grid-template-columns:1fr 300px;height:720px;gap:14px;padding:14px}}
+        .screen{background:var(--bg);border:8px solid #111;border-radius:12px;padding:14px;flex:1;display:flex;flex-direction:column;min-height:400px;position:relative;overflow:hidden;box-shadow:inset 0 0 40px rgba(0,0,0,.6)}
+        .scanline{position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,176,0,.006) 2px,rgba(255,176,0,.006) 4px);pointer-events:none;z-index:1}
+        .rx-ind{position:absolute;top:12px;right:14px;font-size:.65rem;color:var(--green);opacity:0;transition:opacity .08s;text-shadow:0 0 10px var(--green);z-index:2;pointer-events:none;font-weight:bold}
+        .rx-ind.on{opacity:1}
+        .topbar{font-size:.52rem;display:flex;justify-content:space-between;padding-bottom:6px;margin-bottom:6px;border-bottom:1px solid #1a1a1a;flex-wrap:wrap;gap:4px;position:relative;z-index:2}
+        .topbar span{white-space:nowrap}
+        .badge-ok{color:var(--green);font-weight:bold}
+        .badge-net{display:inline-block;padding:1px 5px;border-radius:2px;font-size:.48rem;font-weight:bold;letter-spacing:1px;background:#0a1a0a;color:var(--green);border:1px solid #1a3a1a}
+        #log{flex:1;overflow-y:auto;font-size:.65rem;line-height:1.5;scrollbar-width:none;position:relative;z-index:2}
+        #log::-webkit-scrollbar{display:none}
+        .ln{padding:1px 0}.c-ok{color:var(--green)}.c-err{color:var(--red)}.c-warn{color:#ffaa00}.c-info{color:var(--blue)}.c-dim{color:#555}
+        .meter-area{margin-top:auto;position:relative;z-index:2}
+        .meter-label{font-size:.42rem;color:#333;display:flex;justify-content:space-between;margin-bottom:2px}
+        .meter-bar{width:100%;height:8px;background:#000;border:1px solid #111;border-radius:2px;overflow:hidden}
+        .meter-fill{height:100%;width:0;background:linear-gradient(90deg,var(--green),#ccff00 70%,var(--red));transition:width .05s linear}
+        .panel{display:flex;flex-direction:column;gap:8px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#111 transparent}
+        .box{background:var(--panel);padding:12px;border:1px solid var(--border);border-radius:4px}
+        .box-label{font-size:.42rem;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:8px}
+        .field{width:100%;background:#000;border:1px solid #222;color:var(--amber);padding:10px 6px;font-family:inherit;font-size:1.1rem;text-align:center;letter-spacing:3px;outline:none;border-radius:2px;margin-bottom:8px;transition:border-color .2s}
+        .field:focus{border-color:var(--amber)}.field:disabled{opacity:.2}
+        .abtn{width:100%;padding:11px 6px;font-family:inherit;font-size:.6rem;font-weight:bold;text-transform:uppercase;letter-spacing:1px;border:1px solid #333;border-radius:3px;cursor:pointer;transition:all .1s;margin:4px 0;background:#111;color:#888}
+        .abtn:hover:not(:disabled){background:#1a1a1a}.abtn:active:not(:disabled){transform:scale(.98)}.abtn:disabled{opacity:.15;cursor:not-allowed}
+        .abtn.h{border-color:#1a3a1a;color:var(--green)}.abtn.h:hover:not(:disabled){background:#0a150a}
+        .abtn.j{background:#0a120a;border-color:#0a300a;color:var(--green)}.abtn.j:hover:not(:disabled){background:#0f1a0f}
+        .abtn.r{background:#120505;color:#ff4444;border-color:#2a0000}
+        .ptt-area{text-align:center}
+        .ptt-btn{width:100%;height:130px;background:linear-gradient(180deg,#8c3024,#5a1c14);color:#fff;border:4px solid #3e1510;border-radius:8px;font-family:inherit;font-size:1.1rem;font-weight:bold;letter-spacing:2px;cursor:pointer;user-select:none;-webkit-user-select:none;box-shadow:0 5px 0 #220a06,inset 0 1px 0 rgba(255,255,255,.06);transition:all .06s}
+        .ptt-btn:active:not(:disabled){transform:translateY(4px);box-shadow:0 1px 0 #220a06;background:linear-gradient(180deg,#cc3020,#882010)}
+        .ptt-btn:disabled{background:#0a0a0a;color:#222;box-shadow:none;border-color:#151515}
+        .ptt-btn.active{animation:pg .4s infinite}
+        @keyframes pg{0%,100%{box-shadow:0 5px 0 #220a06,0 0 20px rgba(255,0,0,.2)}50%{box-shadow:0 5px 0 #220a06,0 0 40px rgba(255,0,0,.5)}}
+        .led-row{display:flex;justify-content:space-around;margin-top:10px;font-size:.42rem;text-transform:uppercase;letter-spacing:1px}
+        .led-item{display:flex;align-items:center;gap:4px}
+        .dot{width:8px;height:8px;border-radius:50%;background:#0f0505;border:1px solid #1a0505;transition:all .2s}
+        .dot.red{background:#f00;box-shadow:0 0 8px #f00;border-color:#f00;animation:bk .5s infinite}
+        .dot.green{background:var(--green);box-shadow:0 0 6px var(--green);border-color:var(--green)}
+        @keyframes bk{0%,100%{opacity:1}50%{opacity:.2}}
+        .stats{font-size:.4rem;color:#333;margin-top:8px;padding-top:6px;border-top:1px solid #111;display:flex;justify-content:space-between}
+        .cr{display:flex;gap:6px;margin-top:6px;align-items:center}
+        .cr label{font-size:.4rem;color:#555;flex-shrink:0;letter-spacing:1px;min-width:24px}
+        .cr input[type=range]{flex:1;accent-color:var(--amber);height:3px}
+        .cr span{font-size:.4rem;color:var(--amber);flex-shrink:0;width:24px;text-align:right}
+        .netbox{background:#0a120a;border:1px solid #1a2a1a;padding:8px;border-radius:3px;margin-top:6px}
+        .netbox p{font-size:.42rem;color:#3a5a3a;line-height:1.5;margin:2px 0}
+        .netbox strong{color:#5a8a5a}
+        .warnbox{background:#1a1000;border:1px solid #2a1a00;padding:8px;border-radius:3px;margin-top:6px}
+        .warnbox p{font-size:.42rem;color:#665522;line-height:1.5;margin:2px 0}
+        .warnbox strong{color:#aa8833}
+        #libErr{display:none;position:fixed;inset:0;background:#0a0000;color:var(--red);font-family:'Courier New',monospace;font-size:.8rem;padding:40px 20px;z-index:9999;line-height:1.8;overflow-y:auto}
+    </style>
+</head>
+<body>
+<div id="libErr">MQTT library failed to load. Check internet or disable ad blocker.</div>
+<div class="frame">
+    <div class="screen">
+        <div class="scanline"></div>
+        <div class="rx-ind" id="rxInd">▶ RX</div>
+        <div class="topbar">
+            <span>CH: <span id="chD" style="color:var(--blue)">--</span></span>
+            <span class="badge-net">μLAW PCM</span>
+            <span>LINK: <span id="lkD" style="color:#444">OFFLINE</span></span>
+            <span>SRV: <span id="svD" style="color:#444">--</span></span>
+        </div>
+        <div id="log"></div>
+        <div class="meter-area">
+            <div class="meter-label"><span>MIC</span><span id="mP">0%</span></div>
+            <div class="meter-bar"><div class="meter-fill" id="mF"></div></div>
+        </div>
+    </div>
+    <div class="panel">
+        <div class="box">
+            <div class="box-label">Channel</div>
+            <input type="number" class="field" id="fC" value="42" min="1" max="999">
+            <input type="password" class="field" id="fS" value="tacsecure2026">
+            <button class="abtn h" id="bH" onclick="goHost()">1. HOST</button>
+            <button class="abtn j" id="bJ" onclick="goJoin()">2. JOIN</button>
+            <div class="netbox">
+                <div class="box-label" style="color:#3a6a3a">Network Compatibility</div>
+                <p><strong>YES:</strong> Airtel 5G ↔ Jio 4G ↔ Vi ↔ WiFi</p>
+                <p><strong>YES:</strong> Different cities, different operators</p>
+                <p><strong>YES:</strong> No VPN needed, no port forwarding</p>
+                <p><strong>ONLY:</strong> Both devices need internet access</p>
+            </div>
+            <div class="warnbox">
+                <div class="box-label" style="color:#aa8833">Audio Quality</div>
+                <p><strong>ECHO:</strong> Use earphones. Cannot be fixed by code.</p>
+                <p><strong>LATENCY:</strong> 200-400ms is normal for relay.</p>
+                <p><strong>NOISE:</strong> μ-law companding active (telephony standard).</p>
+            </div>
+        </div>
+        <div class="box ptt-area">
+            <button class="ptt-btn" id="ptt" disabled>HOLD TO TX</button>
+            <div class="led-row">
+                <div class="led-item"><div class="dot" id="dN"></div>LINK</div>
+                <div class="led-item"><div class="dot" id="dT"></div>TX</div>
+                <div class="led-item"><div class="dot" id="dR"></div>RX</div>
+            </div>
+            <div class="stats">
+                <span>TX: <span id="sT">0</span></span>
+                <span>RX: <span id="sR">0</span></span>
+                <span>DRP: <span id="sD">0</span></span>
+                <span>LAT: <span id="sL">--</span></span>
+            </div>
+            <div class="cr">
+                <label>VOL</label>
+                <input type="range" id="slV" min="0.5" max="4" step="0.1" value="1.5">
+                <span id="vV">1.5</span>
+            </div>
+        </div>
+        <div class="box" style="padding:6px 12px">
+            <button class="abtn r" onclick="doReset()" style="margin:0">HARD RESET</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function(){
+    var e=document.getElementById('libErr'),w=0;
+    var t=setInterval(function(){
+        w+=300;
+        if(typeof mqtt!=='undefined'&&mqtt.connect){clearInterval(t);e.style.display='none';boot()}
+        else if(w>15000){clearInterval(t);e.style.display='block'}
+    },300);
+})();
+
+document.getElementById('slV').addEventListener('input',function(){
+    var v=parseFloat(this.value);
+    document.getElementById('vV').textContent=v.toFixed(1);
+    if(playGain)playGain.gain.value=v;
+});
+
+/* ═══════════════════════════════════════
+   STATE
+   ═══════════════════════════════════════ */
+var mc=null,micStr=null,actx=null,ana=null,scriptProc=null;
+var playGain=null,nxtPlay=0,ck=null;
+var role=null,isPTT=false,peerUp=false;
+var peerTmr=null,heartTmr=null,rxSilTmr=null,sendTmr=null,retryTmr=null;
+var txN=0,rxN=0,dropN=0,lastRxSeq=-1,txSeq=0;
+var rawBuf=[];
+
+/* 80ms chunks for minimum buffer latency */
+var PCM_SR=16000,CHUNK_MS=80,CHUNK_SAMPS=PCM_SR*(CHUNK_MS/1000);
+var TP='tac08ul/';
+var BROKER_URL='wss://broker.emqx.io:8084/mqtt';
+var BROKER_NAME='emqx.io:8084';
+var HB=2000,PD=6000;
+
+/* ═══ μ-LAW CONSTANTS ═══ */
+var MU=255,LN_MU=Math.log(1+MU);
+
+/* μ-law compress: Float32 [-1,1] → Float32 [-1,1]
+   Boosts quiet signals so they get more Int16 bits.
+   This is what eliminates quantization hiss. */
+function muCompress(x){
+    var ax=Math.abs(x);
+    if(ax<0.0001)return 0;
+    return(x<0?-1:1)*Math.log(1+MU*ax)/LN_MU;
+}
+
+/* μ-law expand: Float32 [-1,1] → Float32 [-1,1]
+   Restores original dynamic range. */
+function muExpand(y){
+    var ay=Math.abs(y);
+    if(ay<0.0001)return 0;
+    return(y<0?-1:1)*(Math.pow(1+MU,ay)-1)/MU;
+}
+
+/* ═══ LOG ═══ */
+function L(m,c){
+    c=c||'';
+    var o=document.getElementById('log'),d=document.createElement('div');
+    d.className='ln '+c;
+    var n=new Date(),h=n.getHours(),mi=n.getMinutes(),s=n.getSeconds();
+    d.textContent='['+(h<10?'0':'')+h+':'+(mi<10?'0':'')+mi+':'+(s<10?'0':'')+s+'] '+m;
+    o.appendChild(d);o.scrollTop=o.scrollHeight;
+}
+
+/* ═══ CRYPTO ═══ */
+async function dk(pw){
+    var e=new TextEncoder();
+    var b=await crypto.subtle.importKey('raw',e.encode(pw),'PBKDF2',false,['deriveKey']);
+    return crypto.subtle.deriveKey({name:'PBKDF2',salt:e.encode('TAC08-ULAW'),iterations:100000,hash:'SHA-256'},b,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+async function enc(buf){
+    var iv=crypto.getRandomValues(new Uint8Array(12));
+    var ct=await crypto.subtle.encrypt({name:'AES-GCM',iv:iv},ck,buf);
+    var o=new Uint8Array(12+ct.byteLength);o.set(iv,0);o.set(new Uint8Array(ct),12);return o;
+}
+async function dec(d){
+    var u=new Uint8Array(d);
+    return crypto.subtle.decrypt({name:'AES-GCM',iv:u.slice(0,12)},ck,u.slice(12));
+}
+
+/* ═══════════════════════════════════════
+   MICROPHONE
+   
+   Single AudioContext for mic + playback
+   so browser AEC can see both paths.
+   
+   Chain: Mic → AEC → HP 100Hz → LP 4500Hz
+       → Analyser → ScriptProcessor → silence
+   Playback: PCM → expand → GainNode → destination
+   ═══════════════════════════════════════ */
+async function initMic(){
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)
+        throw new Error('getUserMedia unavailable. Use HTTPS.');
+    var s;
+    try{
+        s=await navigator.mediaDevices.getUserMedia({
+            audio:{
+                echoCancellation:true,
+                noiseSuppression:false,    /* OFF: fights our filters */
+                autoGainControl:true
+            }
+        });
+    }catch(e){
+        var h={NotAllowedError:'Permission DENIED.',NotFoundError:'No mic.',NotReadableError:'Mic in use.',SecurityError:'HTTPS required.',OverconstrainedError:''};
+        if(e.name==='OverconstrainedError')s=await navigator.mediaDevices.getUserMedia({audio:true});
+        else throw new Error(h[e.name]||(e.name+': '+e.message));
+    }
+    var tk=s.getAudioTracks();if(!tk.length)throw new Error('No audio tracks.');
+    micStr=s;
+
+    actx=new(window.AudioContext||window.webkitAudioContext)();
+    var nativeSR=actx.sampleRate;
+    L('Mic: '+tk[0].label+' ('+nativeSR+'Hz)','c-dim');
+
+    /* Input filter chain */
+    var src=actx.createMediaStreamSource(micStr);
+    var hp=actx.createBiquadFilter();hp.type='highpass';hp.frequency.value=100;hp.Q.value=0.7;
+    var lp=actx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=4500;lp.Q.value=0.7;
+    src.connect(hp);hp.connect(lp);
+
+    /* Analyser */
+    ana=actx.createAnalyser();ana.fftSize=256;ana.smoothingTimeConstant=0.4;
+    lp.connect(ana);
+
+    /* Capture: 1024 samples = ~21ms at 48kHz */
+    scriptProc=actx.createScriptProcessor(1024,1,1);
+    scriptProc.onaudioprocess=function(e){
+        if(!isPTT)return;
+        var inp=e.inputBuffer.getChannelData(0);
+        for(var i=0;i<inp.length;i++)rawBuf.push(inp[i]);
+        if(rawBuf.length>nativeSR*2)rawBuf=rawBuf.slice(-nativeSR);
+    };
+    ana.connect(scriptProc);
+
+    /* ScriptProcessor must connect to dest to run — output silence */
+    var silent=actx.createGain();silent.gain.value=0;
+    scriptProc.connect(silent);silent.connect(actx.destination);
+
+    /* Playback gain on SAME context — required for AEC */
+    playGain=actx.createGain();
+    playGain.gain.value=parseFloat(document.getElementById('slV').value);
+    playGain.connect(actx.destination);
+
+    L('μ-law companding: ON (eliminates quantization hiss)','c-dim');
+    L('Filters: HP 100Hz + LP 4500Hz','c-dim');
+    L('AEC: ON (single AudioContext)','c-dim');
+    L('Chunks: '+CHUNK_MS+'ms, interval: 40ms, QoS: 0','c-dim');
+    L('Ready','c-ok');
+    mLoop();
+}
+
+function mLoop(){
+    if(!ana){requestAnimationFrame(mLoop);return}
+    var d=new Uint8Array(ana.frequencyBinCount);ana.getByteFrequencyData(d);
+    var s=0;for(var i=0;i<d.length;i++)s+=d[i];
+    var v=Math.min(100,(s/d.length)*2.5);
+    document.getElementById('mF').style.width=v+'%';document.getElementById('mP').textContent=Math.round(v)+'%';
+    requestAnimationFrame(mLoop);
+}
+
+/* ═══ DOWNSAMPLE + μ-LAW COMPRESS + SEND ═══ */
+function sendChunk(){
+    if(!isPTT||!mc||!mc.connected)return;
+    var ratio=actx.sampleRate/PCM_SR;
+    var srcNeeded=Math.ceil(CHUNK_SAMPS*ratio);
+    if(rawBuf.length<srcNeeded)return;
+
+    var srcSamples=rawBuf.splice(0,srcNeeded);
+
+    /* Downsample with linear interpolation */
+    var pcm=new Float32Array(CHUNK_SAMPS);
+    for(var i=0;i<CHUNK_SAMPS;i++){
+        var si=i*ratio,idx=Math.floor(si),frac=si-idx;
+        if(idx+1<srcSamples.length)pcm[i]=srcSamples[idx]*(1-frac)+srcSamples[idx+1]*frac;
+        else pcm[i]=srcSamples[idx]||0;
+    }
+
+    /* μ-law compress THEN convert to Int16
+       This is the key to eliminating quantization hiss:
+       quiet parts of speech get boosted before quantization
+       so they use more of the Int16 range */
+    var int16=new Int16Array(CHUNK_SAMPS);
+    for(var j=0;j<CHUNK_SAMPS;j++){
+        var c=muCompress(pcm[j]);
+        if(c>1)c=1;if(c<-1)c=-1;
+        int16[j]=c<0?c*32768:c*32767;
+    }
+
+    /* Pack: 4-byte seq + Int16 PCM data */
+    txSeq++;
+    var hdr=new Uint8Array(4);new DataView(hdr.buffer).setUint32(0,txSeq,true);
+    var pcmBytes=new Uint8Array(int16.buffer);
+    var combined=new Uint8Array(4+pcmBytes.length);
+    combined.set(hdr,0);combined.set(pcmBytes,4);
+
+    enc(combined.buffer).then(function(encrypted){
+        mc.publish(TP+document.getElementById('fC').value.trim()+'/'+role,encrypted,{qos:0});
+        txN++;document.getElementById('sT').textContent=txN;
+    }).catch(function(){});
+}
+
+function flushRemaining(){
+    if(!mc||!mc.connected||rawBuf.length<60)return;
+    var ratio=actx.sampleRate/PCM_SR;
+    var outLen=Math.floor(rawBuf.length/ratio);
+    if(outLen<30)return;
+    var srcSamples=rawBuf.splice(0,rawBuf.length);
+    var pcm=new Float32Array(outLen);
+    for(var i=0;i<outLen;i++){
+        var si=i*ratio,idx=Math.floor(si),frac=si-idx;
+        if(idx+1<srcSamples.length)pcm[i]=srcSamples[idx]*(1-frac)+srcSamples[idx+1]*frac;
+        else pcm[i]=srcSamples[idx]||0;
+    }
+    var int16=new Int16Array(outLen);
+    for(var j=0;j<outLen;j++){
+        var c=muCompress(pcm[j]);if(c>1)c=1;if(c<-1)c=-1;
+        int16[j]=c<0?c*32768:c*32767;
+    }
+    txSeq++;
+    var hdr=new Uint8Array(4);new DataView(hdr.buffer).setUint32(0,txSeq,true);
+    var pcmBytes=new Uint8Array(int16.buffer);
+    var combined=new Uint8Array(4+pcmBytes.length);
+    combined.set(hdr,0);combined.set(pcmBytes,4);
+    enc(combined.buffer).then(function(encrypted){
+        mc.publish(TP+document.getElementById('fC').value.trim()+'/'+role,encrypted,{qos:0});
+        txN++;document.getElementById('sT').textContent=txN;
+    }).catch(function(){});
+    rawBuf=[];
+}
+
+/* ═══════════════════════════════════════
+   PLAYBACK
+   
+   Int16 → μ-law expand → Float32 → play
+   5ms fade edges prevent clicks.
+   Smart gapless with late-chunk skip.
+   ═══════════════════════════════════════ */
+function playPCM(decryptedBuf){
+    var view=new DataView(decryptedBuf);
+    var seq=view.getUint32(0,true);
+    if(seq<=lastRxSeq){dropN++;document.getElementById('sD').textContent=dropN;return}
+    lastRxSeq=seq;
+
+    var sampleCount=(decryptedBuf.byteLength-4)/2;
+    if(sampleCount<10)return;
+
+    /* Int16 → μ-law expand → Float32
+       This restores the original dynamic range and
+       eliminates the quantization hiss that would
+       otherwise be audible at low voice levels */
+    var float32=new Float32Array(sampleCount);
+    for(var i=0;i<sampleCount;i++){
+        float32[i]=muExpand(view.getInt16(4+i*2,true)/32768.0);
+    }
+
+    var audioBuf=actx.createBuffer(1,sampleCount,PCM_SR);
+    var ch=audioBuf.getChannelData(0);
+    ch.set(float32);
+
+    /* 5ms fade-in/fade-out to eliminate boundary clicks */
+    var fadeN=Math.min(60,Math.floor(sampleCount*0.06));
+    for(var f=0;f<fadeN;f++){
+        var g=f/fadeN;
+        ch[f]*=g;
+        ch[sampleCount-1-f]*=g;
+    }
+
+    var src=actx.createBufferSource();
+    src.buffer=audioBuf;
+    src.connect(playGain);
+
+    /* Smart scheduling */
+    var now=actx.currentTime;
+    var start;
+    if(nxtPlay>now-0.05){
+        start=Math.max(now+0.003,nxtPlay);
+    }else{
+        start=now+0.003;
+    }
+    src.start(start);
+    nxtPlay=start+audioBuf.duration;
+
+    /* RX indicator */
+    document.getElementById('rxInd').classList.add('on');
+    document.getElementById('dR').classList.add('green');
+    clearTimeout(rxSilTmr);
+    rxSilTmr=setTimeout(function(){
+        document.getElementById('rxInd').classList.remove('on');
+        document.getElementById('dR').classList.remove('green');
+        setTimeout(function(){nxtPlay=0},250);
+    },200);
+}
+
+/* ═══ PTT ═══ */
+function pttDown(){
+    if(!mc||!mc.connected)return;
+    if(actx&&actx.state==='suspended')actx.resume();
+    nxtPlay=0;rawBuf=[];txSeq=0;lastRxSeq=-1;
+    isPTT=true;
+    document.getElementById('dT').classList.add('red');
+    document.getElementById('ptt').classList.add('active');
+    sendTmr=setInterval(sendChunk,40); /* 40ms = check ~25x/sec */
+}
+function pttUp(){
+    if(!isPTT)return;
+    isPTT=false;
+    document.getElementById('dT').classList.remove('red');
+    document.getElementById('ptt').classList.remove('active');
+    clearInterval(sendTmr);
+    setTimeout(function(){flushRemaining()},80);
+}
+
+var pe=document.getElementById('ptt');
+pe.addEventListener('mousedown',function(e){e.preventDefault();pttDown()});
+pe.addEventListener('mouseup',function(e){e.preventDefault();pttUp()});
+pe.addEventListener('mouseleave',function(){if(isPTT)pttUp()});
+pe.addEventListener('touchstart',function(e){e.preventDefault();pttDown()},{passive:false});
+pe.addEventListener('touchend',function(e){e.preventDefault();pttUp()},{passive:false});
+pe.addEventListener('touchcancel',function(){if(isPTT)pttUp()});
+
+/* ═══ MQTT ═══ */
+function connectMQTT(ch,myRole){
+    return new Promise(function(resolve,reject){
+        role=myRole;
+        var pTopic=TP+ch+'/'+(role==='host'?'client':'host');
+        var pingT=TP+ch+'/ping';
+        var resolved=false;
+
+        function attempt(){
+            if(resolved)return;
+            L('Connecting '+BROKER_NAME+'...','c-dim');
+            var client=mqtt.connect(BROKER_URL,{
+                clientId:'TAC08-'+Math.random().toString(36).substr(2,8),
+                clean:true,connectTimeout:30000,reconnectPeriod:0,keepalive:15
+            });
+            client.on('connect',function(){
+                if(resolved)return;resolved=true;clearTimeout(retryTmr);
+                mc=client;
+                document.getElementById('svD').textContent=BROKER_NAME;
+                document.getElementById('svD').style.color='var(--green)';
+                L('CONNECTED','c-ok');
+                client.subscribe(pTopic,{qos:0});
+                client.subscribe(pingT,{qos:0});
+                client.on('message',function(topic,payload){
+                    var data;
+                    if(payload instanceof Uint8Array)data=payload;
+                    else if(payload instanceof ArrayBuffer)data=new Uint8Array(payload);
+                    else if(ArrayBuffer.isView(payload))data=new Uint8Array(payload.buffer,payload.byteOffset,payload.byteLength);
+                    else return;
+                    if(topic===pingT){
+                        try{var msg=JSON.parse(new TextDecoder().decode(data));
+                            if(msg.r!==role){peerUp=true;setActive();clearTimeout(peerTmr);peerTmr=setTimeout(function(){peerUp=false;setDead()},PD);document.getElementById('sL').textContent=(Date.now()-msg.t)+'ms'}
+                        }catch(e){}return;
+                    }
+                    if(topic===pTopic){
+                        rxN++;document.getElementById('sR').textContent=rxN;
+                        dec(data).then(function(buf){playPCM(buf)}).catch(function(){L('Decrypt fail — wrong secret?','c-err')});
+                    }
+                });
+                client.on('close',function(){if(mc===client){L('Disconnected — retry 5s','c-warn');setDead();mc=null;retryTmr=setTimeout(attempt,5000)}});
+                client.on('error',function(er){L('MQTT: '+er.message,'c-err')});
+                heartTmr=setInterval(function(){if(mc&&mc.connected)mc.publish(pingT,JSON.stringify({r:role,t:Date.now()}),{qos:0})},HB);
+                resolve();
+            });
+            client.on('error',function(err){
+                if(resolved)return;L('Failed: '+err.message+' — retry 5s','c-err');
+                try{client.end(true)}catch(e){}retryTmr=setTimeout(attempt,5000);
+            });
+            setTimeout(function(){
+                if(resolved)return;L('Timeout — retry 5s','c-err');
+                try{client.end(true)}catch(e){}retryTmr=setTimeout(attempt,5000);
+            },35000);
+        }
+        attempt();
+    });
+}
+
+/* ═══ UI ═══ */
+function setActive(){
+    if(document.getElementById('lkD').textContent==='ACTIVE')return;
+    document.getElementById('lkD').textContent='ACTIVE';document.getElementById('lkD').style.color='var(--green)';
+    document.getElementById('dN').classList.add('green');document.getElementById('ptt').disabled=false;
+    L('━━━━━━━━━━━━━━━━━━━━━━━━━','c-ok');L('LINK ACTIVE — Hold red to talk','c-ok');L('━━━━━━━━━━━━━━━━━━━━━━━━━','c-ok');
+}
+function setDead(){
+    document.getElementById('lkD').textContent='WAITING';document.getElementById('lkD').style.color='#ffaa00';
+    document.getElementById('dN').className='dot';document.getElementById('ptt').disabled=true;document.getElementById('sL').textContent='--';
+}
+function lockUI(l){
+    document.getElementById('bH').disabled=l;document.getElementById('bJ').disabled=l;
+    document.getElementById('fC').disabled=l;document.getElementById('fS').disabled=l;
+}
+
+/* ═══ HOST/JOIN ═══ */
+async function goHost(){
+    var ch=document.getElementById('fC').value.trim(),pw=document.getElementById('fS').value.trim();
+    if(!ch||ch<1||ch>999)return L('Channel: 1-999','c-err');
+    if(pw.length<4)return L('Secret: min 4 chars','c-err');
+    lockUI(true);document.getElementById('chD').textContent=TP+ch;L('Starting HOST...','c-info');
+    try{await initMic();ck=await dk(pw);await connectMQTT(ch,'host');L('Waiting for client...','c-dim');document.getElementById('lkD').textContent='WAITING';document.getElementById('lkD').style.color='#ffaa00'}
+    catch(e){L('FAILED: '+e.message,'c-err');lockUI(false)}
+}
+async function goJoin(){
+    var ch=document.getElementById('fC').value.trim(),pw=document.getElementById('fS').value.trim();
+    if(!ch||ch<1||ch>999)return L('Channel: 1-999','c-err');
+    if(pw.length<4)return L('Secret: min 4 chars','c-err');
+    lockUI(true);document.getElementById('chD').textContent=TP+ch;L('Starting CLIENT...','c-info');
+    try{await initMic();ck=await dk(pw);await connectMQTT(ch,'client');L('Waiting for host...','c-dim');document.getElementById('lkD').textContent='WAITING';document.getElementById('lkD').style.color='#ffaa00'}
+    catch(e){L('FAILED: '+e.message,'c-err');lockUI(false)}
+}
+
+/* ═══ RESET ═══ */
+function doReset(){
+    clearInterval(heartTmr);clearTimeout(peerTmr);clearTimeout(rxSilTmr);clearTimeout(sendTmr);clearTimeout(retryTmr);
+    pttUp();
+    try{if(micStr)micStr.getTracks().forEach(function(t){t.stop()})}catch(e){}
+    try{if(actx)actx.close()}catch(e){}
+    try{if(mc)mc.end(true)}catch(e){}
+    mc=null;micStr=null;actx=null;ana=null;scriptProc=null;
+    playGain=null;ck=null;role=null;isPTT=false;peerUp=false;
+    txN=0;rxN=0;dropN=0;lastRxSeq=-1;txSeq=0;rawBuf=[];nxtPlay=0;
+    ['dN','dT','dR'].forEach(function(id){document.getElementById(id).className='dot'});
+    document.getElementById('ptt').disabled=true;document.getElementById('ptt').classList.remove('active');
+    document.getElementById('lkD').textContent='OFFLINE';document.getElementById('lkD').style.color='#444';
+    document.getElementById('svD').textContent='--';document.getElementById('svD').style.color='#444';
+    document.getElementById('sT').textContent='0';document.getElementById('sR').textContent='0';
+    document.getElementById('sD').textContent='0';document.getElementById('sL').textContent='--';
+    document.getElementById('mF').style.width='0%';document.getElementById('mP').textContent='0%';
+    document.getElementById('chD').textContent='--';document.getElementById('rxInd').classList.remove('on');
+    lockUI(false);document.getElementById('log').innerHTML='';
+    L('SYSTEM RESET','c-dim');L('WiFi -> HOST  |  Any network -> JOIN','c-info');
+}
+
+/* ═══ BOOT ═══ */
+function boot(){
+    var sec=location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1'||location.hostname.indexOf('192.168.')===0;
+    if(!sec){L('WARNING: Not HTTPS — mic blocked','c-warn');L('Upload to GitHub Pages for free HTTPS','c-warn')}
+    else L('Secure context: OK','c-ok');
+    L('','');L('TAC/COM-08 — μLAW WALKIE-TALKIE','c-ok');
+    L('','');L('NETWORKS:','c-info');
+    L('  Airtel 5G  <->  Jio 4G  =  YES','c-dim');
+    L('  WiFi      <->  Any 5G  =  YES','c-dim');
+    L('  Different cities/operators = YES','c-dim');
+    L('  No VPN needed. No port forwarding.','c-dim');
+    L('','');L('AUDIO:','c-info');
+    L('  μ-law companding = no quantization hiss','c-dim');
+    L('  HP 100Hz + LP 4500Hz = no rumble/hiss','c-dim');
+    L('  Single AudioContext = AEC active','c-dim');
+    L('  80ms chunks + QoS 0 = low latency','c-dim');
+    L('','');L('WiFi  -> [HOST]','c-info');L('Any network -> [JOIN]','c-info');
+    L('','');L('>> Use EARPHONES to eliminate echo <<','c-warn');
+}
+</script>
+</body>
+</html>
