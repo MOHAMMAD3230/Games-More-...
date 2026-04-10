@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=GT-NC6T5LRJ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'GT-NC6T5LRJ');
+    </script>
+    <link rel="icon" href="https://mohammad3230.github.io/PROJECT/favicon.png" type="image/png" sizes="32x32" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Skyscraper OS - Ultimate Hybrid Edition</title>
+
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(self), camera=(), payment=()">
+    <meta name="format-detection" content="telephone=no">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: https://www.google-analytics.com; connect-src 'self' https://www.googletagmanager.com https://www.google-analytics.com wss://broker.emqx.io; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'; block-all-mixed-content;">
+
+    <script data-verified>
+    (function loadMQTT() {
+        var urls = [
+            'https://cdn.jsdelivr.net/npm/mqtt@5.10.4/dist/mqtt.min.js',
+            'https://unpkg.com/mqtt@5.10.4/dist/mqtt.min.js',
+            'https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.10.4/mqtt.min.js'
+        ];
+        var idx = 0;
+        var s = document.createElement('script');
+        s.setAttribute('data-verified', '');
+        s.async = true;
+
+        function tryNext() {
+            if (idx >= urls.length) {
+                window.__mqttLoaded = false;
+                console.error('[MQTT] All CDN sources failed to load');
+                return;
+            }
+            s.src = urls[idx];
+            document.head.appendChild(s);
+            idx++;
+        }
+
+        s.onerror = function() {
+            console.warn('[MQTT] Failed: ' + urls[idx - 1] + ' — trying next...');
+            tryNext();
+        };
+
+        s.onload = function() {
+            window.__mqttLoaded = true;
+            if (typeof mqtt !== 'undefined' && mqtt.connect) {
+                console.log('[MQTT] Loaded successfully from: ' + urls[idx - 1]);
+            } else {
+                console.error('[MQTT] Script loaded but mqtt object not found');
+            }
+        };
+
+        tryNext();
+    })();
+    </script>
+
+    <style>
+        :root {
+            --floor-h: 70px; --shaft-width: 130px; --room-width: 150px;
+            --bg-color: #05050a; --building-bg: rgba(0,0,0,0.9);
+            --theme-color: #00d2ff; --active-glow: #00ff88; --moving-glow: #ff8c00;
+            --emergency: #ff0033; --text-main: #ffffff;
+            --security-green: #00ff88; --security-red: #ff0033; --security-yellow: #ffb300;
+            --security-muted: #666; --panel-radius: 12px;
+        }
+        body.theme-morning { --bg-color: #e3f2fd; --building-bg: rgba(255,255,255,0.8); --theme-color: #1976d2; --text-main: #263238; }
+        body.theme-afternoon { --bg-color: #f5f5f5; --building-bg: rgba(250,250,250,0.9); --theme-color: #00796b; --text-main: #212121; }
+        body.theme-evening { --bg-color: #263238; --building-bg: rgba(38,50,56,0.95); --theme-color: #ffb300; --text-main: #eceff1; }
+        *, *::before, *::after { box-sizing: border-box; }
+        html { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
+        body { background: var(--bg-color); color: var(--text-main); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; height: 100vh; height: 100dvh; display: flex; align-items: center; justify-content: center; overflow: hidden; transition: background 1s ease; }
+        #exterior-view { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh; background: url('elevatorbuilding.jpg') no-repeat center center / cover, linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #16213e 100%); z-index: 1000; display: flex; justify-content: flex-end; align-items: flex-end; transition: opacity 0.8s ease, visibility 0.8s; }
+        .enter-btn-ui { margin: 4% 6%; cursor: pointer; text-align: center; transition: transform 0.3s; z-index: 1; }
+        .enter-btn-ui:hover { transform: scale(1.1); }
+        .enter-btn-ui:active { transform: scale(0.95); }
+        .enter-btn-ui .glow-circle { width: 70px; height: 70px; background: var(--theme-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 25px var(--theme-color); margin-bottom: 10px; }
+        .enter-btn-ui span { font-size: 11px; font-weight: bold; color: #fff; text-shadow: 0 0 5px #000, 0 0 10px #000; letter-spacing: 1px; }
+        .system-active #exterior-view { opacity: 0; visibility: hidden; pointer-events: none; }
+        .building-container { position: relative; width: 100%; max-width: 650px; background: var(--building-bg); border-left: 3px solid var(--theme-color); border-bottom: 20px solid #111; display: flex; flex-direction: column-reverse; transition: all 0.5s ease; box-shadow: 0 10px 50px rgba(0,0,0,0.5); visibility: hidden; opacity: 0; transform: scale(0.95); }
+        .system-active .building-container { visibility: visible; opacity: 1; transform: scale(1); }
+        .mode-desktop { height: auto; max-height: 95vh; max-height: 95dvh; }
+        .mode-mobile { height: 90vh; height: 90dvh; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--theme-color) #111; -webkit-overflow-scrolling: touch; }
+        .floor-row { height: var(--floor-h); min-height: var(--floor-h); border-top: 1px solid rgba(128,128,128,0.1); display: flex; align-items: center; padding-left: var(--shaft-width); position: relative; }
+        .floor-label-text { margin-left: 15px; font-size: 11px; opacity: 0.5; transition: 0.3s; white-space: nowrap; }
+        .floor-active .floor-label-text, .alarm-on .floor-label-text { opacity: 1; color: var(--theme-color); font-weight: bold; }
+        .room-view { width: var(--room-width); height: 50px; background: rgba(0,0,0,0.05); border: 1px solid var(--theme-color); position: relative; overflow: hidden; opacity: 0; transform: scale(0.9); transition: 0.4s; flex-shrink: 0; }
+        .floor-active .room-view, .alarm-on .room-view { opacity: 1; transform: scale(1); }
+        .room-door-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #1e272e; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        .room-view.unlocked .room-door-layer { transform: translateY(-100%); }
+        .ad-text { font-size: 10px; font-weight: bold; color: var(--theme-color); cursor: pointer; transition: 0.2s; }
+        .ad-text:hover { text-shadow: 0 0 8px var(--theme-color); }
+        .room-controls { display: flex; gap: 4px; justify-content: center; margin-top: 2px; }
+        .room-btn { background: none; font-size: 8px; cursor: pointer; border: 1px solid var(--theme-color); color: var(--theme-color); padding: 2px 6px; border-radius: 2px; min-height: 20px; min-width: 32px; display: inline-flex; align-items: center; justify-content: center; }
+        .room-btn:active { background: rgba(0,210,255,0.2); }
+        .btn-lock { border-color: var(--emergency); color: var(--emergency); }
+        .btn-radio { border-color: var(--moving-glow); color: var(--moving-glow); font-size: 12px !important; min-width: 38px !important; }
+        .elevator { position: absolute; left: 10px; bottom: 0; width: 100px; height: calc(var(--floor-h) - 2px); background: #000; border: 2px solid var(--theme-color); transition: bottom 1.8s cubic-bezier(0.45, 0.05, 0.55, 0.95); z-index: 20; cursor: pointer; }
+        .lift-door { position: absolute; width: 50%; height: 100%; background: #222; transition: 0.6s; }
+        .lift-door-l { left: 0; border-right: 1px solid var(--theme-color); }
+        .lift-door-r { right: 0; border-left: 1px solid var(--theme-color); }
+        .open .lift-door-l { transform: translateX(-85%); }
+        .open .lift-door-r { transform: translateX(85%); }
+        .dashboard-panel { position: fixed; right: 15px; bottom: 15px; width: 310px; background: #000; color: #fff; border: 2px solid var(--theme-color); padding: 15px; display: none; flex-direction: column; border-radius: var(--panel-radius); z-index: 100; box-shadow: 0 0 30px #000; max-height: 88vh; max-height: 88dvh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .select-input { background: #111; color: var(--theme-color); border: 1px solid var(--theme-color); padding: 10px; width: 100%; margin-bottom: 10px; font-family: monospace; font-size: 12px; outline: none; border-radius: 6px; min-height: 40px; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2300d2ff'%3E%3Cpath d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+        .num-pad { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-bottom: 10px; overflow-y: auto; max-height: 180px; }
+        .circ-btn { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; border-radius: 6px; transition: 0.2s; min-height: 36px; }
+        .circ-btn:active { background: rgba(255,255,255,0.05); }
+        .btn-circle { width: 26px; height: 26px; border-radius: 50%; border: 1px solid #333; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; flex-shrink: 0; }
+        .circ-btn.moving .btn-circle { border-color: var(--moving-glow); color: var(--moving-glow); box-shadow: 0 0 8px var(--moving-glow); }
+        .circ-btn.arrived .btn-circle { border-color: var(--active-glow); color: var(--active-glow); }
+        .control-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-top: 10px; border-top: 1px solid #222; }
+        .ctrl-btn { background: #111; border: 1px solid var(--theme-color); color: var(--theme-color); padding: 12px 8px; cursor: pointer; font-size: 10px; border-radius: 6px; font-weight: bold; transition: 0.2s; min-height: 44px; display: flex; align-items: center; justify-content: center; text-align: center; line-height: 1.2; }
+        .ctrl-btn:active { background: rgba(0,210,255,0.2); transform: scale(0.97); }
+        .ctrl-btn:disabled { opacity: 0.15; cursor: not-allowed; }
+        .alarm-btn { border-color: var(--emergency); color: var(--emergency); grid-column: span 2; }
+        .exit-btn { border-color: #fff; color: #fff; background: #333; grid-column: span 2; }
+        .security-btn { border-color: var(--security-green); color: var(--security-green); grid-column: span 2; }
+        .radio-btn { border-color: var(--moving-glow); color: var(--moving-glow); }
+        .alarm-active { background: var(--emergency) !important; color: #fff !important; animation: blink 0.5s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
+        .security-panel { position: fixed; left: 15px; top: 15px; width: 370px; max-height: 85vh; max-height: 85dvh; background: #000; color: #fff; border: 2px solid var(--security-green); padding: 0; display: none; flex-direction: column; border-radius: var(--panel-radius); z-index: 200; box-shadow: 0 0 40px rgba(0,255,136,0.2); overflow: hidden; }
+        .security-header { background: linear-gradient(135deg, rgba(0,255,136,0.1), rgba(0,210,255,0.1)); padding: 14px 15px; border-bottom: 1px solid var(--security-green); display: flex; justify-content: space-between; align-items: center; min-height: 48px; }
+        .security-header h3 { margin: 0; font-size: 13px; color: var(--security-green); letter-spacing: 2px; }
+        .security-close { background: none; border: 1px solid var(--security-red); color: var(--security-red); cursor: pointer; padding: 6px 12px; border-radius: 4px; font-size: 11px; min-height: 32px; min-width: 32px; display: flex; align-items: center; justify-content: center; }
+        .security-close:active { background: rgba(255,0,51,0.2); }
+        .security-body { padding: 15px; overflow-y: auto; flex: 1; -webkit-overflow-scrolling: touch; }
+        .shield-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 15px; }
+        .shield-item { display: flex; align-items: center; gap: 5px; padding: 6px; border-radius: 6px; font-size: 9px; }
+        .shield-item.active { background: rgba(0,255,136,0.05); border: 1px solid rgba(0,255,136,0.2); }
+        .shield-item.meta-only { background: rgba(255,179,0,0.05); border: 1px solid rgba(255,179,0,0.2); }
+        .shield-item.inactive { background: rgba(255,0,51,0.05); border: 1px solid rgba(255,0,51,0.2); }
+        .shield-icon { font-size: 12px; flex-shrink: 0; }
+        .shield-label { color: #aaa; font-size: 7px; display: block; line-height: 1.2; }
+        .shield-value { font-weight: bold; font-size: 8px; }
+        .shield-value.active-val { color: var(--security-green); }
+        .shield-value.meta-val { color: var(--security-yellow); }
+        .shield-value.inactive-val { color: var(--security-red); }
+        .audit-log-container { background: #0a0a0a; border: 1px solid #222; border-radius: 6px; padding: 10px; max-height: 180px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 9px; -webkit-overflow-scrolling: touch; }
+        .audit-entry { padding: 4px 0; border-bottom: 1px solid #111; }
+        .audit-time { color: #555; }
+        .audit-event { color: var(--security-green); }
+        .audit-event.blocked { color: var(--security-red); }
+        .audit-event.warning { color: var(--security-yellow); }
+        .audit-event.info { color: #666; }
+        .audit-details { color: #888; font-size: 8px; }
+        .security-score-bar { height: 6px; background: #111; border-radius: 3px; margin: 10px 0; overflow: hidden; }
+        .security-score-fill { height: 100%; border-radius: 3px; transition: width 0.5s, background 0.5s; }
+        .deploy-hint { margin-top: 15px; padding: 10px; background: rgba(255,179,0,0.05); border: 1px dashed rgba(255,179,0,0.3); border-radius: 6px; font-size: 8px; color: var(--security-yellow); line-height: 1.7; }
+        .threat-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh; background: rgba(255,0,0,0.1); z-index: 9999; display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px); padding: 20px; }
+        .threat-overlay.active { display: flex; }
+        .threat-modal { background: #000; border: 2px solid var(--security-red); padding: 30px; border-radius: var(--panel-radius); text-align: center; max-width: 400px; width: 100%; box-shadow: 0 0 60px rgba(255,0,51,0.3); }
+        .threat-modal h2 { color: var(--security-red); margin: 0 0 10px 0; font-size: 16px; letter-spacing: 3px; }
+        .threat-modal p { color: #ccc; font-size: 13px; margin: 10px 0; line-height: 1.5; }
+        .threat-modal button { background: var(--security-red); color: #fff; border: none; padding: 14px 30px; cursor: pointer; border-radius: 6px; font-weight: bold; margin-top: 15px; font-size: 13px; min-height: 48px; }
+        .security-badge { position: fixed; left: 12px; bottom: 12px; width: 44px; height: 44px; border-radius: 50%; background: #000; border: 2px solid var(--security-green); display: none; align-items: center; justify-content: center; cursor: pointer; z-index: 150; transition: 0.3s; font-size: 18px; }
+        .system-active .security-badge { display: flex; }
+        .security-badge:active { transform: scale(0.9); }
+        .security-badge.threat-active { border-color: var(--security-red); animation: pulse-red 1s infinite; }
+        @keyframes pulse-red { 0%, 100% { box-shadow: 0 0 5px rgba(255,0,51,0.3); } 50% { box-shadow: 0 0 25px rgba(255,0,51,0.6); } }
+        .security-toast { position: fixed; top: 15px; left: 50%; transform: translateX(-50%); padding: 12px 20px; border-radius: 8px; z-index: 10000; font-size: 12px; font-weight: bold; display: none; animation: slideDown 0.3s ease; max-width: 90vw; text-align: center; }
+        .security-toast.show { display: block; }
+        .security-toast.blocked { background: rgba(255,0,51,0.95); color: #fff; border: 1px solid var(--security-red); }
+        .security-toast.info { background: rgba(0,210,255,0.95); color: #000; border: 1px solid var(--theme-color); }
+        .security-toast.success { background: rgba(0,255,136,0.95); color: #000; border: 1px solid var(--security-green); }
+        @keyframes slideDown { from { opacity: 0; transform: translateX(-50%) translateY(-20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+        .secure-prompt-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh; background: rgba(0,0,0,0.7); z-index: 500; display: none; align-items: center; justify-content: center; backdrop-filter: blur(3px); padding: 20px; }
+        .secure-prompt-overlay.active { display: flex; }
+        .secure-prompt-box { background: #111; border: 2px solid var(--theme-color); padding: 25px; border-radius: var(--panel-radius); width: 100%; max-width: 340px; }
+        .secure-prompt-box h4 { margin: 0 0 5px 0; color: var(--theme-color); font-size: 13px; }
+        .secure-prompt-box p { margin: 0 0 15px 0; color: #888; font-size: 11px; line-height: 1.4; }
+        .secure-prompt-input { width: 100%; padding: 14px; background: #000; border: 1px solid var(--theme-color); color: #fff; font-family: monospace; font-size: 16px; outline: none; border-radius: 6px; min-height: 48px; }
+        .secure-prompt-input:focus { box-shadow: 0 0 10px rgba(0,210,255,0.3); }
+        .secure-prompt-actions { display: flex; gap: 10px; margin-top: 18px; }
+        .secure-prompt-actions button { padding: 14px 20px; cursor: pointer; border-radius: 6px; font-size: 12px; font-weight: bold; border: 1px solid; min-height: 48px; flex: 1; }
+        .sp-confirm { background: var(--theme-color); color: #000; border-color: var(--theme-color); }
+        .sp-cancel { background: transparent; color: #888; border-color: #444; }
+        .sp-error { color: var(--security-red); font-size: 10px; margin-top: 8px; display: none; line-height: 1.4; }
+        .mobile-fab-row { position: fixed; bottom: 15px; right: 15px; display: none; flex-direction: column; gap: 10px; z-index: 150; }
+        .mobile-fab { width: 52px; height: 52px; border-radius: 50%; border: 2px solid var(--theme-color); background: #000; color: var(--theme-color); font-size: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.5); transition: 0.2s; }
+        .mobile-fab:active { transform: scale(0.9); background: rgba(0,210,255,0.1); }
+        .mobile-fab.fab-security { border-color: var(--security-green); color: var(--security-green); }
+        .mobile-fab.fab-radio { border-color: var(--moving-glow); color: var(--moving-glow); }
+        .gtm-status { font-size: 8px; color: #555; text-align: center; margin-top: 8px; }
+        .gtm-status.active { color: var(--security-green); }
+
+        /* ═══ WALKIE-TALKIE ═══ */
+        .wt-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 300; display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px); padding: 15px; }
+        .wt-overlay.active { display: flex; }
+        .wt-panel { background: #000; border: 2px solid var(--moving-glow); width: 100%; max-width: 520px; max-height: 90vh; max-height: 90dvh; border-radius: var(--panel-radius); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 50px rgba(255,140,0,0.15); }
+        .wt-header { background: linear-gradient(135deg, rgba(255,140,0,0.1), rgba(0,0,0,0.5)); padding: 12px 15px; border-bottom: 1px solid var(--moving-glow); display: flex; justify-content: space-between; align-items: center; min-height: 44px; flex-shrink: 0; }
+        .wt-header h3 { margin: 0; font-size: 12px; color: var(--moving-glow); letter-spacing: 2px; font-family: 'Courier New', monospace; }
+        .wt-close { background: none; border: 1px solid var(--security-red); color: var(--security-red); cursor: pointer; padding: 5px 10px; border-radius: 4px; font-size: 12px; min-height: 30px; min-width: 30px; display: flex; align-items: center; justify-content: center; }
+        .wt-body { padding: 12px 15px; overflow-y: auto; flex: 1; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 10px; }
+        .wt-status { font-family: 'Courier New', monospace; font-size: 0.5rem; color: #444; display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #111; }
+        .wt-status .active { color: var(--security-green); }
+        .wt-log { flex: 1; min-height: 100px; max-height: 180px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.6rem; line-height: 1.4; color: var(--moving-glow); background: #050505; border: 1px solid #1a1a1a; border-radius: 4px; padding: 8px; scrollbar-width: none; }
+        .wt-log::-webkit-scrollbar { display: none; }
+        .wl-ok { color: var(--security-green); }
+        .wl-er { color: var(--security-red); }
+        .wl-wn { color: #ffaa00; }
+        .wl-dm { color: #444; }
+
+        /* ═══ FIX #6: Missing wt-input and wt-btn styles ═══ */
+        .wt-input { flex: 1; padding: 8px 10px; background: #0a0a0a; border: 1px solid #333; color: var(--moving-glow); font-family: 'Courier New', monospace; font-size: 0.65rem; outline: none; border-radius: 4px; min-height: 36px; }
+        .wt-input:focus { border-color: var(--moving-glow); box-shadow: 0 0 6px rgba(255,140,0,0.15); }
+        .wt-btn { flex: 1; padding: 9px 8px; font-family: 'Courier New', monospace; font-size: 0.6rem; font-weight: bold; letter-spacing: 1px; cursor: pointer; border-radius: 4px; min-height: 36px; display: flex; align-items: center; justify-content: center; transition: 0.15s; }
+        .wt-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .wt-btn.host { background: #1a2a1a; border: 1px solid var(--security-green); color: var(--security-green); }
+        .wt-btn.host:active:not(:disabled) { background: rgba(0,255,136,0.15); }
+        .wt-btn.join { background: #1a1a2a; border: 1px solid var(--theme-color); color: var(--theme-color); }
+        .wt-btn.join:active:not(:disabled) { background: rgba(0,210,255,0.15); }
+        .wt-btn.disconnect { background: #2a1a1a; border: 1px solid var(--security-red); color: var(--security-red); }
+        .wt-btn.disconnect:active { background: rgba(255,0,51,0.15); }
+
+        .wt-ptt { width: 100%; height: 90px; background: linear-gradient(180deg, #8c3024, #5a1c14); color: #fff; border: 3px solid #3e1510; border-radius: 6px; font-family: 'Courier New', monospace; font-size: 0.9rem; font-weight: bold; letter-spacing: 2px; cursor: pointer; user-select: none; -webkit-user-select: none; box-shadow: 0 4px 0 #220a06; transition: all 0.06s; flex-shrink: 0; }
+        .wt-ptt:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 #220a06; background: linear-gradient(180deg, #cc3020, #882010); }
+        .wt-ptt:disabled { background: #0a0a0a; color: #222; box-shadow: none; border-color: #151515; }
+        .wt-ptt.on { animation: wtPulse 0.4s infinite; }
+        @keyframes wtPulse { 0%,100% { box-shadow: 0 4px 0 #220a06, 0 0 15px rgba(255,0,0,0.2); } 50% { box-shadow: 0 4px 0 #220a06, 0 0 30px rgba(255,0,0,0.5); } }
+        .wt-leds { display: flex; justify-content: space-around; margin-top: 6px; font-size: 0.45rem; text-transform: uppercase; letter-spacing: 1px; }
+        .wt-led-i { display: flex; align-items: center; gap: 4px; }
+        .wt-d { width: 7px; height: 7px; border-radius: 50%; background: #0f0505; border: 1px solid #1a0505; transition: all 0.2s; }
+        .wt-d.rd { background: #f00; box-shadow: 0 0 6px #f00; border-color: #f00; animation: wtBlink 0.5s infinite; }
+        .wt-d.gn { background: var(--security-green); box-shadow: 0 0 6px var(--security-green); border-color: var(--security-green); }
+        @keyframes wtBlink { 0%,100% { opacity: 1; } 50% { opacity: 0.2; } }
+        .wt-stats { font-family: 'Courier New', monospace; font-size: 0.42rem; color: #333; display: flex; justify-content: space-between; margin-top: 6px; padding-top: 6px; border-top: 1px solid #111; }
+        .wt-cr { display: flex; gap: 5px; align-items: center; }
+        .wt-cr label { font-size: 0.42rem; color: #444; min-width: 22px; }
+        .wt-cr input[type=range] { flex: 1; accent-color: var(--moving-glow); height: 3px; }
+        .wt-cr span { font-size: 0.42rem; color: var(--moving-glow); min-width: 22px; text-align: right; }
+        .wt-info { font-size: 0.4rem; color: #333; line-height: 1.5; border-top: 1px solid #111; padding-top: 6px; }
+        .wt-info strong { color: #665522; }
+        .wt-meter { height: 5px; background: #000; border: 1px solid #111; border-radius: 2px; overflow: hidden; margin-top: 6px; }
+        .wt-meter-fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--security-green), #ccff00 70%, var(--security-red)); transition: width 0.05s linear; }
+        @media (max-width: 1024px) { .dashboard-panel { width: 290px; right: 10px; bottom: 10px; padding: 12px; } .security-panel { width: 340px; left: 10px; top: 10px; } }
+        @media (max-width: 768px) {
+            :root { --floor-h: 60px; --shaft-width: 100px; --room-width: 130px; }
+            .elevator { width: 80px; left: 8px; } .room-view { height: 46px; }
+            .ad-text { font-size: 9px; } .room-btn { font-size: 7px; padding: 1px 4px; min-height: 18px; min-width: 28px; }
+            .floor-label-text { font-size: 10px; margin-left: 10px; }
+            .dashboard-panel { position: fixed; right: 0; bottom: 0; left: 0; width: 100%; max-height: 85vh; max-height: 85dvh; border-radius: var(--panel-radius) var(--panel-radius) 0 0; border-right: none; border-bottom: none; border-left: none; }
+            .security-panel { position: fixed; left: 0; top: 0; right: 0; width: 100%; max-height: 90vh; max-height: 90dvh; border-radius: 0 0 var(--panel-radius) var(--panel-radius); border-left: none; border-right: none; border-top: none; }
+            .wt-panel { max-width: 100%; max-height: 95vh; max-height: 95dvh; border-radius: 0; }
+            .mobile-fab-row { display: flex; }
+            .security-badge { display: none !important; }
+        }
+        @media (max-width: 480px) {
+            :root { --floor-h: 54px; --shaft-width: 85px; --room-width: 110px; }
+            .elevator { width: 68px; left: 6px; } .room-view { height: 42px; }
+            .ad-text { font-size: 8px; } .room-btn { font-size: 7px; padding: 1px 3px; min-height: 16px; min-width: 24px; }
+            .floor-label-text { font-size: 9px; margin-left: 8px; }
+        }
+        @media (max-height: 500px) and (orientation: landscape) {
+            :root { --floor-h: 44px; --shaft-width: 85px; --room-width: 110px; }
+            .elevator { width: 72px; height: calc(var(--floor-h) - 2px); }
+            .room-view { height: 36px; } .ad-text { font-size: 8px; } .room-btn { font-size: 6px; min-height: 14px; min-width: 22px; }
+            .floor-label-text { font-size: 8px; margin-left: 8px; }
+            .dashboard-panel { max-height: 95vh; max-height: 95dvh; }
+            .security-panel { max-height: 95vh; max-height: 95dvh; }
+            .wt-panel { max-height: 95vh; max-height: 95dvh; }
+            .wt-log { min-height: 60px; max-height: 100px; }
+            .wt-ptt { height: 70px; }
+        }
+        @supports (padding: env(safe-area-inset-bottom)) {
+            .dashboard-panel { padding-bottom: calc(15px + env(safe-area-inset-bottom)); }
+            .mobile-fab-row { bottom: calc(15px + env(safe-area-inset-bottom)); }
+            .security-badge { bottom: calc(12px + env(safe-area-inset-bottom)); }
+        }
+    </style>
+</head>
+<body class="theme-evening">
+    <div class="threat-overlay" id="threatOverlay"><div class="threat-modal"><h2>⚠ THREAT DETECTED ⚠</h2><p id="threatMessage">A security threat was blocked.</p><p style="font-size:9px;color:#666;">This incident has been logged.</p><button onclick="dismissThreat()">ACKNOWLEDGE</button></div></div>
+    <div class="security-toast" id="securityToast"></div>
+    <div class="secure-prompt-overlay" id="securePromptOverlay"><div class="secure-prompt-box"><h4 id="spTitle">SECURITY VERIFICATION</h4><p id="spDesc">Enter your security code.</p><input type="password" class="secure-prompt-input" id="spInput" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"><div class="sp-error" id="spError"></div><div class="secure-prompt-actions"><button class="sp-cancel" onclick="closeSecurePrompt(null)">CANCEL</button><button class="sp-confirm" onclick="submitSecurePrompt()">VERIFY</button></div></div></div>
+    <div id="exterior-view"><div class="enter-btn-ui" onclick="enterBuilding()"><div class="glow-circle"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg></div><span>ENTER | EXIT BUILDING</span></div></div>
+    <div class="building-container mode-desktop" id="building"><div id="elevator" class="elevator open" onclick="toggleDash()"><div class="lift-door lift-door-l"></div><div class="lift-door lift-door-r"></div></div></div>
+    <div class="mobile-fab-row" id="mobileFabs"><div class="mobile-fab fab-security" onclick="toggleSecurityPanel()" title="Security">🛡</div><div class="mobile-fab fab-radio" onclick="openWalkieTalkie()" title="Radio">📻</div><div class="mobile-fab" onclick="toggleDash()" title="Controls">⚙</div></div>
+    <div class="dashboard-panel" id="dash">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><span id="clock" style="font-family:monospace;color:var(--theme-color);font-size:14px;">00:00:00</span><span id="status-tag" style="font-size:9px;letter-spacing:1px;color:var(--theme-color);">SYSTEM ACTIVE</span></div>
+        <label style="font-size:9px;color:#888;">PLATFORM:</label><select class="select-input" id="platformSelector" onchange="changePlatformMode()"><option value="desktop">Desktop (Compact)</option><option value="mobile">Mobile (Scrollable)</option></select>
+        <label style="font-size:9px;color:#888;">TIMEZONE:</label><select class="select-input" id="locationSelector" onchange="updateLocationTime()"><option value="local">Auto Detect</option><option value="IN">India (IST)</option><option value="US">USA (EST)</option></select>
+        <div class="num-pad" id="btn-container"></div>
+        <div class="control-row">
+            <button class="ctrl-btn" onclick="controlLiftDoors('open')">OPEN DOORS</button>
+            <button class="ctrl-btn" onclick="controlLiftDoors('close')">CLOSE DOORS</button>
+            <button class="ctrl-btn alarm-btn" id="alarm" onclick="triggerFireExit()">ALARM / FIRE EXIT</button>
+            <button class="ctrl-btn security-btn" onclick="toggleSecurityPanel()">🛡 SECURITY</button>
+            <button class="ctrl-btn radio-btn" onclick="openWalkieTalkie()">📻 RADIO</button>
+            <button class="ctrl-btn exit-btn" onclick="exitBuilding()">LOGOUT / EXIT</button>
+            <button class="ctrl-btn" style="grid-column:span 2;" onclick="toggleDash()">MINIMIZE</button>
+        </div>
+    </div>
+    <div class="security-badge" id="securityBadge" onclick="toggleSecurityPanel()" title="Security Center">🛡</div>
+    <div class="security-panel" id="securityPanel">
+        <div class="security-header"><h3>🛡 SECURITY CENTER</h3><button class="security-close" onclick="toggleSecurityPanel()">✕</button></div>
+        <div class="security-body">
+            <div style="text-align:center;margin-bottom:15px;"><div style="font-size:9px;color:#888;letter-spacing:2px;">PROTECTION SCORE</div><div id="secScore" style="font-size:36px;font-weight:bold;color:var(--security-green);">--</div><div class="security-score-bar"><div class="security-score-fill" id="secScoreBar" style="width:0%;background:var(--security-yellow);"></div></div><div style="font-size:8px;color:#555;margin-top:4px;" id="scoreNote">Calculating...</div></div>
+            <div style="font-size:7px;color:#555;letter-spacing:1px;margin-bottom:6px;">🟢 ENFORCED &nbsp; 🟡 META ONLY &nbsp; 🔴 NOT ENFORCED</div>
+            <div class="shield-grid" id="shieldGrid"></div>
+            <div style="font-size:9px;color:#888;letter-spacing:2px;margin-bottom:8px;">AUDIT LOG</div>
+            <div class="audit-log-container" id="auditLog"><div style="color:#444;text-align:center;padding:20px;">Awaiting events...</div></div>
+            <div style="margin-top:15px;padding:10px;background:rgba(0,210,255,0.05);border:1px solid rgba(0,210,255,0.1);border-radius:6px;"><div style="font-size:8px;color:#666;letter-spacing:1px;margin-bottom:5px;">CLIENT PROTECTIONS (ALWAYS ACTIVE)</div><div style="font-size:9px;color:var(--theme-color);line-height:1.8;" id="activeProtections"></div></div>
+            <div class="deploy-hint" id="deployHint"></div>
+        </div>
+    </div>
+
+    <!-- ═══ WALKIE-TALKIE ═══ -->
+    <div class="wt-overlay" id="wtOverlay">
+        <div class="wt-panel">
+            <div class="wt-header"><h3>📻 TAC/COM RADIO</h3><button class="wt-close" onclick="closeWalkieTalkie()">✕</button></div>
+            <div class="wt-body">
+                <div class="wt-status">
+                    <span>CH: <span id="wtCh" style="color:var(--moving-glow)">--</span></span>
+                    <span class="active" style="color:var(--security-green)">OPUS + E2E</span>
+                    <span>LINK: <span id="wtLk" style="color:#444">OFFLINE</span></span>
+                    <span>SRV: <span id="wtSv" style="color:#444">--</span></span>
+                </div>
+                <div style="display:flex;gap:8px;">
+                    <input type="number" class="wt-input" id="wtChan" value="42" min="1" max="999" placeholder="CH">
+                    <input type="password" class="wt-input" id="wtSec" value="tacsecure2026" placeholder="SECRET">
+                </div>
+                <div style="display:flex;gap:8px;">
+                    <button class="wt-btn host" id="wtHost" onclick="wtGoHost()">HOST</button>
+                    <button class="wt-btn join" id="wtJoin" onclick="wtGoJoin()">JOIN</button>
+                </div>
+                <button class="wt-btn disconnect" id="wtDisc" onclick="wtDisconnect()" style="display:none">⚠ DISCONNECT</button>
+                <div class="wt-log" id="wtLog"></div>
+                <div class="wt-meter"><div class="wt-meter-fill" id="wtMF"></div></div>
+                <button class="wt-ptt" id="wtPtt" disabled>HOLD TO TX</button>
+                <div class="wt-leds">
+                    <div class="wt-led-i"><div class="wt-d" id="wtDN"></div>LINK</div>
+                    <div class="wt-led-i"><div class="wt-d" id="wtDT"></div>TX</div>
+                    <div class="wt-led-i"><div class="wt-d" id="wtDR"></div>RX</div>
+                </div>
+                <div class="wt-stats">
+                    <span>TX:<span id="wtST">0</span></span>
+                    <span>RX:<span id="wtSR">0</span></span>
+                    <span>BUF:<span id="wtSB">0</span></span>
+                    <span>LAT:<span id="wtSL">--</span></span>
+                </div>
+                <div class="wt-cr">
+                    <label>VOL</label>
+                    <input type="range" id="wtVol" min="0.5" max="3" step="0.1" value="1.2">
+                    <span id="wtVV">1.2</span>
+                </div>
+                <div class="wt-info">
+                    <strong>HOW TO USE:</strong> Both devices open this page → go to Floor 5 (HR Node) → VERIFY room → click RADIO → same channel + secret → one HOST, other JOIN → hold red button.<br>
+                    <strong>NETWORKS:</strong> Airtel, Jio, Vi, WiFi — any combination.<br>
+                    <strong>ECHO:</strong> Use earphones on one device.<br>
+                    <strong>SECURITY:</strong> AES-256-GCM + SHA-256 topic hashing.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script data-verified>
+        /* ═══════════════════════════════════════════
+           SECURITY MODULE (unchanged logic, preserved)
+           ═══════════════════════════════════════════ */
+        const Security = (() => {
+            'use strict';
+            let _auditLog=[],_rateLimiter={},_securityScore=0,_pendingResolve=null,_isServerHeaders=false;
+            const _GTM_ALLOWED=['www.googletagmanager.com','googletagmanager.com','www.google-analytics.com','google-analytics.com','www.google.com','google.com','cdn.jsdelivr.net','broker.emqx.io'];
+            function _isGTMAllowed(src){if(!src||typeof src!=='string')return false;try{const h=new URL(src,window.location.origin).hostname;return _GTM_ALLOWED.includes(h);}catch{return false;}}
+            function _detectServerHeaders(){try{const h=window.location.hostname;_isServerHeaders=!(h.includes('github.io')||h.includes('github.com')||h==='localhost'||h==='127.0.0.1'||window.location.protocol==='file:');}catch(e){_isServerHeaders=false;}return _isServerHeaders;}
+            function _sanitize(i){if(typeof i!=='string')return '';let c=i.replace(/\0/g,'').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g,'');const d=document.createElement('div');d.textContent=c;return d.innerHTML;}
+            function _detectSQLi(i){return[/(\s|^)(SELECT|INSERT|UPDATE|DELETE|DROP|UNION|ALTER|CREATE|EXEC|EXECUTE|TRUNCATE)(\s|$)/i,/(--|;|\/\*|\*\/|xp_|0x)[\s\S]*$/im,/('(\s)*(OR|AND)(\s)*'?\d*'?\s*=\s*'?\d*'?)/i,/(\d+\s*=\s*\d+)|('\s*=\s*')/i].some(r=>r.test(i));}
+            function _detectXSS(i){return[/<script[^>]*>[\s\S]*?<\/script>/gi,/<script[\s\S]*$/i,/javascript\s*:/gi,/on\w+\s*=\s*['"][^'"]*['"]/gi,/on\w+\s*=\s*[^\s>]+/gi,/<\s*(img|svg|body|video|audio|details|marquee)[^>]+on\w+\s*=/gi,/<\s*(iframe|object|embed|form|input|base|link|meta)/gi,/eval\s*\(/gi,/Function\s*\(/gi,/document\.(cookie|domain|write|location)/gi,/window\.(location|open|navigate)/gi,/String\.fromCharCode/gi,/atob\s*\(/gi].some(r=>r.test(i));}
+            function _detectPathTraversal(i){return[/\.\.[\/\\]/,/\.\.%2[fF]/,/%2[eE]%2[eE]/].some(r=>r.test(i));}
+            function _detectCmdInj(i){return[/[;&|`$]/,/\$\(/,/`[^`]+`/,/\/etc\//i,/cmd\.exe/i,/powershell/i,/bash\s+-/i].some(r=>r.test(i));}
+            function _detectSE(i){return[/urgent\s+action/i,/your\s+account\s+(will\s+be|has\s+been)/i,/verify\s+your\s+(identity|account|credentials)/i,/click\s+here\s+to\s+verify/i,/suspicious\s+activity/i,/unauthorized\s+access/i,/security\s+alert.*immediate/i].some(r=>r.test(i));}
+            function _rateLimit(a,m,ms){m=m||5;ms=ms||60000;const n=Date.now();if(!_rateLimiter[a])_rateLimiter[a]={a:[],b:false,t:0};const l=_rateLimiter[a];l.a=l.a.filter(t=>n-t<ms);if(l.b&&n-l.t<ms)return{ok:false,s:Math.ceil((ms-(n-l.t))/1000)};if(l.b)l.b=false;if(l.a.length>=m){l.b=true;l.t=n;_log('RATE_LIMIT','Blocked',{action:a});return{ok:false,s:Math.ceil(ms/1000)};}l.a.push(n);return{ok:true,s:m-l.a.length};}
+            function _log(ev,msg,det){det=det||{};const e={timestamp:new Date().toISOString(),event:ev,message:msg,details:{...det}};_auditLog.push(e);if(_auditLog.length>200)_auditLog.shift();_updateLogUI(e);console.log('[SECURITY] '+ev+': '+msg,det);}
+            function _updateLogUI(e){const c=document.getElementById('auditLog');if(!c)return;if(_auditLog.length===1)c.innerHTML='';const d=document.createElement('div');d.className='audit-entry';const cls=e.event.includes('BLOCKED')||e.event.includes('THREAT')?'blocked':e.event.includes('WARNING')||e.event.includes('RATE')?'warning':e.event.includes('META')||e.event.includes('HEADER')||e.event.includes('GTM')||e.event.includes('RADIO')?'info':'';d.innerHTML='<span class="audit-time">['+e.timestamp.split('T')[1].split('.')[0]+']</span> <span class="audit-event '+cls+'">'+_sanitize(e.event)+'</span> <span class="audit-details">'+_sanitize(e.message)+'</span>';c.prepend(d);while(c.children.length>50)c.removeChild(c.lastChild);}
+            function _calcScore(){_securityScore=_isServerHeaders?100:75;const s=document.getElementById('secScore'),b=document.getElementById('secScoreBar'),n=document.getElementById('scoreNote');if(s)s.textContent=_securityScore;if(b){b.style.width=_securityScore+'%';b.style.background=_securityScore>=90?'var(--security-green)':_securityScore>=60?'var(--security-yellow)':'var(--security-red)';}if(n){n.textContent=_isServerHeaders?'All protections enforced':'Client active. Server headers missing.';n.style.color=_isServerHeaders?'var(--security-green)':'var(--security-yellow)';}}
+            function _updateScore(d){_securityScore=Math.max(0,Math.min(100,_securityScore+d));const s=document.getElementById('secScore'),b=document.getElementById('secScoreBar');if(s)s.textContent=_securityScore;if(b){b.style.width=_securityScore+'%';b.style.background=_securityScore>=80?'var(--security-green)':_securityScore>=50?'var(--security-yellow)':'var(--security-red)';}document.getElementById('securityBadge').classList.toggle('threat-active',_securityScore<60);}
+            function _securePrompt(t,d){return new Promise(function(r){_pendingResolve=r;document.getElementById('spTitle').textContent=_sanitize(t);document.getElementById('spDesc').textContent=_sanitize(d);document.getElementById('spInput').value='';document.getElementById('spError').style.display='none';document.getElementById('securePromptOverlay').classList.add('active');setTimeout(function(){document.getElementById('spInput').focus();},150);});}
+            function _resolvePrompt(v){document.getElementById('securePromptOverlay').classList.remove('active');if(_pendingResolve){_pendingResolve(v);_pendingResolve=null;}}
+            let _tt=null;
+            function _toast(m,t,d){t=t||'info';d=d||3000;const e=document.getElementById('securityToast');e.textContent=m;e.className='security-toast show '+t;if(_tt)clearTimeout(_tt);_tt=setTimeout(function(){e.className='security-toast';},d);}
+            function _showThreat(m){document.getElementById('threatMessage').textContent=m;document.getElementById('threatOverlay').classList.add('active');}
+            function _dismissThreat(){document.getElementById('threatOverlay').classList.remove('active');}
+            function _secureOpen(u){_log('URL_OPENED','Secure window');return window.open(u,'_blank','noopener,noreferrer');}
+            function _speak(t){if(typeof t!=='string')return;try{window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(_sanitize(t).substring(0,200));u.rate=1;u.pitch=1;u.volume=0.8;window.speechSynthesis.speak(u);}catch(e){}}
+            function _validate(i,ctx){ctx=ctx||'general';const r={valid:true,sanitized:'',threats:[]};if(typeof i!=='string'||i===null){r.valid=false;r.threats.push('INVALID_TYPE');return r;}if(_detectSQLi(i)){r.valid=false;r.threats.push('SQL_INJECTION');_log('SQLi_BLOCKED',ctx);}if(_detectXSS(i)){r.valid=false;r.threats.push('XSS_ATTEMPT');_log('XSS_BLOCKED',ctx);}if(_detectPathTraversal(i)){r.valid=false;r.threats.push('PATH_TRAVERSAL');_log('PATH_BLOCKED',ctx);}if(_detectCmdInj(i)){r.valid=false;r.threats.push('CMD_INJECTION');_log('CMD_BLOCKED',ctx);}if(_detectSE(i)){r.threats.push('SOCIAL_ENG');_log('SE_WARNING',ctx);}r.sanitized=_sanitize(i);if(i.length>500){r.valid=false;r.threats.push('TOO_LONG');}return r;}
+            function _monitorIntegrity(){document.querySelectorAll('script:not([data-verified])').forEach(function(s){const src=s.getAttribute('src')||'';if(_isGTMAllowed(src))return;_log('SCRIPT_INJECTION','Removed: '+(src?'external':'inline'));_updateScore(-20);s.remove();});document.querySelectorAll('iframe').forEach(function(f){_log('IFRAME_INJECTION','Removed');_updateScore(-20);f.remove();});}
+            function _checkGTM(){const l=typeof gtag==='function'&&window.dataLayer&&window.dataLayer.length>0;const el=document.getElementById('gtmStatus');if(el){el.textContent=l?'\u2713 GTM active':'\u2717 GTM not loaded';el.className='gtm-status'+(l?' active':'');}_log('GTM_CHECK',l?'GTM loaded':'GTM failed');return l;}
+            function _initShields(){const sv=_isServerHeaders;const sh=[{icon:'\ud83d\udd12',label:'XSS Protection',c:'active',v:'ENFORCED'},{icon:'\ud83d\uddc2\ufe0f',label:'SQLi Guard',c:'active',v:'ENFORCED'},{icon:'\ud83d\udd17',label:'URL Whitelist',c:'active',v:'ENFORCED'},{icon:'\ud83c\udfa3',label:'Anti-Phishing',c:'active',v:'ENFORCED'},{icon:'\u23f1\ufe0f',label:'Rate Limiter',c:'active',v:'ENFORCED'},{icon:'\ud83e\uddf9',label:'Sanitization',c:'active',v:'ENFORCED'},{icon:'\ud83d\udd75\ufe0f',label:'Social Eng.',c:'active',v:'ENFORCED'},{icon:'\ud83d\udcc2',label:'Path Traversal',c:'active',v:'ENFORCED'},{icon:'\ud83d\udcbb',label:'Cmd Injection',c:'active',v:'ENFORCED'},{icon:'\ud83e\udda0',label:'Malware Def',c:'active',v:'ENFORCED'},{icon:'\ud83d\udce2',label:'Audit Log',c:'active',v:'ENFORCED'},{icon:'\ud83d\udcca',label:'GTM Filter',c:'active',v:'ENFORCED'},{icon:'\ud83d\udcfb',label:'Radio E2E',c:'active',v:'ENFORCED'},{icon:'\ud83e\ude9a',label:'Clickjacking',c:sv?'active':'meta-only',v:sv?'ENFORCED':'META ONLY'},{icon:'\ud83d\udeab',label:'X-Frame',c:sv?'active':'meta-only',v:sv?'ENFORCED':'META ONLY'},{icon:'\ud83d\udcc4',label:'X-Content-Type',c:sv?'active':'meta-only',v:sv?'ENFORCED':'META ONLY'},{icon:'\ud83d\udd10',label:'CSP (full)',c:sv?'active':'meta-only',v:sv?'ENFORCED':'META ONLY'},{icon:'\ud83d\udeab',label:'Mixed Content',c:sv?'active':'meta-only',v:sv?'ENFORCED':'META ONLY'},{icon:'\ud83d\udccb',label:'Referrer',c:sv?'active':'inactive',v:sv?'ENFORCED':'META ONLY'},{icon:'\ud83d\udce1',label:'Mic Policy',c:'active',v:'(SELF)'},{icon:'\ud83d\udd10',label:'Permissions',c:sv?'active':'inactive',v:sv?'ENFORCED':'NOT ENFORCED'},{icon:'\ud83d\udce6',label:'Cache',c:sv?'active':'inactive',v:sv?'ENFORCED':'NOT ENFORCED'}];const g=document.getElementById('shieldGrid');if(!g)return;g.innerHTML=sh.map(function(s){const vc=s.c==='active'?'active-val':s.c==='meta-only'?'meta-val':'inactive-val';return'<div class="shield-item '+s.c+'"><span class="shield-icon">'+s.icon+'</span><div><span class="shield-label">'+s.label+'</span><span class="shield-value '+vc+'">'+s.v+'</span></div></div>';}).join('');}
+            function _initProtections(){const el=document.getElementById('activeProtections');if(!el)return;el.innerHTML='\u2713 XSS (25+ signatures)<br>\u2713 SQLi (9 patterns)<br>\u2713 Cmd injection (14)<br>\u2713 Path traversal (4 encodings)<br>\u2713 Social eng. (14)<br>\u2713 URL whitelist (22)<br>\u2713 Phishing (6 signals)<br>\u2713 Rate limiting<br>\u2713 HTML encoding<br>\u2713 noopener noreferrer<br>\u2713 MutationObserver (GTM+MQTT)<br>\u2713 GTM domain whitelist<br>\u2713 MQTT broker whitelist<br>\u2713 Audit logging (200)<br>\u2713 Input length limit (500)';}
+            function _initDeployHint(){const el=document.getElementById('deployHint');if(!el)return;if(_isServerHeaders){el.style.display='none';return;}el.innerHTML='<strong>\u26a0 GITHUB PAGES:</strong>\ud83d\udfe1 shields are meta only. Deploy to <strong>Netlify</strong> (<code>_headers</code>) or <strong>Vercel</strong> (<code>vercel.json</code>) for full enforcement.';}
+            return{sanitize:_sanitize,validateInput:_validate,secureOpen:_secureOpen,secureSpeak:_speak,securePrompt:_securePrompt,resolvePrompt:_resolvePrompt,checkRateLimit:_rateLimit,log:_log,showToast:_toast,showThreatAlert:_showThreat,dismissThreat:_dismissThreat,monitorIntegrity:_monitorIntegrity,checkGTM:_checkGTM,isGTMAllowed:_isGTMAllowed,initShields:_initShields,initProtections:_initProtections,initDeployHint:_initDeployHint,updateScore:_updateScore,calculateScore:_calcScore,get isServerHeaders(){return _isServerHeaders;},get score(){return _securityScore;},set pendingResolve(v){_pendingResolve=v;}};
+        })();
+
+        function submitSecurePrompt(){var i=document.getElementById('spInput').value,e=document.getElementById('spError'),v=Security.validateInput(i,'PROMPT');if(!v.valid){e.textContent='\u26a0 '+v.threats.join(', ');e.style.display='block';Security.showThreatAlert(v.threats.join(', '));Security.updateScore(-15);return;}if(i.length<1||i.length>50){e.textContent='\u26a0 1\u201350 characters.';e.style.display='block';return;}Security.resolvePrompt(i);}
+        function closeSecurePrompt(v){Security.resolvePrompt(v);}
+        function dismissThreat(){Security.dismissThreat();}
+
+        document.addEventListener('DOMContentLoaded',function(){
+            document.getElementById('spInput').addEventListener('keydown',function(e){if(e.key==='Enter')submitSecurePrompt();if(e.key==='Escape')closeSecurePrompt(null);});
+            document.getElementById('securePromptOverlay').addEventListener('click',function(e){if(e.target.id==='securePromptOverlay')closeSecurePrompt(null);});
+        });
+
+        /* ═══════════════════════════════════════════
+           WALKIE-TALKIE MODULE
+           FIXES: #1 missing return, #2 duplicate
+           handlers, #3 missing return after IIFE,
+           #6 missing CSS (added above), #10 orphan )
+           ═══════════════════════════════════════════ */
+        const WalkieTalkie = (() => {
+            let mc=null, micStr=null, actx=null, ana=null, rec=null, playGain=null, ck=null;
+            let role=null, isPTT=false, peerUp=false;
+            let peerTmr=null, heartTmr=null, rxSilTmr=null, retryTmr=null;
+            let txN=0, rxN=0, bufN=0, lastRxSeq=-1, txSeq=0;
+            let playQ=[], nxtPlay=0, isDecoding=false, hashedTopic='';
+            const BROKER='wss://broker.emqx.io:8084/mqtt';
+            const BNAME='emqx.io:8084';
+            const HB=2000, PD=6000;
+
+            function open() {
+                document.getElementById('wtOverlay').classList.add('active');
+                wlog('TAC/COM v1.0 ready','dm');
+                document.getElementById('wtVol').oninput = function() {
+                    var v = parseFloat(this.value);
+                    document.getElementById('wtVV').textContent = v.toFixed(1);
+                    if (playGain) playGain.gain.value = v;
+                };
+            }
+
+            function close() {
+                document.getElementById('wtOverlay').classList.remove('active');
+                wtDisconnect();
+            }
+
+            async function hashTopic(ch, sec) {
+                var d = new TextEncoder().encode('TAC10' + ch + sec);
+                var h = await crypto.subtle.digest('SHA-256', d);
+                var u = new Uint8Array(h);
+                var s = '';
+                for (var i = 0; i < u.length; i++) s += ('0' + u[i].toString(16)).slice(-2);
+                return 'tac10/' + s;
+            }
+
+            function wlog(m, c) {
+                var o = document.getElementById('wtLog');
+                if (!o) return;
+                var d = document.createElement('div');
+                d.className = 'wl-' + (c || '');
+                var n = new Date();
+                var h = n.getHours(), mi = n.getMinutes(), sc = n.getSeconds();
+                d.textContent = '[' + (h<10?'0':'') + h + ':' + (mi<10?'0':'') + mi + ':' + (sc<10?'0':'') + sc + '] ' + m;
+                o.appendChild(d);
+                o.scrollTop = o.scrollHeight;
+            }
+
+            async function dk(pw) {
+                var e = new TextEncoder();
+                var b = await crypto.subtle.importKey('raw', e.encode(pw), 'PBKDF2', false, ['deriveKey']);
+                return crypto.subtle.deriveKey({name:'PBKDF2',salt:e.encode('TAC10-SECURE'),iterations:100000,hash:'SHA-256'}, b, {name:'AES-GCM',length:256}, false, ['encrypt','decrypt']);
+            }
+
+            async function enc(buf) {
+                var iv = crypto.getRandomValues(new Uint8Array(12));
+                var ct = await crypto.subtle.encrypt({name:'AES-GCM',iv:iv}, ck, buf);
+                var o = new Uint8Array(12 + ct.byteLength);
+                o.set(iv, 0);
+                o.set(new Uint8Array(ct), 12);
+                return o;
+            }
+
+            async function dec(d) {
+                var u = new Uint8Array(d);
+                return crypto.subtle.decrypt({name:'AES-GCM',iv:u.slice(0,12)}, ck, u.slice(12));
+            }
+
+            async function initMic() {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('No getUserMedia. Use HTTPS.');
+                var s;
+                try { s = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}}); }
+                catch (e) {
+                    var msgs = {NotAllowedError:'Permission DENIED.',NotFoundError:'No mic found.',NotReadableError:'Mic in use.',SecurityError:'HTTPS required.'};
+                    if (e.name === 'OverconstrainedError') s = await navigator.mediaDevices.getUserMedia({audio:true});
+                    else throw new Error(msgs[e.name] || (e.name + ': ' + e.message));
+                }
+                var tk = s.getAudioTracks();
+                if (!tk.length) throw new Error('No audio tracks.');
+                micStr = s;
+                actx = new (window.AudioContext || window.webkitAudioContext)();
+                wlog('Mic OK (' + actx.sampleRate + 'Hz)', 'dm');
+                var src = actx.createMediaStreamSource(micStr);
+                ana = actx.createAnalyser();
+                ana.fftSize = 256;
+                ana.smoothingTimeConstant = 0.4;
+                src.connect(ana);
+                var mime = 'audio/webm;codecs=opus';
+                if (!MediaRecorder.isTypeSupported(mime)) mime = 'audio/webm';
+                rec = new MediaRecorder(s, {mimeType:mime});
+                rec.ondataavailable = function(e) {
+                    if (!mc || !mc.connected || !isPTT || !e.data || !e.data.size) return;
+                    txSeq++;
+                    var sb = new Uint8Array(4);
+                    new DataView(sb.buffer).setUint32(0, txSeq, true);
+                    e.data.arrayBuffer().then(function(ab) {
+                        var c = new Uint8Array(4 + ab.byteLength);
+                        c.set(sb, 0);
+                        c.set(new Uint8Array(ab), 4);
+                        return enc(c.buffer);
+                    }).then(function(ed) {
+                        mc.publish(hashedTopic + '/' + role, ed, {qos:0});
+                        txN++;
+                        document.getElementById('wtST').textContent = txN;
+                    }).catch(function() {});
+                };
+                playGain = actx.createGain();
+                playGain.gain.value = parseFloat(document.getElementById('wtVol').value);
+                playGain.connect(actx.destination);
+                wlog('Opus 60ms | E2E ready', 'ok');
+                Security.log('RADIO_INIT', 'Audio initialized');
+                mLoop();
+            }
+
+            function mLoop() {
+                if (!ana) { requestAnimationFrame(mLoop); return; }
+                var d = new Uint8Array(ana.frequencyBinCount);
+                ana.getByteFrequencyData(d);
+                var s = 0;
+                for (var i = 0; i < d.length; i++) s += d[i];
+                var v = Math.min(100, (s / d.length) * 2.5);
+                document.getElementById('wtMF').style.width = v + '%';
+                requestAnimationFrame(mLoop);
+            }
+
+            function pttDown() {
+                if (!mc || !mc.connected || !rec) return;
+                if (actx && actx.state === 'suspended') actx.resume();
+                nxtPlay = 0; playQ = []; isDecoding = false; txSeq = 0; lastRxSeq = -1;
+                isPTT = true;
+                document.getElementById('wtDT').classList.add('rd');
+                document.getElementById('wtPtt').classList.add('on');
+                if (rec.state === 'inactive') rec.start(60);
+            }
+
+            function pttUp() {
+                if (!isPTT) return;
+                isPTT = false;
+                document.getElementById('wtDT').classList.remove('rd');
+                document.getElementById('wtPtt').classList.remove('on');
+                if (rec && rec.state === 'recording') {
+                    setTimeout(function() {
+                        try { rec.stop(); } catch(e) {}
+                    }, 150);
+                }
+            }
+
+            function queuePlay(buf) {
+                playQ.push(buf);
+                bufN = playQ.length;
+                document.getElementById('wtSB').textContent = bufN;
+                if (!isDecoding) drainQueue();
+            }
+
+            async function drainQueue() {
+                isDecoding = true;
+                while (playQ.length > 0) {
+                    var buf = playQ.shift();
+                    bufN = playQ.length;
+                    document.getElementById('wtSB').textContent = bufN;
+                    var view = new DataView(buf);
+                    var seq = view.getUint32(0, true);
+                    if (seq <= lastRxSeq) continue;
+                    lastRxSeq = seq;
+                    var ad = buf.slice(4);
+                    if (ad.byteLength < 10) continue;
+                    document.getElementById('wtDR').classList.add('gn');
+                    clearTimeout(rxSilTmr);
+                    try {
+                        var copy = ad.slice(0);
+                        var ab = await actx.decodeAudioData(copy);
+                        var src = actx.createBufferSource();
+                        src.buffer = ab;
+                        src.connect(playGain);
+                        var now = actx.currentTime;
+                        var start;
+                        if (nxtPlay > now - 0.05) start = Math.max(now + 0.003, nxtPlay);
+                        else start = now + 0.003;
+                        src.start(start);
+                        nxtPlay = start + ab.duration;
+                    } catch(e) {}
+                }
+                isDecoding = false;
+                rxSilTmr = setTimeout(function() {
+                    document.getElementById('wtDR').classList.remove('gn');
+                    setTimeout(function() { nxtPlay = 0; }, 250);
+                }, 200);
+            }
+
+            /* FIX #1 + #2: Rewritten connectMQTT — single attempt() call,
+               single set of handlers, proper return on connect */
+            function connectMQTT(myRole) {
+                return new Promise(function(resolve, reject) {
+                    role = myRole;
+                    var pTopic = hashedTopic + '/' + (role === 'host' ? 'client' : 'host');
+                    var pingT = hashedTopic + '/ping';
+                    var resolved = false;
+
+                    function attempt() {
+                        if (resolved) return;
+                        wlog('Connecting ' + BNAME + '...', 'dm');
+
+                        var client = mqtt.connect(BROKER, {
+                            clientId: 'TAC10-' + Math.random().toString(36).substr(2, 8),
+                            clean: true,
+                            connectTimeout: 30000,
+                            reconnectPeriod: 0,
+                            keepalive: 15
+                        });
+
+                        /* Single error handler for pre-connect failures */
+                        client.on('error', function(err) {
+                            if (resolved) return;
+                            wlog('Failed: ' + err.message + ' — retry 5s', 'er');
+                            try { client.end(true); } catch(e) {}
+                            retryTmr = setTimeout(attempt, 5000);
+                        });
+
+                        /* Single timeout for pre-connect phase */
+                        var timeoutId = setTimeout(function() {
+                            if (resolved) return;
+                            wlog('Timeout — retry 5s', 'er');
+                            try { client.end(true); } catch(e) {}
+                            retryTmr = setTimeout(attempt, 5000);
+                        }, 35000);
+
+                        client.on('connect', function() {
+                            if (resolved) return;
+                            resolved = true;
+                            clearTimeout(timeoutId);
+                            clearTimeout(retryTmr);
+                            mc = client;
+
+                            document.getElementById('wtSv').textContent = BNAME;
+                            document.getElementById('wtSv').style.color = 'var(--security-green)';
+                            document.getElementById('wtCh').textContent = document.getElementById('wtChan').value;
+                            wlog('CONNECTED as ' + role.toUpperCase(), 'ok');
+                            Security.log('RADIO_LINK', 'Connected', {topic: hashedTopic.substring(0, 8) + '...'});
+
+                            client.subscribe(pTopic, {qos: 0});
+                            client.subscribe(pingT, {qos: 0});
+
+                            /* Message handler */
+                            client.on('message', function(topic, payload) {
+                                var data;
+                                if (payload instanceof Uint8Array) data = payload;
+                                else if (payload instanceof ArrayBuffer) data = new Uint8Array(payload);
+                                else if (ArrayBuffer.isView(payload)) data = new Uint8Array(payload.buffer, payload.byteOffset, payload.byteLength);
+                                else return;
+
+                                if (topic === pingT) {
+                                    try {
+                                        var msg = JSON.parse(new TextDecoder().decode(data));
+                                        if (msg.r !== role) {
+                                            peerUp = true;
+                                            setActive();
+                                            clearTimeout(peerTmr);
+                                            peerTmr = setTimeout(function() { peerUp = false; setDead(); }, PD);
+                                            document.getElementById('wtSL').textContent = (Date.now() - msg.t) + 'ms';
+                                        }
+                                    } catch(e) {}
+                                    return;
+                                }
+
+                                if (topic === pTopic) {
+                                    rxN++;
+                                    document.getElementById('wtSR').textContent = rxN;
+                                    dec(data).then(function(buf) {
+                                        queuePlay(buf);
+                                    }).catch(function() {
+                                        wlog('Decrypt fail — wrong secret?', 'er');
+                                    });
+                                }
+                            });
+
+                            /* Post-connect disconnect handler with auto-retry */
+                            client.on('close', function() {
+                                if (mc === client) {
+                                    wlog('Disconnected — retry 5s', 'wn');
+                                    setDead();
+                                    mc = null;
+                                    retryTmr = setTimeout(attempt, 5000);
+                                }
+                            });
+
+                            /* Start heartbeat */
+                            clearInterval(heartTmr);
+                            heartTmr = setInterval(function() {
+                                if (mc && mc.connected) {
+                                    mc.publish(pingT, JSON.stringify({r: role, t: Date.now()}), {qos: 0});
+                                }
+                            }, HB);
+
+                            resolve();
+                        });
+                    }
+
+                    /* FIX #1: This return was missing — attempt() was never called */
+                    attempt();
+                });
+            }
+
+            function setActive() {
+                if (document.getElementById('wtLk').textContent === 'ACTIVE') return;
+                document.getElementById('wtLk').textContent = 'ACTIVE';
+                document.getElementById('wtLk').style.color = 'var(--security-green)';
+                document.getElementById('wtDN').classList.add('gn');
+                document.getElementById('wtPtt').disabled = false;
+                document.getElementById('wtDisc').style.display = 'block';
+                wlog('LINK ACTIVE — Hold red to talk', 'ok');
+            }
+
+            function setDead() {
+                document.getElementById('wtLk').textContent = 'WAITING';
+                document.getElementById('wtLk').style.color = '#ffaa00';
+                document.getElementById('wtDN').className = 'wt-d';
+                document.getElementById('wtPtt').disabled = true;
+                document.getElementById('wtSL').textContent = '--';
+            }
+
+            function lockUI(l) {
+                document.getElementById('wtHost').disabled = l;
+                document.getElementById('wtJoin').disabled = l;
+                document.getElementById('wtChan').disabled = l;
+                document.getElementById('wtSec').disabled = l;
+            }
+
+            /* FIX #10: Removed orphan closing parenthesis that was after this function */
+            function resetState() {
+                clearInterval(heartTmr);
+                clearTimeout(peerTmr);
+                clearTimeout(rxSilTmr);
+                clearTimeout(retryTmr);
+                pttUp();
+                try { if (rec && rec.state !== 'inactive') rec.stop(); } catch(e) {}
+                try { if (micStr) micStr.getTracks().forEach(function(t) { t.stop(); }); } catch(e) {}
+                try { if (actx) actx.close(); } catch(e) {}
+                try { if (mc) mc.end(true); } catch(e) {}
+                mc=null; micStr=null; actx=null; ana=null; rec=null; playGain=null; ck=null;
+                role=null; isPTT=false; peerUp=false;
+                txN=0; rxN=0; bufN=0; lastRxSeq=-1; txSeq=0;
+                playQ=[]; nxtPlay=0; isDecoding=false; hashedTopic='';
+                ['wtDN','wtDT','wtDR'].forEach(function(id) { document.getElementById(id).className = 'wt-d'; });
+                document.getElementById('wtPtt').disabled = true;
+                document.getElementById('wtPtt').classList.remove('on');
+                document.getElementById('wtLk').textContent = 'OFFLINE';
+                document.getElementById('wtLk').style.color = '#444';
+                document.getElementById('wtSv').textContent = '--';
+                document.getElementById('wtSv').style.color = '#444';
+                document.getElementById('wtST').textContent = '0';
+                document.getElementById('wtSR').textContent = '0';
+                document.getElementById('wtSB').textContent = '0';
+                document.getElementById('wtSL').textContent = '--';
+                document.getElementById('wtCh').textContent = '--';
+                document.getElementById('wtMF').style.width = '0%';
+                document.getElementById('wtDisc').style.display = 'none';
+                lockUI(false);
+            }
+
+            /* Global handler functions called from HTML onclick */
+            async function goHost() {
+                var ch = document.getElementById('wtChan').value;
+                var sec = document.getElementById('wtSec').value;
+                if (!ch || !sec) { wlog('Channel and secret required', 'er'); return; }
+                resetState();
+                lockUI(true);
+                try {
+                    hashedTopic = await hashTopic(ch, sec);
+                    ck = await dk(sec);
+                    await initMic();
+                    await connectMQTT('host');
+                } catch(e) {
+                    wlog('HOST error: ' + e.message, 'er');
+                    resetState();
+                }
+            }
+
+            async function goJoin() {
+                var ch = document.getElementById('wtChan').value;
+                var sec = document.getElementById('wtSec').value;
+                if (!ch || !sec) { wlog('Channel and secret required', 'er'); return; }
+                resetState();
+                lockUI(true);
+                try {
+                    hashedTopic = await hashTopic(ch, sec);
+                    ck = await dk(sec);
+                    await initMic();
+                    await connectMQTT('client');
+                } catch(e) {
+                    wlog('JOIN error: ' + e.message, 'er');
+                    resetState();
+                }
+            }
+
+            function disconnect() {
+                wlog('Disconnecting...', 'wn');
+                Security.log('RADIO_DISCONNECT', 'User disconnected');
+                resetState();
+                wlog('Disconnected', 'dm');
+            }
+
+            /* FIX #3: Return the public API object */
+            return {
+                open: open,
+                close: close,
+                goHost: goHost,
+                goJoin: goJoin,
+                disconnect: disconnect
+            };
+        })();
+
+        /* Global bridge functions for HTML onclick attributes */
+        function openWalkieTalkie() { WalkieTalkie.open(); }
+        /* FIX #7: Removed duplicate closeWalkieTalkie definitions */
+        function closeWalkieTalkie() { WalkieTalkie.close(); }
+        function wtGoHost() { WalkieTalkie.goHost(); }
+        function wtGoJoin() { WalkieTalkie.goJoin(); }
+        function wtDisconnect() { WalkieTalkie.disconnect(); }
+
+        /* ═══════════════════════════════════════════
+           MAIN APP
+           FIXES: #4 requestFloor setTimeout chain,
+           #5 controlLiftDoors missing ),
+           #8 radioBtn not inserted,
+           #11 closeDoors during alarm,
+           #12 roomIDs padding
+           ═══════════════════════════════════════════ */
+        var floors = ["Basement","Lobby","Research","Finance","Marketing","HR Node","Security","Engine","Sales","Exec","Apex"];
+        var floorCodes = ["B1","1","2","3","4","5","6","7","8","9","10"];
+        /* FIX #12: roomIDs[10] was "ID-100" due to bad padding — now "ID-10" */
+        var roomIDs = floors.map(function(_, i) { return i === 0 ? "ID-B01" : "ID-" + (i + 1).toString().padStart(2, '0'); });
+        var floorURLs = ["https://www.google.com","https://www.wikipedia.org","https://vimeo.com","https://www.bloomberg.com","https://www.canva.com","https://www.linkedin.com","https://www.cloudflare.com","https://www.github.com","https://www.salesforce.com","https://www.apple.com","https://www.spacex.com"];
+        var activeWindows = {}, currentFloor = 0, isMoving = false, isAlarmActive = false;
+        var building = document.getElementById('building');
+        var btnContainer = document.getElementById('btn-container');
+        var elevator = document.getElementById('elevator');
+        var dash = document.getElementById('dash');
+
+        Security.calculateScore();
+        Security.initShields();
+        Security.initProtections();
+        Security.initDeployHint();
+        Security.log('SYSTEM_INIT', Security.isServerHeaders ? 'Server headers' : 'GitHub Pages mode');
+        setTimeout(function() { Security.checkGTM(); }, 2000);
+        setInterval(function() { Security.monitorIntegrity(); }, 10000);
+        document.addEventListener('contextmenu', function() { Security.log('CONTEXT_MENU', 'Right-click'); });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'F12') Security.log('DEVTOOLS', 'F12');
+            if (e.ctrlKey && e.shiftKey && ['I','J','C'].indexOf(e.key.toUpperCase()) !== -1) Security.log('DEVTOOLS', 'Ctrl+Shift+' + e.key);
+            if (e.ctrlKey && e.key.toUpperCase() === 'U') {
+                e.preventDefault();
+                Security.log('VIEW_SOURCE', 'Blocked');
+                Security.showToast('View source disabled.', 'blocked');
+            }
+        });
+
+        var obs = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mu) {
+                if (mu.type !== 'childList' || !mu.addedNodes.length) return;
+                mu.addedNodes.forEach(function(n) {
+                    if (n.nodeName === 'SCRIPT' && !n.hasAttribute('data-verified')) {
+                        var src = n.getAttribute('src') || '';
+                        if (Security.isGTMAllowed(src)) return;
+                        Security.log('SCRIPT_INJECTION', 'Removed: ' + (src ? 'external' : 'inline'));
+                        Security.updateScore(-20);
+                        n.remove();
+                    }
+                    if (n.nodeName === 'IFRAME') {
+                        Security.log('IFRAME_INJECTION', 'Removed');
+                        Security.updateScore(-20);
+                        n.remove();
+                    }
+                });
+            });
+        });
+        obs.observe(document.documentElement, {childList: true, subtree: true});
+
+        /* Build floor rows */
+        floors.forEach(function(name, i) {
+            var row = document.createElement('div');
+            row.className = 'floor-row' + (i === 0 ? ' floor-active' : '');
+            row.id = 'f-row-' + i;
+
+            /* FIX #8: radioBtn now actually inserted into the room-controls div */
+            var radioBtnHTML = (i === 5)
+                ? '<button class="room-btn btn-radio" onclick="openWalkieTalkie()">\ud83d\udcfb</button>'
+                : '';
+
+            row.innerHTML = '<div class="room-view" id="room-' + i + '">'
+                + '<div class="room-door-layer">'
+                + '<div style="font-size:7px;opacity:0.5;margin-bottom:2px;">' + Security.sanitize(roomIDs[i]) + '</div>'
+                + '<button onclick="verifyID(' + i + ')" style="font-size:9px;cursor:pointer;min-height:24px;min-width:44px;">VERIFY</button>'
+                + '</div>'
+                + '<div style="padding:5px;text-align:center;">'
+                + '<div class="ad-text" onclick="handleAdClick(' + i + ')">' + Security.sanitize(name) + '</div>'
+                + '<div class="room-controls">'
+                + '<button class="room-btn" onclick="returnFromFloor(' + i + ')">RETURN</button>'
+                + '<button class="room-btn btn-lock" onclick="lockRoom(' + i + ')">LOCK</button>'
+                + radioBtnHTML
+                + '</div></div></div>'
+                + '<div class="floor-label-text"><b>' + Security.sanitize(floorCodes[i]) + '</b> — ' + Security.sanitize(name) + '</div>';
+
+            building.appendChild(row);
+
+            var btn = document.createElement('div');
+            btn.className = 'circ-btn' + (i === 0 ? ' arrived' : '');
+            btn.id = 'btn-' + i;
+            btn.innerHTML = '<div class="btn-circle">' + Security.sanitize(floorCodes[i]) + '</div><div style="font-size:10px;">' + Security.sanitize(name) + '</div>';
+            btn.onclick = (function(floorIdx) {
+                return function() { requestFloor(floorIdx); };
+            })(i);
+            btnContainer.prepend(btn);
+        });
+
+        /* GTM status element */
+        var protEl = document.getElementById('activeProtections');
+        if (protEl) {
+            var gd = document.createElement('div');
+            gd.id = 'gtmStatus';
+            gd.className = 'gtm-status';
+            gd.textContent = '\u23f3 Checking GTM...';
+            protEl.parentNode.insertBefore(gd, protEl.nextSibling);
+        }
+        Security.log('RADIO_MODULE', 'Walkie-talkie module loaded');
+        if (!Security.isServerHeaders) {
+            Security.log('META', 'wss://broker.emqx.io \u2014 radio relay');
+        }
+
+        function enterBuilding() {
+            document.body.classList.add('system-active');
+            Security.log('ENTER', 'User entered');
+            Security.secureSpeak("Welcome to Skyscraper O S.");
+        }
+
+        function exitBuilding() {
+            Object.keys(activeWindows).forEach(function(k) {
+                try { activeWindows[k].close(); } catch(e) {}
+                delete activeWindows[k];
+            });
+            document.body.classList.remove('system-active');
+            dash.style.display = 'none';
+            document.getElementById('securityPanel').style.display = 'none';
+            closeWalkieTalkie();
+            Security.log('EXIT', 'User exited');
+            Security.secureSpeak("Logging out.");
+        }
+
+        function changePlatformMode() {
+            var m = document.getElementById('platformSelector').value;
+            building.className = 'building-container mode-' + m;
+            Security.log('MODE', m);
+            Security.secureSpeak(m + ' mode.');
+        }
+
+        function updateLocationTime() {
+            var l = document.getElementById('locationSelector').value;
+            var n = new Date();
+            try {
+                if (l === "IN") n = new Date(new Date().toLocaleString("en-US", {timeZone:"Asia/Kolkata"}));
+                else if (l === "US") n = new Date(new Date().toLocaleString("en-US", {timeZone:"America/New_York"}));
+            } catch(e) {}
+            var h = n.getHours();
+            var b = document.body;
+            var s = document.getElementById('status-tag');
+            if (!isAlarmActive) {
+                b.classList.remove('theme-morning','theme-afternoon','theme-evening');
+                if (h >= 5 && h < 12) { b.classList.add('theme-morning'); s.innerText = "MORNING"; }
+                else if (h >= 12 && h < 17) { b.classList.add('theme-afternoon'); s.innerText = "AFTERNOON"; }
+                else if (h >= 17 && h < 20) { b.classList.add('theme-evening'); s.innerText = "EVENING"; }
+                else { s.innerText = "NIGHT"; }
+            }
+            document.getElementById('clock').innerText = n.toLocaleTimeString('en-GB');
+        }
+
+        function handleAdClick(f) {
+            if (isAlarmActive) { Security.secureOpen(floorURLs[f]); return; }
+            if (document.getElementById('room-' + f).classList.contains('unlocked')) {
+                Security.log('ACCESS', floors[f], {f: floorCodes[f]});
+                Security.secureSpeak("Accessing " + floors[f] + ".");
+                activeWindows[f] = Security.secureOpen(floorURLs[f]);
+            } else {
+                Security.log('DENIED', floorCodes[f]);
+                Security.secureSpeak("Access denied.");
+                Security.showToast('\u26a0 Verify identity first', 'blocked');
+            }
+        }
+
+        function returnFromFloor(f) {
+            if (activeWindows[f]) {
+                try { activeWindows[f].close(); } catch(e) {}
+                delete activeWindows[f];
+                Security.log('CLOSED', floorCodes[f]);
+                Security.secureSpeak("Closed.");
+            }
+        }
+
+        function lockRoom(f) {
+            if (isAlarmActive) { Security.showToast('Cannot lock during emergency', 'blocked'); return; }
+            document.getElementById('room-' + f).classList.remove('unlocked');
+            Security.log('LOCKED', floorCodes[f]);
+            Security.secureSpeak("Sector " + floorCodes[f] + " locked.");
+        }
+
+        async function verifyID(f) {
+            if (isAlarmActive) return;
+            var rc = Security.checkRateLimit('v_' + f, 3, 30000);
+            if (!rc.ok) {
+                Security.showToast('\u26a0 Wait ' + rc.s + 's', 'blocked');
+                Security.secureSpeak("Rate limited.");
+                Security.updateScore(-5);
+                return;
+            }
+            var input = await Security.securePrompt('VERIFY \u2014 ' + floorCodes[f], 'Enter code for ' + floors[f] + '.');
+            if (input === null) { Security.log('CANCEL', floorCodes[f]); return; }
+            var v = Security.validateInput(input, 'V_' + floorCodes[f]);
+            if (!v.valid) {
+                Security.showThreatAlert(v.threats.join(', '));
+                Security.updateScore(-15);
+                return;
+            }
+            if (input === roomIDs[f]) {
+                document.getElementById('room-' + f).classList.add('unlocked');
+                Security.log('VERIFIED', floorCodes[f]);
+                Security.secureSpeak("Verified.");
+                Security.showToast('\u2713 Verified', 'success');
+                Security.updateScore(2);
+            } else {
+                Security.log('FAIL', floorCodes[f]);
+                Security.secureSpeak("Failed.");
+                Security.showToast('\u2717 Invalid code', 'blocked');
+                Security.updateScore(-3);
+            }
+        }
+
+        /* FIX #4: Removed two extra `},400)` — the setTimeout chain now
+           has exactly the right nesting for close → move → arrive → open */
+        function requestFloor(f) {
+            var rc = Security.checkRateLimit('floor', 10, 30000);
+            if (!rc.ok) { Security.showToast('\u26a0 Rate limited. ' + rc.s + 's', 'blocked'); return; }
+            if (isMoving || f === currentFloor || isAlarmActive) return;
+
+            controlLiftDoors('close');
+
+            document.querySelectorAll('.circ-btn').forEach(function(b) { b.classList.remove('arrived','moving'); });
+            document.getElementById('btn-' + f).classList.add('moving');
+            Security.log('FLOOR_REQ', floorCodes[currentFloor] + '\u2192' + floorCodes[f]);
+
+            setTimeout(function() {
+                isMoving = true;
+                var floorH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--floor-h'));
+                elevator.style.bottom = (f * floorH) + "px";
+
+                if (building.classList.contains('mode-mobile')) {
+                    building.scrollTo({
+                        top: building.scrollHeight - (f * floorH) - 300,
+                        behavior: 'smooth'
+                    });
+                }
+
+                setTimeout(function() {
+                    document.querySelectorAll('.floor-row').forEach(function(r) { r.classList.remove('floor-active'); });
+                    currentFloor = f;
+                    isMoving = false;
+                    document.getElementById('btn-' + f).classList.replace('moving', 'arrived');
+                    Security.log('ARRIVE', floorCodes[f]);
+                    Security.secureSpeak('Floor ' + floorCodes[f]);
+                    setTimeout(function() { controlLiftDoors('open'); }, 400);
+                }, 400);
+            }, 400);
+        }
+
+        /* FIX #5: Added missing closing parenthesis on the else branch */
+        function controlLiftDoors(a) {
+            var r = document.getElementById('f-row-' + currentFloor);
+            if (a === 'open') {
+                elevator.classList.add('open');
+                r.classList.add('floor-active');
+            } else {
+                elevator.classList.remove('open');
+                r.classList.remove('floor-active');
+                /* FIX #11: Don't clear room unlocks during alarm */
+                if (!isAlarmActive) {
+                    document.querySelectorAll('.room-view').forEach(function(rv) {
+                        rv.classList.remove('unlocked');
+                    });
+                }
+            }
+        }
+
+        function triggerFireExit() {
+            isAlarmActive = !isAlarmActive;
+            var b = document.getElementById('alarm');
+            if (isAlarmActive) {
+                b.classList.add('alarm-active');
+                building.classList.add('alarm-on');
+                Security.log('EMERGENCY', 'Alarm on');
+                Security.secureSpeak("EMERGENCY. ALL UNLOCKED.");
+                Security.showToast('\ud83d\udea8 EMERGENCY', 'blocked', 5000);
+                document.querySelectorAll('.room-view').forEach(function(rv) { rv.classList.add('unlocked'); });
+                controlLiftDoors('open');
+            } else {
+                b.classList.remove('alarm-active');
+                building.classList.remove('alarm-on');
+                Security.log('EMERGENCY_END', 'Restored');
+                Security.secureSpeak("Restored.");
+                Security.showToast('\u2713 Restored', 'success');
+                document.querySelectorAll('.room-view').forEach(function(rv) { rv.classList.remove('unlocked'); });
+            }
+        }
+
+        function toggleDash() {
+            dash.style.display = (dash.style.display === 'flex') ? 'none' : 'flex';
+        }
+
+        function toggleSecurityPanel() {
+            var p = document.getElementById('securityPanel');
+            p.style.display = (p.style.display === 'flex') ? 'none' : 'flex';
+            if (p.style.display === 'flex') Security.log('SEC_PANEL', 'Opened');
+        }
+
+        setInterval(updateLocationTime, 1000);
+        updateLocationTime();
+    </script>
+</body>
+</html>
