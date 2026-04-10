@@ -5,7 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>TAC/COM-04 | CH-TUNER</title>
     
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://unpkg.com https://www.googletagmanager.com; connect-src https: wss: ws: stun: turn: turns:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; frame-src https://www.googletagmanager.com; frame-ancestors 'none'; base-uri 'self'; form-action 'none';">
+    <!-- 
+        SECURITY: CSP removed from here.
+        Browsers often block inline <script> blocks when CSP is in a <meta> tag,
+        even with 'unsafe-inline'. This is a known limitation.
+        
+        FOR GITHUB PAGES: Create a file called "_headers" (no extension) in your
+        repo root with this content to get real CSP via HTTP headers:
+        
+        /index.html
+          Content-Security-Policy: default-src 'none'; script-src 'self' 'unsafe-inline' https://unpkg.com; connect-src https: wss: ws: stun: turn: turns:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'self'; form-action 'none';
+          X-Frame-Options: DENY
+          X-Content-Type-Options: nosniff
+          Referrer-Policy: no-referrer
+    -->
     <meta name="referrer" content="no-referrer">
     
     <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
@@ -29,6 +42,15 @@
             margin: 0; touch-action: manipulation; overflow: hidden;
             height: 100vh; height: 100dvh; padding: 10px;
         }
+
+        /* JS health check - disappears after 2 seconds if script is running */
+        #jsCheck {
+            position: fixed; top: 5px; left: 50%; transform: translateX(-50%);
+            background: #0f0; color: #000; font-size: 10px; padding: 2px 8px;
+            font-family: monospace; z-index: 99999; border-radius: 3px;
+            opacity: 1; transition: opacity 0.5s;
+        }
+        #jsCheck.hide { opacity: 0; pointer-events: none; }
 
         .radio-container {
             width: 100%; max-width: 400px; 
@@ -124,6 +146,7 @@
             content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             width: 0; height: 16px; border-left: 3px solid rgba(0,0,0,0.8);
             border-top: 9px solid transparent; border-bottom: 9px solid transparent;
+            pointer-events: none;
         }
         .power-switch:active { transform: translateY(3px) scale(0.95) !important; box-shadow: 0 1px 0 #000; }
 
@@ -273,6 +296,8 @@
     </style>
 </head>
 <body>
+    <!-- JS HEALTH CHECK: If you see "JS:OK" flash at top, script is executing -->
+    <div id="jsCheck">JS:FAIL</div>
     <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-K98KWTPT"
     height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
@@ -365,9 +390,14 @@
     </div>
 
 <script>
+/* ── Immediate JS health check ── */
+document.getElementById('jsCheck').textContent = 'JS:OK';
+setTimeout(function() { document.getElementById('jsCheck').classList.add('hide'); }, 2000);
+
+/* ── Wait for DOM to be fully ready ── */
+document.addEventListener('DOMContentLoaded', function() {
+
     var APP_PREFIX = "TACCOM4-";
-    
-    /* METERED_ICE_CONFIG with corrected typo in relay URL (was 'relap', now 'relay') */
     var METERED_ICE_CONFIG = {
         iceServers: [
             { urls: "stun:stun.relay.metered.ca:80" },
@@ -384,21 +414,11 @@
     var audioCtx, delayNode, analyser, speakerGain, remoteAnalyser;
     var state = 'IDLE', myRole = null, scanTimer = null, scanCount = 0;
 
-    /* ── Input sanitization ── */
     function sanitizeInput(val, maxLen) {
         maxLen = maxLen || 3;
         if (typeof val !== 'string') return '1';
         return val.replace(/[^0-9]/g, '').substring(0, maxLen) || '1';
     }
-
-    /* ── Event wiring ── */
-    document.getElementById('powerBtn').addEventListener('click', togglePower);
-    document.getElementById('bootBtn').addEventListener('click', initChannel);
-    document.getElementById('gearBtn').addEventListener('click', toggleSettings);
-    document.getElementById('btnExitSettings').addEventListener('click', toggleSettings);
-    document.getElementById('btnResetSys').addEventListener('click', function() { fullReset(false); });
-    document.getElementById('chanInput').addEventListener('input', updateChReadout);
-    document.getElementById('subChan').addEventListener('change', updateChReadout);
 
     function updateChReadout() {
         var num = sanitizeInput(document.getElementById('chanInput').value, 3);
@@ -406,7 +426,9 @@
         document.getElementById('chReadout').textContent = 'CH ' + num.padStart(3, '0') + ' - GRP ' + grp;
     }
 
-    /* ── Power toggle ── */
+    /* ═══════════════════════════════════════
+       POWER BUTTON — the core fix
+       ═══════════════════════════════════════ */
     function togglePower() {
         isPoweredOn = !isPoweredOn;
         var btn = document.getElementById('powerBtn');
@@ -446,7 +468,6 @@
         }
     }
 
-    /* ── Indicators ── */
     function resetIndicators() { 
         updateSignalBars(0); 
         document.getElementById('batLvl').classList.remove('active'); 
@@ -464,7 +485,6 @@
         else bat.classList.remove('active');
     }
 
-    /* ── Audio feedback ── */
     function playBootBeep() { 
         setTimeout(function() { playTone(800, 0.05); }, 100); 
         setTimeout(function() { playTone(1200, 0.1); }, 200); 
@@ -473,6 +493,7 @@
     function playTone(freq, dur) {
         try {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
             var o = audioCtx.createOscillator();
             var g = audioCtx.createGain();
             o.frequency.value = freq;
@@ -485,14 +506,12 @@
         } catch (e) {}
     }
 
-    /* ── Settings modal ── */
     function toggleSettings() { 
         var modal = document.getElementById('settingsModal');
         modal.classList.toggle('open'); 
         if (modal.classList.contains('open')) playTone(600, 0.05);
     }
 
-    /* ── Peer helpers ── */
     function getPeerOptions(id) { 
         var o = { config: METERED_ICE_CONFIG, debug: 0, secure: true }; 
         if (id) o.id = id; 
@@ -501,7 +520,6 @@
 
     function getFullChannelId() { return APP_PREFIX + channelNum + subChan; }
 
-    /* ── Logging ── */
     function log(msg, color) {
         if (!isPoweredOn) return;
         color = color || '#ffb000';
@@ -538,7 +556,6 @@
 
     function vibrate(ms) { if (navigator.vibrate) navigator.vibrate(ms); }
 
-    /* ── State machine ── */
     function transitionState(newState) {
         state = newState;
         if (newState === 'SCANNING') {
@@ -575,7 +592,6 @@
             if (isPoweredOn) transitionState('SCANNING'); 
             return; 
         }
-
         if (conn && !conn.open) try { conn.close(); } catch(e) {} 
         conn = null;
         if (activeCall) try { activeCall.close(); } catch(e) {} 
@@ -589,7 +605,6 @@
             transitionState('SCANNING'); 
             return; 
         }
-
         try { 
             if (localStream) { 
                 activeCall = peer.call(targetId, localStream); 
@@ -633,7 +648,6 @@
         }, 3000);
     }
 
-    /* ── Channel init ── */
     async function initChannel() {
         if (!isPoweredOn) return;
         var rawNum = sanitizeInput(document.getElementById('chanInput').value, 3);
@@ -653,21 +667,15 @@
             });
             muteMic(true);
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            speakerGain = audioCtx.createGain(); 
-            speakerGain.gain.value = 1;
-            delayNode = audioCtx.createDelay(5.0); 
-            delayNode.delayTime.value = 1.5;
-            analyser = audioCtx.createAnalyser(); 
-            analyser.fftSize = 256;
-            remoteAnalyser = audioCtx.createAnalyser(); 
-            remoteAnalyser.fftSize = 256;
-            delayNode.connect(analyser); 
-            analyser.connect(speakerGain); 
-            speakerGain.connect(audioCtx.destination);
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            speakerGain = audioCtx.createGain(); speakerGain.gain.value = 1;
+            delayNode = audioCtx.createDelay(5.0); delayNode.delayTime.value = 1.5;
+            analyser = audioCtx.createAnalyser(); analyser.fftSize = 256;
+            remoteAnalyser = audioCtx.createAnalyser(); remoteAnalyser.fftSize = 256;
+            delayNode.connect(analyser); analyser.connect(speakerGain); speakerGain.connect(audioCtx.destination);
             
             document.getElementById('curFreq').textContent = rawNum.padStart(3, '0') + subChan;
-            updateMeter(); 
-            updateVox();
+            updateMeter(); updateVox();
             log('TUNING CH-' + rawNum.padStart(3, '0') + ' GRP-' + subChan, '#00d4ff');
             initPeer(getFullChannelId());
         } catch (e) { 
@@ -681,60 +689,41 @@
         cleanupConnections(); 
         state = 'REGISTERING'; 
         setStatus('REG', 'warn');
-        
-        var opts = getPeerOptions(myId);
-        peer = new Peer(opts);
+        peer = new Peer(getPeerOptions(myId));
         
         peer.on('open', function(id) { 
             log('REGISTERED [' + id + ']', '#39ff14'); 
             transitionState('SCANNING'); 
         });
-        
         peer.on('connection', function(c) { 
             log('HANDSHAKE IN', '#00d4ff'); 
-            clearScanTimer(); 
-            setScanLed(false); 
+            clearScanTimer(); setScanLed(false); 
             if (conn && !conn.open) try { conn.close(); } catch(e) {} 
-            conn = c; 
-            setupConnHandlers(c); 
+            conn = c; setupConnHandlers(c); 
         });
-        
         peer.on('call', function(call) { 
             log('INCOMING VOICE', '#00d4ff');
             if (activeCall) try { activeCall.close(); } catch(e) {} 
-            activeCall = call; 
-            call.answer(localStream); 
+            activeCall = call; call.answer(localStream); 
             call.on('stream', function(stream) { attachStream(stream); }); 
             (function(c) {
                 setTimeout(function() { if (c.peerConnection) monitorIce(c.peerConnection); }, 500);
             })(call);
         });
-        
         peer.on('disconnected', function() { 
-            log('SIGNAL LOST', '#ffb000'); 
-            setStatus('RECONN', 'err'); 
-            if (peer && !peer.destroyed) {
-                try { peer.reconnect(); } catch(e) {}
-            }
+            log('SIGNAL LOST', '#ffb000'); setStatus('RECONN', 'err'); 
+            if (peer && !peer.destroyed) try { peer.reconnect(); } catch(e) {}
         });
-        
         peer.on('error', function(err) {
             if (err.type === 'unavailable-id') { 
                 log('CH TAKEN -> CALLER', '#ffb000'); 
                 if (peer) try { peer.destroy(); } catch(e) {} 
-                peer = null; 
-                myRole = 'CALLER'; 
+                peer = null; myRole = 'CALLER'; 
                 setTimeout(function() { initPeer(null); }, 500); 
-            }
-            else if (err.type === 'peer-unavailable') { 
-                /* Expected during scanning */
-            }
+            } else if (err.type === 'peer-unavailable') { /* scanning */ }
             else if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error' || err.type === 'socket-closed') { 
                 log('SIGNAL ERR [' + err.type + ']', '#f44'); 
-            }
-            else if (err.type === 'webrtc') {
-                log('WEBRTC ERR', '#f44');
-            }
+            } else if (err.type === 'webrtc') { log('WEBRTC ERR', '#f44'); }
         });
     }
 
@@ -759,20 +748,14 @@
                 document.getElementById('pttBtn').disabled = true; 
                 document.getElementById('pttBtn').textContent = 'TRANSMIT';
                 document.getElementById('gearBtn').classList.remove('active');
-                setStatus('LOST', 'err'); 
-                scanCount = 0; 
-                resetIndicators();
+                setStatus('LOST', 'err'); scanCount = 0; resetIndicators();
                 document.getElementById('topLed').className = 'top-led scan';
                 setTimeout(function() { 
                     if (peer && !peer.destroyed && channelNum && state === 'LINKED') { 
-                        state = 'IDLE'; 
-                        transitionState('SCANNING'); 
+                        state = 'IDLE'; transitionState('SCANNING'); 
                     } 
                 }, 2000);
             }
-        });
-        c.on('error', function(err) {
-            log('DATA ERR: ' + err, '#f44');
         });
     }
 
@@ -780,8 +763,7 @@
         document.getElementById('remoteAudio').srcObject = stream;
         try { 
             audioCtx.createMediaStreamSource(stream).connect(remoteAnalyser); 
-            remoteAnalyser.connect(delayNode); 
-            log('AUDIO SYNCED', '#39ff14'); 
+            remoteAnalyser.connect(delayNode); log('AUDIO SYNCED', '#39ff14'); 
         } catch(e) {}
     }
 
@@ -790,13 +772,10 @@
         if (speakerGain) speakerGain.gain.setValueAtTime(m ? 1 : 0, audioCtx.currentTime); 
     }
 
-    /* ── Audio visualization ── */
     function updateMeter() {
         if (!analyser) { requestAnimationFrame(updateMeter); return; }
-        var d = new Uint8Array(analyser.frequencyBinCount); 
-        analyser.getByteFrequencyData(d);
-        var sum = 0;
-        for (var i = 0; i < d.length; i++) sum += d[i];
+        var d = new Uint8Array(analyser.frequencyBinCount); analyser.getByteFrequencyData(d);
+        var sum = 0; for (var i = 0; i < d.length; i++) sum += d[i];
         document.getElementById('meter-fill').style.width = Math.min(100, (sum / d.length) * 4) + '%';
         requestAnimationFrame(updateMeter);
     }
@@ -805,44 +784,31 @@
         if (!remoteAnalyser) { requestAnimationFrame(updateVox); return; }
         var rxLed = document.getElementById('ledRx');
         if (!document.getElementById('togVox').checked || state !== 'LINKED') { 
-            rxLed.classList.remove('rx'); 
-            requestAnimationFrame(updateVox); 
-            return; 
+            rxLed.classList.remove('rx'); requestAnimationFrame(updateVox); return; 
         }
-        var d = new Uint8Array(remoteAnalyser.frequencyBinCount); 
-        remoteAnalyser.getByteFrequencyData(d);
-        var sum = 0;
-        for (var i = 0; i < d.length; i++) sum += d[i];
-        if ((sum / d.length) > 10) rxLed.classList.add('rx'); 
-        else rxLed.classList.remove('rx');
+        var d = new Uint8Array(remoteAnalyser.frequencyBinCount); remoteAnalyser.getByteFrequencyData(d);
+        var sum = 0; for (var i = 0; i < d.length; i++) sum += d[i];
+        if ((sum / d.length) > 10) rxLed.classList.add('rx'); else rxLed.classList.remove('rx');
         requestAnimationFrame(updateVox);
     }
     requestAnimationFrame(updateVox);
 
-    /* ── PTT controls ── */
+    /* ── PTT ── */
     var pttBtn = document.getElementById('pttBtn');
     function isInputFocused() { 
         var t = document.activeElement ? document.activeElement.tagName : ''; 
         return t === 'INPUT' || t === 'SELECT' || t === 'TEXTAREA'; 
     }
-
     function pttOn() { 
         if (!conn || !conn.open || pttBtn.disabled || isInputFocused()) return; 
-        muteMic(false); 
-        try { conn.send('TX_ON'); } catch(e) {} 
-        document.getElementById('ledTx').classList.add('tx'); 
-        pttBtn.textContent = 'TX ACTIVE'; 
-        playTone(1200, 0.05); 
-        vibrate(50); 
+        muteMic(false); try { conn.send('TX_ON'); } catch(e) {} 
+        document.getElementById('ledTx').classList.add('tx'); pttBtn.textContent = 'TX ACTIVE'; 
+        playTone(1200, 0.05); vibrate(50); 
     }
-
     function pttOff() { 
         if (!conn || !conn.open || pttBtn.disabled) return; 
-        muteMic(true); 
-        try { conn.send('TX_OFF'); } catch(e) {} 
-        document.getElementById('ledTx').classList.remove('tx'); 
-        pttBtn.textContent = 'TRANSMIT'; 
-        vibrate(30); 
+        muteMic(true); try { conn.send('TX_OFF'); } catch(e) {} 
+        document.getElementById('ledTx').classList.remove('tx'); pttBtn.textContent = 'TRANSMIT'; vibrate(30); 
     }
 
     pttBtn.addEventListener('mousedown', function(e) { e.preventDefault(); pttOn(); });
@@ -851,38 +817,25 @@
     pttBtn.addEventListener('touchstart', function(e) { e.preventDefault(); pttOn(); }, { passive: false });
     pttBtn.addEventListener('touchend', function(e) { e.preventDefault(); pttOff(); }, { passive: false });
     pttBtn.addEventListener('touchcancel', function(e) { e.preventDefault(); pttOff(); }, { passive: false });
-
-    document.addEventListener('keydown', function(e) { 
-        if (e.code === 'Space' && !e.repeat && !isInputFocused()) { e.preventDefault(); pttOn(); } 
-    });
-    document.addEventListener('keyup', function(e) { 
-        if (e.code === 'Space' && !isInputFocused()) { e.preventDefault(); pttOff(); } 
-    });
+    document.addEventListener('keydown', function(e) { if (e.code === 'Space' && !e.repeat && !isInputFocused()) { e.preventDefault(); pttOn(); } });
+    document.addEventListener('keyup', function(e) { if (e.code === 'Space' && !isInputFocused()) { e.preventDefault(); pttOff(); } });
 
     /* ── Cleanup ── */
     function cleanupConnections() {
         clearScanTimer();
-        if (activeCall) try { activeCall.close(); } catch(e) {} 
-        activeCall = null;
-        if (conn) try { conn.close(); } catch(e) {} 
-        conn = null;
+        if (activeCall) try { activeCall.close(); } catch(e) {} activeCall = null;
+        if (conn) try { conn.close(); } catch(e) {} conn = null;
         setScanLed(false);
-        ['ledNet', 'ledTx', 'ledRx'].forEach(function(id) { 
-            document.getElementById(id).className = 'led'; 
-        });
+        ['ledNet', 'ledTx', 'ledRx'].forEach(function(id) { document.getElementById(id).className = 'led'; });
         document.getElementById('pttBtn').disabled = true;
     }
 
     function fullReset(silent) {
         cleanupConnections();
-        if (peer) try { peer.destroy(); } catch(e) {} 
-        peer = null;
+        if (peer) try { peer.destroy(); } catch(e) {} peer = null;
         if (localStream) { localStream.getTracks().forEach(function(t) { t.stop(); }); localStream = null; }
         if (!isPoweredOn && audioCtx) { try { audioCtx.close(); } catch(e) {} audioCtx = null; }
-        channelNum = null; 
-        myRole = null; 
-        state = 'IDLE'; 
-        scanCount = 0;
+        channelNum = null; myRole = null; state = 'IDLE'; scanCount = 0;
         document.getElementById('bootBtn').disabled = !isPoweredOn;
         document.getElementById('bootBtn').textContent = 'CONNECT';
         document.getElementById('curFreq').textContent = '---';
@@ -897,6 +850,22 @@
         if (!silent) document.getElementById('output').innerHTML = '<div class="log-line">> SYSTEM RESET.</div>';
         else document.getElementById('output').innerHTML = '';
     }
+
+    /* ═══════════════════════════════════════
+       WIRE ALL EVENT LISTENERS HERE
+       ═══════════════════════════════════════ */
+    document.getElementById('powerBtn').addEventListener('click', togglePower);
+    document.getElementById('bootBtn').addEventListener('click', initChannel);
+    document.getElementById('gearBtn').addEventListener('click', toggleSettings);
+    document.getElementById('btnExitSettings').addEventListener('click', toggleSettings);
+    document.getElementById('btnResetSys').addEventListener('click', function() { fullReset(false); });
+    document.getElementById('chanInput').addEventListener('input', updateChReadout);
+    document.getElementById('subChan').addEventListener('change', updateChReadout);
+
+    /* Prove the power button listener is attached */
+    console.log('[TACCOM4] All listeners wired. Power button:', document.getElementById('powerBtn'));
+
+}); /* end DOMContentLoaded */
 </script>
 </body>
 </html>
