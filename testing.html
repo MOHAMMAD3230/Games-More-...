@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TAC/COM-04 | GLOBAL RELAY</title>
+    <title>TAC/COM-04 | MOBILE RELAY</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root { --amber: #ffb000; --bg: #0d0900; --red: #8c3024; --blue: #00d4ff; --green: #39ff14; }
@@ -34,15 +34,15 @@
             <span>FREQ: <span id="curFreq" style="color:var(--blue)">UNSET</span></span>
             <span>UPLINK: <span id="stat">OFFLINE</span></span>
         </div>
-        <div id="output"><div>> SYSTEM READY. METERED RELAY CONFIGURED...</div></div>
+        <div id="output"><div>> INITIALIZING MOBILE-DATA RELAY...</div></div>
         <div id="meter"><div id="meter-fill"></div></div>
     </div>
 
     <div class="side-panel">
         <div class="module">
-            <div style="font-size: 0.6rem; color: #555; margin-bottom: 5px; text-align: center;">SET FREQUENCY (1-999)</div>
+            <div style="font-size: 0.6rem; color: #555; margin-bottom: 5px; text-align: center;">SET FREQUENCY</div>
             <input type="number" id="chanInput" value="10">
-            <button class="btn-action" id="bootBtn" onclick="initChannel()" style="margin-top:10px; border-color:var(--green); color:var(--green);">START COMMS</button>
+            <button class="btn-action" id="bootBtn" onclick="initChannel()" style="margin-top:10px; border-color:var(--green); color:var(--green);">FORCE LINK</button>
         </div>
         <div class="module" style="text-align:center;">
             <button class="btn-ptt" id="pttBtn" disabled>HOLD TO TALK</button>
@@ -58,17 +58,15 @@
 <script>
     let peer, conn, localStream, audioCtx, analyser, speakerGain;
     
-    // Change this to a unique word for your team
-    const APP_PREFIX = "G-RADIO-X-"; 
+    // Updated Prefix for fresh server registration
+    const APP_PREFIX = "MOBILE-RADIO-v2-"; 
 
-    // Metered.ca Credentials Integrated
-    const ICE_CONFIG = {
+    // STRICT RELAY CONFIGURATION
+    const PEER_OPTIONS = {
         config: { 
             'iceServers': [
-                { 'urls': 'stun:stun.l.google.com:19302' },
-                { 'urls': 'stun:stun.relay.metered.ca:80' },
                 {
-                    'urls': 'turn:global.relay.metered.ca:80',
+                    'urls': 'turns:global.relay.metered.ca:443?transport=tcp',
                     'username': 'ce97feaaa435bc128230c5bd',
                     'credential': '+qT5rVgsuGkqWX6o'
                 },
@@ -76,15 +74,13 @@
                     'urls': 'turn:global.relay.metered.ca:443',
                     'username': 'ce97feaaa435bc128230c5bd',
                     'credential': '+qT5rVgsuGkqWX6o'
-                },
-                {
-                    'urls': 'turns:global.relay.metered.ca:443?transport=tcp',
-                    'username': 'ce97feaaa435bc128230c5bd',
-                    'credential': '+qT5rVgsuGkqWX6o'
                 }
             ],
             'sdpSemantics': 'unified-plan'
-        }
+        },
+        // FORCE all traffic through the Metered.ca relay to bypass Mobile NAT
+        iceTransportPolicy: 'relay',
+        debug: 3
     };
 
     function log(msg, color="#ffb000") {
@@ -96,9 +92,9 @@
 
     async function initChannel() {
         try {
-            log("ACQUIRING HARDWARE...");
+            log("REQUESTING MIC ACCESS...");
             localStream = await navigator.mediaDevices.getUserMedia({ 
-                audio: { echoCancellation: true, noiseSuppression: true } 
+                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
             });
 
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -114,33 +110,40 @@
             const chanNum = document.getElementById('chanInput').value;
             document.getElementById('curFreq').innerText = "CH-" + chanNum;
             initPeer(APP_PREFIX + chanNum);
-            log("SEARCHING VIA METERED RELAY...");
-        } catch(e) { log("MIC ERROR: CHECK HTTPS", "red"); }
+            log("ESTABLISHING MOBILE RELAY...", "var(--blue)");
+        } catch(e) { log("MIC ACCESS REJECTED", "red"); }
     }
 
     function initPeer(myId) {
-        peer = new Peer(myId, ICE_CONFIG);
-        peer.on('open', id => log("ID BROADCASTED. WAITING...", "var(--green)"));
-        peer.on('connection', c => { conn = c; setupHandlers(); });
+        peer = new Peer(myId, PEER_OPTIONS);
+        
+        peer.on('open', id => log("ID REGISTERED ON RELAY.", "var(--green)"));
+        
+        peer.on('connection', c => { 
+            conn = c; 
+            setupHandlers(); 
+        });
+        
         peer.on('call', call => {
             call.answer(localStream);
             call.on('stream', stream => attachStream(stream));
         });
+        
         peer.on('error', (err) => {
             if(err.type === 'unavailable-id') {
-                log("HOST FOUND. SYNCING...");
+                log("HOST DETECTED. SYNCING...");
                 peer.destroy();
                 initCallerMode(myId);
             } else {
-                log("NET ERR: " + err.type, "red");
+                log("NET ERROR: " + err.type, "red");
             }
         });
     }
 
     function initCallerMode(targetId) {
-        peer = new Peer(ICE_CONFIG); 
+        peer = new Peer(PEER_OPTIONS); 
         peer.on('open', () => {
-            conn = peer.connect(targetId);
+            conn = peer.connect(targetId, { reliable: true });
             const call = peer.call(targetId, localStream);
             call.on('stream', stream => attachStream(stream));
             setupHandlers();
@@ -148,10 +151,11 @@
     }
 
     function attachStream(stream) {
-        document.getElementById('remoteAudio').srcObject = stream;
+        const audioEl = document.getElementById('remoteAudio');
+        audioEl.srcObject = stream;
         const source = audioCtx.createMediaStreamSource(stream);
         source.connect(analyser);
-        log("VOICE LINK ESTABLISHED.");
+        log("REMOTE SYNC SUCCESSFUL.", "var(--green)");
     }
 
     function setupHandlers() {
@@ -159,11 +163,17 @@
             document.getElementById('ledNet').classList.add('online');
             document.getElementById('pttBtn').disabled = false;
             document.getElementById('stat').innerText = "SYNCED";
-            log("REMOTE SYNC COMPLETE.");
+            log("COMS ONLINE.");
         });
+        
         conn.on('data', data => {
             if(data === 'TX_ON') document.getElementById('ledTx').classList.add('tx');
             if(data === 'TX_OFF') document.getElementById('ledTx').classList.remove('tx');
+        });
+
+        conn.on('close', () => {
+            log("CONNECTION LOST", "red");
+            location.reload();
         });
     }
 
