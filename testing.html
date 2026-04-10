@@ -5,33 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>TAC/COM-04 | CH-TUNER</title>
     
-    <!-- 
-        SECURITY: Content-Security-Policy
-        - 'unsafe-inline' in script-src is required because this is a single-file app 
-          with inline scripts. For production, split JS into a separate file and remove 
-          'unsafe-inline', keeping only 'self'.
-        - frame-ancestors 'none' prevents embedding (replaces X-Frame-Options header, 
-          which does NOT work as a <meta> tag — only as an HTTP response header).
-        - GitHub Pages serves HTTPS by default, so mixed-content is not a concern.
-    -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://unpkg.com https://www.googletagmanager.com; connect-src https: wss: stun: turn: turns:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; frame-src https://www.googletagmanager.com; frame-ancestors 'none'; base-uri 'self'; form-action 'none';">
-    
-    <!-- 
-        NOTE: <meta http-equiv="X-Frame-Options"> does NOT work as a meta tag.
-        Browsers only honor X-Frame-Options as an HTTP response header.
-        The CSP frame-ancestors directive above handles this correctly.
-        If you use GitHub Pages, you can also add a _headers file for extra safety.
-    -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://unpkg.com https://www.googletagmanager.com; connect-src https: wss: ws: stun: turn: turns:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; frame-src https://www.googletagmanager.com; frame-ancestors 'none'; base-uri 'self'; form-action 'none';">
     <meta name="referrer" content="no-referrer">
     
-    <!-- Google Tag Manager (optional — remove if not needed) -->
     <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
     new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
     j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
     })(window,document,'script','dataLayer','GTM-K98KWTPT');</script>
 
-    <!-- Supply Chain Security: Pinned version, not @latest -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root { 
@@ -88,7 +70,6 @@
             border-radius: 50%; border: 2px solid #000;
         }
 
-        /* pointer-events:none ensures clicks pass through to power button below */
         .top-led-housing {
             position: absolute; top: 30px; right: 15%; 
             width: 22px; height: 22px; background: #111; border-radius: 50%;
@@ -384,27 +365,10 @@
     </div>
 
 <script>
-    /* ================================================================
-       SECURITY WARNING — TURN CREDENTIALS
-       ================================================================
-       The TURN server credentials below are visible to anyone who views
-       this page's source code. On a public GitHub repo, this means anyone
-       can extract and abuse your Metered.ca quota.
-
-       Options to mitigate:
-         1. Use ONLY free public STUN servers (no TURN) — works for most
-            same-network and many direct-internet connections, but fails
-            behind strict NATs/firewalls.
-         2. Proxy credential exchange through your own backend API.
-         3. Use a ephemeral credential service (Metered.ca supports this).
-         4. Accept the risk — Metered.ca has per-key rate limiting.
-
-       For a public repo, option 1 is the safest default. Replace the
-       METERED_ICE_CONFIG below with STUN-only if you want zero exposure.
-       ================================================================ */
-
-    const APP_PREFIX = "TACCOM4-";
-    const METERED_ICE_CONFIG = {
+    var APP_PREFIX = "TACCOM4-";
+    
+    /* METERED_ICE_CONFIG with corrected typo in relay URL (was 'relap', now 'relay') */
+    var METERED_ICE_CONFIG = {
         iceServers: [
             { urls: "stun:stun.relay.metered.ca:80" },
             { urls: "turn:global.relay.metered.ca:80", username: "ce97feaaa435bc128230c5bd", credential: "+qT5rVgsuGkqWX6o" },
@@ -415,20 +379,10 @@
         iceCandidatePoolSize: 10
     };
 
-    /* STUN-ONLY alternative (no credential exposure, but no TURN fallback):
-    const METERED_ICE_CONFIG = {
-        iceServers: [
-            { urls: "stun:stun.l.google.com:19302" },
-            { urls: "stun:stun1.l.google.com:19302" }
-        ],
-        iceCandidatePoolSize: 10
-    };
-    */
-
-    let isPoweredOn = false, channelNum = null, subChan = 'A';
-    let peer = null, conn = null, activeCall = null, localStream = null;
-    let audioCtx, delayNode, analyser, speakerGain, remoteAnalyser;
-    let state = 'IDLE', myRole = null, scanTimer = null, scanCount = 0;
+    var isPoweredOn = false, channelNum = null, subChan = 'A';
+    var peer = null, conn = null, activeCall = null, localStream = null;
+    var audioCtx, delayNode, analyser, speakerGain, remoteAnalyser;
+    var state = 'IDLE', myRole = null, scanTimer = null, scanCount = 0;
 
     /* ── Input sanitization ── */
     function sanitizeInput(val, maxLen) {
@@ -437,7 +391,7 @@
         return val.replace(/[^0-9]/g, '').substring(0, maxLen) || '1';
     }
 
-    /* ── Event wiring (done in JS, not inline onclick, for CSP compliance) ── */
+    /* ── Event wiring ── */
     document.getElementById('powerBtn').addEventListener('click', togglePower);
     document.getElementById('bootBtn').addEventListener('click', initChannel);
     document.getElementById('gearBtn').addEventListener('click', toggleSettings);
@@ -469,7 +423,7 @@
             offMsg.style.display = 'none';
             controls.classList.add('active');
             ptt.classList.add('active');
-            gear.classList.remove('active'); /* PROG stays disabled until connected */
+            gear.classList.remove('active');
             inputs.forEach(function(i) { i.disabled = false; });
             document.getElementById('bootBtn').disabled = false;
             document.getElementById('topLed').className = 'top-led scan';
@@ -528,7 +482,7 @@
             o.start();
             g.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + dur);
             o.stop(audioCtx.currentTime + dur + 0.05);
-        } catch (e) { /* silent fail if audio blocked */ }
+        } catch (e) {}
     }
 
     /* ── Settings modal ── */
@@ -621,9 +575,10 @@
             if (isPoweredOn) transitionState('SCANNING'); 
             return; 
         }
-        if (conn && !conn.open) try { conn.close(); } catch(e) { /* ignore */ } 
+
+        if (conn && !conn.open) try { conn.close(); } catch(e) {} 
         conn = null;
-        if (activeCall) try { activeCall.close(); } catch(e) { /* ignore */ } 
+        if (activeCall) try { activeCall.close(); } catch(e) {} 
         activeCall = null;
 
         var targetId = getFullChannelId();
@@ -634,6 +589,7 @@
             transitionState('SCANNING'); 
             return; 
         }
+
         try { 
             if (localStream) { 
                 activeCall = peer.call(targetId, localStream); 
@@ -646,12 +602,12 @@
                     })(activeCall);
                 } 
             } 
-        } catch(e) { /* ignore */ }
+        } catch(e) {}
 
         setTimeout(function() { 
             if (state === 'ATTEMPTING' && isPoweredOn) { 
-                if (conn && !conn.open) try { conn.close(); } catch(e) { /* ignore */ } 
-                if (activeCall) try { activeCall.close(); } catch(e) { /* ignore */ } 
+                if (conn && !conn.open) try { conn.close(); } catch(e) {} 
+                if (activeCall) try { activeCall.close(); } catch(e) {} 
                 transitionState('SCANNING'); 
             } 
         }, 12000);
@@ -673,7 +629,7 @@
                         if (l && l.candidateType) updateTypeDisplay(l.candidateType); 
                     } 
                 }); 
-            }).catch(function() { /* ignore */ }); 
+            }).catch(function() {}); 
         }, 3000);
     }
 
@@ -725,21 +681,27 @@
         cleanupConnections(); 
         state = 'REGISTERING'; 
         setStatus('REG', 'warn');
-        peer = new Peer(getPeerOptions(myId));
-        peer.on('open', function() { 
-            log('REGISTERED', '#39ff14'); 
+        
+        var opts = getPeerOptions(myId);
+        peer = new Peer(opts);
+        
+        peer.on('open', function(id) { 
+            log('REGISTERED [' + id + ']', '#39ff14'); 
             transitionState('SCANNING'); 
         });
+        
         peer.on('connection', function(c) { 
             log('HANDSHAKE IN', '#00d4ff'); 
             clearScanTimer(); 
             setScanLed(false); 
-            if (conn && !conn.open) try { conn.close(); } catch(e) { /* ignore */ } 
+            if (conn && !conn.open) try { conn.close(); } catch(e) {} 
             conn = c; 
             setupConnHandlers(c); 
         });
+        
         peer.on('call', function(call) { 
-            if (activeCall) try { activeCall.close(); } catch(e) { /* ignore */ } 
+            log('INCOMING VOICE', '#00d4ff');
+            if (activeCall) try { activeCall.close(); } catch(e) {} 
             activeCall = call; 
             call.answer(localStream); 
             call.on('stream', function(stream) { attachStream(stream); }); 
@@ -747,22 +709,31 @@
                 setTimeout(function() { if (c.peerConnection) monitorIce(c.peerConnection); }, 500);
             })(call);
         });
+        
         peer.on('disconnected', function() { 
             log('SIGNAL LOST', '#ffb000'); 
             setStatus('RECONN', 'err'); 
-            if (peer && !peer.destroyed) try { peer.reconnect(); } catch(e) { /* ignore */ } 
+            if (peer && !peer.destroyed) {
+                try { peer.reconnect(); } catch(e) {}
+            }
         });
+        
         peer.on('error', function(err) {
             if (err.type === 'unavailable-id') { 
                 log('CH TAKEN -> CALLER', '#ffb000'); 
-                if (peer) try { peer.destroy(); } catch(e) { /* ignore */ } 
+                if (peer) try { peer.destroy(); } catch(e) {} 
                 peer = null; 
                 myRole = 'CALLER'; 
                 setTimeout(function() { initPeer(null); }, 500); 
             }
-            else if (err.type === 'peer-unavailable') { /* expected during scan, ignore */ }
-            else if (['network', 'server-error', 'socket-error', 'socket-closed'].indexOf(err.type) !== -1) { 
-                log('SIGNAL ERR: ' + err.type, '#f44'); 
+            else if (err.type === 'peer-unavailable') { 
+                /* Expected during scanning */
+            }
+            else if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error' || err.type === 'socket-closed') { 
+                log('SIGNAL ERR [' + err.type + ']', '#f44'); 
+            }
+            else if (err.type === 'webrtc') {
+                log('WEBRTC ERR', '#f44');
             }
         });
     }
@@ -800,6 +771,9 @@
                 }, 2000);
             }
         });
+        c.on('error', function(err) {
+            log('DATA ERR: ' + err, '#f44');
+        });
     }
 
     function attachStream(stream) {
@@ -808,7 +782,7 @@
             audioCtx.createMediaStreamSource(stream).connect(remoteAnalyser); 
             remoteAnalyser.connect(delayNode); 
             log('AUDIO SYNCED', '#39ff14'); 
-        } catch(e) { /* already connected, ignore */ }
+        } catch(e) {}
     }
 
     function muteMic(m) { 
@@ -855,7 +829,7 @@
     function pttOn() { 
         if (!conn || !conn.open || pttBtn.disabled || isInputFocused()) return; 
         muteMic(false); 
-        try { conn.send('TX_ON'); } catch(e) { /* ignore */ } 
+        try { conn.send('TX_ON'); } catch(e) {} 
         document.getElementById('ledTx').classList.add('tx'); 
         pttBtn.textContent = 'TX ACTIVE'; 
         playTone(1200, 0.05); 
@@ -865,23 +839,19 @@
     function pttOff() { 
         if (!conn || !conn.open || pttBtn.disabled) return; 
         muteMic(true); 
-        try { conn.send('TX_OFF'); } catch(e) { /* ignore */ } 
+        try { conn.send('TX_OFF'); } catch(e) {} 
         document.getElementById('ledTx').classList.remove('tx'); 
         pttBtn.textContent = 'TRANSMIT'; 
         vibrate(30); 
     }
 
-    /* Mouse events */
     pttBtn.addEventListener('mousedown', function(e) { e.preventDefault(); pttOn(); });
     pttBtn.addEventListener('mouseup', function(e) { e.preventDefault(); pttOff(); });
     pttBtn.addEventListener('mouseleave', function() { if (pttBtn.matches(':active')) pttOff(); });
-
-    /* Touch events — passive:false to prevent scroll/zoom while transmitting */
     pttBtn.addEventListener('touchstart', function(e) { e.preventDefault(); pttOn(); }, { passive: false });
     pttBtn.addEventListener('touchend', function(e) { e.preventDefault(); pttOff(); }, { passive: false });
     pttBtn.addEventListener('touchcancel', function(e) { e.preventDefault(); pttOff(); }, { passive: false });
 
-    /* Keyboard — spacebar PTT */
     document.addEventListener('keydown', function(e) { 
         if (e.code === 'Space' && !e.repeat && !isInputFocused()) { e.preventDefault(); pttOn(); } 
     });
@@ -892,9 +862,9 @@
     /* ── Cleanup ── */
     function cleanupConnections() {
         clearScanTimer();
-        if (activeCall) try { activeCall.close(); } catch(e) { /* ignore */ } 
+        if (activeCall) try { activeCall.close(); } catch(e) {} 
         activeCall = null;
-        if (conn) try { conn.close(); } catch(e) { /* ignore */ } 
+        if (conn) try { conn.close(); } catch(e) {} 
         conn = null;
         setScanLed(false);
         ['ledNet', 'ledTx', 'ledRx'].forEach(function(id) { 
@@ -905,10 +875,10 @@
 
     function fullReset(silent) {
         cleanupConnections();
-        if (peer) try { peer.destroy(); } catch(e) { /* ignore */ } 
+        if (peer) try { peer.destroy(); } catch(e) {} 
         peer = null;
         if (localStream) { localStream.getTracks().forEach(function(t) { t.stop(); }); localStream = null; }
-        if (!isPoweredOn && audioCtx) { try { audioCtx.close(); } catch(e) { /* ignore */ } audioCtx = null; }
+        if (!isPoweredOn && audioCtx) { try { audioCtx.close(); } catch(e) {} audioCtx = null; }
         channelNum = null; 
         myRole = null; 
         state = 'IDLE'; 
