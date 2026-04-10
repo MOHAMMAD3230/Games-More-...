@@ -3,243 +3,222 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TAC/COM-04 YU | TAC-COM STATION</title>
+    <title>OMNI-LINK | HUD V2</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    
     <style>
-        :root {
-            --amber: #ffb000; --bg-lcd: #1a1500; --red: #8c3024; --cyan: #00d4ff;
-            --green: #39ff14; --casing: #2a2a2a; --casing-dark: #1e1e1e;
-            --inset: #050505; --yu-red: #ff3c3c;
+        :root { 
+            --neon-blue: #00f2ff; --neon-amber: #ffb000; --neon-red: #ff3131;
+            --glass: rgba(20, 20, 25, 0.85); --panel-border: rgba(255, 255, 255, 0.1);
+            --bg-dark: #050507;
         }
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; margin:0; padding:0; }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
         
-        body {
-            background: #111; color: var(--amber); font-family: 'Courier New', monospace;
-            display: flex; justify-content: center; align-items: center;
-            margin: 0; touch-action: manipulation; overflow: hidden;
-            height: 100vh; height: 100dvh; padding: 10px;
+        body { 
+            background: var(--bg-dark); color: #fff; 
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; 
+            display: flex; justify-content: center; align-items: center; 
+            min-height: 100vh; overflow: hidden;
         }
 
-        .radio-container {
-            width: 100%; max-width: 440px;
-            height: 100%; max-height: 950px;
-            position: relative; display: flex; flex-direction: column;
-            filter: drop-shadow(0 25px 50px rgba(0,0,0,0.9));
+        /* Ambient Background Glow */
+        body::before {
+            content: ""; position: absolute; width: 300px; height: 300px;
+            background: radial-gradient(circle, rgba(0, 242, 255, 0.05) 0%, transparent 70%);
+            top: 10%; left: 10%; z-index: -1;
         }
 
-        .antenna {
-            width: 14px; height: 100px; margin: 0 auto -15px; z-index: 10;
-            background: linear-gradient(90deg, #0a0a0a, #444 35%, #555 50%, #444 65%, #0a0a0a);
-            border-radius: 7px 7px 0 0; position: relative;
-        }
-        .antenna::before {
-            content: ''; position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
-            width: 20px; height: 20px; background: radial-gradient(circle at 35% 35%, #666, #1a1a1a);
-            border-radius: 50%; border: 2px solid #000;
+        .container {
+            width: 100%; height: 100vh; display: flex; flex-direction: column;
+            padding: 15px; gap: 15px; position: relative;
         }
 
-        .radio-body {
-            flex: 1; background: linear-gradient(90deg, var(--casing-dark) 0%, var(--casing) 15%, var(--casing) 85%, var(--casing-dark) 100%);
-            border-radius: 20px; border: 3px solid #0a0a0a;
-            display: flex; flex-direction: column; position: relative; overflow: hidden;
-            box-shadow: inset 2px 0 0 rgba(255,255,255,0.05), inset -2px 0 0 rgba(0,0,0,0.5);
+        @media (min-width: 1024px) {
+            .container { 
+                max-width: 1200px; height: 800px; 
+                display: grid; grid-template-columns: 300px 1fr;
+                grid-template-areas: "sidebar main";
+            }
         }
 
-        .metal-band {
-            height: 16px; background: linear-gradient(180deg, #555, #222 40%, #444 50%, #222 60%, #111);
-            border-top: 1px solid #666; border-bottom: 1px solid #000;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3);
-            position: relative; z-index: 2; flex-shrink: 0;
+        /* Glass Panels */
+        .panel {
+            background: var(--glass); backdrop-filter: blur(10px);
+            border: 1px solid var(--panel-border); border-radius: 20px;
+            padding: 20px; display: flex; flex-direction: column;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
         }
 
-        .z-content {
-            flex: 1; display: grid;
-            grid-template-rows: auto auto 1fr auto auto;
-            gap: 10px; padding: 15px 20px 25px 20px; position: relative; z-index: 1;
-            overflow: hidden; min-height: 0;
+        .sidebar { grid-area: sidebar; gap: 20px; order: 2; }
+        .main-display { grid-area: main; flex-grow: 1; order: 1; min-height: 0; }
+        @media (min-width: 1024px) { .sidebar { order: 1; } .main-display { order: 2; } }
+
+        /* Typography & Info */
+        .label { font-size: 0.65rem; text-transform: uppercase; color: #666; letter-spacing: 2px; margin-bottom: 5px; }
+        .stat-value { font-family: monospace; font-size: 0.9rem; color: var(--neon-blue); }
+
+        /* Oscilloscope */
+        #visualizer { 
+            width: 100%; height: 150px; background: rgba(0, 0, 0, 0.3); 
+            border-radius: 12px; margin: 15px 0; border: 1px solid rgba(0, 242, 255, 0.1);
         }
 
-        .controls-top { display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
-        .brand { font-size: 0.8rem; font-weight: bold; letter-spacing: 3px; color: #555; text-shadow: 1px 1px 0 #000, -1px -1px 0 #333; }
-
-        .power-switch {
-            width: 46px; height: 46px; border-radius: 50%; cursor: pointer;
-            background: radial-gradient(circle at 30% 30%, #aa2020, #500000);
-            border: 3px solid #111; box-shadow: 0 4px 0 #220000, inset 0 2px 2px rgba(255,255,255,0.2);
-            transition: all 0.1s; position: relative;
-        }
-        .power-switch.on { 
-            background: radial-gradient(circle at 30% 30%, #30cc30, #004400); 
-            box-shadow: 0 4px 0 #002200, 0 0 15px rgba(57, 255, 20, 0.4); 
+        #output { 
+            flex-grow: 1; font-size: 0.8rem; overflow-y: auto; scrollbar-width: none;
+            color: rgba(255, 255, 255, 0.6); line-height: 1.6; padding-right: 5px;
         }
 
-        .screen-bezel {
-            background: var(--inset); border-radius: 8px; padding: 8px;
-            border: 3px solid #050505; box-shadow: inset 0 4px 12px rgba(0,0,0,1), 0 1px 0 #333;
-        }
-        .screen {
-            background: #020200; border-radius: 4px; padding: 10px;
-            flex: 1; display: flex; flex-direction: column; position: relative;
-            min-height: 220px; overflow: hidden;
-        }
-        .screen.on {
-            background: var(--bg-lcd); 
-            box-shadow: inset 0 0 20px rgba(255,176,0,0.08);
-        }
-
-        canvas { 
-            width: 100%; height: 110px; background: #000; 
-            border: 1px solid #1a1a1a; margin: 8px 0; border-radius: 4px; 
-        }
+        /* Controls */
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         
-        #output {
-            flex: 1; overflow-y: auto; font-size: 0.72rem; line-height: 1.5;
-            text-shadow: 0 0 3px rgba(255,176,0,0.2);
-            scrollbar-width: none;
+        button {
+            background: rgba(255, 255, 255, 0.05); border: 1px solid var(--panel-border);
+            color: #fff; padding: 12px; border-radius: 12px; cursor: pointer;
+            font-size: 0.75rem; font-weight: 600; transition: 0.3s;
         }
-        #output::-webkit-scrollbar { display: none; }
 
-        .yu-telemetry {
-            display: flex; gap: 15px; background: #080808; padding: 8px; border-radius: 4px;
-            border: 1px solid #222;
-        }
-        .yu-val { font-size: 0.9rem; font-weight: bold; color: var(--amber); }
+        button:hover { background: rgba(255, 255, 255, 0.1); }
 
-        .led-bay { display: flex; gap: 8px; }
-        .led { width: 11px; height: 11px; border-radius: 50%; background: #1a1a1a; transition: all 0.2s; }
-        .led.active { box-shadow: 0 0 10px currentColor; }
+        .btn-primary { 
+            background: linear-gradient(135deg, #1a1a1a 0%, #000 100%);
+            border-color: var(--neon-blue); color: var(--neon-blue);
+        }
 
-        .btn-ptt {
-            width: 100%; height: 115px; color: rgba(255,255,255,0.7); border: none;
-            font-weight: bold; font-size: 1.35rem; cursor: pointer; font-family: inherit;
-            letter-spacing: 5px; border-radius: 8px;
-            background: repeating-linear-gradient(0deg, #3a3a3a 0px, #3a3a3a 4px, #2a2a2a 4px, #2a2a2a 8px);
-            box-shadow: inset 0 2px 0 rgba(255,255,255,0.1), inset 0 -2px 0 rgba(0,0,0,0.8), 0 8px 0 #111;
-            transition: all 0.05s;
+        .system-on .btn-primary { 
+            background: linear-gradient(135deg, #003a3d 0%, #001a1b 100%);
+            border-color: var(--neon-blue); box-shadow: 0 0 15px rgba(0, 242, 255, 0.2);
         }
-        .btn-ptt.active {
-            opacity: 1; pointer-events: auto;
-            background: repeating-linear-gradient(0deg, #5a2020 0px, #5a2020 4px, #401515 4px, #401515 8px);
+
+        /* PTT & Beep */
+        .comms-block { display: flex; gap: 10px; height: 120px; }
+        .btn-ptt { 
+            flex: 1; border-radius: 15px; border: 1px solid var(--panel-border);
+            background: rgba(255, 255, 255, 0.03); font-size: 1.2rem; font-weight: 800;
+            color: rgba(255, 255, 255, 0.2); pointer-events: none;
         }
+
+        .system-on .btn-ptt {
+            background: linear-gradient(180deg, var(--neon-red) 0%, #8b0000 100%);
+            color: #fff; border: none; pointer-events: auto; opacity: 1;
+            box-shadow: 0 5px 20px rgba(255, 49, 49, 0.3);
+        }
+
+        .btn-ptt:active { transform: scale(0.96); opacity: 0.8; }
+
+        input {
+            background: rgba(0, 0, 0, 0.3); border: 1px solid var(--panel-border);
+            color: var(--neon-amber); font-size: 1.5rem; text-align: center;
+            padding: 10px; border-radius: 12px; width: 100%; outline: none;
+            font-family: monospace;
+        }
+
+        /* Indicators */
+        .indicator-row { display: flex; justify-content: space-around; margin-bottom: 20px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: #1a1a1c; transition: 0.3s; }
+        .active-blue { background: var(--neon-blue); box-shadow: 0 0 10px var(--neon-blue); }
+        .active-green { background: #39ff14; box-shadow: 0 0 10px #39ff14; }
+        .active-red { background: var(--neon-red); box-shadow: 0 0 10px var(--neon-red); }
+
+        .night-vision { filter: brightness(1.2) contrast(1.2) sepia(100%) hue-rotate(80deg) saturate(200%); }
     </style>
 </head>
-<body>
-    <div class="radio-container">
-        <div class="antenna"></div>
-        <div class="radio-body">
-            <div class="metal-band"></div>
-            <audio id="remoteAudio" autoplay playsinline style="display:none;"></audio>
-            
-            <div class="z-content">
-                <div class="controls-top">
-                    <div class="brand">TAC/COM-04 YU</div>
-                    <div class="power-switch" id="powerBtn" onclick="togglePower()"></div>
-                </div>
+<body id="root">
 
-                <div class="yu-telemetry">
-                    <div style="flex:1"><div style="font-size:0.5rem;color:#444">LINK</div><div class="yu-val" id="s-stat">OFFLINE</div></div>
-                    <div style="flex:1"><div style="font-size:0.5rem;color:#444">PING</div><div class="yu-val" id="s-ping">--</div></div>
-                    <div class="led-bay">
-                        <div class="led" id="l-pwr" style="color:#00bfff"></div>
-                        <div class="led" id="l-syn" style="color:#39ff14"></div>
-                        <div class="led" id="l-tx" style="color:#ff3c3c"></div>
-                    </div>
-                </div>
+<div class="container" id="app-ui">
+    <audio id="remoteAudio" autoplay playsinline></audio>
 
-                <div class="screen-bezel">
-                    <div class="screen" id="screen">
-                        <div class="hud-bar" style="font-size:0.65rem;display:flex;justify-content:space-between;margin-bottom:6px;">
-                            <span>CH: <span class="hud-val" id="curFreq">---</span></span>
-                            <span>STS: <span class="hud-val" id="stat">STANDBY</span></span>
-                        </div>
-                        <canvas id="visualizer"></canvas>
-                        <div id="output"><div>> YU SYSTEM STANDBY...</div></div>
-                    </div>
-                </div>
-
-                <div id="controlsMid">
-                    <input type="number" id="chanInput" value="909" style="width:100%; background:#000; border:2px solid #222; color:var(--cyan); padding:10px; font-size:1.4rem; text-align:center; border-radius:4px;">
-                    <button class="btn-set" id="bootBtn" onclick="yuBoot()" style="width:100%; height:50px; margin-top:8px; font-size:1rem;">
-                        INITIATE YU CORE
-                    </button>
-                </div>
-
-                <div class="controls-bottom">
-                    <button class="btn-ptt" id="pttBtn">HOLD TO TRANSMIT</button>
-                </div>
+    <aside class="panel sidebar">
+        <div>
+            <div class="label">System Status</div>
+            <div class="indicator-row">
+                <div class="led-tag"><div class="dot" id="l-pwr"></div></div>
+                <div class="led-tag"><div class="dot" id="l-syn"></div></div>
+                <div class="led-tag"><div class="dot" id="l-tx"></div></div>
             </div>
-            
-            <div class="metal-band" style="box-shadow: inset 0 -1px 0 rgba(255,255,255,0.3), inset 0 1px 0 #000;"></div>
+            <div style="display: flex; justify-content: space-between; margin-top: 10px;">
+                <div><div class="label">Link</div><div class="stat-value" id="s-stat">OFF</div></div>
+                <div><div class="label">Ping</div><div class="stat-value" id="s-ping">--</div></div>
+            </div>
         </div>
-    </div>
+
+        <div>
+            <div class="label">Frequency</div>
+            <input type="number" id="chanInput" value="303">
+        </div>
+
+        <button class="btn-primary" id="pwrBtn" onclick="sysToggle()">Initialize Link</button>
+        <button onclick="location.reload()">System Reset</button>
+    </aside>
+
+    <main class="panel main-display">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="label">Spectral Analysis</div>
+            <div class="btn-grid">
+                <button onclick="toggleNight()" style="padding: 5px 15px;">HUD</button>
+                <button onclick="toggleScramble()" id="btn-scram" style="padding: 5px 15px;">SCRM</button>
+            </div>
+        </div>
+
+        <canvas id="visualizer"></canvas>
+
+        <div class="label">Uplink Activity Log</div>
+        <div id="output"><div>> WAITING FOR POWER CYCLE...</div></div>
+
+        <div class="comms-block" style="margin-top: 20px;">
+            <button class="btn-ptt" id="pttBtn">TRANSMIT</button>
+            <button id="beepBtn" style="width: 70px; font-weight: bold;" disabled 
+                onmousedown="sendBeep(true)" onmouseup="sendBeep(false)" 
+                ontouchstart="sendBeep(true)" ontouchend="sendBeep(false)">BP</button>
+        </div>
+    </main>
+</div>
 
 <script>
-    let peer, conn, localStream, audioCtx, analyser, speakerGain;
+    let peer, conn, localStream, audioCtx, analyser, speakerGain, scrambleNode;
     let isPowered = false;
-    let isConnected = false;
-    const YU_NET_ID = "YU-WALKIE-";
+    const APP_PREFIX = "TAC-HUD-V2-";
 
-    const config = {
-        config: {
-            iceServers: [
-                { urls: "stun:stun.relay.metered.ca:80" },
-                { urls: "turn:global.relay.metered.ca:443", username: "ce97feaaa435bc128230c5bd", credential: "+qT5rVgsuGkqWX6o" },
-                { urls: "turns:global.relay.metered.ca:443?transport=tcp", username: "ce97feaaa435bc128230c5bd", credential: "+qT5rVgsuGkqWX6o" }
-            ]
-        }
+    const PEER_OPTIONS = {
+        config: { 'iceServers': [{ 'urls': 'turns:global.relay.metered.ca:443?transport=tcp', 'username': 'ce97feaaa435bc128230c5bd', 'credential': '+qT5rVgsuGkqWX6o' }] },
+        iceTransportPolicy: 'relay'
     };
 
-    function log(msg, color = "#ffb000") {
+    function log(msg, color="rgba(255,255,255,0.6)") {
         const out = document.getElementById('output');
-        const div = document.createElement('div');
-        div.style.color = color;
-        div.textContent = `> ${msg}`;
-        out.appendChild(div);
+        out.innerHTML += `<div style="color:${color}">[INFO] ${msg}</div>`;
         out.scrollTop = out.scrollHeight;
     }
 
-    async function yuBoot() {
-        if (!isPowered) {
+    async function sysToggle() {
+        if(!isPowered) {
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ 
                     audio: { echoCancellation: true, noiseSuppression: true } 
                 });
-                localStream.getAudioTracks()[0].enabled = false;
-
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                
                 analyser = audioCtx.createAnalyser();
                 speakerGain = audioCtx.createGain();
-                speakerGain.gain.value = 1;
+                speakerGain.gain.value = 0.8;
                 analyser.connect(speakerGain);
                 speakerGain.connect(audioCtx.destination);
-
+                
                 isPowered = true;
-                document.getElementById('powerBtn').classList.add('on');
-                document.getElementById('screen').classList.add('on');
-                document.getElementById('l-pwr').classList.add('active');
-                document.getElementById('bootBtn').textContent = "TERMINATE YU CORE";
-                document.getElementById('stat').textContent = "READY";
-                document.getElementById('stat').style.color = "#39ff14";
-
-                log("YU CORE BOOT SEQUENCE COMPLETE", "#39ff14");
-                initNetwork();
-                runVisualizer();
-
-            } catch (e) {
-                log("MIC ACCESS FAILED: " + e.message, "#ff3c3c");
-            }
-        } else {
-            location.reload(); // Simple full reset
-        }
+                document.getElementById('app-ui').classList.add('system-on');
+                document.getElementById('l-pwr').classList.add('active-blue');
+                document.getElementById('pwrBtn').innerText = "Shutdown";
+                log("UPLINK CORE ACTIVATED", "var(--neon-blue)");
+                
+                initPeer(APP_PREFIX + document.getElementById('chanInput').value);
+                startVisualizer();
+            } catch(e) { log("HARDWARE ERROR: " + e.message, "red"); }
+        } else { location.reload(); }
     }
 
-    function initNetwork() {
-        const channel = document.getElementById('chanInput').value;
-        peer = new Peer(YU_NET_ID + channel, config);
-
-        peer.on('open', () => log("NETWORK TUNNEL OPEN", "#ffb000"));
-        peer.on('connection', c => { conn = c; setupConn(); });
+    function initPeer(id) {
+        peer = new Peer(id, PEER_OPTIONS);
+        peer.on('open', () => log("RELAY ACQUIRED. BROADCASTING...", "#39ff14"));
+        peer.on('connection', c => { conn = c; setupHandlers(); });
         peer.on('call', call => {
             call.answer(localStream);
             call.on('stream', s => {
@@ -247,78 +226,104 @@
                 audioCtx.createMediaStreamSource(s).connect(analyser);
             });
         });
+        peer.on('error', err => { if(err.type==='unavailable-id'){ peer.destroy(); initCaller(id); }});
     }
 
-    function setupConn() {
+    function initCaller(tid) {
+        peer = new Peer(PEER_OPTIONS);
+        peer.on('open', () => {
+            conn = peer.connect(tid);
+            const call = peer.call(tid, localStream);
+            call.on('stream', s => {
+                document.getElementById('remoteAudio').srcObject = s;
+                audioCtx.createMediaStreamSource(s).connect(analyser);
+            });
+            setupHandlers();
+        });
+    }
+
+    function setupHandlers() {
         conn.on('open', () => {
-            isConnected = true;
-            document.getElementById('l-syn').classList.add('active');
-            document.getElementById('s-stat').innerText = "LINKED";
-            log("SECURE LINK ESTABLISHED", "#39ff14");
-            document.getElementById('pttBtn').classList.add('active');
+            document.getElementById('l-syn').classList.add('active-green');
+            document.getElementById('beepBtn').disabled = false;
+            document.getElementById('s-stat').innerText = "ONLINE";
+            log("ENCRYPTED LINK SYNCED.");
+            setInterval(() => { if(conn) conn.send({type:'ping', ts:Date.now()}); }, 4000);
         });
-
         conn.on('data', d => {
-            if (d === 'TX_ON') document.getElementById('l-tx').classList.add('active');
-            if (d === 'TX_OFF') document.getElementById('l-tx').classList.remove('active');
+            if(d === 'TX_ON') document.getElementById('l-tx').classList.add('active-red');
+            if(d === 'TX_OFF') document.getElementById('l-tx').classList.remove('active-red');
+            if(d === 'BEEP_ON') playBeep(true);
+            if(d === 'BEEP_OFF') playBeep(false);
+            if(d.type === 'ping') conn.send({type:'pong', ts:d.ts});
+            if(d.type === 'pong') document.getElementById('s-ping').innerText = (Date.now() - d.ts) + "ms";
         });
     }
 
-    function runVisualizer() {
+    function toggleNight() { document.getElementById('root').classList.toggle('night-vision'); }
+
+    function toggleScramble() {
+        if(!scrambleNode) {
+            scrambleNode = audioCtx.createOscillator();
+            scrambleNode.type = 'sawtooth'; scrambleNode.frequency.value = 55;
+            const g = audioCtx.createGain(); g.gain.value = 0.3;
+            scrambleNode.connect(g); g.connect(audioCtx.destination);
+            scrambleNode.start();
+            document.getElementById('btn-scram').style.color = "var(--neon-blue)";
+        } else {
+            scrambleNode.stop(); scrambleNode = null;
+            document.getElementById('btn-scram').style.color = "#fff";
+        }
+    }
+
+    function sendBeep(state) {
+        if(conn) conn.send(state ? 'BEEP_ON' : 'BEEP_OFF');
+        playBeep(state);
+    }
+
+    let beepOsc;
+    function playBeep(state) {
+        if(state) {
+            beepOsc = audioCtx.createOscillator();
+            beepOsc.type = 'sine'; beepOsc.frequency.setValueAtTime(800, audioCtx.currentTime);
+            beepOsc.connect(audioCtx.destination); beepOsc.start();
+        } else if(beepOsc) { beepOsc.stop(); beepOsc = null; }
+    }
+
+    function startVisualizer() {
         const canvas = document.getElementById('visualizer');
         const ctx = canvas.getContext('2d');
-        const buffer = new Uint8Array(analyser.frequencyBinCount);
-
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
         function draw() {
-            if (!isPowered) return;
             requestAnimationFrame(draw);
-            analyser.getByteTimeDomainData(buffer);
+            analyser.getByteTimeDomainData(dataArray);
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.lineWidth = 2.5;
-            ctx.strokeStyle = "#ffb000";
+            ctx.lineWidth = 3; ctx.strokeStyle = "#00f2ff";
             ctx.beginPath();
-            const slice = canvas.width / buffer.length;
+            let sliceWidth = canvas.width / dataArray.length;
             let x = 0;
-            for (let i = 0; i < buffer.length; i++) {
-                const y = (buffer[i] / 128) * (canvas.height / 2);
-                i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-                x += slice;
+            for(let i=0; i<dataArray.length; i++) {
+                let v = dataArray[i] / 128.0;
+                let y = v * canvas.height / 2;
+                if(i===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                x += sliceWidth;
             }
             ctx.stroke();
         }
         draw();
     }
 
-    // PTT Controls
-    const pttBtn = document.getElementById('pttBtn');
-
-    function pttOn() {
-        if (!conn || !isConnected || !localStream) return;
-        localStream.getAudioTracks()[0].enabled = true;
-        speakerGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.01);
-        conn.send('TX_ON');
-        document.getElementById('l-tx').classList.add('active');
+    function muteMic(m) {
+        if(localStream) localStream.getAudioTracks().forEach(t => t.enabled = !m);
+        if(speakerGain) speakerGain.gain.setTargetAtTime(m ? 0.8 : 0, audioCtx.currentTime, 0.02);
     }
 
-    function pttOff() {
-        if (!conn || !isConnected || !localStream) return;
-        localStream.getAudioTracks()[0].enabled = false;
-        speakerGain.gain.setTargetAtTime(1, audioCtx.currentTime, 0.01);
-        conn.send('TX_OFF');
-        document.getElementById('l-tx').classList.remove('active');
-    }
+    const ptt = document.getElementById('pttBtn');
+    const pttOn = (e) => { if(e) e.preventDefault(); if(!conn) return; muteMic(false); conn.send('TX_ON'); document.getElementById('l-tx').classList.add('active-red'); };
+    const pttOff = (e) => { if(e) e.preventDefault(); if(!conn) return; muteMic(true); conn.send('TX_OFF'); document.getElementById('l-tx').classList.remove('active-red'); };
 
-    pttBtn.addEventListener('mousedown', pttOn);
-    pttBtn.addEventListener('mouseup', pttOff);
-    pttBtn.addEventListener('touchstart', e => { e.preventDefault(); pttOn(); });
-    pttBtn.addEventListener('touchend', e => { e.preventDefault(); pttOff(); });
-
-    document.addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); pttOn(); }});
-    document.addEventListener('keyup',   e => { if (e.code === 'Space') { e.preventDefault(); pttOff(); }});
-
-    function togglePower() {
-        yuBoot();
-    }
+    ptt.addEventListener('touchstart', pttOn); ptt.addEventListener('touchend', pttOff);
+    ptt.addEventListener('mousedown', pttOn); ptt.addEventListener('mouseup', pttOff);
 </script>
 </body>
 </html>
