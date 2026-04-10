@@ -2,395 +2,252 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Skyscraper OS - Ultimate Hybrid Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TAC/COM-04 | ADVANCED DIAGNOSTICS</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        :root {
-            --floor-h: 70px;
-            --shaft-width: 130px;
-            --room-width: 150px;
-            --bg-color: #05050a;
-            --building-bg: rgba(0,0,0,0.9);
-            --theme-color: #00d2ff;
-            --active-glow: #00ff88;
-            --moving-glow: #ff8c00;
-            --emergency: #ff0033;
-            --text-main: #ffffff;
-        }
-
-        /* --- THEME VARIATIONS --- */
-        body.theme-morning { --bg-color: #e3f2fd; --building-bg: rgba(255,255,255,0.8); --theme-color: #1976d2; --text-main: #263238; }
-        body.theme-afternoon { --bg-color: #f5f5f5; --building-bg: rgba(250,250,250,0.9); --theme-color: #00796b; --text-main: #212121; }
-        body.theme-evening { --bg-color: #263238; --building-bg: rgba(38, 50, 56, 0.95); --theme-color: #ffb300; --text-main: #eceff1; }
-
-        body {
-            background: var(--bg-color);
-            color: var(--text-main);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            transition: background 1s ease;
-        }
-
-        /* --- EXTERIOR VIEW --- */
-        #exterior-view {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100vw; height: 100vh;
-            /* Pointing to your local file */
-            background: url('elevatorbuilding.jpg') no-repeat center center;
-            background-size: cover;
-            z-index: 1000;
-            display: flex;
-            justify-content: flex-end;
-            align-items: flex-end;
-            transition: opacity 0.8s ease, visibility 0.8s;
-        }
-
-        .enter-btn-ui {
-            margin: 3% 8%;
-            cursor: pointer;
-            text-align: center;
-            transition: transform 0.3s;
-        }
-        .enter-btn-ui:hover { transform: scale(1.1); }
-        .enter-btn-ui .glow-circle {
-            width: 70px; height: 70px;
-            background: var(--theme-color);
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 0 25px var(--theme-color);
-            margin-bottom: 10px;
-        }
-        .enter-btn-ui span {
-            font-size: 11px; font-weight: bold; color: #fff;
-            text-shadow: 0 0 5px #000; letter-spacing: 1px;
-        }
-
-        /* --- INTERIOR VISIBILITY --- */
-        .system-active #exterior-view { opacity: 0; visibility: hidden; }
-
-        /* --- BUILDING CONTAINER --- */
-        .building-container {
-            position: relative;
-            width: 100%;
-            max-width: 650px;
-            background: var(--building-bg);
-            border-left: 3px solid var(--theme-color);
-            border-bottom: 20px solid #111;
-            display: flex;
-            flex-direction: column-reverse;
-            transition: all 0.5s ease;
-            box-shadow: 0 10px 50px rgba(0,0,0,0.5);
-            visibility: hidden; opacity: 0; transform: scale(0.95);
-        }
-        .system-active .building-container { visibility: visible; opacity: 1; transform: scale(1); }
-
-        .mode-desktop { height: auto; max-height: 95vh; }
-        .mode-mobile { height: 90vh; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--theme-color) #111;}
-
-        .floor-row {
-            height: var(--floor-h);
-            min-height: var(--floor-h);
-            border-top: 1px solid rgba(128,128,128,0.1);
-            display: flex;
-            align-items: center;
-            padding-left: var(--shaft-width);
-            position: relative;
-        }
-
-        .floor-label-text { margin-left: 15px; font-size: 11px; opacity: 0.5; transition: 0.3s; }
-        .floor-active .floor-label-text, .alarm-on .floor-label-text { opacity: 1; color: var(--theme-color); font-weight: bold; }
-
-        /* --- ROOMS --- */
-        .room-view {
-            width: var(--room-width); height: 50px;
-            background: rgba(0,0,0,0.05); border: 1px solid var(--theme-color);
-            position: relative; overflow: hidden; 
-            opacity: 0; transform: scale(0.9); transition: 0.4s;
-        }
-        .floor-active .room-view, .alarm-on .room-view { opacity: 1; transform: scale(1); }
-
-        .room-door-layer {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: #1e272e; display: flex; flex-direction: column; 
-            align-items: center; justify-content: center; z-index: 10;
-            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .room-view.unlocked .room-door-layer { transform: translateY(-100%); }
-
-        .ad-text { font-size: 10px; font-weight: bold; color: var(--theme-color); cursor: pointer; transition: 0.2s; }
-        .ad-text:hover { text-shadow: 0 0 8px var(--theme-color); }
+        :root { --amber: #ffb000; --bg: #0d0900; --red: #8c3024; --blue: #00d4ff; --green: #39ff14; --gray: #333; }
+        body { background: #050505; color: var(--amber); font-family: 'Courier New', monospace; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; touch-action: manipulation; overflow: hidden; }
         
-        .room-controls { display: flex; gap: 4px; justify-content: center; margin-top: 2px; }
-        .room-btn { background: none; font-size: 8px; cursor: pointer; border: 1px solid var(--theme-color); color: var(--theme-color); padding: 1px 4px; border-radius: 2px; }
-        .btn-lock { border-color: var(--emergency); color: var(--emergency); }
+        .mainframe { width: 95%; max-width: 900px; background: #222; border: 4px solid #111; padding: 10px; display: flex; flex-direction: column; box-shadow: 0 0 60px #000; box-sizing: border-box; }
+        @media (min-width: 768px) { .mainframe { display: grid; grid-template-columns: 1fr 300px; height: 620px; gap: 15px; } }
 
-        /* --- ELEVATOR --- */
-        .elevator {
-            position: absolute; left: 10px; bottom: 0;
-            width: 100px; height: 68px; background: #000;
-            border: 2px solid var(--theme-color);
-            transition: bottom 1.8s cubic-bezier(0.45, 0.05, 0.55, 0.95);
-            z-index: 20; cursor: pointer;
-        }
-        .lift-door { position: absolute; width: 50%; height: 100%; background: #222; transition: 0.6s; }
-        .lift-door-l { left: 0; border-right: 1px solid var(--theme-color); } 
-        .lift-door-r { right: 0; border-left: 1px solid var(--theme-color); }
-        .open .lift-door-l { transform: translateX(-85%); }
-        .open .lift-door-r { transform: translateX(85%); }
-
-        /* --- DASHBOARD --- */
-        .dashboard-panel {
-            position: fixed; right: 20px; bottom: 20px;
-            width: 320px; background: #000; color: #fff;
-            border: 2px solid var(--theme-color);
-            padding: 15px; display: none; flex-direction: column;
-            border-radius: 12px; z-index: 100; box-shadow: 0 0 30px #000;
-        }
-
-        .select-input { background: #111; color: var(--theme-color); border: 1px solid var(--theme-color); padding: 5px; width: 100%; margin-bottom: 10px; font-family: monospace; font-size: 11px; outline: none; }
-        .num-pad { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; margin-bottom: 10px; overflow-y: auto; max-height: 180px; }
-        .circ-btn { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 5px; border-radius: 4px; transition: 0.2s; }
-        .btn-circle { width: 24px; height: 24px; border-radius: 50%; border: 1px solid #333; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; }
+        /* Monitor / Screen Area */
+        .monitor { background: var(--bg); border: 8px solid #1a1a1a; border-radius: 10px; padding: 15px; flex-grow: 1; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+        .monitor::before { content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06)); background-size: 100% 2px, 3px 100%; pointer-events: none; }
         
-        .circ-btn.moving .btn-circle { border-color: var(--moving-glow); color: var(--moving-glow); box-shadow: 0 0 8px var(--moving-glow); }
-        .circ-btn.arrived .btn-circle { border-color: var(--active-glow); color: var(--active-glow); }
+        #output { height: 180px; overflow-y: auto; font-size: 0.75rem; scrollbar-width: none; border-bottom: 1px solid #222; margin-bottom: 10px; }
 
-        .control-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-top: 10px; border-top: 1px solid #222; }
-        .ctrl-btn { background: #111; border: 1px solid var(--theme-color); color: var(--theme-color); padding: 8px; cursor: pointer; font-size: 10px; border-radius: 4px; font-weight: bold; }
-        .alarm-btn { border-color: var(--emergency); color: var(--emergency); grid-column: span 2; }
-        .exit-btn { border-color: #fff; color: #fff; background: #333; grid-column: span 2; }
-        .alarm-active { background: var(--emergency) !important; color: #fff !important; animation: blink 0.5s infinite; }
+        /* Indicator Grid */
+        .ind-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px; }
+        .ind-box { background: #111; border: 1px solid #222; padding: 5px; text-align: center; font-size: 0.6rem; }
+        .ind-val { display: block; font-size: 0.8rem; color: var(--blue); margin-top: 2px; }
 
-        @keyframes blink { 50% { opacity: 0.5; } }
+        /* Status LEDs */
+        .led-row { display: flex; justify-content: space-around; padding: 10px; background: #111; border: 1px solid #333; margin-bottom: 10px; }
+        .led-group { display: flex; flex-direction: column; align-items: center; font-size: 0.5rem; gap: 5px; }
+        .led { width: 10px; height: 10px; border-radius: 50%; background: #200; transition: 0.2s; }
+        .led.active-blue { background: var(--blue); box-shadow: 0 0 8px var(--blue); }
+        .led.active-red { background: #f00; box-shadow: 0 0 8px #f00; }
+        .led.active-green { background: var(--green); box-shadow: 0 0 8px var(--green); }
+        .led.pulse { animation: blink 0.5s infinite; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+
+        /* PTT Button & Side Panel */
+        .btn-ptt { width: 100%; height: 120px; background: var(--red); color: white; border: 4px solid #5e1e16; font-weight: bold; font-size: 1.2rem; cursor: pointer; user-select: none; }
+        .btn-ptt:active:not(:disabled) { background: #f00; }
+        .btn-ptt:disabled { background: #333; opacity: 0.3; }
+        
+        .side-module { background: #111; padding: 10px; border: 1px solid #333; margin-bottom: 10px; }
+        input { width: 100%; background: #000; border: 1px solid #444; color: var(--amber); padding: 8px; text-align: center; font-size: 1.1rem; }
+        
+        #meter { width: 100%; height: 12px; background: #000; border: 1px solid #222; overflow: hidden; }
+        #meter-fill { width: 0%; height: 100%; background: linear-gradient(90deg, var(--green), var(--amber)); transition: width 0.05s; }
     </style>
 </head>
-<body class="theme-evening">
+<body>
 
-    <div id="exterior-view">
-        <div class="enter-btn-ui" onclick="enterBuilding()">
-            <div class="glow-circle">
-                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-            </div>
-            <span>ENTER | EXIT SYSTEM</span>
-        </div>
-    </div>
-
-    <div class="building-container mode-desktop" id="building">
-        <div id="elevator" class="elevator open" onclick="toggleDash()">
-            <div class="lift-door lift-door-l"></div>
-            <div class="lift-door lift-door-r"></div>
-        </div>
-    </div>
-
-    <div class="dashboard-panel" id="dash">
-        <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <span id="clock" style="font-family: monospace; color: var(--theme-color); font-size: 14px;">00:00:00</span>
-            <span id="status-tag" style="font-size: 9px; letter-spacing: 1px; color: var(--theme-color);">SYSTEM ACTIVE</span>
+<div class="mainframe">
+    <audio id="remoteAudio" autoplay playsinline></audio>
+    
+    <div class="monitor">
+        <div style="display:flex; justify-content:space-between; font-size:0.6rem; margin-bottom:10px;">
+            <span>LINK: <span id="stat-link" style="color:var(--red)">DISCONNECTED</span></span>
+            <span>OS: <span id="stat-os" style="color:var(--blue)">SCANNING...</span></span>
         </div>
 
-        <label style="font-size: 9px; color: #888;">PLATFORM CONFIG:</label>
-        <select class="select-input" id="platformSelector" onchange="changePlatformMode()">
-            <option value="desktop">Desktop (Compact View)</option>
-            <option value="mobile">Mobile (Scrollable)</option>
-        </select>
+        <div class="ind-grid">
+            <div class="ind-box">LATENCY<span class="ind-val" id="val-ping">---ms</span></div>
+            <div class="ind-box">SIGNAL<span class="ind-val" id="val-sig">0%</span></div>
+            <div class="ind-box">MODE<span class="ind-val" style="color:var(--amber)">RELAY-TCP</span></div>
+        </div>
 
-        <label style="font-size: 9px; color: #888;">GEOLOCATION:</label>
-        <select class="select-input" id="locationSelector" onchange="updateLocationTime()">
-            <option value="local">Auto Detect</option>
-            <option value="IN">India (IST)</option>
-            <option value="US">USA (EST)</option>
-        </select>
+        <div id="output"><div>> SYSTEM BOOT INITIALIZED...</div></div>
         
-        <div class="num-pad" id="btn-container"></div>
-
-        <div class="control-row">
-            <button class="ctrl-btn" onclick="controlLiftDoors('open')">OPEN DOORS</button>
-            <button class="ctrl-btn" onclick="controlLiftDoors('close')">CLOSE DOORS</button>
-            <button class="ctrl-btn alarm-btn" id="alarm" onclick="triggerFireExit()">ALARM / FIRE EXIT</button>
-            <button class="ctrl-btn exit-btn" onclick="exitBuilding()">LOGOUT / EXIT BUILDING</button>
-            <button class="ctrl-btn" style="grid-column: span 2;" onclick="toggleDash()">MINIMIZE INTERFACE</button>
-        </div>
+        <div style="font-size: 0.5rem; margin-top: auto; margin-bottom: 5px;">AUDIO STREAM INPUT</div>
+        <div id="meter"><div id="meter-fill"></div></div>
     </div>
 
-    <script>
-        const floors = ["Basement", "Lobby", "Research", "Finance", "Marketing", "HR Node", "Security", "Engine", "Sales", "Exec", "Apex"];
-        const floorCodes = ["B1", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
-        const roomIDs = floors.map((_, i) => i === 0 ? "ID-B01" : `ID-${i}${i.toString().padStart(2, '0')}`);
-        const floorURLs = ["https://www.google.com", "https://www.wikipedia.org", "https://vimeo.com", "https://www.bloomberg.com", "https://www.canva.com", "https://www.linkedin.com", "https://www.cloudflare.com", "https://www.github.com", "https://www.salesforce.com", "https://www.apple.com", "https://www.spacex.com"];
+    <div class="side-panel">
+        <div class="led-row">
+            <div class="led-group"><div class="led" id="led-pow"></div>PWR</div>
+            <div class="led-group"><div class="led" id="led-net"></div>SYNC</div>
+            <div class="led-group"><div class="led" id="led-rel"></div>RELAY</div>
+            <div class="led-group"><div class="led" id="led-tx"></div>TX</div>
+        </div>
 
-        let activeWindows = {};
-        let currentFloor = 0;
-        let isMoving = false;
-        let isAlarmActive = false;
+        <div class="side-module">
+            <div style="font-size: 0.6rem; text-align: center; margin-bottom: 5px;">SECURE CHANNEL</div>
+            <input type="number" id="chanInput" value="99">
+            <button onclick="initChannel()" id="bootBtn" style="width:100%; margin-top:8px; padding:10px; background:var(--bg); color:var(--green); border:1px solid var(--green); cursor:pointer; font-weight:bold;">INITIALIZE</button>
+        </div>
 
-        const building = document.getElementById('building');
-        const btnContainer = document.getElementById('btn-container');
-        const elevator = document.getElementById('elevator');
-        const dash = document.getElementById('dash');
+        <button class="btn-ptt" id="pttBtn" disabled>HOLD TO TALK</button>
+        
+        <div style="margin-top:10px;">
+            <button onclick="location.reload()" style="width:100%; padding:5px; background:#111; color:#555; border:1px solid #222; font-size:0.6rem;">RESET CORE</button>
+        </div>
+    </div>
+</div>
 
-        function enterBuilding() {
-            document.body.classList.add('system-active');
-            speak("Welcome to Skyscraper O S. Systems initialized.");
-        }
+<script>
+    let peer, conn, localStream, audioCtx, analyser, speakerGain;
+    let pingInterval;
+    const APP_PREFIX = "TAC-COM-V7-"; 
 
-        function exitBuilding() {
-            document.body.classList.remove('system-active');
-            dash.style.display = 'none';
-            speak("System logging out. Have a productive day.");
-        }
+    // METERED.CA CONFIG
+    const PEER_OPTIONS = {
+        config: { 
+            'iceServers': [
+                {
+                    'urls': 'turns:global.relay.metered.ca:443?transport=tcp',
+                    'username': 'ce97feaaa435bc128230c5bd',
+                    'credential': '+qT5rVgsuGkqWX6o'
+                }
+            ]
+        },
+        iceTransportPolicy: 'relay' 
+    };
 
-        function changePlatformMode() {
-            const mode = document.getElementById('platformSelector').value;
-            building.className = `building-container mode-${mode}`;
-            speak(`${mode} mode active.`);
-        }
+    function log(msg, color="#ffb000") {
+        const div = document.createElement('div');
+        div.innerText = `> ${msg}`; div.style.color = color;
+        const out = document.getElementById('output');
+        out.appendChild(div); out.scrollTop = out.scrollHeight;
+    }
 
-        function updateLocationTime() {
-            const loc = document.getElementById('locationSelector').value;
-            let now = new Date();
-            if (loc === "IN") { now = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"})); } 
-            else if (loc === "US") { now = new Date(new Date().toLocaleString("en-US", {timeZone: "America/New_York"})); }
+    // New Indicators Logic
+    function updateHardwareInfo() {
+        const isAndroid = /Android/i.test(navigator.userAgent);
+        document.getElementById('stat-os').innerText = isAndroid ? "ANDROID-M" : "WEB-DESK";
+        document.getElementById('led-pow').classList.add('active-blue');
+    }
+    updateHardwareInfo();
 
-            const hours = now.getHours();
-            const body = document.body;
-            const status = document.getElementById('status-tag');
-            if(!isAlarmActive) {
-                body.classList.remove('theme-morning', 'theme-afternoon', 'theme-evening');
-                if (hours >= 5 && hours < 12) { body.classList.add('theme-morning'); status.innerText = "MORNING"; } 
-                else if (hours >= 12 && hours < 17) { body.classList.add('theme-afternoon'); status.innerText = "AFTERNOON"; } 
-                else if (hours >= 17 && hours < 20) { body.classList.add('theme-evening'); status.innerText = "EVENING"; } 
-                else { status.innerText = "NIGHT MODE"; }
+    async function initChannel() {
+        try {
+            log("OPENING HARDWARE ISOLATION...");
+            localStream = await navigator.mediaDevices.getUserMedia({ 
+                audio: { echoCancellation: true, noiseSuppression: true } 
+            });
+
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            speakerGain = audioCtx.createGain();
+            speakerGain.gain.value = 0.6;
+            analyser = audioCtx.createAnalyser();
+            analyser.connect(speakerGain);
+            speakerGain.connect(audioCtx.destination);
+            
+            muteMic(true);
+            document.getElementById('bootBtn').disabled = true;
+            document.getElementById('led-rel').classList.add('active-green', 'pulse');
+            
+            updateMeter();
+            initPeer(APP_PREFIX + document.getElementById('chanInput').value);
+        } catch(e) { log("MIC REJECTED", "red"); }
+    }
+
+    function initPeer(myId) {
+        peer = new Peer(myId, PEER_OPTIONS);
+        peer.on('open', id => log("UPLINK ACTIVE. WAITING...", "var(--green)"));
+        peer.on('connection', c => { conn = c; setupHandlers(); });
+        peer.on('call', call => {
+            call.answer(localStream);
+            call.on('stream', stream => attachStream(stream));
+        });
+        peer.on('error', (err) => {
+            if(err.type === 'unavailable-id') {
+                peer.destroy();
+                initCallerMode(myId);
             }
-            document.getElementById('clock').innerText = now.toLocaleTimeString('en-GB');
-        }
+        });
+    }
 
-        floors.forEach((name, i) => {
-            const row = document.createElement('div');
-            row.className = 'floor-row' + (i === 0 ? ' floor-active' : '');
-            row.id = `f-row-${i}`;
-            row.innerHTML = `
-                <div class="room-view" id="room-${i}">
-                    <div class="room-door-layer">
-                         <div style="font-size:7px; opacity:0.5; margin-bottom:2px;">${roomIDs[i]}</div>
-                         <button onclick="verifyID(${i})" style="font-size:9px; cursor:pointer;">VERIFY</button>
-                    </div>
-                    <div style="padding:5px; text-align:center;">
-                        <div class="ad-text" onclick="handleAdClick(${i})">${name}</div>
-                        <div class="room-controls">
-                            <button class="room-btn" onclick="returnFromFloor(${i})">RETURN</button>
-                            <button class="room-btn btn-lock" onclick="lockRoom(${i})">LOCK</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="floor-label-text"><b>${floorCodes[i]}</b> — ${name}</div>
-            `;
-            building.appendChild(row);
+    function initCallerMode(targetId) {
+        peer = new Peer(PEER_OPTIONS); 
+        peer.on('open', () => {
+            conn = peer.connect(targetId);
+            const call = peer.call(targetId, localStream);
+            call.on('stream', stream => attachStream(stream));
+            setupHandlers();
+        });
+    }
 
-            const btn = document.createElement('div');
-            btn.className = 'circ-btn' + (i === 0 ? ' arrived' : '');
-            btn.id = `btn-${i}`;
-            btn.innerHTML = `<div class="btn-circle">${floorCodes[i]}</div><div style="font-size:10px;">${name}</div>`;
-            btn.onclick = () => requestFloor(i);
-            btnContainer.prepend(btn);
+    function setupHandlers() {
+        conn.on('open', () => {
+            document.getElementById('led-net').classList.add('active-blue');
+            document.getElementById('pttBtn').disabled = false;
+            document.getElementById('stat-link').innerText = "ENCRYPTED";
+            document.getElementById('stat-link').style.color = "var(--green)";
+            document.getElementById('val-sig').innerText = "98%";
+            log("HANDSHAKE COMPLETE.");
+            
+            // Start Ping Timer
+            pingInterval = setInterval(() => {
+                const start = Date.now();
+                conn.send({type: 'ping', ts: start});
+            }, 3000);
         });
 
-        function handleAdClick(f) {
-            if (document.getElementById(`room-${f}`).classList.contains('unlocked')) {
-                speak(`Accessing ${floors[f]} link.`);
-                activeWindows[f] = window.open(floorURLs[f], '_blank');
-            } else {
-                speak("Access denied.");
+        conn.on('data', data => {
+            if(data === 'TX_ON') document.getElementById('led-tx').classList.add('active-red');
+            if(data === 'TX_OFF') document.getElementById('led-tx').classList.remove('active-red');
+            
+            // Latency Calc
+            if(data.type === 'ping') conn.send({type: 'pong', ts: data.ts});
+            if(data.type === 'pong') {
+                const latency = Date.now() - data.ts;
+                document.getElementById('val-ping').innerText = latency + "ms";
             }
+        });
+    }
+
+    function attachStream(stream) {
+        const audioEl = document.getElementById('remoteAudio');
+        audioEl.srcObject = stream;
+        const source = audioCtx.createMediaStreamSource(stream);
+        source.connect(analyser);
+    }
+
+    function muteMic(shouldMute) {
+        if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = !shouldMute);
+        if (speakerGain) {
+            const v = shouldMute ? 0.6 : 0;
+            speakerGain.gain.setValueAtTime(v, audioCtx.currentTime);
         }
+        const audioEl = document.getElementById('remoteAudio');
+        if(audioEl) audioEl.muted = !shouldMute;
+    }
 
-        function returnFromFloor(f) {
-            if (activeWindows[f]) { 
-                activeWindows[f].close(); 
-                delete activeWindows[f]; 
-                speak("Connection closed.");
-            }
-        }
+    function updateMeter() {
+        if(!analyser) return;
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(dataArray);
+        let sum = dataArray.reduce((a, b) => a + b, 0);
+        document.getElementById('meter-fill').style.width = Math.min(100, (sum/dataArray.length)*5) + "%";
+        requestAnimationFrame(updateMeter);
+    }
 
-        function lockRoom(f) {
-            if (isAlarmActive) return;
-            document.getElementById(`room-${f}`).classList.remove('unlocked');
-            speak(`Sector ${floorCodes[f]} locked.`);
-        }
+    const ptt = document.getElementById('pttBtn');
+    const pttOn = (e) => { 
+        if(e) e.preventDefault(); 
+        if(!conn || ptt.disabled) return; 
+        muteMic(false); 
+        conn.send('TX_ON'); 
+        document.getElementById('led-tx').classList.add('active-red');
+    };
+    const pttOff = (e) => { 
+        if(e) e.preventDefault(); 
+        if(!conn || ptt.disabled) return; 
+        muteMic(true); 
+        conn.send('TX_OFF'); 
+        document.getElementById('led-tx').classList.remove('active-red');
+    };
 
-        function verifyID(f) {
-            if (isAlarmActive) return;
-            const input = prompt(`Security Code:`, roomIDs[f]);
-            if (input === roomIDs[f]) {
-                document.getElementById(`room-${f}`).classList.add('unlocked');
-                speak("Identity verified.");
-            }
-        }
-
-        function requestFloor(f) {
-            if (isMoving || f === currentFloor || isAlarmActive) return;
-            controlLiftDoors('close');
-            document.querySelectorAll('.circ-btn').forEach(b => b.classList.remove('arrived', 'moving'));
-            document.getElementById(`btn-${f}`).classList.add('moving');
-
-            setTimeout(() => {
-                isMoving = true;
-                elevator.style.bottom = (f * 70) + "px";
-                
-                if (building.classList.contains('mode-mobile')) {
-                    building.scrollTo({ top: building.scrollHeight - (f * 70) - 400, behavior: 'smooth' });
-                }
-
-                setTimeout(() => {
-                    document.querySelectorAll('.floor-row').forEach(r => r.classList.remove('floor-active'));
-                    currentFloor = f;
-                    isMoving = false;
-                    document.getElementById(`btn-${f}`).classList.replace('moving', 'arrived');
-                    speak(`Floor ${floorCodes[f]}`);
-                    setTimeout(() => controlLiftDoors('open'), 400);
-                }, 1800);
-            }, 400);
-        }
-
-        function controlLiftDoors(action) {
-            const row = document.getElementById(`f-row-${currentFloor}`);
-            if (action === 'open') {
-                elevator.classList.add('open');
-                row.classList.add('floor-active'); 
-            } else {
-                elevator.classList.remove('open');
-                row.classList.remove('floor-active');
-                if(!isAlarmActive) document.querySelectorAll('.room-view').forEach(r => r.classList.remove('unlocked'));
-            }
-        }
-
-        function triggerFireExit() {
-            isAlarmActive = !isAlarmActive;
-            const btn = document.getElementById('alarm');
-            if (isAlarmActive) {
-                btn.classList.add('alarm-active');
-                building.classList.add('alarm-on');
-                speak("EMERGENCY. ALL SECTORS UNLOCKED.");
-                document.querySelectorAll('.room-view').forEach(r => r.classList.add('unlocked'));
-                controlLiftDoors('open');
-            } else {
-                btn.classList.remove('alarm-active');
-                building.classList.remove('alarm-on');
-                speak("Security restored.");
-                document.querySelectorAll('.room-view').forEach(r => r.classList.remove('unlocked'));
-            }
-        }
-
-        function toggleDash() { dash.style.display = (dash.style.display === 'flex') ? 'none' : 'flex'; }
-        function speak(txt) { window.speechSynthesis.speak(new SpeechSynthesisUtterance(txt)); }
-        
-        setInterval(updateLocationTime, 1000);
-        updateLocationTime();
-    </script>
+    ptt.addEventListener('touchstart', pttOn, { passive: false });
+    ptt.addEventListener('touchend', pttOff, { passive: false });
+    ptt.addEventListener('mousedown', pttOn);
+    ptt.addEventListener('mouseup', pttOff);
+</script>
 </body>
 </html>
