@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TAC/COM-04 | MOBILE RELAY</title>
+    <title>TAC/COM-04 | ULTIMATE MOBILE</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root { --amber: #ffb000; --bg: #0d0900; --red: #8c3024; --blue: #00d4ff; --green: #39ff14; }
@@ -13,7 +13,7 @@
         .monitor { background: var(--bg); border: 10px solid #1a1a1a; border-radius: 15px; padding: 20px; flex-grow: 1; display: flex; flex-direction: column; position: relative; }
         #output { height: 220px; overflow-y: auto; font-size: 0.8rem; scrollbar-width: none; border-bottom: 1px solid #333; margin-bottom: 10px; }
         .module { background: #111; padding: 12px; border: 1px solid #333; margin-bottom: 10px; }
-        .btn-ptt { width: 100%; height: 140px; background: var(--red); color: white; border: 5px solid #5e1e16; font-weight: bold; font-size: 1.3rem; cursor: pointer; -webkit-user-select: none; user-select: none; }
+        .btn-ptt { width: 100%; height: 140px; background: var(--red); color: white; border: 5px solid #5e1e16; font-weight: bold; font-size: 1.3rem; cursor: pointer; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
         .btn-ptt:active:not(:disabled) { background: #f00; transform: scale(0.98); }
         .btn-ptt:disabled { background: #333; opacity: 0.2; }
         .btn-action { width: 100%; padding: 10px; background: #333; color: #fff; border: 1px solid #555; cursor: pointer; font-weight: bold; font-size: 0.7rem; }
@@ -34,15 +34,15 @@
             <span>FREQ: <span id="curFreq" style="color:var(--blue)">UNSET</span></span>
             <span>UPLINK: <span id="stat">OFFLINE</span></span>
         </div>
-        <div id="output"><div>> INITIALIZING MOBILE-DATA RELAY...</div></div>
+        <div id="output"><div>> NOISE-ISOLATION & ECHO-KILLED FIRMWARE LOADED...</div></div>
         <div id="meter"><div id="meter-fill"></div></div>
     </div>
 
     <div class="side-panel">
         <div class="module">
-            <div style="font-size: 0.6rem; color: #555; margin-bottom: 5px; text-align: center;">SET FREQUENCY</div>
-            <input type="number" id="chanInput" value="10">
-            <button class="btn-action" id="bootBtn" onclick="initChannel()" style="margin-top:10px; border-color:var(--green); color:var(--green);">FORCE LINK</button>
+            <div style="font-size: 0.6rem; color: #555; margin-bottom: 5px; text-align: center;">GLOBAL CHANNEL</div>
+            <input type="number" id="chanInput" value="50">
+            <button class="btn-action" id="bootBtn" onclick="initChannel()" style="margin-top:10px; border-color:var(--green); color:var(--green);">INITIALIZE LINK</button>
         </div>
         <div class="module" style="text-align:center;">
             <button class="btn-ptt" id="pttBtn" disabled>HOLD TO TALK</button>
@@ -51,17 +51,17 @@
                 <span><div class="status-led" id="ledTx"></div> TRANS</span>
             </div>
         </div>
-        <button class="btn-action" onclick="location.reload()" style="background:#200;">RESET SYSTEM</button>
+        <button class="btn-action" onclick="location.reload()" style="background:#200;">SYSTEM RESET</button>
     </div>
 </div>
 
 <script>
     let peer, conn, localStream, audioCtx, analyser, speakerGain;
     
-    // Updated Prefix for fresh server registration
-    const APP_PREFIX = "MOBILE-RADIO-v2-"; 
+    // Unique prefix to prevent accidental connections
+    const APP_PREFIX = "G-COMMS-MOBILE-V5-"; 
 
-    // STRICT RELAY CONFIGURATION
+    // METERED.CA FORCE RELAY CONFIG
     const PEER_OPTIONS = {
         config: { 
             'iceServers': [
@@ -78,9 +78,7 @@
             ],
             'sdpSemantics': 'unified-plan'
         },
-        // FORCE all traffic through the Metered.ca relay to bypass Mobile NAT
-        iceTransportPolicy: 'relay',
-        debug: 3
+        iceTransportPolicy: 'relay' // Bypass mobile NAT by going straight to Metered
     };
 
     function log(msg, color="#ffb000") {
@@ -92,13 +90,20 @@
 
     async function initChannel() {
         try {
-            log("REQUESTING MIC ACCESS...");
+            log("HARDWARE ISOLATION ACTIVE...");
             localStream = await navigator.mediaDevices.getUserMedia({ 
-                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
+                audio: { 
+                    echoCancellation: true, 
+                    noiseSuppression: true, 
+                    autoGainControl: true,
+                    googHighpassFilter: true 
+                } 
             });
 
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             speakerGain = audioCtx.createGain();
+            speakerGain.gain.value = 0.7; // Moderate volume to reduce physical vibration
+            
             analyser = audioCtx.createAnalyser();
             analyser.connect(speakerGain);
             speakerGain.connect(audioCtx.destination);
@@ -110,32 +115,24 @@
             const chanNum = document.getElementById('chanInput').value;
             document.getElementById('curFreq').innerText = "CH-" + chanNum;
             initPeer(APP_PREFIX + chanNum);
-            log("ESTABLISHING MOBILE RELAY...", "var(--blue)");
-        } catch(e) { log("MIC ACCESS REJECTED", "red"); }
+        } catch(e) { log("HARDWARE ERROR: ENSURE HTTPS", "red"); }
     }
 
     function initPeer(myId) {
         peer = new Peer(myId, PEER_OPTIONS);
-        
-        peer.on('open', id => log("ID REGISTERED ON RELAY.", "var(--green)"));
-        
-        peer.on('connection', c => { 
-            conn = c; 
-            setupHandlers(); 
-        });
-        
+        peer.on('open', id => log("RELAY UPLINK BROADCASTING...", "var(--green)"));
+        peer.on('connection', c => { conn = c; setupHandlers(); });
         peer.on('call', call => {
             call.answer(localStream);
             call.on('stream', stream => attachStream(stream));
         });
-        
         peer.on('error', (err) => {
             if(err.type === 'unavailable-id') {
-                log("HOST DETECTED. SYNCING...");
+                log("UPLINK OCCUPIED. ATTEMPTING SYNC...");
                 peer.destroy();
                 initCallerMode(myId);
             } else {
-                log("NET ERROR: " + err.type, "red");
+                log("NET ERR: " + err.type, "red");
             }
         });
     }
@@ -143,7 +140,7 @@
     function initCallerMode(targetId) {
         peer = new Peer(PEER_OPTIONS); 
         peer.on('open', () => {
-            conn = peer.connect(targetId, { reliable: true });
+            conn = peer.connect(targetId);
             const call = peer.call(targetId, localStream);
             call.on('stream', stream => attachStream(stream));
             setupHandlers();
@@ -155,7 +152,7 @@
         audioEl.srcObject = stream;
         const source = audioCtx.createMediaStreamSource(stream);
         source.connect(analyser);
-        log("REMOTE SYNC SUCCESSFUL.", "var(--green)");
+        log("REMOTE LINK ESTABLISHED.");
     }
 
     function setupHandlers() {
@@ -163,23 +160,26 @@
             document.getElementById('ledNet').classList.add('online');
             document.getElementById('pttBtn').disabled = false;
             document.getElementById('stat').innerText = "SYNCED";
-            log("COMS ONLINE.");
+            log("CHANNEL READY.");
         });
-        
         conn.on('data', data => {
             if(data === 'TX_ON') document.getElementById('ledTx').classList.add('tx');
             if(data === 'TX_OFF') document.getElementById('ledTx').classList.remove('tx');
         });
-
-        conn.on('close', () => {
-            log("CONNECTION LOST", "red");
-            location.reload();
-        });
     }
 
     function muteMic(shouldMute) {
-        if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = !shouldMute);
-        if (speakerGain) speakerGain.gain.setValueAtTime(shouldMute ? 1 : 0, audioCtx.currentTime);
+        if (localStream) {
+            localStream.getAudioTracks().forEach(t => t.enabled = !shouldMute);
+        }
+        
+        // ANTI-ECHO LOGIC:
+        // When you press to talk, we drop your speaker volume to 0.
+        // This makes it impossible for the mic to catch your speaker's sound.
+        if (speakerGain) {
+            const vol = shouldMute ? 0.7 : 0;
+            speakerGain.gain.setTargetAtTime(vol, audioCtx.currentTime, 0.02);
+        }
     }
 
     function updateMeter() {
@@ -192,6 +192,8 @@
     }
 
     const ptt = document.getElementById('pttBtn');
+    
+    // Prevent default touch behaviors like zooming or context menus
     const pttOn = (e) => { 
         if(e) e.preventDefault(); 
         if(!conn || ptt.disabled) return; 
@@ -199,6 +201,7 @@
         conn.send('TX_ON'); 
         document.getElementById('ledTx').classList.add('tx'); 
     };
+    
     const pttOff = (e) => { 
         if(e) e.preventDefault(); 
         if(!conn || ptt.disabled) return; 
@@ -207,8 +210,8 @@
         document.getElementById('ledTx').classList.remove('tx'); 
     };
 
-    ptt.addEventListener('touchstart', pttOn);
-    ptt.addEventListener('touchend', pttOff);
+    ptt.addEventListener('touchstart', pttOn, { passive: false });
+    ptt.addEventListener('touchend', pttOff, { passive: false });
     ptt.addEventListener('mousedown', pttOn);
     ptt.addEventListener('mouseup', pttOff);
 </script>
