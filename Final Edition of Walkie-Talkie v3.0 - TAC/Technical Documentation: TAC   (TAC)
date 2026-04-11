@@ -1,0 +1,60 @@
+## Technical Documentation: TAC/COM Field Radio v12.3
+
+This document outlines the architecture, interface logic, and hardware specifications for the **TAC/COM v12.3 Bi-Directional Tuning System**.
+
+---
+
+### 1. System Overview
+The TAC/COM v12.3 is a high-fidelity, Peer-to-Peer (P2P) communication interface designed for tactical web environments. It utilizes **PeerJS** and **MQTT** for real-time audio and text relays, wrapped in a "Retro-Cyber" hardware chassis.
+
+### 2. Physical Interface Layout
+The device follows a specific ergonomic layout to mimic field-grade hardware:
+
+| Component | Description |
+| :--- | :--- |
+| **External Antenna** | Top-left stub for visual signal integrity. |
+| **Signal RSSI Bars** | 5-stage intensity bars (Top-Left) indicating link quality. |
+| **Rotary Nozzle** | Multi-function frequency dial (Top-Right) beside the Network LED. |
+| **Speaker Grille** | Centrally located acoustic mesh to bridge structural gaps. |
+| **Visual Scope** | Real-time waveform visualizer (Oscilloscope). |
+| **PTT Lever** | Large tactical Push-To-Talk bar with mechanical depress logic. |
+
+---
+
+### 3. Core Functionality & Logic
+
+#### A. Bi-Directional Rotary Tuning
+The nozzle implements a coordinate-aware interaction model:
+* **Clockwise ($\Delta \theta > 0$):** Triggered by clicking the **Right** hemisphere of the dial. Increments frequency by **1 MHz**.
+* **Anticlockwise ($\Delta \theta < 0$):** Triggered by clicking the **Left** hemisphere. Decrements frequency by **1 MHz**.
+* **Animation:** Uses CSS `transition` with a `cubic-bezier` timing function to simulate mechanical weight and snap.
+
+#### B. Signal & Telemetry Logic
+The indicators use a **Normalized Pulse Protocol** (Standard blinking without high-bloom glow):
+* **Red Pulse:** System Offline / Hardware Standby.
+* **Orange Pulse:** Synchronizing / Establishing Handshake.
+* **Green Pulse:** Secure Link Established / Active Transmission.
+
+#### C. Active Noise Cancellation (ANC)
+The DSP filter layer (v12.3) applies a gate to the incoming audio buffer:
+* **Threshold:** $0.02$ amplitude.
+* **Logic:** If sample value $< 0.02$, the sample is flattened to $0$, effectively eliminating low-level background hiss and environmental "static."
+
+---
+
+### 4. Technical Specifications
+
+* **Audio Sampling Rate ($SR$):** $12,000$ Hz (Optimized for low-bandwidth tactical clarity).
+* **Encryption:** **AES-GCM (256-bit)** using PBKDF2 key derivation from the user-provided TAC-KEY.
+* **Backend Protocol:** WSS (Secure WebSockets) via EMQX MQTT Broker.
+* **Visual Framework:** HTML5 Canvas (Scanner Background & Scope Overlay).
+
+---
+
+### 5. Deployment Instructions
+To deploy this system:
+1.  Save the provided **Master HTML** code as a single `.html` file.
+2.  Host on any static file server (e.g., **GitHub Pages**).
+3.  Ensure the browser has granted **Microphone Access** permissions for the P2P relay to function.
+
+> **Note:** For optimal performance across NAT firewalls, ensure the PeerJS configuration points to a valid STUN/TURN server if the default broker is congested.
