@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- Google tag (gtag.js) -->
+
+    <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=GT-NC6T5LRJ"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
@@ -10,225 +11,422 @@
 
   gtag('config', 'GT-NC6T5LRJ');
 </script>
-    
+
+     <link rel="icon" href="https://mohammad3230.github.io/PROJECT/favicon.png" type="image/png" sizes="32x32" />
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TAC/COM | HARD-SWITCH RELAY</title>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <title>TAC/COM v12.4.1 | ASHRAF ALI MASTER</title>
+    <script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.4/dist/mqtt.min.js"></script>
     <style>
-        :root { --amber: #ffb000; --bg: #0d0900; --red: #8c3024; --blue: #00d4ff; --green: #39ff14; }
-        body { background: #050505; color: var(--amber); font-family: 'Courier New', monospace; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; touch-action: manipulation; overflow: hidden; }
-        .mainframe { width: 95%; max-width: 850px; background: #222; border: 6px solid #111; padding: 15px; display: flex; flex-direction: column; box-shadow: 0 0 60px #000; box-sizing: border-box; }
-        @media (min-width: 768px) { .mainframe { display: grid; grid-template-columns: 1fr 320px; height: 600px; gap: 20px; } }
-        .monitor { background: var(--bg); border: 10px solid #1a1a1a; border-radius: 15px; padding: 20px; flex-grow: 1; display: flex; flex-direction: column; position: relative; }
-        #output { height: 220px; overflow-y: auto; font-size: 0.8rem; scrollbar-width: none; border-bottom: 1px solid #333; margin-bottom: 10px; }
-        .module { background: #111; padding: 12px; border: 1px solid #333; margin-bottom: 10px; }
-        .btn-ptt { width: 100%; height: 140px; background: var(--red); color: white; border: 5px solid #5e1e16; font-weight: bold; font-size: 1.3rem; cursor: pointer; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
-        .btn-ptt:active:not(:disabled) { background: #f00; transform: scale(0.98); }
-        .btn-ptt:disabled { background: #333; opacity: 0.2; }
-        .btn-action { width: 100%; padding: 10px; background: #333; color: #fff; border: 1px solid #555; cursor: pointer; font-weight: bold; font-size: 0.7rem; }
-        input { width: 100%; background: #000; border: 1px solid #444; color: var(--amber); padding: 10px; box-sizing: border-box; text-align: center; font-size: 1.2rem; outline: none; }
-        .status-led { width: 12px; height: 12px; border-radius: 50%; background: #200; display: inline-block; }
-        .online { background: var(--blue); box-shadow: 0 0 10px var(--blue); }
-        .tx { background: #f00; box-shadow: 0 0 10px #f00; }
-        #meter { width: 100%; height: 10px; background: #000; border: 1px solid #333; margin-top: auto; }
-        #meter-fill { width: 0%; height: 100%; background: var(--green); transition: width 0.1s; }
+        :root {
+            --g: #39ff14; --b: #00d4ff; --r: #ff3131; --y: #ffcc00;
+            --case: #1a1a1a; --chassis-w: clamp(320px, 95vw, 380px);
+        }
+        * { box-sizing: border-box; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+        body { background: #000; color: var(--g); font-family: 'Courier New', monospace; margin: 0; padding: 20px; min-height: 100vh; display: flex; justify-content: center; align-items: center; overflow-x: hidden; }
+        
+        #scannerCanvas { position: fixed; inset: 0; z-index: -1; opacity: 0.1; }
+
+        .chassis {
+            width: var(--chassis-w); min-height: 95vh; 
+            background: linear-gradient(180deg, #1e1e1e 0%, #0a0a0a 100%);
+            border: 12px solid #2a2a2a; border-radius: 35px 35px 75px 75px;
+            padding: 20px; box-shadow: 0 50px 100px rgba(0,0,0,1);
+            position: relative; border-bottom: 35px solid #050505;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+
+        .antenna-stub { position: absolute; top: -60px; left: 40px; width: 12px; height: 70px; background: #111; border: 3px solid #333; border-radius: 4px 4px 0 0; z-index: -1; }
+        
+        .top-deck { height: 50px; display: flex; align-items: center; justify-content: space-between; position: relative; padding: 0 5px; margin-bottom: 5px; }
+        .sig-bars { display: flex; gap: 3px; align-items: flex-end; height: 22px; }
+        .bar { width: 5px; background: #111; border-radius: 1px; transition: 0.2s; }
+        
+        .indicator-cluster { display: flex; align-items: center; gap: 15px; }
+        .nozzle-dial { 
+            width: 42px; height: 42px; 
+            background: conic-gradient(#222 0deg 90deg, #111 90deg 180deg, #222 180deg 270deg, #111 270deg 360deg); 
+            border-radius: 50%; border: 4px solid #444; cursor: pointer; 
+            position: relative; transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+        }
+        .nozzle-dial::after { content: ''; position: absolute; top: 4px; left: 50%; width: 4px; height: 8px; background: var(--r); transform: translateX(-50%); border-radius: 2px; }
+        .status-led { width: 18px; height: 18px; background: #000; border-radius: 50%; border: 2px solid #333; }
+
+        @keyframes blink-r { 0%, 49% { background: var(--r); } 50%, 100% { background: #300; } }
+        @keyframes blink-g { 0%, 49% { background: var(--g); } 50%, 100% { background: #030; } }
+        @keyframes blink-y { 0%, 49% { background: var(--y); } 50%, 100% { background: #330; } }
+        .led-red, .sig-red .bar { animation: blink-r 1s steps(1) infinite; }
+        .led-green, .sig-green .bar { animation: blink-g 1s steps(1) infinite; }
+        .led-orange, .sig-orange .bar { animation: blink-y 1s steps(1) infinite; }
+
+        .speaker-grille { width: 100%; height: 40px; background: radial-gradient(circle, #222 1.5px, transparent 2px); background-size: 7px 7px; border: 1px solid #1a1a1a; border-radius: 4px; opacity: 0.4; margin: 5px 0; }
+        
+        .pwr-strip { display: flex; gap: 10px; }
+        .mech-btn { flex: 1; padding: 12px; background: #151515; color: #444; font-weight: 900; font-size: 0.65rem; border: 1px solid #333; border-bottom: 5px solid #000; cursor: pointer; border-radius: 4px; text-transform: uppercase; }
+        .pwr-on.active { color: var(--g); border-color: var(--g); }
+        .pwr-off.active { color: var(--r); border-color: var(--r); }
+
+        .screen { background: #050505; border: 4px solid #222; border-radius: 6px; height: 110px; position: relative; padding: 10px; overflow: hidden; }
+        .screen::before { content: ""; position: absolute; inset: 0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03)); background-size: 100% 2px, 3px 100%; pointer-events: none; z-index: 2; }
+        .lit.screen { background: #000a00; border-color: #333; }
+        #scope { width: 100%; height: 45px; opacity: 0; display: block; }
+        .lit #scope { opacity: 1; }
+
+        .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .field { background: #000; border: 1px solid #333; color: var(--b); padding: 10px; font-family: inherit; text-align: center; width: 100%; font-weight: bold; border-radius: 4px; font-size: 1rem; }
+
+        .action-bay { display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 15px; border: 1px solid #222; margin-top: auto; }
+        .anc-stack { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+        .anc-led { width: 12px; height: 12px; background: #111; border-radius: 50%; border: 2px solid #333; }
+        .anc-toggle { width: 60px; padding: 8px 0; background: #111; border: 1px solid #333; border-bottom: 3px solid #000; border-radius: 4px; color: #444; font-size: 0.5rem; font-weight: 900; cursor: pointer; }
+        .anc-toggle.on { color: var(--b); border-color: var(--b); }
+
+        .ptt-lever { flex-grow: 1; margin-left: 15px; height: 70px; background: #111; border: 3px solid #222; border-bottom: 8px solid #000; border-radius: 12px; color: #222; font-weight: 900; font-size: 1.1rem; cursor: not-allowed; transition: 0.1s; }
+        .ptt-lever.unlocked { background: #1a0a0a; border-color: #333; color: #333; cursor: pointer; pointer-events: auto; }
+        .ptt-lever.unlocked.ready { border-color: var(--r); color: var(--r); }
+        .ptt-lever.unlocked:active { transform: translateY(4px); border-bottom-width: 2px; background: var(--r); color: #000; }
+        .ptt-lever.tx-active { background: var(--r); color: #000; border-color: var(--r); transform: translateY(4px); border-bottom-width: 2px; }
+
+        .stats-footer { border-top: 1px solid #222; padding-top: 10px; display: flex; flex-direction: column; gap: 5px; }
+        .stat-line { display: flex; justify-content: space-between; align-items: center; }
+        .stat-label { font-size: 0.55rem; font-weight: 900; color: #444; }
+        .val-norm { font-size: 0.75rem; font-weight: 900; letter-spacing: 1px; }
+        
+        .official-footer { margin-top: 12px; border-top: 1px dashed #1a1a1a; padding-top: 8px; text-align: center; }
+        .footer-text { font-size: 0.6rem; color: #333; letter-spacing: 1px; font-weight: bold; text-transform: uppercase; }
+        .footer-sub { font-size: 0.45rem; color: #222; margin-top: 2px; }
     </style>
 </head>
 <body>
 
-<div class="mainframe">
-    <audio id="remoteAudio" autoplay playsinline></audio>
-    <div class="monitor">
-        <div style="font-size: 0.6rem; display:flex; justify-content:space-between; margin-bottom:10px;">
-            <span>FREQ: <span id="curFreq" style="color:var(--blue)">UNSET</span></span>
-            <span>UPLINK: <span id="stat">OFFLINE</span></span>
-        </div>
-        <div id="output"><div>> ANTI-ECHO / HARD-SWITCH FIRMWARE LOADED...</div></div>
-        <div id="meter"><div id="meter-fill"></div></div>
-    </div>
+<canvas id="scannerCanvas"></canvas>
 
-    <div class="side-panel">
-        <div class="module">
-            <div style="font-size: 0.6rem; color: #555; margin-bottom: 5px; text-align: center;">COMMS CHANNEL</div>
-            <input type="number" id="chanInput" value="77">
-            <button class="btn-action" id="bootBtn" onclick="initChannel()" style="margin-top:10px; border-color:var(--green); color:var(--green);">INITIALIZE LINK</button>
-        </div>
-        <div class="module" style="text-align:center;">
-            <button class="btn-ptt" id="pttBtn" disabled>HOLD TO TALK</button>
-            <div style="margin-top:10px; font-size:0.5rem; display:flex; justify-content:space-around;">
-                <span><div class="status-led" id="ledNet"></div> SYNC</span>
-                <span><div class="status-led" id="ledTx"></div> TRANS</span>
+<div class="chassis">
+    <div class="antenna-stub"></div>
+
+    <div class="top-deck">
+        <div id="rssi" class="signal-block">
+            <div class="sig-bars">
+                <div class="bar" style="height:6px"></div><div class="bar" style="height:10px"></div><div class="bar" style="height:14px"></div><div class="bar" style="height:18px"></div><div class="bar" style="height:22px"></div>
             </div>
         </div>
-        <button class="btn-action" onclick="location.reload()" style="background:#200;">FORCE REBOOT</button>
+        <div class="indicator-cluster">
+            <div id="nozzle" class="nozzle-dial"></div>
+            <div id="led" class="status-led"></div>
+        </div>
+    </div>
+
+    <div class="module-controls">
+        <div class="pwr-strip">
+            <button id="bOn" class="mech-btn pwr-on" onclick="pwr(true)">Master On</button>
+            <button id="bOff" class="mech-btn pwr-off active" onclick="pwr(false)">Master Off</button>
+        </div>
+        <div class="screen" id="scr">
+            <canvas id="scope"></canvas>
+            <div id="sys" style="height:35px; overflow-y:auto; font-size:0.55rem; opacity:0; color:var(--g); padding:2px;"></div>
+        </div>
+    </div>
+
+    <div class="speaker-grille"></div>
+
+    <div class="input-grid">
+        <input type="number" id="ch" class="field" value="88" min="1" max="999">
+        <input type="password" id="key" class="field" value="TAC">
+        <button id="hBtn" class="mech-btn" onclick="conn('host')">Host</button>
+        <button id="jBtn" class="mech-btn" onclick="conn('client')">Join</button>
+    </div>
+
+    <div class="action-bay">
+        <div class="anc-stack">
+            <div id="ancLed" class="anc-led"></div>
+            <button id="ancBtn" class="anc-toggle" onclick="toggleAnc()">ANC OFF</button>
+        </div>
+        <button id="ptt" class="ptt-lever">LOCKED</button>
+    </div>
+
+    <div class="stats-footer">
+        <div class="stat-line">
+            <span class="stat-label">LINK_SECURE:</span>
+            <span id="rfSt" class="val-norm" style="color:var(--r)">OFFLINE</span>
+        </div>
+        <div class="stat-line">
+            <span class="stat-label">BATT_VOLTS:</span>
+            <span id="vlt" class="val-norm" style="color:var(--y)">0.00V</span>
+        </div>
+    </div>
+
+    <div class="official-footer">
+        <div class="footer-text">© 2026 ASHRAF ALI</div>
+        <div class="footer-sub">TAC/COM v12.4.1 | ENCRYPTED RELAY PROTOCOL</div>
     </div>
 </div>
 
 <script>
-    let peer, conn, localStream, audioCtx, analyser, speakerGain, noiseFilter;
-    const APP_PREFIX = "TAC-COM-V6-"; 
+let mc, mic, actx, ana, pG, ck, isTx=false, isPwr=false, isConn=false, isAnc=false, nxt=0, rotA=0, role=null, isRx=false, rxTimeout=null, vltInterval=null;
+const TP='ashraf_v12_4_1/';
 
-    const PEER_OPTIONS = {
-        config: { 
-            'iceServers': [
-                {
-                    'urls': 'turns:global.relay.metered.ca:443?transport=tcp',
-                    'username': 'ce97feaaa435bc128230c5bd',
-                    'credential': '+qT5rVgsuGkqWX6o'
-                }
-            ]
-        },
-        iceTransportPolicy: 'relay' 
-    };
+/* Nozzle dial — click right half to increase freq, left to decrease */
+document.getElementById('nozzle').addEventListener('click', function(e) {
+    if (!isPwr) return;
+    const r = this.getBoundingClientRect();
+    const cin = document.getElementById('ch');
+    const cur = parseInt(cin.value) || 0;
+    if ((e.clientX - r.left) > (r.width / 2)) {
+        rotA += 30;
+        cin.value = Math.min(999, cur + 1);
+        log("FREQ_INC -> " + cin.value);
+    } else {
+        rotA -= 30;
+        cin.value = Math.max(1, cur - 1);
+        log("FREQ_DEC -> " + cin.value);
+    }
+    this.style.transform = 'rotate(' + rotA + 'deg)';
+});
 
-    function log(msg, color="#ffb000") {
-        const div = document.createElement('div');
-        div.innerText = `> ${msg}`; div.style.color = color;
-        const out = document.getElementById('output');
-        out.appendChild(div); out.scrollTop = out.scrollHeight;
+function updateUI(mode, noise) {
+    const rf = document.getElementById('rfSt'), led = document.getElementById('led'), rssi = document.getElementById('rssi'), al = document.getElementById('ancLed');
+    rf.className = "val-norm"; led.className = "status-led"; rssi.className = "signal-block"; al.className = "anc-led";
+    if (!isPwr) return;
+    if (mode === 'idle') { rf.innerText = "OFFLINE"; rf.style.color = "var(--r)"; led.classList.add('led-red'); rssi.classList.add('sig-red'); }
+    else if (mode === 'connecting') { rf.innerText = "SYNCING"; rf.style.color = "var(--y)"; led.classList.add('led-orange'); rssi.classList.add('sig-orange'); }
+    else if (mode === 'connected') {
+        rf.innerText = "ONLINE"; rf.style.color = "var(--g)"; led.classList.add('led-green'); rssi.classList.add('sig-green');
+        if (noise > 0.5) al.classList.add('led-red'); else al.classList.add('led-green');
+    }
+}
+
+function pwr(s) {
+    isPwr = s;
+    document.getElementById('bOn').classList.toggle('active', s);
+    document.getElementById('bOff').classList.toggle('active', !s);
+    if (s) {
+        document.getElementById('scr').classList.add('lit');
+        document.getElementById('sys').style.opacity = "1";
+        updateUI('idle');
+        log("FIELD_OS_BOOT_v12.4.1");
+        if (vltInterval) clearInterval(vltInterval);
+        vltInterval = setInterval(function() {
+            if (isPwr) document.getElementById('vlt').innerText = (11.8 + Math.random() * 0.4).toFixed(2) + "V";
+        }, 2000);
+    } else {
+        /* Clean up before reload */
+        if (vltInterval) clearInterval(vltInterval);
+        if (mic) mic.getTracks().forEach(function(t) { t.stop(); });
+        if (mc) mc.end(true);
+        if (actx) actx.close().catch(function(){});
+        location.reload();
+    }
+}
+
+function toggleAnc() {
+    if (!isPwr) return;
+    isAnc = !isAnc;
+    var b = document.getElementById('ancBtn');
+    b.innerText = isAnc ? "ANC ON" : "ANC OFF";
+    b.classList.toggle('on', isAnc);
+    log(isAnc ? "ANC_ENABLED" : "ANC_DISABLED");
+}
+
+function log(m) {
+    var el = document.getElementById("sys");
+    var d = document.createElement('div');
+    d.innerText = "> " + m;
+    el.appendChild(d);
+    el.scrollTop = el.scrollHeight;
+}
+
+/* Background scanner effect */
+var bcvs = document.getElementById('scannerCanvas'), bctx = bcvs.getContext('2d');
+var bgCols = [];
+function initBg() {
+    bcvs.width = window.innerWidth;
+    bcvs.height = window.innerHeight;
+    bgCols = new Array(Math.floor(bcvs.width / 20)).fill(0).map(function() { return Math.random() * bcvs.height; });
+}
+window.addEventListener('resize', initBg);
+initBg();
+
+/* Main render loop */
+function draw() {
+    bctx.fillStyle = 'rgba(0,0,0,0.1)';
+    bctx.fillRect(0, 0, bcvs.width, bcvs.height);
+    bctx.font = '12px monospace';
+    bctx.fillStyle = '#010';
+    for (var i = 0; i < bgCols.length; i++) {
+        bctx.fillText(Math.random() > 0.8 ? "1" : "0", i * 20, bgCols[i]);
+        bgCols[i] = bgCols[i] > bcvs.height ? 0 : bgCols[i] + 10;
     }
 
-    async function initChannel() {
-        try {
-            log("BOOTING AUDIO DSP...");
-            localStream = await navigator.mediaDevices.getUserMedia({ 
-                audio: { 
-                    echoCancellation: true, 
-                    noiseSuppression: true, 
-                    autoGainControl: true 
-                } 
-            });
+    /* Oscilloscope */
+    if (ana && isPwr) {
+        var scvs = document.getElementById('scope');
+        /* Auto-size canvas to match CSS display size */
+        if (scvs.width !== scvs.offsetWidth || scvs.height !== scvs.offsetHeight) {
+            scvs.width = scvs.offsetWidth;
+            scvs.height = scvs.offsetHeight;
+        }
+        var sctx = scvs.getContext('2d');
+        var data = new Uint8Array(ana.frequencyBinCount);
+        ana.getByteTimeDomainData(data);
+        var sum = 0;
+        for (var j = 0; j < data.length; j++) sum += Math.abs(data[j] - 128);
+        var avg = sum / data.length / 50;
+        if (isTx) updateUI('connected', avg);
 
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            
-            // 1. High-Pass Filter to remove background rumble
-            noiseFilter = audioCtx.createBiquadFilter();
-            noiseFilter.type = "highpass";
-            noiseFilter.frequency.value = 350; 
-
-            // 2. Master Gain
-            speakerGain = audioCtx.createGain();
-            speakerGain.gain.value = 0.6; 
-
-            analyser = audioCtx.createAnalyser();
-            
-            // ROUTING: Remote Source -> Filter -> Analyser -> Gain -> Speakers
-            noiseFilter.connect(analyser);
-            analyser.connect(speakerGain);
-            speakerGain.connect(audioCtx.destination);
-            
-            muteMic(true);
-            document.getElementById('bootBtn').disabled = true;
-            updateMeter();
-            
-            const chanNum = document.getElementById('chanInput').value;
-            document.getElementById('curFreq').innerText = "CH-" + chanNum;
-            initPeer(APP_PREFIX + chanNum);
-        } catch(e) { log("HARDWARE REJECTED.", "red"); }
+        sctx.clearRect(0, 0, scvs.width, scvs.height);
+        sctx.lineWidth = 2;
+        /* Red when receiving, green/cyan when idle or transmitting */
+        sctx.strokeStyle = isRx ? '#ff3131' : (isAnc ? '#00d4ff' : '#39ff14');
+        sctx.beginPath();
+        var x = 0, step = scvs.width / data.length;
+        for (var k = 0; k < data.length; k++) {
+            var v = data[k] / 128.0;
+            var y = v * scvs.height / 2;
+            if (k === 0) sctx.moveTo(x, y); else sctx.lineTo(x, y);
+            x += step;
+        }
+        sctx.stroke();
     }
+    requestAnimationFrame(draw);
+}
+draw();
 
-    function initPeer(myId) {
-        peer = new Peer(myId, PEER_OPTIONS);
-        peer.on('open', id => log("RELAY UPLINK ESTABLISHED.", "var(--green)"));
-        peer.on('connection', c => { conn = c; setupHandlers(); });
-        peer.on('call', call => {
-            call.answer(localStream);
-            call.on('stream', stream => attachStream(stream));
+async function conn(r) {
+    if (!isPwr || isConn) return;
+    role = r;
+    updateUI('connecting');
+    log("NET_INIT -> " + r.toUpperCase());
+
+    try {
+        mic = await navigator.mediaDevices.getUserMedia({ audio: true });
+        actx = new (window.AudioContext || window.webkitAudioContext)();
+        var src = actx.createMediaStreamSource(mic);
+        ana = actx.createAnalyser();
+        ana.fftSize = 2048;
+        src.connect(ana);
+
+        /* Mute node: keeps the ScriptProcessor graph alive but silences output
+           to prevent the mic from feeding back through the speakers */
+        var muteGain = actx.createGain();
+        muteGain.gain.value = 0;
+
+        var proc = actx.createScriptProcessor(2048, 1, 1);
+        proc.onaudioprocess = function(e) {
+            if (isTx) transmit(e.inputBuffer.getChannelData(0), document.getElementById('ch').value, role);
+        };
+        ana.connect(proc);
+        proc.connect(muteGain);
+        muteGain.connect(actx.destination);
+
+        /* Playback gain — speaker output for received audio only */
+        pG = actx.createGain();
+        pG.gain.value = 2.5;
+        pG.connect(actx.destination);
+
+        /* Derive AES-256-GCM key from passphrase */
+        var enc = new TextEncoder();
+        var km = await crypto.subtle.importKey('raw', enc.encode(document.getElementById('key').value), 'PBKDF2', false, ['deriveKey']);
+        ck = await crypto.subtle.deriveKey(
+            { name: 'PBKDF2', salt: enc.encode('TACCOM_SALT_v12'), iterations: 100000, hash: 'SHA-256' },
+            km,
+            { name: 'AES-GCM', length: 256 },
+            false,
+            ['encrypt', 'decrypt']
+        );
+
+        /* MQTT connection */
+        mc = mqtt.connect('wss://broker.emqx.io:8084/mqtt', { keepalive: 30, reconnectPeriod: 0 });
+
+        mc.on('connect', function() {
+            isConn = true;
+            updateUI('connected');
+            var ptt = document.getElementById('ptt');
+            ptt.innerText = "PUSH TO TALK";
+            ptt.className = "ptt-lever unlocked ready";
+            mc.subscribe(TP + document.getElementById('ch').value + '/' + (role === 'host' ? 'client' : 'host'));
+            log("NET_HANDSHAKE_OK");
         });
-        peer.on('error', (err) => {
-            if(err.type === 'unavailable-id') {
-                log("SYNCING WITH REMOTE...");
-                peer.destroy();
-                initCallerMode(myId);
+
+        mc.on('message', async function(t, pay) {
+            try {
+                var iv = pay.slice(0, 12);
+                var dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, ck, pay.slice(12));
+                play(dec);
+            } catch (e) { /* corrupt or wrong key — silently drop */ }
+        });
+
+        mc.on('error', function(err) {
+            log("NET_ERROR");
+            resetConn();
+        });
+
+        mc.on('close', function() {
+            if (isConn) {
+                log("NET_DROP");
+                resetConn();
             }
         });
+
+        /* PTT controls — all edge cases covered */
+        var ptt = document.getElementById('ptt');
+        function txOn(e) { e.preventDefault(); if (isConn) { isTx = true; ptt.classList.add('tx-active'); } }
+        function txOff(e) { e.preventDefault(); isTx = false; ptt.classList.remove('tx-active'); }
+
+        ptt.addEventListener('mousedown', txOn);
+        ptt.addEventListener('mouseup', txOff);
+        ptt.addEventListener('mouseleave', txOff);
+        ptt.addEventListener('touchstart', txOn, { passive: false });
+        ptt.addEventListener('touchend', txOff, { passive: false });
+        ptt.addEventListener('touchcancel', txOff, { passive: false });
+
+    } catch (e) {
+        log("SYS_HW_FAILURE: " + e.message);
+        updateUI('idle');
     }
+}
 
-    function initCallerMode(targetId) {
-        peer = new Peer(PEER_OPTIONS); 
-        peer.on('open', () => {
-            conn = peer.connect(targetId);
-            const call = peer.call(targetId, localStream);
-            call.on('stream', stream => attachStream(stream));
-            setupHandlers();
-        });
-    }
+function resetConn() {
+    isConn = false;
+    isTx = false;
+    updateUI('idle');
+    var ptt = document.getElementById('ptt');
+    ptt.innerText = "LOCKED";
+    ptt.className = "ptt-lever";
+}
 
-    function attachStream(stream) {
-        const audioEl = document.getElementById('remoteAudio');
-        audioEl.srcObject = stream;
-        const source = audioCtx.createMediaStreamSource(stream);
-        source.connect(noiseFilter); // Run remote audio through our rumble filter
-        log("LINK SECURED.");
-    }
+async function transmit(s, ch, r) {
+    /* ANC: zero out samples below noise floor */
+    if (isAnc) { for (var i = 0; i < s.length; i++) { if (Math.abs(s[i]) < 0.02) s[i] = 0; } }
+    var i16 = new Int16Array(s.length);
+    for (var j = 0; j < s.length; j++) i16[j] = Math.max(-32768, Math.min(32767, s[j] * 32767));
+    var iv = crypto.getRandomValues(new Uint8Array(12));
+    var enc = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, ck, i16.buffer);
+    var pkt = new Uint8Array(12 + enc.byteLength);
+    pkt.set(iv);
+    pkt.set(new Uint8Array(enc), 12);
+    mc.publish(TP + ch + '/' + r, pkt);
+}
 
-    function setupHandlers() {
-        conn.on('open', () => {
-            document.getElementById('ledNet').classList.add('online');
-            document.getElementById('pttBtn').disabled = false;
-            document.getElementById('stat').innerText = "SYNCED";
-            log("COMS ACTIVE.");
-        });
-        conn.on('data', data => {
-            if(data === 'TX_ON') document.getElementById('ledTx').classList.add('tx');
-            if(data === 'TX_OFF') document.getElementById('ledTx').classList.remove('tx');
-        });
-    }
+function play(d) {
+    var i16 = new Int16Array(d);
+    var f32 = new Float32Array(i16.length);
+    for (var i = 0; i < i16.length; i++) f32[i] = i16[i] / 32768;
 
-    function muteMic(shouldMute) {
-        // Toggle Local Mic
-        if (localStream) {
-            localStream.getAudioTracks().forEach(t => t.enabled = !shouldMute);
-        }
-        
-        // HARD HALF-DUPLEX SWITCH
-        // Disconnects speakers entirely when you talk to prevent any loop
-        if (speakerGain) {
-            if (!shouldMute) {
-                // TALKING: Hard Cut
-                speakerGain.gain.cancelScheduledValues(audioCtx.currentTime);
-                speakerGain.gain.setValueAtTime(0, audioCtx.currentTime);
-            } else {
-                // LISTENING: Soft restore to prevent audio pop
-                speakerGain.gain.setTargetAtTime(0.6, audioCtx.currentTime, 0.05);
-            }
-        }
+    /* Use actx.sampleRate — matches what the sender's ScriptProcessor captured at */
+    var b = actx.createBuffer(1, f32.length, actx.sampleRate);
+    b.getChannelData(0).set(f32);
+    var s = actx.createBufferSource();
+    s.buffer = b;
+    s.connect(pG);
+    var st = Math.max(actx.currentTime + 0.05, nxt);
+    s.start(st);
+    nxt = st + b.duration;
 
-        // Mute the actual HTML element as a secondary failsafe
-        const remoteAudio = document.getElementById('remoteAudio');
-        if (remoteAudio) { remoteAudio.muted = !shouldMute; }
-    }
-
-    function updateMeter() {
-        if(!analyser) return;
-        const dataArray = new Uint8Array(analyser.frequencyBinCount);
-        analyser.getByteFrequencyData(dataArray);
-        let sum = dataArray.reduce((a, b) => a + b, 0);
-        document.getElementById('meter-fill').style.width = Math.min(100, (sum/dataArray.length)*5) + "%";
-        requestAnimationFrame(updateMeter);
-    }
-
-    const ptt = document.getElementById('pttBtn');
-    const pttOn = (e) => { 
-        if(e) e.preventDefault(); 
-        if(!conn || ptt.disabled) return; 
-        muteMic(false); 
-        conn.send('TX_ON'); 
-        document.getElementById('ledTx').classList.add('tx'); 
-    };
-    const pttOff = (e) => { 
-        if(e) e.preventDefault(); 
-        if(!conn || ptt.disabled) return; 
-        muteMic(true); 
-        conn.send('TX_OFF'); 
-        document.getElementById('ledTx').classList.remove('tx'); 
-    };
-
-    ptt.addEventListener('touchstart', pttOn, { passive: false });
-    ptt.addEventListener('touchend', pttOff, { passive: false });
-    ptt.addEventListener('mousedown', pttOn);
-    ptt.addEventListener('mouseup', pttOff);
+    /* Flash scope red while receiving */
+    isRx = true;
+    if (rxTimeout) clearTimeout(rxTimeout);
+    rxTimeout = setTimeout(function() { isRx = false; }, b.duration * 1000 + 50);
+}
 </script>
 </body>
 </html>
