@@ -87,7 +87,8 @@
         .anc-toggle:active { transform: translateY(1px); border-bottom-width: 1px; }
 
         .ptt-lever { flex-grow: 1; margin-left: 15px; height: 70px; background: #111; border: 3px solid #222; border-bottom: 8px solid #000; border-radius: 12px; color: #222; font-weight: 900; font-size: 1.1rem; cursor: not-allowed; transition: 0.1s; user-select: none; -webkit-user-select: none; }
-        .ptt-lever.syncing { background: #1a1a0a; border-color: #333; color: var(--y); cursor: wait; }
+        .ptt-lever.waiting { background: #1a1a0a; border-color: #553300; color: var(--y); cursor: wait; animation: pulse-wait 2s ease-in-out infinite; }
+        @keyframes pulse-wait { 0%, 100% { border-color: #553300; } 50% { border-color: var(--y); } }
         .ptt-lever.unlocked { background: #1a0a0a; border-color: #333; color: #333; cursor: pointer; pointer-events: auto; }
         .ptt-lever.unlocked.ready { border-color: var(--r); color: var(--r); }
         .ptt-lever.unlocked:active, .ptt-lever.unlocked.tx { transform: translateY(4px); border-bottom-width: 2px; background: var(--r); color: #000; }
@@ -172,13 +173,14 @@
 
 <script>
 let mc, mic, actx, ana, pG, ck;
-let isTx = false, isPwr = false, isConn = false, isAnc = false;
-let nxt = 0, rotA = 0, myRole = null, vltTimer = null, connTimeout = null;
+let isTx = false, isPwr = false, isLinked = false, isAnc = false;
+let nxt = 0, rotA = 0, myRole = null, vltTimer = null;
+let heartbeatTimer = null, peerTimeout = null, connTimeout = null;
 const TP = 'ashraf_v12_4_1/';
 
 /* ── Nozzle Dial ── */
 function handleNoz(e) {
-    if (!isPwr || isConn) return;
+    if (!isPwr || mc) return;
     const r = e.target.getBoundingClientRect();
     const cin = document.getElementById('ch');
     if ((e.clientX - r.left) > (r.width / 2)) {
@@ -206,22 +208,30 @@ function updateUI(mode, noise) {
     if (mode === 'idle') {
         rf.innerText = 'OFFLINE'; rf.style.color = 'var(--r)';
         led.classList.add('led-red'); rssi.classList.add('sig-red');
-    } else if (mode === 'connecting') {
-        rf.innerText = 'SYNCING'; rf.style.color = 'var(--y)';
+    } else if (mode === 'waiting') {
+        rf.innerText = 'STANDBY'; rf.style.color = 'var(--y)';
         led.classList.add('led-orange'); rssi.classList.add('sig-orange');
     } else if (mode === 'connected') {
-        rf.innerText = 'ONLINE'; rf.style.color = 'var(--g)';
+        rf.innerText = 'LINKED'; rf.style.color = 'var(--g)';
         led.classList.add('led-green'); rssi.classList.add('sig-green');
         if (isAnc && noise > 0.5) al.classList.add('led-red');
         else al.classList.add('led-green');
     }
 }
 
-/* ── Lock/Unlock PTT ── */
-function lockPTT(reason) {
+/* ── PTT State Functions ── */
+function lockPTT(label) {
     const ptt = document.getElementById('ptt');
-    ptt.innerText = reason || 'LOCKED';
+    ptt.innerText = label || 'LOCKED';
     ptt.className = 'ptt-lever';
+    ptt.onmousedown = null; ptt.onmouseup = null; ptt.onmouseleave = null;
+    ptt.ontouchstart = null; ptt.ontouchend = null; ptt.ontouchcancel = null;
+}
+
+function waitPTT(label) {
+    const ptt = document.getElementById('ptt');
+    ptt.innerText = label || 'WAITING...';
+    ptt.className = 'ptt-lever waiting';
     ptt.onmousedown = null; ptt.onmouseup = null; ptt.onmouseleave = null;
     ptt.ontouchstart = null; ptt.ontouchend = null; ptt.ontouchcancel = null;
 }
@@ -236,14 +246,6 @@ function unlockPTT() {
     ptt.ontouchstart = pttDown;
     ptt.ontouchend = pttUp;
     ptt.ontouchcancel = pttUp;
-}
-
-function syncingPTT() {
-    const ptt = document.getElementById('ptt');
-    ptt.innerText = 'SYNCING...';
-    ptt.className = 'ptt-lever syncing';
-    ptt.onmousedown = null; ptt.onmouseup = null; ptt.onmouseleave = null;
-    ptt.ontouchstart = null; ptt.ontouchend = null; ptt.ontouchcancel = null;
 }
 
 /* ── Power ── */
@@ -286,21 +288,24 @@ function log(m) {
     while (el.childElementCount > 30) el.removeChild(el.firstChild);
 }
 
-/* ── Teardown / Cleanup ── */
+/* ── Full Teardown ── */
 function teardown() {
     isTx = false;
-    isConn = false;
+    isLinked = false;
     myRole = null;
     if (connTimeout) { clearTimeout(connTimeout); connTimeout = null; }
+    if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+    if (peerTimeout) { clearTimeout(peerTimeout); peerTimeout = null; }
     if (mc) { try { mc.end(true); } catch(e){} mc = null; }
     if (mic) { mic.getTracks().forEach(t => t.stop()); mic = null; }
     if (actx) { try { actx.close(); } catch(e){} actx = null; }
     ana = null; pG = null; ck = null; nxt = 0;
     lockPTT('LOCKED');
     unlockInputs();
+    updateUI('idle');
 }
 
-/* ── Lock/Unlock input fields + buttons during connection ── */
+/* ── Lock/Unlock inputs ── */
 function lockInputs() {
     document.getElementById('ch').classList.add('locked');
     document.getElementById('key').classList.add('locked');
@@ -314,9 +319,9 @@ function unlockInputs() {
     document.getElementById('jBtn').classList.remove('disabled');
 }
 
-/* ── PTT Handlers ── */
+/* ── PTT Press/Release ── */
 function pttDown(e) {
-    if (!isConn) return;
+    if (!isLinked) return;
     e.preventDefault();
     isTx = true;
     const ptt = document.getElementById('ptt');
@@ -324,7 +329,7 @@ function pttDown(e) {
     ptt.innerText = 'TX';
 }
 function pttUp(e) {
-    if (!isConn) return;
+    if (!isLinked) return;
     e.preventDefault();
     isTx = false;
     const ptt = document.getElementById('ptt');
@@ -386,88 +391,147 @@ function draw() {
 }
 draw();
 
+/* ══════════════════════════════════════════
+   HANDSHAKE PROTOCOL
+   ─ Host publishes to:  {ch}/host_ping
+   ─ Client publishes to: {ch}/client_ping
+   ─ Host listens on:     {ch}/client_ping
+   ─ Client listens on:   {ch}/host_ping
+   ─ Audio:               {ch}/host_audio  &  {ch}/client_audio
+   ══════════════════════════════════════════ */
+
+function startHeartbeat() {
+    /* Send "I'm here" every 2 seconds */
+    const pingTopic = TP + document.getElementById('ch').value + '/' + myRole + '_ping';
+    heartbeatTimer = setInterval(() => {
+        if (mc && mc.connected) {
+            mc.publish(pingTopic, '1', { qos: 0 });
+        }
+    }, 2000);
+}
+
+function resetPeerTimeout() {
+    /* If no heartbeat from peer for 6 seconds → they disconnected */
+    if (peerTimeout) clearTimeout(peerTimeout);
+    peerTimeout = setTimeout(() => {
+        if (isLinked) {
+            isLinked = false;
+            isTx = false;
+            log('PEER_LOST');
+            waitPTT('PEER LOST');
+            updateUI('waiting');
+            /* Unsubscribe from audio — stop hearing dead air */
+            if (mc && mc.connected) {
+                const ch = document.getElementById('ch').value;
+                mc.unsubscribe(TP + ch + '/' + (myRole === 'host' ? 'client' : 'host') + '_audio');
+            }
+        }
+    }, 6000);
+}
+
+function onPeerFound() {
+    if (isLinked) {
+        /* Already linked — just reset timeout */
+        resetPeerTimeout();
+        return;
+    }
+
+    isLinked = true;
+    resetPeerTimeout();
+
+    const ch = document.getElementById('ch').value;
+    const peerAudioTopic = TP + ch + '/' + (myRole === 'host' ? 'client' : 'host') + '_audio';
+
+    /* Now subscribe to the peer's audio stream */
+    mc.subscribe(peerAudioTopic, { qos: 0 }, (err) => {
+        if (err) {
+            log('AUDIO_SUB_FAIL');
+        } else {
+            log('AUDIO_RX:' + peerAudioTopic);
+        }
+    });
+
+    unlockPTT();
+    updateUI('connected');
+    log('HANDSHAKE_COMPLETE');
+    log('CHANNEL_' + ch + '_LIVE');
+}
+
 /* ── Main Connection ── */
 async function conn(role) {
-    if (!isPwr || isConn) return;
+    if (!isPwr || mc) return;
     myRole = role;
 
-    /* Immediately show syncing state */
-    syncingPTT();
+    const chVal = document.getElementById('ch').value;
+    const peerRole = role === 'host' ? 'client' : 'host';
+
+    /* Topics */
+    const myPingTopic = TP + chVal + '/' + role + '_ping';
+    const peerPingTopic = TP + chVal + '/' + peerRole + '_ping';
+    const myAudioTopic = TP + chVal + '/' + role + '_audio';
+
+    /* Lock UI immediately */
     lockInputs();
-    updateUI('connecting');
+    waitPTT('SYNCING...');
+    updateUI('waiting');
     log('INIT_' + role.toUpperCase() + '_SEQ');
 
-    /* Timeout: if connection takes more than 12 seconds, abort */
+    /* 15 second overall timeout */
     connTimeout = setTimeout(() => {
-        if (!isConn) {
+        if (!isLinked) {
             log('CONN_TIMEOUT');
             teardown();
         }
-    }, 12000);
+    }, 15000);
 
     try {
-        /* 1. Microphone with echo cancellation */
+        /* 1. Mic */
         log('REQ_MIC...');
         mic = await navigator.mediaDevices.getUserMedia({
-            audio: {
-                echoCancellation: true,
-                noiseSuppression: true,
-                autoGainControl: true
-            }
+            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
         });
         log('MIC_OK');
 
-        /* 2. Audio Context — MUST resume after user gesture */
+        /* 2. Audio Context */
         actx = new (window.AudioContext || window.webkitAudioContext)();
         await actx.resume();
         log('ACTX:' + actx.sampleRate + 'Hz');
 
         const src = actx.createMediaStreamSource(mic);
 
-        /* 3. Analyser for scope visualization */
+        /* 3. Analyser */
         ana = actx.createAnalyser();
         ana.fftSize = 2048;
         src.connect(ana);
 
-        /* 4. ScriptProcessor — mute output to prevent feedback */
+        /* 4. ScriptProcessor — muted output to prevent feedback */
         const proc = actx.createScriptProcessor(4096, 1, 1);
-        const chVal = document.getElementById('ch').value;
-
         proc.onaudioprocess = function(e) {
             e.outputBuffer.getChannelData(0).fill(0);
-            if (isTx && mc && mc.connected) {
+            if (isTx && mc && mc.connected && isLinked) {
                 transmit(e.inputBuffer.getChannelData(0), chVal, role);
             }
         };
         ana.connect(proc);
         proc.connect(actx.destination);
 
-        /* 5. Playback gain for received audio */
+        /* 5. Playback gain */
         pG = actx.createGain();
         pG.gain.value = 1.0;
         pG.connect(actx.destination);
 
-        /* 6. Derive AES-256 key from password */
+        /* 6. AES-256 key */
         const enc = new TextEncoder();
         const pwd = document.getElementById('key').value || 'TAC';
-        const km = await crypto.subtle.importKey(
-            'raw', enc.encode(pwd), 'PBKDF2', false, ['deriveKey']
-        );
+        const km = await crypto.subtle.importKey('raw', enc.encode(pwd), 'PBKDF2', false, ['deriveKey']);
         ck = await crypto.subtle.deriveKey(
             { name: 'PBKDF2', salt: enc.encode('TACCOM_SALT_v12'), iterations: 10000, hash: 'SHA-256' },
-            km,
-            { name: 'AES-GCM', length: 256 },
-            false,
-            ['encrypt', 'decrypt']
+            km, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
         );
         log('CIPHER_256_OK');
 
-        /* 7. MQTT connect */
-        const pubTopic = TP + chVal + '/' + role;
-        const listenTopic = TP + chVal + '/' + (role === 'host' ? 'client' : 'host');
-
+        /* 7. MQTT */
         log('BROKER_CONNECT...');
-
         mc = mqtt.connect('wss://broker.emqx.io:8084/mqtt', {
             connectTimeout: 8000,
             reconnectPeriod: 3000,
@@ -476,42 +540,41 @@ async function conn(role) {
 
         mc.on('connect', () => {
             if (connTimeout) { clearTimeout(connTimeout); connTimeout = null; }
-
-            isConn = true;
-            updateUI('connected');
-            log('BROKER_LINK_OK');
+            log('BROKER_OK');
 
             /*
-             * HOST or CLIENT — PTT unlocks immediately on connect.
-             * No waiting for the other side. The walkie-talkie is ready.
+             * Step 1: Subscribe to peer's PING topic first,
+             * THEN announce ourselves. This prevents race conditions
+             * where we miss the peer's ping if they connect at the exact same time.
              */
-            unlockPTT();
-            log(role.toUpperCase() + '_LIVE');
+            mc.subscribe(peerPingTopic, { qos: 0 }, (err) => {
+                if (err) { log('PING_SUB_FAIL'); return; }
 
-            /* Subscribe to listen for the other side (non-blocking) */
-            mc.subscribe(listenTopic, { qos: 0 }, (err) => {
-                if (err) {
-                    log('SUB_FAIL');
-                } else {
-                    log('LISTEN:' + listenTopic);
-                    log('TX_ON:' + pubTopic);
-                }
+                log('SCAN:' + peerPingTopic);
+
+                /* Step 2: Now announce ourselves — peer will see this */
+                mc.publish(myPingTopic, '1', { qos: 0 });
+                log('ANNOUNCE:' + myPingTopic);
+
+                /* Step 3: Start heartbeat every 2 seconds */
+                startHeartbeat();
+
+                waitPTT('WAITING FOR ' + peerRole.toUpperCase());
+                log('WAITING_' + peerRole.toUpperCase() + '...');
             });
         });
 
-        mc.on('message', async function(t, payload) {
-            try {
-                if (payload.length < 13) return;
-                const iv = payload.slice(0, 12);
-                const ciphertext = payload.slice(12);
-                const decrypted = await crypto.subtle.decrypt(
-                    { name: 'AES-GCM', iv: iv },
-                    ck,
-                    ciphertext
-                );
-                playAudio(decrypted);
-            } catch (e) {
-                /* Wrong key or corrupted — ignore silently */
+        mc.on('message', function(topic, payload) {
+            /* Is this a ping from the peer? */
+            if (topic.endsWith('_ping')) {
+                onPeerFound();
+                return;
+            }
+
+            /* Is this audio from the peer? */
+            if (topic.endsWith('_audio')) {
+                handleAudio(payload);
+                return;
             }
         });
 
@@ -520,45 +583,54 @@ async function conn(role) {
         });
 
         mc.on('close', () => {
-            if (isConn) {
-                log('LINK_DROPPED');
-                isConn = false;
-                isTx = false;
-                updateUI('idle');
-                lockPTT('RECONNECTING');
-            }
+            log('BROKER_DOWN');
+            isLinked = false;
+            isTx = false;
+            if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+            waitPTT('RECONNECTING');
+            updateUI('waiting');
         });
 
         mc.on('reconnect', () => {
-            if (isConn) {
-                log('RELINK...');
-                syncingPTT();
-                updateUI('connecting');
-            }
+            log('RELINK...');
         });
 
         mc.on('reconnect_success', () => {
+            log('RELINK_OK');
+            /* Re-subscribe and re-announce after reconnect */
             if (myRole) {
-                isConn = true;
-                updateUI('connected');
-                unlockPTT();
-                log('RELINK_OK');
-                /* Re-subscribe after reconnect */
-                const chVal2 = document.getElementById('ch').value;
-                const listenTopic2 = TP + chVal2 + '/' + (myRole === 'host' ? 'client' : 'host');
-                mc.subscribe(listenTopic2, { qos: 0 });
+                const ch2 = document.getElementById('ch').value;
+                const pr = myRole === 'host' ? 'client' : 'host';
+                mc.subscribe(TP + ch2 + '/' + pr + '_ping', { qos: 0 });
+                mc.publish(TP + ch2 + '/' + myRole + '_ping', '1', { qos: 0 });
+                if (!isLinked) waitPTT('WAITING FOR ' + pr.toUpperCase());
             }
         });
 
     } catch (err) {
         if (connTimeout) { clearTimeout(connTimeout); connTimeout = null; }
         log('HW_FAIL:' + (err.name || err.message || 'ERR'));
-        updateUI('idle');
         teardown();
     }
 }
 
-/* ── Transmit Audio Chunk ── */
+/* ── Handle incoming audio packet ── */
+async function handleAudio(payload) {
+    if (!isLinked) return;
+    try {
+        if (payload.length < 13) return;
+        const iv = payload.slice(0, 12);
+        const ciphertext = payload.slice(12);
+        const decrypted = await crypto.subtle.decrypt(
+            { name: 'AES-GCM', iv: iv }, ck, ciphertext
+        );
+        playAudio(decrypted);
+    } catch (e) {
+        /* Wrong key or corrupt — ignore */
+    }
+}
+
+/* ── Transmit ── */
 async function transmit(samples, ch, role) {
     try {
         if (isAnc) {
@@ -566,28 +638,18 @@ async function transmit(samples, ch, role) {
                 if (Math.abs(samples[i]) < 0.015) samples[i] = 0;
             }
         }
-
         const i16 = new Int16Array(samples.length);
         for (let i = 0; i < samples.length; i++) {
             const s = Math.max(-1, Math.min(1, samples[i]));
             i16[i] = s < 0 ? s * 32768 : s * 32767;
         }
-
         const iv = crypto.getRandomValues(new Uint8Array(12));
-        const encrypted = await crypto.subtle.encrypt(
-            { name: 'AES-GCM', iv: iv },
-            ck,
-            i16.buffer
-        );
-
+        const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, ck, i16.buffer);
         const pkt = new Uint8Array(12 + encrypted.byteLength);
         pkt.set(iv, 0);
         pkt.set(new Uint8Array(encrypted), 12);
-
-        mc.publish(TP + ch + '/' + role, pkt, { qos: 0 });
-    } catch (e) {
-        /* Silent — don't spam during continuous TX */
-    }
+        mc.publish(TP + ch + '/' + role + '_audio', pkt, { qos: 0 });
+    } catch (e) {}
 }
 
 /* ── Play Received Audio ── */
@@ -597,11 +659,8 @@ function playAudio(rawBuffer) {
 
     const i16 = new Int16Array(rawBuffer);
     const f32 = new Float32Array(i16.length);
-    for (let i = 0; i < i16.length; i++) {
-        f32[i] = i16[i] / 32768;
-    }
+    for (let i = 0; i < i16.length; i++) f32[i] = i16[i] / 32768;
 
-    /* Use actx.sampleRate — MUST match the mic capture rate */
     const buf = actx.createBuffer(1, f32.length, actx.sampleRate);
     buf.getChannelData(0).set(f32);
 
