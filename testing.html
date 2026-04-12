@@ -52,14 +52,17 @@
         .nozzle-dial::after { content: ''; position: absolute; top: 4px; left: 50%; width: 4px; height: 8px; background: var(--r); transform: translateX(-50%); border-radius: 2px; }
         .status-led { width: 18px; height: 18px; background: #000; border-radius: 50%; border: 2px solid #333; }
 
-        @keyframes blink-r { 0%, 49% { background: var(--r); box-shadow: 0 0 6px var(--r); } 50%, 100% { background: #300; box-shadow: none; } }
-        @keyframes blink-g { 0%, 49% { background: var(--g); box-shadow: 0 0 6px var(--g); } 50%, 100% { background: #030; box-shadow: none; } }
-        @keyframes blink-y { 0%, 49% { background: var(--y); box-shadow: 0 0 6px var(--y); } 50%, 100% { background: #330; box-shadow: none; } }
-        @keyframes pulse-blue { 0%, 100% { background: var(--b); box-shadow: 0 0 3px var(--b); } 50% { background: #003344; box-shadow: none; } }
+        @keyframes blink-r { 0%, 49% { background: var(--r); box-shadow: 0 0 8px var(--r); } 50%, 100% { background: #300; box-shadow: none; } }
+        @keyframes blink-g { 0%, 49% { background: var(--g); box-shadow: 0 0 8px var(--g); } 50%, 100% { background: #030; box-shadow: none; } }
+        @keyframes blink-y { 0%, 49% { background: var(--y); box-shadow: 0 0 8px var(--y); } 50%, 100% { background: #330; box-shadow: none; } }
+        @keyframes pulse-blue { 0%, 100% { background: var(--b); box-shadow: 0 0 5px var(--b); } 50% { background: #003344; box-shadow: none; } }
+        @keyframes charge-pulse { 0%, 100% { background: #00ff88; box-shadow: 0 0 3px #00ff88; } 50% { background: #004422; box-shadow: 0 0 8px #00ff88; } }
+        @keyframes charge-bar { 0% { background: #003311; } 50% { background: #00ff88; } 100% { background: #003311; } }
         .led-red, .sig-red .bar { animation: blink-r 1s steps(1) infinite; }
         .led-green, .sig-green .bar { animation: blink-g 1s steps(1) infinite; }
         .led-orange, .sig-orange .bar { animation: blink-y 1s steps(1) infinite; }
         .led-anc-active { animation: pulse-blue 0.6s ease-in-out infinite; }
+        .led-charging { animation: charge-pulse 0.8s ease-in-out infinite; }
 
         .speaker-grille { width: 100%; height: 40px; background: radial-gradient(circle, #222 1.5px, transparent 2px); background-size: 7px 7px; border: 1px solid #1a1a1a; border-radius: 4px; opacity: 0.4; margin: 5px 0; }
         
@@ -94,18 +97,56 @@
         .ptt-lever.unlocked { background: #1a0a0a; border-color: #333; color: #333; cursor: pointer; pointer-events: auto; }
         .ptt-lever.unlocked.ready { border-color: var(--r); color: var(--r); }
         .ptt-lever.unlocked:active, .ptt-lever.unlocked.tx { transform: translateY(4px); border-bottom-width: 2px; background: var(--r); color: #000; }
+        .ptt-lever.dead { background: #1a0505; border-color: #330000; color: #330000; }
+
+        /* ── Battery Module ── */
+        .batt-module { border-top: 1px solid #222; padding-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+        .batt-row { display: flex; justify-content: space-between; align-items: center; }
+        .batt-label { font-size: 0.55rem; font-weight: 900; color: #444; }
+        .batt-right { display: flex; align-items: center; gap: 7px; }
+        .mini-led { width: 8px; height: 8px; border-radius: 50%; background: #111; border: 1.5px solid #333; flex-shrink: 0; transition: 0.3s; }
+        .mini-led.m-green { background: var(--g); box-shadow: 0 0 6px var(--g); border-color: var(--g); }
+        .mini-led.m-red { background: var(--r); box-shadow: 0 0 6px var(--r); border-color: var(--r); animation: blink-r 0.6s steps(1) infinite; }
+        .mini-led.m-yellow { background: var(--y); box-shadow: 0 0 5px var(--y); border-color: var(--y); animation: blink-y 1.5s steps(1) infinite; }
+        .mini-led.m-orange { background: #ff8800; box-shadow: 0 0 5px #ff8800; border-color: #ff8800; animation: blink-y 1s steps(1) infinite; }
+        .mini-led.m-dim { background: #1a1a1a; border-color: #2a2a2a; }
+        .mini-led.m-charge { background: #00ff88; box-shadow: 0 0 8px #00ff88; border-color: #00ff88; animation: charge-pulse 0.6s ease-in-out infinite; }
+        .val-norm { font-size: 0.75rem; font-weight: 900; letter-spacing: 1px; transition: color 0.3s; }
+        .batt-pct { font-size: 0.6rem; font-weight: 900; letter-spacing: 0.5px; min-width: 36px; text-align: right; }
+
+        /* Battery bar */
+        .batt-bar-wrap { display: flex; align-items: center; gap: 3px; }
+        .batt-bar-shell { width: 100%; height: 10px; background: #0a0a0a; border: 1.5px solid #333; border-radius: 3px; position: relative; overflow: hidden; }
+        .batt-bar-fill { height: 100%; width: 0%; border-radius: 1px; transition: width 0.5s ease, background 0.5s ease; }
+        .batt-bar-fill.f-green { background: linear-gradient(90deg, #1a4a1a, #39ff14); }
+        .batt-bar-fill.f-yellow { background: linear-gradient(90deg, #4a3a00, #ffcc00); }
+        .batt-bar-fill.f-orange { background: linear-gradient(90deg, #4a2200, #ff8800); }
+        .batt-bar-fill.f-red { background: linear-gradient(90deg, #4a0000, #ff3131); }
+        .batt-bar-fill.f-charge { background: linear-gradient(90deg, #003311, #00ff88, #003311); background-size: 200% 100%; animation: charge-bar 1s linear infinite; }
+        .batt-bar-tip { width: 4px; height: 6px; background: #333; border-radius: 0 2px 2px 0; flex-shrink: 0; }
+
+        /* Charge button */
+        .charge-dock { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+        .charge-port { width: 28px; height: 16px; background: #0a0a0a; border: 2px solid #333; border-radius: 3px; position: relative; overflow: hidden; cursor: pointer; flex-shrink: 0; }
+        .charge-port::before { content: ''; position: absolute; top: 3px; left: 4px; width: 6px; height: 6px; background: #222; border-radius: 1px; }
+        .charge-port::after { content: ''; position: absolute; top: 3px; right: 4px; width: 6px; height: 6px; background: #222; border-radius: 1px; }
+        .charge-port.charging { border-color: #00ff88; }
+        .charge-port.charging::before { background: #00ff88; box-shadow: 0 0 4px #00ff88; }
+        .charge-port.charging::after { background: #00ff88; box-shadow: 0 0 4px #00ff88; }
+        .charge-btn { flex: 1; padding: 8px; background: #0a0a0a; border: 1px solid #222; border-bottom: 3px solid #000; border-radius: 4px; color: #333; font-family: inherit; font-weight: 900; font-size: 0.55rem; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; transition: 0.15s; }
+        .charge-btn:active { transform: translateY(1px); border-bottom-width: 1px; }
+        .charge-btn.charging { color: #00ff88; border-color: #004422; }
+        .charge-btn.full { color: #222; pointer-events: none; opacity: 0.4; }
+
+        /* Low battery warning overlay */
+        @keyframes low-batt-flash { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+        .low-batt-warning { position: absolute; top: 8px; right: 8px; font-size: 0.5rem; color: var(--r); font-weight: 900; opacity: 0; pointer-events: none; z-index: 5; text-shadow: 0 0 6px var(--r); }
+        .low-batt-warning.active { animation: low-batt-flash 1s steps(1) infinite; }
 
         .stats-footer { border-top: 1px solid #222; padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
         .stat-line { display: flex; justify-content: space-between; align-items: center; }
         .stat-label { font-size: 0.55rem; font-weight: 900; color: #444; }
         .stat-right { display: flex; align-items: center; gap: 7px; }
-        .mini-led { width: 8px; height: 8px; border-radius: 50%; background: #111; border: 1.5px solid #333; flex-shrink: 0; transition: 0.3s; }
-        .mini-led.m-green { background: var(--g); box-shadow: 0 0 5px var(--g); border-color: var(--g); }
-        .mini-led.m-red { background: var(--r); box-shadow: 0 0 5px var(--r); border-color: var(--r); animation: blink-r 0.8s steps(1) infinite; }
-        .mini-led.m-yellow { background: var(--y); box-shadow: 0 0 5px var(--y); border-color: var(--y); animation: blink-y 1.5s steps(1) infinite; }
-        .mini-led.m-orange { background: var(--y); box-shadow: 0 0 4px var(--y); border-color: var(--y); animation: blink-y 1s steps(1) infinite; }
-        .mini-led.m-dim { background: #1a1a1a; border-color: #2a2a2a; }
-        .val-norm { font-size: 0.75rem; font-weight: 900; letter-spacing: 1px; transition: color 0.3s; }
         
         .official-footer { margin-top: 12px; border-top: 1px dashed #1a1a1a; padding-top: 8px; text-align: center; }
         .footer-text { font-size: 0.6rem; color: #333; letter-spacing: 1px; font-weight: bold; text-transform: uppercase; }
@@ -142,6 +183,7 @@
         </div>
         <div class="screen" id="scr">
             <canvas id="scope"></canvas>
+            <div id="lowBattWarn" class="low-batt-warning">! LOW BATT !</div>
             <div id="sys" style="height:35px; overflow-y:auto; font-size:0.55rem; opacity:0; color:var(--g); padding:2px;"></div>
         </div>
     </div>
@@ -163,19 +205,34 @@
         <button id="ptt" class="ptt-lever">LOCKED</button>
     </div>
 
+    <!-- Battery Module -->
+    <div class="batt-module">
+        <div class="batt-row">
+            <span class="batt-label">BATT_VOLTS:</span>
+            <div class="batt-right">
+                <span id="battPct" class="batt-pct" style="color:#333">0%</span>
+                <span id="battLed" class="mini-led m-dim"></span>
+                <span id="vlt" class="val-norm" style="color:#333">0.00V</span>
+            </div>
+        </div>
+        <div class="batt-bar-wrap">
+            <div class="batt-bar-shell">
+                <div id="battFill" class="batt-bar-fill"></div>
+            </div>
+            <div class="batt-bar-tip"></div>
+        </div>
+        <div class="charge-dock">
+            <div id="chargePort" class="charge-port" onclick="toggleCharge()"></div>
+            <button id="chargeBtn" class="charge-btn" onclick="toggleCharge()">SUPER CHARGE</button>
+        </div>
+    </div>
+
     <div class="stats-footer">
         <div class="stat-line">
             <span class="stat-label">LINK_SECURE:</span>
             <div class="stat-right">
                 <span id="linkLed" class="mini-led m-dim"></span>
                 <span id="rfSt" class="val-norm" style="color:#333">OFFLINE</span>
-            </div>
-        </div>
-        <div class="stat-line">
-            <span class="stat-label">BATT_VOLTS:</span>
-            <div class="stat-right">
-                <span id="battLed" class="mini-led m-dim"></span>
-                <span id="vlt" class="val-norm" style="color:#333">0.00V</span>
             </div>
         </div>
     </div>
@@ -197,10 +254,19 @@ let noiseFloorFrames = 0;
 let lastInputNode = null;
 
 let isTx = false, isPwr = false, isLinked = false, isAnc = false;
-let nxt = 0, rotA = 0, myRole = null, vltTimer = null;
+let isCharging = false, isDead = false;
+let nxt = 0, rotA = 0, myRole = null, vltTimer = null, chargeTimer = null;
 let heartbeatTimer = null, peerTimeout = null, connTimeout = null;
 let battLevel = 0;
+let lowBattWarned = false, critBattWarned = false, deadBattWarned = false;
+
+/* Battery config: min 9.5V, max 13.2V */
+const BATT_MIN = 9.5, BATT_MAX = 13.2, BATT_DEAD = 10.0;
 const TP = 'ashraf_v12_4_1/';
+
+function battToPercent(v) {
+    return Math.max(0, Math.min(100, ((v - BATT_MIN) / (BATT_MAX - BATT_MIN)) * 100));
+}
 
 /* ── Nozzle Dial ── */
 function handleNoz(e) {
@@ -220,7 +286,6 @@ function updateUI(mode, noise) {
     const rf = document.getElementById('rfSt');
     const led = document.getElementById('led');
     const rssi = document.getElementById('rssi');
-    const al = document.getElementById('ancLed');
     const ll = document.getElementById('linkLed');
 
     rf.className = 'val-norm';
@@ -228,9 +293,7 @@ function updateUI(mode, noise) {
     rssi.className = 'signal-block';
     ll.className = 'mini-led';
 
-    /* Don't touch ANC LED here — it has its own logic */
-
-    if (!isPwr) { ll.classList.add('m-dim'); al.className = 'anc-led'; return; }
+    if (!isPwr || isDead) { ll.classList.add('m-dim'); return; }
 
     if (mode === 'idle') {
         rf.innerText = 'OFFLINE'; rf.style.color = 'var(--r)';
@@ -247,32 +310,217 @@ function updateUI(mode, noise) {
     }
 }
 
-/* ── Battery Indicator ── */
-function updateBatt(v) {
+/* ── Battery Display ── */
+function updateBattDisplay(v) {
     const el = document.getElementById('vlt');
     const bl = document.getElementById('battLed');
+    const pct = document.getElementById('battPct');
+    const fill = document.getElementById('battFill');
+    const warn = document.getElementById('lowBattWarn');
+
+    const percent = battToPercent(v);
     el.innerText = v.toFixed(2) + 'V';
+    pct.innerText = Math.round(percent) + '%';
+    fill.style.width = percent + '%';
+
+    /* Reset classes */
     bl.className = 'mini-led';
-    if (v >= 12.0) { el.style.color = 'var(--g)'; bl.classList.add('m-green'); }
-    else if (v >= 11.5) { el.style.color = 'var(--y)'; bl.classList.add('m-yellow'); }
-    else if (v >= 11.0) { el.style.color = '#ff8800'; bl.classList.add('m-orange'); }
-    else { el.style.color = 'var(--r)'; bl.classList.add('m-red'); }
+    fill.className = 'batt-bar-fill';
+
+    if (isCharging) {
+        bl.classList.add('m-charge');
+        fill.classList.add('f-charge');
+        pct.style.color = '#00ff88';
+        el.style.color = '#00ff88';
+        warn.classList.remove('active');
+        return;
+    }
+
+    if (v >= 12.0) {
+        bl.classList.add('m-green');
+        fill.classList.add('f-green');
+        pct.style.color = 'var(--g)';
+        el.style.color = 'var(--g)';
+        warn.classList.remove('active');
+        lowBattWarned = false; critBattWarned = false; deadBattWarned = false;
+    } else if (v >= 11.5) {
+        bl.classList.add('m-yellow');
+        fill.classList.add('f-yellow');
+        pct.style.color = 'var(--y)';
+        el.style.color = 'var(--y)';
+        warn.classList.remove('active');
+        lowBattWarned = false; critBattWarned = false; deadBattWarned = false;
+    } else if (v >= 11.0) {
+        bl.classList.add('m-orange');
+        fill.classList.add('f-orange');
+        pct.style.color = '#ff8800';
+        el.style.color = '#ff8800';
+        warn.classList.remove('active');
+        /* Low battery warning */
+        if (!lowBattWarned) {
+            lowBattWarned = true;
+            log('WARN:BATT_LOW');
+        }
+    } else if (v >= BATT_DEAD) {
+        bl.classList.add('m-red');
+        fill.classList.add('f-red');
+        pct.style.color = 'var(--r)';
+        el.style.color = 'var(--r)';
+        warn.classList.add('active');
+        /* Critical warning */
+        if (!critBattWarned) {
+            critBattWarned = true;
+            log('CRIT:BATT_CRITICAL');
+        }
+    } else {
+        /* DEAD */
+        bl.classList.add('m-red');
+        fill.classList.add('f-red');
+        pct.style.color = 'var(--r)';
+        el.style.color = 'var(--r)';
+        warn.classList.add('active');
+        if (!deadBattWarned) {
+            deadBattWarned = true;
+            log('FATAL:BATT_DEAD');
+            triggerDead();
+        }
+    }
+}
+
+/* ── Battery Dead — kill everything ── */
+function triggerDead() {
+    isDead = true;
+    isTx = false;
+    if (chargeTimer) { clearInterval(chargeTimer); chargeTimer = null; }
+
+    const ptt = document.getElementById('ptt');
+    ptt.innerText = 'NO POWER';
+    ptt.className = 'ptt-lever dead';
+    ptt.onmousedown = null; ptt.onmouseup = null; ptt.onmouseleave = null;
+    ptt.ontouchstart = null; ptt.ontouchend = null; ptt.ontouchcancel = null;
+
+    updateUI('idle');
+    log('SYS_SHUTDOWN');
+}
+
+/* ── Recover from dead ── */
+function recoverFromDead() {
+    isDead = false;
+    deadBattWarned = false;
+    critBattWarned = false;
+
+    if (isLinked) {
+        unlockPTT();
+        updateUI('connected');
+    } else if (mc && mc.connected) {
+        waitPTT('WAITING ' + (myRole === 'host' ? 'CLIENT' : 'HOST').toUpperCase());
+        updateUI('waiting');
+    } else {
+        lockPTT('LOCKED');
+        updateUI('idle');
+    }
+    log('SYS_RECOVER');
+}
+
+/* ═══════════════════════════════════════════
+   SUPER CHARGE
+   ═══════════════════════════════════════════ */
+function toggleCharge() {
+    if (!isPwr) return;
+
+    if (isCharging) {
+        /* Stop charging */
+        isCharging = false;
+        if (chargeTimer) { clearInterval(chargeTimer); chargeTimer = null; }
+        document.getElementById('chargeBtn').innerText = 'SUPER CHARGE';
+        document.getElementById('chargeBtn').classList.remove('charging');
+        document.getElementById('chargePort').classList.remove('charging');
+        log('CHARGE_STOP');
+
+        /* If battery was dead but now has enough, recover */
+        if (isDead && battLevel >= BATT_DEAD + 0.5) {
+            recoverFromDead();
+        }
+        updateBattDisplay(battLevel);
+        return;
+    }
+
+    /* Start charging */
+    if (battLevel >= BATT_MAX - 0.1) {
+        log('CHARGE:BATT_FULL');
+        return;
+    }
+
+    isCharging = true;
+    isTx = false; /* Can't transmit while charging */
+
+    document.getElementById('chargeBtn').innerText = 'CHARGING...';
+    document.getElementById('chargeBtn').classList.add('charging');
+    document.getElementById('chargePort').classList.add('charging');
+
+    /* If PTT was unlocked, show it's paused */
+    if (isLinked) {
+        const ptt = document.getElementById('ptt');
+        ptt.innerText = 'CHARGING';
+        ptt.className = 'ptt-lever waiting';
+        ptt.onmousedown = null; ptt.onmouseup = null; ptt.onmouseleave = null;
+        ptt.ontouchstart = null; ptt.ontouchend = null; ptt.ontouchcancel = null;
+    }
+
+    log('CHARGE:SUPER_ON');
+
+    /* Charge at ~0.15V every 300ms — fills from empty in ~8 seconds */
+    chargeTimer = setInterval(() => {
+        if (!isCharging) return;
+
+        battLevel += 0.12 + Math.random() * 0.06;
+
+        /* If battery was dead, recover once above threshold */
+        if (isDead && battLevel >= BATT_DEAD + 0.5) {
+            recoverFromDead();
+        }
+
+        if (battLevel >= BATT_MAX) {
+            battLevel = BATT_MAX;
+            /* Auto-stop when full */
+            isCharging = false;
+            if (chargeTimer) { clearInterval(chargeTimer); chargeTimer = null; }
+            document.getElementById('chargeBtn').innerText = 'FULL';
+            document.getElementById('chargeBtn').classList.remove('charging');
+            document.getElementById('chargeBtn').classList.add('full');
+            document.getElementById('chargePort').classList.remove('charging');
+            log('CHARGE:FULL_' + battLevel.toFixed(1) + 'V');
+
+            /* Restore PTT if was linked */
+            if (isLinked) unlockPTT();
+
+            setTimeout(() => {
+                document.getElementById('chargeBtn').innerText = 'SUPER CHARGE';
+                document.getElementById('chargeBtn').classList.remove('full');
+            }, 2000);
+        }
+
+        updateBattDisplay(battLevel);
+    }, 300);
 }
 
 /* ── PTT State ── */
 function lockPTT(label) {
+    if (isDead) return;
     const ptt = document.getElementById('ptt');
     ptt.innerText = label || 'LOCKED'; ptt.className = 'ptt-lever';
     ptt.onmousedown = null; ptt.onmouseup = null; ptt.onmouseleave = null;
     ptt.ontouchstart = null; ptt.ontouchend = null; ptt.ontouchcancel = null;
 }
 function waitPTT(label) {
+    if (isDead) return;
     const ptt = document.getElementById('ptt');
     ptt.innerText = label || 'WAITING...'; ptt.className = 'ptt-lever waiting';
     ptt.onmousedown = null; ptt.onmouseup = null; ptt.onmouseleave = null;
     ptt.ontouchstart = null; ptt.ontouchend = null; ptt.ontouchcancel = null;
 }
 function unlockPTT() {
+    if (isDead || isCharging) return;
     const ptt = document.getElementById('ptt');
     ptt.innerText = 'PUSH TO TALK'; ptt.className = 'ptt-lever unlocked ready';
     ptt.onmousedown = pttDown; ptt.onmouseup = pttUp; ptt.onmouseleave = pttUp;
@@ -289,42 +537,35 @@ function pwr(s) {
         document.getElementById('sys').style.opacity = '1';
         updateUI('idle');
         log('FIELD_OS_BOOT_v12.4.1');
-        battLevel = 12.0;
+        battLevel = 12.4;
+        lowBattWarned = false; critBattWarned = false; deadBattWarned = false;
+        isDead = false; isCharging = false;
         if (vltTimer) clearInterval(vltTimer);
         vltTimer = setInterval(() => {
-            if (!isPwr) return;
-            let drain = 0.001 + Math.random() * 0.002;
-            if (isTx) drain += 0.008;
-            if (isLinked) drain += 0.002;
-            if (isAnc) drain += 0.004;
+            if (!isPwr || isCharging || isDead) return;
+            let drain = 0.002 + Math.random() * 0.002;
+            if (isTx) drain += 0.012;
+            if (isLinked) drain += 0.003;
+            if (isAnc) drain += 0.005;
             battLevel -= drain;
-            if (battLevel < 9.5) battLevel = 9.5 + Math.random() * 0.3;
-            updateBatt(battLevel);
+            if (battLevel < BATT_MIN) battLevel = BATT_MIN;
+            updateBattDisplay(battLevel);
         }, 3000);
-        updateBatt(battLevel);
+        updateBattDisplay(battLevel);
     } else { teardown(); location.reload(); }
 }
 
 /* ═══════════════════════════════════════════
-   REAL ANC — Actual DSP Filter Chain
+   REAL ANC
    ═══════════════════════════════════════════ */
-
 function toggleAnc() {
-    if (!isPwr) return;
+    if (!isPwr || isDead) return;
     isAnc = !isAnc;
     const b = document.getElementById('ancBtn');
     const al = document.getElementById('ancLed');
-
     if (isAnc) {
-        b.innerText = 'ANC ON';
-        b.classList.add('on');
-
-        if (!ancNotch50) {
-            /* Build ANC filter chain if it doesn't exist yet */
-            buildAncFilters();
-        }
-
-        /* Reconnect: mic → HPF → ANC chain → analyser */
+        b.innerText = 'ANC ON'; b.classList.add('on');
+        if (!ancNotch50) buildAncFilters();
         reconnectAudioChain(true);
         al.className = 'anc-led led-anc-active';
         log('ANC:FILT_CHAIN_ON');
@@ -332,10 +573,7 @@ function toggleAnc() {
         log('ANC:LPF_3800Hz');
         log('ANC:SPECTRAL_GATE_ON');
     } else {
-        b.innerText = 'ANC OFF';
-        b.classList.remove('on');
-
-        /* Reconnect: mic → HPF → analyser (bypass ANC) */
+        b.innerText = 'ANC OFF'; b.classList.remove('on');
         reconnectAudioChain(false);
         al.className = 'anc-led';
         log('ANC:FILT_CHAIN_OFF');
@@ -343,31 +581,18 @@ function toggleAnc() {
 }
 
 function buildAncFilters() {
-    /* Notch at 50Hz — kills international electrical hum */
     ancNotch50 = actx.createBiquadFilter();
     ancNotch50.type = 'notch'; ancNotch50.frequency.value = 50; ancNotch50.Q.value = 30;
-
-    /* Notch at 60Hz — kills USA electrical hum */
     ancNotch60 = actx.createBiquadFilter();
     ancNotch60.type = 'notch'; ancNotch60.frequency.value = 60; ancNotch60.Q.value = 30;
-
-    /* Notch at 100Hz — second harmonic of 50Hz */
     ancNotch100 = actx.createBiquadFilter();
     ancNotch100.type = 'notch'; ancNotch100.frequency.value = 100; ancNotch100.Q.value = 30;
-
-    /* Notch at 120Hz — second harmonic of 60Hz */
     ancNotch120 = actx.createBiquadFilter();
     ancNotch120.type = 'notch'; ancNotch120.frequency.value = 120; ancNotch120.Q.value = 30;
-
-    /* Low-pass at 3800Hz — cuts high-freq hiss/whine, voice is fine below this */
     ancLPF = actx.createBiquadFilter();
     ancLPF.type = 'lowpass'; ancLPF.frequency.value = 3800; ancLPF.Q.value = 0.7;
-
-    /* Band-pass focusing on 200Hz–3400Hz (telephone voice band) */
     ancBPF = actx.createBiquadFilter();
     ancBPF.type = 'bandpass'; ancBPF.frequency.value = 1200; ancBPF.Q.value = 0.5;
-
-    /* Chain them: notch50 → notch60 → notch100 → notch120 → LPF → BPF */
     ancNotch50.connect(ancNotch60);
     ancNotch60.connect(ancNotch100);
     ancNotch100.connect(ancNotch120);
@@ -378,75 +603,47 @@ function buildAncFilters() {
 function reconnectAudioChain(useAnc) {
     if (!actx || !mic) return;
     const src = actx.createMediaStreamSource(mic);
-
-    /* Disconnect everything from inHPF onwards */
     try { inHPF.disconnect(); } catch(e){}
     if (ana) { try { ana.disconnect(); } catch(e){} }
-
     if (useAnc && ancBPF) {
-        /* mic → HPF → [ANC filter chain] → analyser */
-        src.connect(inHPF);
-        inHPF.connect(ancNotch50);  /* entry point of ANC chain */
-        ancBPF.connect(ana);        /* exit point of ANC chain → analyser */
+        src.connect(inHPF); inHPF.connect(ancNotch50); ancBPF.connect(ana);
         lastInputNode = ancBPF;
     } else {
-        /* mic → HPF → analyser (ANC bypassed) */
-        src.connect(inHPF);
-        inHPF.connect(ana);
-        lastInputNode = inHPF;
+        src.connect(inHPF); inHPF.connect(ana); lastInputNode = inHPF;
     }
-
-    /* Reconnect analyser → script processor → destination */
-    ana.connect(ana._proc);
-    ana._proc.connect(actx.destination);
+    ana.connect(ana._proc); ana._proc.connect(actx.destination);
 }
 
-/* ── Spectral Noise Gate — runs inside ScriptProcessor ── */
 function applySpectralNoiseGate(samples) {
     if (!noiseFloorFilled) {
-        /* Still learning the noise floor — collect samples */
         for (let i = 0; i < samples.length; i++) {
             const idx = i % noiseFloor.length;
             noiseFloor[idx] = noiseFloor[idx] * 0.7 + Math.abs(samples[i]) * 0.3;
         }
         noiseFloorFrames++;
-        if (noiseFloorFrames > 20) {
-            noiseFloorFilled = true;
-            log('ANC:NOISE_FLOOR_SET');
-        }
+        if (noiseFloorFrames > 20) { noiseFloorFilled = true; log('ANC:NOISE_FLOOR_SET'); }
         return samples;
     }
-
-    /* Adaptive spectral gate with smooth envelope */
-    const attackCoeff = 0.9;
-    const releaseCoeff = 0.999;
+    const attackCoeff = 0.9, releaseCoeff = 0.999;
     let frameEnergy = 0;
-
     for (let i = 0; i < samples.length; i++) {
         const abs = Math.abs(samples[i]);
         const idx = i % noiseFloor.length;
         const threshold = noiseFloor[idx] * 2.5;
-
         frameEnergy += abs;
-
         if (abs < threshold) {
-            /* Below threshold — apply attenuation */
             noiseGateEnvelope *= releaseCoeff;
             samples[i] *= noiseGateEnvelope * 0.15;
         } else {
-            /* Above threshold — let it through */
             noiseGateEnvelope = noiseGateEnvelope * attackCoeff + (1 - attackCoeff);
         }
     }
-
-    /* Update noise floor slowly so it adapts to changing environment */
     if (frameEnergy / samples.length < noiseFloor[0] * 1.5) {
         for (let i = 0; i < samples.length; i++) {
             const idx = i % noiseFloor.length;
             noiseFloor[idx] = noiseFloor[idx] * 0.995 + Math.abs(samples[i]) * 0.005;
         }
     }
-
     return samples;
 }
 
@@ -461,10 +658,12 @@ function log(m) {
 
 /* ── Teardown ── */
 function teardown() {
-    isTx = false; isLinked = false; myRole = null;
+    isTx = false; isLinked = false; isDead = false; isCharging = false; myRole = null;
     if (connTimeout) { clearTimeout(connTimeout); connTimeout = null; }
     if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
     if (peerTimeout) { clearTimeout(peerTimeout); peerTimeout = null; }
+    if (vltTimer) { clearInterval(vltTimer); vltTimer = null; }
+    if (chargeTimer) { clearInterval(chargeTimer); chargeTimer = null; }
     if (mc) { try { mc.end(true); } catch(e){} mc = null; }
     if (mic) { mic.getTracks().forEach(t => t.stop()); mic = null; }
     if (actx) { try { actx.close(); } catch(e){} actx = null; }
@@ -491,17 +690,12 @@ function unlockInputs() {
 
 /* ── PTT ── */
 function pttDown(e) {
-    if (!isLinked) return;
+    if (!isLinked || isDead || isCharging) return;
     e.preventDefault();
     isTx = true;
     const ptt = document.getElementById('ptt');
     ptt.classList.add('tx'); ptt.innerText = 'TX';
-
-    /* When starting TX with ANC, reset noise floor to current ambient */
-    if (isAnc) {
-        /* Don't reset — keep the learned floor, it adapts */
-        log('ANC:TX_GATE_ACTIVE');
-    }
+    if (isAnc) log('ANC:TX_GATE_ACTIVE');
 }
 function pttUp(e) {
     if (!isLinked) return;
@@ -529,18 +723,15 @@ function draw() {
         bctx.fillText(Math.random() > 0.8 ? '1' : '0', i * 20, y);
         bgCols[i] = y > bcvs.height ? 0 : y + 10;
     });
-
     if (ana && isPwr) {
         const scvs = document.getElementById('scope');
         const sctx = scvs.getContext('2d');
         const data = new Uint8Array(ana.frequencyBinCount);
         ana.getByteTimeDomainData(data);
-
         let sum = 0;
         for (let i = 0; i < data.length; i++) sum += Math.abs(data[i] - 128);
         const level = sum / data.length / 50;
         if (isTx) updateUI('connected', level);
-
         sctx.clearRect(0, 0, scvs.width, scvs.height);
         sctx.lineWidth = 3;
         sctx.strokeStyle = isAnc ? '#00d4ff' : '#39ff14';
@@ -591,93 +782,57 @@ function onPeerFound() {
     mc.subscribe(pt, { qos: 0 }, (err) => {
         if (err) log('AUDIO_SUB_FAIL'); else log('RX:' + pt);
     });
-    unlockPTT(); updateUI('connected');
+    if (!isCharging && !isDead) unlockPTT();
+    updateUI('connected');
     log('HANDSHAKE_OK'); log('CH_' + ch + '_LIVE');
 }
 
 async function conn(role) {
-    if (!isPwr || mc) return;
+    if (!isPwr || mc || isDead) return;
     myRole = role;
     const chVal = document.getElementById('ch').value;
     const peerRole = role === 'host' ? 'client' : 'host';
     const myPing = TP + chVal + '/' + role + '_ping';
     const peerPing = TP + chVal + '/' + peerRole + '_ping';
-
     lockInputs(); waitPTT('SYNCING...'); updateUI('waiting');
     log('INIT_' + role.toUpperCase());
-
     connTimeout = setTimeout(() => {
         if (!isLinked) { log('TIMEOUT'); teardown(); }
     }, 15000);
-
     try {
         log('REQ_MIC...');
         mic = await navigator.mediaDevices.getUserMedia({
-            audio: {
-                echoCancellation: true, noiseSuppression: false,
-                autoGainControl: true, channelCount: 1,
-                sampleRate: { ideal: 16000 }
-            }
+            audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: true, channelCount: 1, sampleRate: { ideal: 16000 } }
         });
         log('MIC_OK');
-
-        actx = new (window.AudioContext || window.webkitAudioContext)({
-            sampleRate: 16000, latencyHint: 'interactive'
-        });
+        actx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000, latencyHint: 'interactive' });
         await actx.resume();
         log('ACTX:' + actx.sampleRate + 'Hz');
-
         const src = actx.createMediaStreamSource(mic);
-
-        /* Input HPF — always on, cuts rumble */
         inHPF = actx.createBiquadFilter();
         inHPF.type = 'highpass'; inHPF.frequency.value = 180; inHPF.Q.value = 0.7;
-
-        /* Analyser */
         ana = actx.createAnalyser(); ana.fftSize = 2048;
-
-        /* ScriptProcessor with real ANC processing */
         const proc = actx.createScriptProcessor(2048, 1, 1);
-        ana._proc = proc; /* keep reference for reconnect */
-
+        ana._proc = proc;
         proc.onaudioprocess = function(e) {
             e.outputBuffer.getChannelData(0).fill(0);
-
             if (isTx && mc && mc.connected && isLinked) {
                 let samples = e.inputBuffer.getChannelData(0);
-
-                /* Apply real ANC spectral noise gate if enabled */
-                if (isAnc) {
-                    samples = applySpectralNoiseGate(samples);
-                }
-
+                if (isAnc) samples = applySpectralNoiseGate(samples);
                 transmit(samples, chVal, role);
             } else if (isAnc && !isTx) {
-                /* When not transmitting but ANC is ON,
-                   keep learning the noise floor from ambient sound */
                 applySpectralNoiseGate(e.inputBuffer.getChannelData(0));
             }
         };
-
-        /* Initial connection: mic → HPF → analyser (no ANC yet) */
-        src.connect(inHPF);
-        inHPF.connect(ana);
-        lastInputNode = inHPF;
-        ana.connect(proc);
-        proc.connect(actx.destination);
-
-        /* Output chain */
+        src.connect(inHPF); inHPF.connect(ana); lastInputNode = inHPF;
+        ana.connect(proc); proc.connect(actx.destination);
         outHPF = actx.createBiquadFilter();
         outHPF.type = 'highpass'; outHPF.frequency.value = 150; outHPF.Q.value = 0.5;
-
         outComp = actx.createDynamicsCompressor();
         outComp.threshold.value = -24; outComp.knee.value = 12;
         outComp.ratio.value = 12; outComp.attack.value = 0.003; outComp.release.value = 0.15;
-
         pG = actx.createGain(); pG.gain.value = 0.45;
         outHPF.connect(outComp); outComp.connect(pG); pG.connect(actx.destination);
-
-        /* AES Key */
         const enc = new TextEncoder();
         const pwd = document.getElementById('key').value || 'TAC';
         const km = await crypto.subtle.importKey('raw', enc.encode(pwd), 'PBKDF2', false, ['deriveKey']);
@@ -686,14 +841,11 @@ async function conn(role) {
             km, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
         );
         log('CIPHER_OK');
-
-        /* MQTT */
         log('BROKER...');
         mc = mqtt.connect('wss://broker.emqx.io:8084/mqtt', {
             connectTimeout: 8000, reconnectPeriod: 3000,
             clientId: 'tac_' + role + '_' + Math.random().toString(36).slice(2, 8)
         });
-
         mc.on('connect', () => {
             if (connTimeout) { clearTimeout(connTimeout); connTimeout = null; }
             log('BROKER_OK');
@@ -706,12 +858,10 @@ async function conn(role) {
                 waitPTT('WAITING ' + peerRole.toUpperCase());
             });
         });
-
         mc.on('message', function(topic, payload) {
             if (topic.endsWith('_ping')) { onPeerFound(); return; }
             if (topic.endsWith('_audio')) { handleAudio(payload); return; }
         });
-
         mc.on('error', (err) => { log('ERR:' + (err.message || '?')); });
         mc.on('close', () => {
             log('BROKER_DOWN'); isLinked = false; isTx = false;
@@ -729,7 +879,6 @@ async function conn(role) {
                 if (!isLinked) waitPTT('WAITING ' + pr.toUpperCase());
             }
         });
-
     } catch (err) {
         if (connTimeout) { clearTimeout(connTimeout); connTimeout = null; }
         log('FAIL:' + (err.name || err.message || 'ERR'));
@@ -771,8 +920,7 @@ function playAudio(rawBuffer) {
     const buf = actx.createBuffer(1, f32.length, actx.sampleRate);
     buf.getChannelData(0).set(f32);
     const src = actx.createBufferSource();
-    src.buffer = buf;
-    src.connect(outHPF);
+    src.buffer = buf; src.connect(outHPF);
     const now = actx.currentTime;
     if (nxt < now - 0.2) nxt = now;
     const startAt = Math.max(now + 0.005, nxt);
