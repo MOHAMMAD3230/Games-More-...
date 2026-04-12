@@ -38,10 +38,6 @@
             background: linear-gradient(180deg, #1e1e1e 0%, #0a0a0a 100%);
             border-color: #2a2a2a; border-bottom-color: #050505;
         }
-        .chassis.s-linked {
-            background: linear-gradient(180deg, #1e1e1e 0%, #0a0a0a 100%);
-            border-color: #2a2a2a; border-bottom-color: #050505;
-        }
 
         .antenna-stub { position: absolute; top: -60px; left: 40px; width: 12px; height: 70px; background: #111; border: 3px solid #333; border-radius: 4px 4px 0 0; z-index: -1; }
 
@@ -79,12 +75,20 @@
         .pwr-off.active { color: var(--r); border-color: var(--r); }
 
         .screen { background: #050505; border: 4px solid #222; border-radius: 6px; height: 110px; position: relative; padding: 10px; overflow: hidden; }
-        .screen::before { content:""; position:absolute; inset:0; background: linear-gradient(rgba(18,16,16,0) 50%,rgba(0,0,0,0.1) 50%), linear-gradient(90deg,rgba(255,0,0,0.03),rgba(0,255,0,0.01),rgba(0,0,255,0.03)); background-size: 100% 2px, 3px 100%; pointer-events: none; z-index: 2; }
-        .lit.screen { background: #000a00; border-color: #333; }
-        #scope { width: 100%; height: 45px; opacity: 0; }
-        .lit #scope { opacity: 1; }
-        .low-batt-warning { position: absolute; top: 8px; right: 8px; font-size: 0.5rem; color: var(--r); font-weight: 900; opacity: 0; pointer-events: none; z-index: 5; text-shadow: 0 0 6px var(--r); }
+        .screen::before { content:""; position:absolute; inset:0; background: linear-gradient(rgba(18,16,16,0) 50%,rgba(0,0,0,0.1) 50%), linear-gradient(90deg,rgba(255,0,0,0.03),rgba(0,255,0,0.01),rgba(0,0,255,0.03)); background-size: 100% 2px, 3px 100%; pointer-events: none; z-index: 2; opacity: 0; transition: opacity 0.3s; }
+        .s-dim.screen { border-color: #2a2200; background: #0a0700; }
+        .s-dim.screen::before { opacity: 1; }
+        .lit.screen { background: #0a0800; border-color: #443300; box-shadow: inset 0 0 30px rgba(255,204,0,0.08), 0 0 12px rgba(255,204,0,0.12); }
+        .lit.screen::before { opacity: 1; }
+
+        .low-batt-warning {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: var(--r); font-size: 0.7rem; font-weight: 900; letter-spacing: 2px;
+            opacity: 0; z-index: 3; pointer-events: none;
+        }
         .low-batt-warning.active { animation: low-batt-flash 1s steps(1) infinite; }
+
+        #scope { width: 100%; height: 45px; opacity: 0; transition: opacity 0.3s; }
 
         .speaker-grille { width: 100%; height: 40px; background: radial-gradient(circle, #222 1.5px, transparent 2px); background-size: 7px 7px; border: 1px solid #1a1a1a; border-radius: 4px; opacity: 0.4; margin: 5px 0; }
 
@@ -104,6 +108,14 @@
         .gen-row { display: flex; gap: 6px; }
         .gen-btn { flex: 1; background: #111; border: 1px solid #333; color: #8844ff; padding: 8px; font-family: inherit; font-size: 0.45rem; font-weight: 900; cursor: pointer; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px; transition: 0.15s; }
         .gen-btn:active { transform: scale(0.95); }
+
+        .conn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .conn-btn-wrap { position: relative; }
+        .conn-led { position: absolute; top: 6px; right: 8px; width: 6px; height: 6px; border-radius: 50%; background: #111; border: 1px solid #333; transition: 0.3s; }
+        .conn-led.c-idle { background: #111; }
+        .conn-led.c-active { background: var(--y); box-shadow: 0 0 4px var(--y); animation: blink-y 0.8s steps(1) infinite; }
+        .conn-led.c-ok { background: var(--g); box-shadow: 0 0 4px var(--g); }
+        .conn-led.c-fail { background: var(--r); box-shadow: 0 0 4px var(--r); animation: blink-r 0.6s steps(1) infinite; }
 
         .action-bay { display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 15px; border: 1px solid #222; margin-top: auto; }
         .anc-stack { display: flex; flex-direction: column; align-items: center; gap: 6px; }
@@ -169,7 +181,7 @@
         .sec-dot.fail { background: var(--r); box-shadow: 0 0 4px var(--r); }
 
         .net-banner { background: rgba(0,212,255,0.05); border: 1px solid rgba(0,212,255,0.15); border-radius: 6px; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; }
-        .net-title { font-size: 0.5rem; font-weight: 900; color: var(--b); letter-spacing: 1px; text-transform: uppercase; }
+        .net-title { font-size: 0.5rem; font-weight: 900; color: #8844ff; letter-spacing: 1px; text-transform: uppercase; }
         .net-route { display: flex; align-items: center; gap: 4px; font-size: 0.45rem; color: #334; flex-wrap: wrap; }
         .net-node { background: #111; border: 1px solid #222; padding: 2px 5px; border-radius: 3px; color: #555; font-weight: 900; }
         .net-node.active { border-color: var(--b); color: var(--b); }
@@ -191,36 +203,29 @@
 <canvas id="scannerCanvas"></canvas>
 
 <div class="chassis" id="chassis">
-    <div class="antenna-stub grp-b"></div>
 
-    <div class="top-deck">
-        <div id="rssi" class="sig-bars grp-b">
+    <!-- ALWAYS VISIBLE: no group class -->
+    <div class="pwr-strip">
+        <button id="bOn" class="mech-btn pwr-on" onclick="pwr(true)">Master On</button>
+        <button id="bOff" class="mech-btn pwr-off active" onclick="pwr(false)">Master Off</button>
+    </div>
+
+    <!-- grp-b: OFF hidden | ON/LINKED: visible -->
+    <div class="top-deck grp-b">
+        <div id="rssi" class="sig-bars">
             <div class="bar" style="height:6px"></div>
             <div class="bar" style="height:10px"></div>
             <div class="bar" style="height:14px"></div>
             <div class="bar" style="height:18px"></div>
             <div class="bar" style="height:22px"></div>
         </div>
-        <div class="indicator-cluster grp-b">
+        <div class="indicator-cluster">
             <div id="nozzle" class="nozzle-dial" onclick="handleNoz(event)"></div>
             <div id="led" class="status-led"></div>
         </div>
     </div>
 
-    <div class="module-controls">
-        <div class="pwr-strip" id="pwrStrip">
-            <button id="bOn" class="mech-btn pwr-on" onclick="pwr(true)">Master On</button>
-            <button id="bOff" class="mech-btn pwr-off active" onclick="pwr(false)">Master Off</button>
-        </div>
-        <div class="screen grp-c" id="scr">
-            <canvas id="scope"></canvas>
-            <div id="lowBattWarn" class="low-batt-warning">! LOW BATT !</div>
-            <div id="sys" style="height:35px; overflow-y:auto; font-size:0.55rem; opacity:0; color:var(--g); padding:2px;"></div>
-        </div>
-    </div>
-
-    <div class="speaker-grille grp-c"></div>
-
+    <!-- grp-b: OFF hidden | ON/LINKED: visible -->
     <div class="input-grid grp-b">
         <input type="number" id="ch" class="field" value="88">
         <div class="pwd-wrap">
@@ -230,11 +235,35 @@
         </div>
     </div>
 
+    <!-- grp-b: OFF hidden | ON/LINKED: visible -->
     <div class="gen-row grp-b">
         <button class="gen-btn" onclick="genPwd()">GENERATE STRONG KEY</button>
         <button class="gen-btn" onclick="copyPwd()" style="flex:0 0 auto; padding:8px 14px;">COPY</button>
     </div>
 
+    <!-- grp-b: OFF hidden | ON/LINKED: visible -->
+    <div class="conn-grid grp-b">
+        <div class="conn-btn-wrap">
+            <button id="hBtn" class="mech-btn" onclick="conn('host')">Host</button>
+            <span id="hLed" class="conn-led c-idle"></span>
+        </div>
+        <div class="conn-btn-wrap">
+            <button id="jBtn" class="mech-btn" onclick="conn('client')">Join</button>
+            <span id="jLed" class="conn-led c-idle"></span>
+        </div>
+    </div>
+
+    <!-- grp-b: OFF hidden | ON (dim yellow) | LINKED (lit yellow + log): visible -->
+    <div class="screen grp-b" id="scr">
+        <canvas id="scope"></canvas>
+        <div id="lowBattWarn" class="low-batt-warning">! LOW BATT !</div>
+        <div id="sys" style="height:35px; overflow-y:auto; font-size:0.55rem; padding:2px; opacity:0; transition:opacity 0.3s;"></div>
+    </div>
+
+    <!-- ALWAYS VISIBLE: no group class -->
+    <div class="speaker-grille" id="grille"></div>
+
+    <!-- grp-c: OFF/ON hidden | LINKED: visible -->
     <div class="action-bay grp-c">
         <div class="anc-stack">
             <div id="ancLed" class="anc-led"></div>
@@ -243,6 +272,7 @@
         <button id="ptt" class="ptt-lever">LOCKED</button>
     </div>
 
+    <!-- grp-c: OFF/ON hidden | LINKED: visible -->
     <div class="sec-panel grp-c">
         <div class="sec-title">Security Audit</div>
         <div class="sec-row"><span class="sec-item">Audio Payload</span><span class="sec-status sec-ok"><span class="sec-dot ok"></span>AES-256-GCM</span></div>
@@ -255,43 +285,21 @@
         <div class="sec-row"><span class="sec-item">Jam Protection</span><span id="secJam" class="sec-status sec-fail"><span class="sec-dot fail"></span>NONE</span></div>
     </div>
 
+    <!-- grp-c: OFF/ON hidden | LINKED: visible -->
     <div class="net-banner grp-c">
         <div class="net-title">Network Route</div>
         <div class="net-route">
-            <span id="netA" class="net-node">THIS DEVICE</span>
-            <span class="net-arrow">→</span>
-            <span id="netB" class="net-node">LOCAL NET</span>
-            <span class="net-arrow">→</span>
-            <span id="netC" class="net-node">INTERNET</span>
-            <span class="net-arrow">→</span>
-            <span id="netD" class="net-node">EMQX BROKER</span>
-            <span class="net-arrow">→</span>
-            <span id="netE" class="net-node">REMOTE NET</span>
-            <span class="net-arrow">→</span>
+            <span id="netA" class="net-node">THIS DEVICE</span><span class="net-arrow">→</span>
+            <span id="netB" class="net-node">LOCAL NET</span><span class="net-arrow">→</span>
+            <span id="netC" class="net-node">INTERNET</span><span class="net-arrow">→</span>
+            <span id="netD" class="net-node">EMQX BROKER</span><span class="net-arrow">→</span>
+            <span id="netE" class="net-node">REMOTE NET</span><span class="net-arrow">→</span>
             <span id="netF" class="net-node">PEER DEVICE</span>
         </div>
         <div class="net-note">Requires active internet on BOTH devices. Works worldwide. Distance unlimited. AES-256 encrypted in transit.</div>
     </div>
 
-    <div class="batt-module grp-b">
-        <div class="batt-row">
-            <span class="batt-label">BATT_VOLTS:</span>
-            <div class="batt-right">
-                <span id="battPct" class="batt-pct" style="color:#333">0%</span>
-                <span id="battLed" class="mini-led m-dim"></span>
-                <span id="vlt" class="val-norm" style="color:#333">0.00V</span>
-            </div>
-        </div>
-        <div class="batt-bar-wrap">
-            <div class="batt-bar-shell"><div id="battFill" class="batt-bar-fill"></div></div>
-            <div class="batt-bar-tip"></div>
-        </div>
-        <div class="charge-dock">
-            <div id="chargePort" class="charge-port" onclick="toggleCharge()"></div>
-            <button id="chargeBtn" class="charge-btn" onclick="toggleCharge()">SUPER CHARGE</button>
-        </div>
-    </div>
-
+    <!-- grp-c: OFF/ON hidden | LINKED: visible -->
     <div class="stats-footer grp-c">
         <div class="stat-line">
             <span class="stat-label">LINK_SECURE:</span>
@@ -316,10 +324,34 @@
         </div>
     </div>
 
-    <div class="official-footer grp-c">
+    <!-- grp-b: OFF hidden | ON/LINKED: visible -->
+    <div class="batt-module grp-b">
+        <div class="batt-row">
+            <span class="batt-label">CELL VOLTAGE</span>
+            <div class="batt-right">
+                <span id="battLed" class="mini-led m-dim"></span>
+                <span id="vlt" class="val-norm" style="color:#333">0.00V</span>
+                <span id="battPct" class="batt-pct" style="color:#333">0%</span>
+            </div>
+        </div>
+        <div class="batt-bar-wrap">
+            <div class="batt-bar-shell">
+                <div id="battFill" class="batt-bar-fill"></div>
+            </div>
+            <div class="batt-bar-tip"></div>
+        </div>
+        <div class="charge-dock">
+            <div id="chargePort" class="charge-port"></div>
+            <button id="chargeBtn" class="charge-btn" onclick="toggleCharge()">SUPER CHARGE</button>
+        </div>
+    </div>
+
+    <!-- ALWAYS VISIBLE: no group class -->
+    <div class="official-footer">
         <div class="footer-text">&copy; 2026 ASHRAF ALI</div>
         <div class="footer-sub">TAC/COM v12.4.1 | ENCRYPTED RELAY PROTOCOL</div>
     </div>
+
 </div>
 
 <script>
@@ -328,7 +360,6 @@ let inHPF, outHPF, outComp;
 let ancNotch50, ancNotch60, ancNotch100, ancNotch120, ancLPF, ancBPF;
 let noiseFloor = new Float32Array(64);
 let noiseFloorFilled = false, noiseGateEnvelope = 0, noiseFloorFrames = 0;
-let lastInputNode = null;
 let isTx = false, isPwr = false, isLinked = false, isAnc = false;
 let isCharging = false, isDead = false;
 let nxt = 0, rotA = 0, myRole = null, vltTimer = null, chargeTimer = null;
@@ -339,35 +370,42 @@ const BATT_MIN = 9.5, BATT_MAX = 13.2, BATT_DEAD = 10.0;
 const _tp = [97,115,104,114,97,102,95,118,49,50,95,52,95,49];
 const TP = _tp.map(c => String.fromCharCode(c)).join('');
 
-/* ═══════════════════════════════════════════
-   UI VISIBILITY LEVELS
-   off     = only power strip visible
-   on      = battery, channel, password, signal, nozzle
-   linked  = everything revealed
-   ═══════════════════════════════════════════ */
 function setUILevel(level) {
     const chassis = document.getElementById('chassis');
-    chassis.className = 'chassis' + (level === 'off' ? '' : ' s-' + level);
+    chassis.className = 'chassis' + (level === 'off' ? '' : ' s-on');
 
+    /* grp-b: hidden when OFF, visible when ON or LINKED */
     document.querySelectorAll('.grp-b').forEach(el => {
         el.style.display = (level === 'off') ? 'none' : '';
     });
+
+    /* grp-c: hidden when OFF or ON, visible only when LINKED */
     document.querySelectorAll('.grp-c').forEach(el => {
         el.style.display = (level === 'linked') ? '' : 'none';
     });
 
-    /* Power button states */
-    const bOn = document.getElementById('bOn');
-    const bOff = document.getElementById('bOff');
-    bOn.classList.toggle('active', level === 'on' || level === 'linked');
-    bOff.classList.toggle('active', level === 'off');
+    /* Power buttons */
+    document.getElementById('bOn').classList.toggle('active', level !== 'off');
+    document.getElementById('bOff').classList.toggle('active', level === 'off');
+
+    /* Screen: OFF=hidden(by grp-b), ON=dim yellow, LINKED=bright yellow */
+    const scr = document.getElementById('scr');
+    const sys = document.getElementById('sys');
+    scr.className = 'screen';
+    sys.style.color = 'var(--y)';
+
+    if (level === 'on') {
+        scr.classList.add('s-dim');
+        sys.style.opacity = '0';
+    } else if (level === 'linked') {
+        scr.classList.add('lit');
+        sys.style.color = 'var(--g)';
+        sys.style.opacity = '1';
+    }
 }
 
-function battToPercent(v) {
-    return Math.max(0, Math.min(100, ((v - BATT_MIN) / (BATT_MAX - BATT_MIN)) * 100));
-}
+function battToPercent(v) { return Math.max(0, Math.min(100, ((v - BATT_MIN) / (BATT_MAX - BATT_MIN)) * 100)); }
 
-/* ── Password Security ── */
 function checkPwd() {
     const pwd = document.getElementById('key').value;
     const el = document.getElementById('key');
@@ -376,26 +414,20 @@ function checkPwd() {
     const secPwd = document.getElementById('secPwd');
     const secJam = document.getElementById('secJam');
     el.className = 'field';
-    let score = 0;
-    if (pwd.length >= 4) score++;
-    if (pwd.length >= 8) score++;
-    if (pwd.length >= 12) score++;
-    if (pwd.length >= 20) score++;
-    if (/[A-Z]/.test(pwd)) score++;
-    if (/[0-9]/.test(pwd)) score++;
-    if (/[^A-Za-z0-9]/.test(pwd)) score++;
-    if (pwd.length >= 32) score++;
-    if (score <= 2) {
+    let s = 0;
+    if (pwd.length >= 4) s++; if (pwd.length >= 8) s++; if (pwd.length >= 12) s++; if (pwd.length >= 20) s++;
+    if (/[A-Z]/.test(pwd)) s++; if (/[0-9]/.test(pwd)) s++; if (/[^A-Za-z0-9]/.test(pwd)) s++; if (pwd.length >= 32) s++;
+    if (s <= 2) {
         el.classList.add('pwd-weak'); fill.style.width='15%'; fill.style.background='var(--r)';
         label.innerText='WEAK — CRACKABLE'; label.style.color='var(--r)';
         secPwd.className='sec-status sec-fail'; secPwd.innerHTML='<span class="sec-dot fail"></span>WEAK';
         secJam.className='sec-status sec-fail'; secJam.innerHTML='<span class="sec-dot fail"></span>NONE';
-    } else if (score <= 4) {
+    } else if (s <= 4) {
         el.classList.add('pwd-medium'); fill.style.width='40%'; fill.style.background='var(--y)';
         label.innerText='MEDIUM — SLOW CRACK'; label.style.color='var(--y)';
         secPwd.className='sec-status sec-warn'; secPwd.innerHTML='<span class="sec-dot warn"></span>MEDIUM';
         secJam.className='sec-status sec-warn'; secJam.innerHTML='<span class="sec-dot warn"></span>PARTIAL';
-    } else if (score <= 6) {
+    } else if (s <= 6) {
         el.classList.add('pwd-strong'); fill.style.width='70%'; fill.style.background='var(--g)';
         label.innerText='STRONG — SAFE'; label.style.color='var(--g)';
         secPwd.className='sec-status sec-ok'; secPwd.innerHTML='<span class="sec-dot ok"></span>STRONG';
@@ -409,180 +441,144 @@ function checkPwd() {
 }
 
 function genPwd() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*-_+=';
-    let pwd = '';
-    const arr = new Uint32Array(24);
-    crypto.getRandomValues(arr);
-    for (let i = 0; i < 24; i++) pwd += chars[arr[i] % chars.length];
-    document.getElementById('key').value = pwd;
+    const c = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*-_+=';
+    let p = ''; const a = new Uint32Array(24); crypto.getRandomValues(a);
+    for (let i = 0; i < 24; i++) p += c[a[i] % c.length];
+    document.getElementById('key').value = p;
     document.getElementById('key').type = 'text';
     setTimeout(() => { document.getElementById('key').type = 'password'; }, 3000);
-    checkPwd();
-    log('KEY:GENERATED_24CHAR');
+    checkPwd(); log('KEY:GENERATED_24CHAR');
 }
 
 function copyPwd() {
     if (navigator.clipboard) navigator.clipboard.writeText(document.getElementById('key').value).then(() => log('KEY:COPIED'));
 }
 
-/* ── Nozzle ── */
 function handleNoz(e) {
     if (!isPwr || mc) return;
-    const r = e.target.getBoundingClientRect();
-    const cin = document.getElementById('ch');
+    const r = e.target.getBoundingClientRect(), cin = document.getElementById('ch');
     if ((e.clientX - r.left) > (r.width / 2)) { rotA += 30; cin.value = parseInt(cin.value||0)+1; log("FREQ_INC"); }
     else { rotA -= 30; cin.value = parseInt(cin.value||0)-1; log("FREQ_DEC"); }
     document.getElementById('nozzle').style.transform = `rotate(${rotA}deg)`;
 }
 
-/* ── UI State ── */
 function updateUI(mode) {
-    const rf = document.getElementById('rfSt'), led = document.getElementById('led');
-    const rssi = document.getElementById('rssi'), ll = document.getElementById('linkLed');
-    rf.className='val-norm'; led.className='status-led'; rssi.className='sig-bars grp-b'; ll.className='mini-led';
-    if (!isPwr || isDead) { ll.classList.add('m-dim'); updateNetRoute('off'); return; }
-    if (mode === 'idle') {
-        rf.innerText='OFFLINE'; rf.style.color='var(--r)';
-        led.classList.add('led-red'); rssi.classList.add('sig-red'); ll.classList.add('m-dim');
-        updateNetRoute('off');
-    } else if (mode === 'waiting') {
-        rf.innerText='STANDBY'; rf.style.color='var(--y)';
-        led.classList.add('led-orange'); rssi.classList.add('sig-orange'); ll.classList.add('m-orange');
-        updateNetRoute('connecting');
-    } else if (mode === 'connected') {
-        rf.innerText='LINKED'; rf.style.color='var(--g)';
-        led.classList.add('led-green'); rssi.classList.add('sig-green'); ll.classList.add('m-green');
-        updateNetRoute('linked');
-    }
+    const rf=document.getElementById('rfSt'),led=document.getElementById('led');
+    const rssi=document.getElementById('rssi'),ll=document.getElementById('linkLed');
+    rf.className='val-norm';led.className='status-led';rssi.className='sig-bars';ll.className='mini-led';
+    if(!isPwr||isDead){ll.classList.add('m-dim');updateNetRoute('off');return;}
+    if(mode==='idle'){rf.innerText='OFFLINE';rf.style.color='var(--r)';led.classList.add('led-red');rssi.classList.add('sig-red');ll.classList.add('m-dim');updateNetRoute('off');}
+    else if(mode==='waiting'){rf.innerText='STANDBY';rf.style.color='var(--y)';led.classList.add('led-orange');rssi.classList.add('sig-orange');ll.classList.add('m-orange');updateNetRoute('connecting');}
+    else if(mode==='connected'){rf.innerText='LINKED';rf.style.color='var(--g)';led.classList.add('led-green');rssi.classList.add('sig-green');ll.classList.add('m-green');updateNetRoute('linked');}
 }
 
-function updateNetRoute(state) {
-    const ids = ['netA','netB','netC','netD','netE','netF'];
-    ids.forEach(id => document.getElementById(id).classList.remove('active'));
-    if (state === 'connecting') ['netA','netB','netC','netD'].forEach(id => document.getElementById(id).classList.add('active'));
-    else if (state === 'linked') ids.forEach(id => document.getElementById(id).classList.add('active'));
+function updateNetRoute(state){
+    const ids=['netA','netB','netC','netD','netE','netF'];
+    ids.forEach(id=>document.getElementById(id).classList.remove('active'));
+    if(state==='connecting')['netA','netB','netC','netD'].forEach(id=>document.getElementById(id).classList.add('active'));
+    else if(state==='linked') ids.forEach(id=>document.getElementById(id).classList.add('active'));
 }
 
-/* ── Battery ── */
-function updateBattDisplay(v) {
-    const el=document.getElementById('vlt'), bl=document.getElementById('battLed');
-    const pct=document.getElementById('battPct'), fill=document.getElementById('battFill');
-    const warn=document.getElementById('lowBattWarn');
-    const percent = battToPercent(v);
-    el.innerText=v.toFixed(2)+'V'; pct.innerText=Math.round(percent)+'%';
-    fill.style.width=percent+'%'; bl.className='mini-led'; fill.className='batt-bar-fill';
-    if (isCharging) {
-        bl.classList.add('m-charge'); fill.classList.add('f-charge');
-        pct.style.color='#00ff88'; el.style.color='#00ff88'; warn.classList.remove('active'); return;
-    }
-    if (v>=12.0) { bl.classList.add('m-green'); fill.classList.add('f-green'); pct.style.color='var(--g)'; el.style.color='var(--g)'; warn.classList.remove('active'); lowBattWarned=critBattWarned=deadBattWarned=false; }
-    else if (v>=11.5) { bl.classList.add('m-yellow'); fill.classList.add('f-yellow'); pct.style.color='var(--y)'; el.style.color='var(--y)'; warn.classList.remove('active'); lowBattWarned=critBattWarned=deadBattWarned=false; }
-    else if (v>=11.0) { bl.classList.add('m-orange'); fill.classList.add('f-orange'); pct.style.color='#ff8800'; el.style.color='#ff8800'; warn.classList.remove('active'); if(!lowBattWarned){lowBattWarned=true;log('WARN:BATT_LOW');} }
-    else if (v>=BATT_DEAD) { bl.classList.add('m-red'); fill.classList.add('f-red'); pct.style.color='var(--r)'; el.style.color='var(--r)'; warn.classList.add('active'); if(!critBattWarned){critBattWarned=true;log('CRIT:BATT_CRITICAL');} }
-    else { bl.classList.add('m-red'); fill.classList.add('f-red'); pct.style.color='var(--r)'; el.style.color='var(--r)'; warn.classList.add('active'); if(!deadBattWarned){deadBattWarned=true;log('FATAL:BATT_DEAD');triggerDead();} }
+function setConnLed(id,state){document.getElementById(id).className='conn-led c-'+state;}
+
+function updateBattDisplay(v){
+    const el=document.getElementById('vlt'),bl=document.getElementById('battLed');
+    const pct=document.getElementById('battPct'),fill=document.getElementById('battFill'),warn=document.getElementById('lowBattWarn');
+    const p=battToPercent(v);
+    el.innerText=v.toFixed(2)+'V';pct.innerText=Math.round(p)+'%';
+    fill.style.width=p+'%';bl.className='mini-led';fill.className='batt-bar-fill';
+    if(isCharging){bl.classList.add('m-charge');fill.classList.add('f-charge');pct.style.color='#00ff88';el.style.color='#00ff88';warn.classList.remove('active');return;}
+    if(v>=12.0){bl.classList.add('m-green');fill.classList.add('f-green');pct.style.color='var(--g)';el.style.color='var(--g)';warn.classList.remove('active');lowBattWarned=critBattWarned=deadBattWarned=false;}
+    else if(v>=11.5){bl.classList.add('m-yellow');fill.classList.add('f-yellow');pct.style.color='var(--y)';el.style.color='var(--y)';warn.classList.remove('active');lowBattWarned=critBattWarned=deadBattWarned=false;}
+    else if(v>=11.0){bl.classList.add('m-orange');fill.classList.add('f-orange');pct.style.color='#ff8800';el.style.color='#ff8800';warn.classList.remove('active');if(!lowBattWarned){lowBattWarned=true;log('WARN:BATT_LOW');}}
+    else if(v>=BATT_DEAD){bl.classList.add('m-red');fill.classList.add('f-red');pct.style.color='var(--r)';el.style.color='var(--r)';warn.classList.add('active');if(!critBattWarned){critBattWarned=true;log('CRIT:BATT_CRITICAL');}}
+    else{bl.classList.add('m-red');fill.classList.add('f-red');pct.style.color='var(--r)';el.style.color='var(--r)';warn.classList.add('active');if(!deadBattWarned){deadBattWarned=true;log('FATAL:BATT_DEAD');triggerDead();}}
 }
 
-function triggerDead() {
-    isDead=true; isTx=false;
+function triggerDead(){
+    isDead=true;isTx=false;
     if(chargeTimer){clearInterval(chargeTimer);chargeTimer=null;}
-    const ptt=document.getElementById('ptt');
-    ptt.innerText='NO POWER'; ptt.className='ptt-lever dead';
-    ptt.onmousedown=null; ptt.onmouseup=null; ptt.onmouseleave=null;
-    ptt.ontouchstart=null; ptt.ontouchend=null; ptt.ontouchcancel=null;
-    updateUI('idle'); log('SYS_SHUTDOWN');
+    const ptt=document.getElementById('ptt');ptt.innerText='NO POWER';ptt.className='ptt-lever dead';
+    ptt.onmousedown=null;ptt.onmouseup=null;ptt.onmouseleave=null;
+    ptt.ontouchstart=null;ptt.ontouchend=null;ptt.ontouchcancel=null;
+    updateUI('idle');log('SYS_SHUTDOWN');
 }
 
-function recoverFromDead() {
-    isDead=false; deadBattWarned=false; critBattWarned=false;
+function recoverFromDead(){
+    isDead=false;deadBattWarned=false;critBattWarned=false;
     if(isLinked){unlockPTT();updateUI('connected');}
     else if(mc&&mc.connected){waitPTT('WAITING '+(myRole==='host'?'CLIENT':'HOST').toUpperCase());updateUI('waiting');}
     else{lockPTT('LOCKED');updateUI('idle');}
     log('SYS_RECOVER');
 }
 
-/* ── Super Charge ── */
-function toggleCharge() {
+function toggleCharge(){
     if(!isPwr)return;
     if(isCharging){
-        isCharging=false;
-        if(chargeTimer){clearInterval(chargeTimer);chargeTimer=null;}
+        isCharging=false;if(chargeTimer){clearInterval(chargeTimer);chargeTimer=null;}
         document.getElementById('chargeBtn').innerText='SUPER CHARGE';
         document.getElementById('chargeBtn').classList.remove('charging');
         document.getElementById('chargePort').classList.remove('charging');
-        log('CHARGE_STOP');
-        if(isDead&&battLevel>=BATT_DEAD+0.5)recoverFromDead();
+        log('CHARGE_STOP');if(isDead&&battLevel>=BATT_DEAD+0.5)recoverFromDead();
         updateBattDisplay(battLevel);return;
     }
     if(battLevel>=BATT_MAX-0.1){log('CHARGE:BATT_FULL');return;}
-    isCharging=true; isTx=false;
+    isCharging=true;isTx=false;
     document.getElementById('chargeBtn').innerText='CHARGING...';
     document.getElementById('chargeBtn').classList.add('charging');
     document.getElementById('chargePort').classList.add('charging');
     if(isLinked){const ptt=document.getElementById('ptt');ptt.innerText='CHARGING';ptt.className='ptt-lever waiting';ptt.onmousedown=null;ptt.onmouseup=null;ptt.onmouseleave=null;ptt.ontouchstart=null;ptt.ontouchend=null;ptt.ontouchcancel=null;}
     log('CHARGE:SUPER_ON');
     chargeTimer=setInterval(()=>{
-        if(!isCharging)return;
-        battLevel+=0.12+Math.random()*0.06;
+        if(!isCharging)return;battLevel+=0.12+Math.random()*0.06;
         if(isDead&&battLevel>=BATT_DEAD+0.5)recoverFromDead();
-        if(battLevel>=BATT_MAX){
-            battLevel=BATT_MAX; isCharging=false;
+        if(battLevel>=BATT_MAX){battLevel=BATT_MAX;isCharging=false;
             if(chargeTimer){clearInterval(chargeTimer);chargeTimer=null;}
             document.getElementById('chargeBtn').innerText='FULL';
             document.getElementById('chargeBtn').classList.remove('charging');
             document.getElementById('chargeBtn').classList.add('full');
             document.getElementById('chargePort').classList.remove('charging');
-            log('CHARGE:FULL');
-            if(isLinked)unlockPTT();
+            log('CHARGE:FULL');if(isLinked)unlockPTT();
             setTimeout(()=>{document.getElementById('chargeBtn').innerText='SUPER CHARGE';document.getElementById('chargeBtn').classList.remove('full');},2000);
         }
         updateBattDisplay(battLevel);
     },300);
 }
 
-/* ── PTT State ── */
-function lockPTT(label){if(isDead)return;const p=document.getElementById('ptt');p.innerText=label||'LOCKED';p.className='ptt-lever';p.onmousedown=null;p.onmouseup=null;p.onmouseleave=null;p.ontouchstart=null;p.ontouchend=null;p.ontouchcancel=null;}
-function waitPTT(label){if(isDead)return;const p=document.getElementById('ptt');p.innerText=label||'WAITING...';p.className='ptt-lever waiting';p.onmousedown=null;p.onmouseup=null;p.onmouseleave=null;p.ontouchstart=null;p.ontouchend=null;p.ontouchcancel=null;}
+function lockPTT(l){if(isDead)return;const p=document.getElementById('ptt');p.innerText=l||'LOCKED';p.className='ptt-lever';p.onmousedown=null;p.onmouseup=null;p.onmouseleave=null;p.ontouchstart=null;p.ontouchend=null;p.ontouchcancel=null;}
+function waitPTT(l){if(isDead)return;const p=document.getElementById('ptt');p.innerText=l||'WAITING...';p.className='ptt-lever waiting';p.onmousedown=null;p.onmouseup=null;p.onmouseleave=null;p.ontouchstart=null;p.ontouchend=null;p.ontouchcancel=null;}
 function unlockPTT(){if(isDead||isCharging)return;const p=document.getElementById('ptt');p.innerText='PUSH TO TALK';p.className='ptt-lever unlocked ready';p.onmousedown=pttDown;p.onmouseup=pttUp;p.onmouseleave=pttUp;p.ontouchstart=pttDown;p.ontouchend=pttUp;p.ontouchcancel=pttUp;}
 
-/* ── Power ── */
-function pwr(s) {
-    isPwr = s;
-    if (s) {
+function pwr(s){
+    isPwr=s;
+    if(s){
         setUILevel('on');
-        document.getElementById('scr').classList.add('lit');
-        document.getElementById('sys').style.opacity = '1';
-        updateUI('idle'); checkPwd();
-        log('FIELD_OS_BOOT_v12.4.1');
-        log('CIPHER:AES-256-GCM');
-        log('KEY_DER:PBKDF2_10K');
-        battLevel = 12.4;
-        lowBattWarned=critBattWarned=deadBattWarned=false;
-        isDead=false; isCharging=false;
+        updateUI('idle');checkPwd();
+        log('FIELD_OS_BOOT_v12.4.1');log('CIPHER:AES-256-GCM');
+        battLevel=12.4;
+        lowBattWarned=critBattWarned=deadBattWarned=false;isDead=false;isCharging=false;
         if(vltTimer)clearInterval(vltTimer);
         vltTimer=setInterval(()=>{
             if(!isPwr||isCharging||isDead)return;
             let d=0.002+Math.random()*0.002;
-            if(isTx)d+=0.012; if(isLinked)d+=0.003; if(isAnc)d+=0.005;
-            battLevel-=d; if(battLevel<BATT_MIN)battLevel=BATT_MIN;
+            if(isTx)d+=0.012;if(isLinked)d+=0.003;if(isAnc)d+=0.005;
+            battLevel-=d;if(battLevel<BATT_MIN)battLevel=BATT_MIN;
             updateBattDisplay(battLevel);
         },3000);
         updateBattDisplay(battLevel);
     } else {
         setUILevel('off');
-        teardown();
-        location.reload();
+        teardown();location.reload();
     }
 }
 
-/* ── ANC ── */
-function toggleAnc() {
-    if(!isPwr||isDead)return;
-    isAnc=!isAnc;
-    const b=document.getElementById('ancBtn'), al=document.getElementById('ancLed');
+function toggleAnc(){
+    if(!isPwr||isDead)return;isAnc=!isAnc;
+    const b=document.getElementById('ancBtn'),al=document.getElementById('ancLed');
     if(isAnc){b.innerText='ANC ON';b.classList.add('on');if(!ancNotch50)buildAncFilters();reconnectAudioChain(true);al.className='anc-led led-anc-active';log('ANC:FILT_CHAIN_ON');log('ANC:SPECTRAL_GATE_ON');}
     else{b.innerText='ANC OFF';b.classList.remove('on');reconnectAudioChain(false);al.className='anc-led';log('ANC:FILT_CHAIN_OFF');}
 }
-function buildAncFilters() {
+function buildAncFilters(){
     ancNotch50=actx.createBiquadFilter();ancNotch50.type='notch';ancNotch50.frequency.value=50;ancNotch50.Q.value=30;
     ancNotch60=actx.createBiquadFilter();ancNotch60.type='notch';ancNotch60.frequency.value=60;ancNotch60.Q.value=30;
     ancNotch100=actx.createBiquadFilter();ancNotch100.type='notch';ancNotch100.frequency.value=100;ancNotch100.Q.value=30;
@@ -591,25 +587,29 @@ function buildAncFilters() {
     ancBPF=actx.createBiquadFilter();ancBPF.type='bandpass';ancBPF.frequency.value=1200;ancBPF.Q.value=0.5;
     ancNotch50.connect(ancNotch60);ancNotch60.connect(ancNotch100);ancNotch100.connect(ancNotch120);ancNotch120.connect(ancLPF);ancLPF.connect(ancBPF);
 }
-function reconnectAudioChain(useAnc) {
-    if(!actx||!mic)return;
-    const src=actx.createMediaStreamSource(mic);
-    try{inHPF.disconnect();}catch(e){}
-    if(ana){try{ana.disconnect();}catch(e){}}
+function reconnectAudioChain(useAnc){
+    if(!actx||!mic)return;const src=actx.createMediaStreamSource(mic);
+    try{inHPF.disconnect();}catch(e){}if(ana){try{ana.disconnect();}catch(e){}}
     if(useAnc&&ancBPF){src.connect(inHPF);inHPF.connect(ancNotch50);ancBPF.connect(ana);}
     else{src.connect(inHPF);inHPF.connect(ana);}
     ana.connect(ana._proc);ana._proc.connect(actx.destination);
 }
-function applySpectralNoiseGate(samples) {
+function applySpectralNoiseGate(samples){
     if(!noiseFloorFilled){for(let i=0;i<samples.length;i++){const idx=i%noiseFloor.length;noiseFloor[idx]=noiseFloor[idx]*0.7+Math.abs(samples[i])*0.3;}noiseFloorFrames++;if(noiseFloorFrames>20){noiseFloorFilled=true;log('ANC:NOISE_FLOOR_SET');}return samples;}
     let fe=0;for(let i=0;i<samples.length;i++){const a=Math.abs(samples[i]),idx=i%noiseFloor.length,t=noiseFloor[idx]*2.5;fe+=a;if(a<t){noiseGateEnvelope*=0.999;samples[i]*=noiseGateEnvelope*0.15;}else{noiseGateEnvelope=noiseGateEnvelope*0.9+0.1;}}
     if(fe/samples.length<noiseFloor[0]*1.5){for(let i=0;i<samples.length;i++){const idx=i%noiseFloor.length;noiseFloor[idx]=noiseFloor[idx]*0.995+Math.abs(samples[i])*0.005;}}
     return samples;
 }
 
-function log(m){const el=document.getElementById('sys');const d=document.createElement('div');d.innerText='> '+m;el.appendChild(d);el.scrollTop=el.scrollHeight;while(el.childElementCount>30)el.removeChild(el.firstChild);}
+function log(m){
+    const el=document.getElementById('sys');
+    if(!el) return;
+    const d=document.createElement('div');d.innerText='> '+m;
+    el.appendChild(d);el.scrollTop=el.scrollHeight;
+    while(el.childElementCount>30)el.removeChild(el.firstChild);
+}
 
-function teardown() {
+function teardown(){
     isTx=false;isLinked=false;myRole=null;
     if(connTimeout){clearTimeout(connTimeout);connTimeout=null;}
     if(heartbeatTimer){clearInterval(heartbeatTimer);heartbeatTimer=null;}
@@ -630,16 +630,16 @@ function unlockInputs(){document.getElementById('ch').classList.remove('locked')
 function pttDown(e){if(!isLinked||isDead||isCharging)return;e.preventDefault();isTx=true;const p=document.getElementById('ptt');p.classList.add('tx');p.innerText='TX';}
 function pttUp(e){if(!isLinked)return;e.preventDefault();isTx=false;const p=document.getElementById('ptt');p.classList.remove('tx');p.innerText='PUSH TO TALK';}
 
-/* ── Background ── */
 const bcvs=document.getElementById('scannerCanvas'),bctx=bcvs.getContext('2d');
 let bgCols=[];
 function initBg(){bcvs.width=window.innerWidth;bcvs.height=window.innerHeight;bgCols=new Array(Math.floor(bcvs.width/20)).fill(0).map(()=>Math.random()*bcvs.height);}
 window.onresize=initBg;initBg();
+
 function draw(){
     bctx.fillStyle='rgba(0,0,0,0.1)';bctx.fillRect(0,0,bcvs.width,bcvs.height);
     bctx.font='12px monospace';bctx.fillStyle='#010';
     bgCols.forEach((y,i)=>{bctx.fillText(Math.random()>0.8?'1':'0',i*20,y);bgCols[i]=y>bcvs.height?0:y+10;});
-    if(ana&&isPwr){
+    if(ana&&isPwr&&isLinked){
         const scvs=document.getElementById('scope'),sctx=scvs.getContext('2d');
         const data=new Uint8Array(ana.frequencyBinCount);ana.getByteTimeDomainData(data);
         let sum=0;for(let i=0;i<data.length;i++)sum+=Math.abs(data[i]-128);
@@ -655,16 +655,28 @@ function draw(){
 }
 draw();
 
-/* ══════════════════════════════════════════
-   CONNECTION ENGINE
-   ══════════════════════════════════════════ */
-function startHeartbeat(){const t=TP+document.getElementById('ch').value+'/'+myRole+'_ping';heartbeatTimer=setInterval(()=>{if(mc&&mc.connected)mc.publish(t,'1',{qos:0});},3000);}
-function resetPeerTimeout(){if(peerTimeout)clearTimeout(peerTimeout);peerTimeout=setTimeout(()=>{if(isLinked){isLinked=false;isTx=false;log('PEER_LOST');setUILevel('on');lockPTT('LOCKED');unlockInputs();updateUI('idle');if(mc&&mc.connected)mc.unsubscribe(TP+document.getElementById('ch').value+'/'+(myRole==='host'?'client':'host')+'_audio');}},8000);}
+function startHeartbeat(){
+    const t=TP+document.getElementById('ch').value+'/'+myRole+'_ping';
+    heartbeatTimer=setInterval(()=>{if(mc&&mc.connected)mc.publish(t,'1',{qos:0});},3000);
+}
+
+function resetPeerTimeout(){
+    if(peerTimeout)clearTimeout(peerTimeout);
+    peerTimeout=setTimeout(()=>{
+        if(isLinked){
+            isLinked=false;isTx=false;log('PEER_LOST');
+            setConnLed(myRole==='host'?'hLed':'jLed','fail');
+            setUILevel('on');lockPTT('LOCKED');unlockInputs();updateUI('idle');
+            if(mc&&mc.connected)mc.unsubscribe(TP+document.getElementById('ch').value+'/'+(myRole==='host'?'client':'host')+'_audio');
+        }
+    },8000);
+}
+
 function onPeerFound(){
     if(isLinked){resetPeerTimeout();return;}
     isLinked=true;resetPeerTimeout();
-    /* REVEAL everything */
     setUILevel('linked');
+    setConnLed(myRole==='host'?'hLed':'jLed','ok');
     const ch=document.getElementById('ch').value;
     const pt=TP+ch+'/'+(myRole==='host'?'client':'host')+'_audio';
     mc.subscribe(pt,{qos:0},(err)=>{if(err)log('AUDIO_SUB_FAIL');else log('RX:'+pt);});
@@ -673,7 +685,7 @@ function onPeerFound(){
     log('HANDSHAKE_OK');log('CH_'+ch+'_ENCRYPTED');
 }
 
-async function conn(role) {
+async function conn(role){
     if(!isPwr||mc||isDead)return;
     myRole=role;
     const chVal=document.getElementById('ch').value;
@@ -682,10 +694,13 @@ async function conn(role) {
     const peerPing=TP+chVal+'/'+peerRole+'_ping';
     const pwd=document.getElementById('key').value;
     if(pwd.length<4){log('SEC_ERR:KEY_MIN_4');return;}
+    setConnLed(role==='host'?'hLed':'jLed','active');
     lockInputs();waitPTT('SYNCING...');updateUI('waiting');
     log('INIT_'+role.toUpperCase());log('KEY_LEN:'+pwd.length);
-    connTimeout=setTimeout(()=>{if(!isLinked){log('TIMEOUT');teardown();setUILevel('on');updateUI('idle');}},15000);
-    try {
+    connTimeout=setTimeout(()=>{
+        if(!isLinked){log('TIMEOUT');setConnLed(role==='host'?'hLed':'jLed','fail');teardown();setUILevel('on');updateUI('idle');}
+    },15000);
+    try{
         log('REQ_MIC...');
         mic=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:false,autoGainControl:true,channelCount:1,sampleRate:{ideal:16000}}});
         log('MIC_OK');
@@ -707,17 +722,15 @@ async function conn(role) {
         const enc=new TextEncoder();
         const km=await crypto.subtle.importKey('raw',enc.encode(pwd),'PBKDF2',false,['deriveKey']);
         ck=await crypto.subtle.deriveKey({name:'PBKDF2',salt:enc.encode('TACCOM_v12_SECURE_SALT'),iterations:10000,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
-        log('CIPHER:KEY_READY');
-        log('BROKER:TLS_CONNECT...');
+        log('CIPHER:KEY_READY');log('BROKER:TLS_CONNECT...');
         mc=mqtt.connect('wss://broker.emqx.io:8084/mqtt',{connectTimeout:8000,reconnectPeriod:3000,clientId:'tac_'+role+'_'+Math.random().toString(36).slice(2,8)});
         mc.on('connect',()=>{
             if(connTimeout){clearTimeout(connTimeout);connTimeout=null;}
             log('BROKER:TLS_OK');
             mc.subscribe(peerPing,{qos:0},(err)=>{
-                if(err){log('SUB_FAIL');return;}
+                if(err){log('SUB_FAIL');setConnLed(role==='host'?'hLed':'jLed','fail');return;}
                 log('SCAN:'+peerPing);
-                mc.publish(myPing,'1',{qos:0});
-                log('ANN:'+myPing);
+                mc.publish(myPing,'1',{qos:0});log('ANN:'+myPing);
                 startHeartbeat();
                 waitPTT('WAITING '+peerRole.toUpperCase());
             });
@@ -727,28 +740,33 @@ async function conn(role) {
         mc.on('close',()=>{
             log('BROKER_DOWN');isLinked=false;isTx=false;
             if(heartbeatTimer){clearInterval(heartbeatTimer);heartbeatTimer=null;}
-            /* Hide linked-only UI, show basic ON UI */
-            setUILevel('on');
-            waitPTT('RECONNECTING');updateUI('waiting');
+            setConnLed(role==='host'?'hLed':'jLed','fail');
+            setUILevel('on');waitPTT('RECONNECTING');updateUI('waiting');
         });
         mc.on('reconnect',()=>{log('RELINK...');});
         mc.on('reconnect_success',()=>{
             log('RELINK_OK');
             if(myRole){const ch2=document.getElementById('ch').value;const pr=myRole==='host'?'client':'host';mc.subscribe(TP+ch2+'/'+pr+'_ping',{qos:0});mc.publish(TP+ch2+'/'+myRole+'_ping','1',{qos:0});if(!isLinked)waitPTT('WAITING '+pr.toUpperCase());}
         });
-    } catch(err) {
+    } catch(err){
         if(connTimeout){clearTimeout(connTimeout);connTimeout=null;}
         log('FAIL:'+(err.name||err.message||'ERR'));
+        setConnLed(role==='host'?'hLed':'jLed','fail');
         teardown();setUILevel('on');updateUI('idle');
     }
 }
 
 async function handleAudio(payload){if(!isLinked)return;try{if(payload.length<13)return;const iv=payload.slice(0,12);const dec=await crypto.subtle.decrypt({name:'AES-GCM',iv:iv},ck,payload.slice(12));playAudio(dec);}catch(e){}}
 async function transmit(samples,ch,role){
-    try{const i16=new Int16Array(samples.length);for(let i=0;i<samples.length;i++){const s=Math.max(-1,Math.min(1,samples[i]));i16[i]=s<0?s*32768:s*32767;}
-    const iv=crypto.getRandomValues(new Uint8Array(12));const enc=await crypto.subtle.encrypt({name:'AES-GCM',iv:iv},ck,i16.buffer);
-    const pkt=new Uint8Array(12+enc.byteLength);pkt.set(iv,0);pkt.set(new Uint8Array(enc),12);mc.publish(TP+ch+'/'+role+'_audio',pkt,{qos:0});}catch(e){}
+    try{
+        const i16=new Int16Array(samples.length);
+        for(let i=0;i<samples.length;i++){const s=Math.max(-1,Math.min(1,samples[i]));i16[i]=s<0?s*32768:s*32767;}
+        const iv=crypto.getRandomValues(new Uint8Array(12));
+        const enc=await crypto.subtle.encrypt({name:'AES-GCM',iv:iv},ck,i16.buffer);
+        const pkt=new Uint8Array(12+enc.byteLength);pkt.set(iv,0);pkt.set(new Uint8Array(enc),12);mc.publish(TP+ch+'/'+role+'_audio',pkt,{qos:0});
+    }catch(e){}
 }
+
 function playAudio(rawBuffer){
     if(!actx||actx.state==='closed')return;if(actx.state==='suspended')actx.resume();
     const i16=new Int16Array(rawBuffer);const f32=new Float32Array(i16.length);
@@ -759,7 +777,6 @@ function playAudio(rawBuffer){
     const startAt=Math.max(now+0.005,nxt);src.start(startAt);nxt=startAt+buf.duration;
 }
 
-/* ── Initialize: OFF state ── */
 setUILevel('off');
 checkPwd();
 </script>
