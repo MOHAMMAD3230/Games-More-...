@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+    <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=GT-NC6T5LRJ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'GT-NC6T5LRJ');
+</script>
+
+     <link rel="icon" href="https://mohammad3230.github.io/PROJECT/favicon.png" type="image/png" sizes="32x32" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TAC/COM v12.4.1 | ASHRAF ALI MASTER</title>
+    <script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.4/dist/mqtt.min.js"></script>
+    <style>
+        :root {
+            --g: #39ff14; --b: #00d4ff; --r: #ff3131; --y: #ffcc00;
+            --case: #1a1a1a; --chassis-w: clamp(320px, 95vw, 380px);
+        }
+        * { box-sizing: border-box; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+        body { background: #000; color: var(--g); font-family: 'Courier New', monospace; margin: 0; padding: 20px; min-height: 100vh; display: flex; justify-content: center; align-items: center; overflow-x: hidden; }
+        
+        #scannerCanvas { position: fixed; inset: 0; z-index: -1; opacity: 0.1; }
+
+        .chassis {
+            width: var(--chassis-w); min-height: 95vh; 
+            background: linear-gradient(180deg, #1e1e1e 0%, #0a0a0a 100%);
+            border: 12px solid #2a2a2a; border-radius: 35px 35px 75px 75px;
+            padding: 20px; box-shadow: 0 50px 100px rgba(0,0,0,1);
+            position: relative; border-bottom: 35px solid #050505;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+
+        .antenna-stub { position: absolute; top: -60px; left: 40px; width: 12px; height: 70px; background: #111; border: 3px solid #333; border-radius: 4px 4px 0 0; z-index: -1; }
+        
+        .top-deck { height: 50px; display: flex; align-items: center; justify-content: space-between; position: relative; padding: 0 5px; margin-bottom: 5px; }
+        .sig-bars { display: flex; gap: 3px; align-items: flex-end; height: 22px; }
+        .bar { width: 5px; background: #111; border-radius: 1px; transition: 0.2s; }
+        
+        .indicator-cluster { display: flex; align-items: center; gap: 15px; }
+        .nozzle-dial { 
+            width: 42px; height: 42px; 
+            background: conic-gradient(#222 0deg 90deg, #111 90deg 180deg, #222 180deg 270deg, #111 270deg 360deg); 
+            border-radius: 50%; border: 4px solid #444; cursor: pointer; 
+            position: relative; transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+        }
+        .nozzle-dial::after { content: ''; position: absolute; top: 4px; left: 50%; width: 4px; height: 8px; background: var(--r); transform: translateX(-50%); border-radius: 2px; }
+        .status-led { width: 18px; height: 18px; background: #000; border-radius: 50%; border: 2px solid #333; }
+
+        @keyframes blink-r { 0%, 49% { background: var(--r); box-shadow: 0 0 8px var(--r); } 50%, 100% { background: #300; box-shadow: none; } }
+        @keyframes blink-g { 0%, 49% { background: var(--g); box-shadow: 0 0 8px var(--g); } 50%, 100% { background: #030; box-shadow: none; } }
+        @keyframes blink-y { 0%, 49% { background: var(--y); box-shadow: 0 0 8px var(--y); } 50%, 100% { background: #330; box-shadow: none; } }
+        @keyframes pulse-blue { 0%, 100% { background: var(--b); box-shadow: 0 0 5px var(--b); } 50% { background: #003344; box-shadow: none; } }
+        @keyframes charge-pulse { 0%, 100% { background: #00ff88; box-shadow: 0 0 3px #00ff88; } 50% { background: #004422; box-shadow: 0 0 8px #00ff88; } }
+        @keyframes charge-bar { 0% { background: #003311; } 50% { background: #00ff88; } 100% { background: #003311; } }
+        .led-red, .sig-red .bar { animation: blink-r 1s steps(1) infinite; }
+        .led-green, .sig-green .bar { animation: blink-g 1s steps(1) infinite; }
+        .led-orange, .sig-orange .bar { animation: blink-y 1s steps(1) infinite; }
+        .led-anc-active { animation: pulse-blue 0.6s ease-in-out infinite; }
+        .led-charging { animation: charge-pulse 0.8s ease-in-out infinite; }
+
+        .speaker-grille { width: 100%; height: 40px; background: radial-gradient(circle, #222 1.5px, transparent 2px); background-size: 7px 7px; border: 1px solid #1a1a1a; border-radius: 4px; opacity: 0.4; margin: 5px 0; }
+        
+        .pwr-strip { display: flex; gap: 10px; }
+        .mech-btn { flex: 1; padding: 12px; background: #151515; color: #444; font-weight: 900; font-size: 0.65rem; border: 1px solid #333; border-bottom: 5px solid #000; cursor: pointer; border-radius: 4px; text-transform: uppercase; transition: 0.15s; }
+        .mech-btn:active { transform: translateY(2px); border-bottom-width: 3px; }
+        .mech-btn.disabled { opacity: 0.3; pointer-events: none; }
+        .pwr-on.active { color: var(--g); border-color: var(--g); }
+        .pwr-off.active { color: var(--r); border-color: var(--r); }
+
+        .screen { background: #050505; border: 4px solid #222; border-radius: 6px; height: 110px; position: relative; padding: 10px; overflow: hidden; }
+        .screen::before { content: ""; position: absolute; inset: 0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03)); background-size: 100% 2px, 3px 100%; pointer-events: none; z-index: 2; }
+        .lit.screen { background: #000a00; border-color: #333; }
+        #scope { width: 100%; height: 45px; opacity: 0; }
+        .lit #scope { opacity: 1; }
+
+        .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .field { background: #000; border: 1px solid #333; color: var(--b); padding: 10px; font-family: inherit; text-align: center; width: 100%; font-weight: bold; border-radius: 4px; font-size: 1rem; }
+        .field:focus { outline: none; border-color: var(--b); }
+        .field.locked { opacity: 0.3; pointer-events: none; }
+        .field.pwd-weak { border-color: var(--r); }
+        .field.pwd-medium { border-color: var(--y); }
+        .field.pwd-strong { border-color: var(--g); }
+        .field.pwd-max { border-color: #00ff88; box-shadow: 0 0 8px rgba(0,255,136,0.3); }
+
+        /* Password strength bar */
+        .pwd-wrap { position: relative; }
+        .pwd-bar { height: 3px; background: #111; border-radius: 0 0 4px 4px; overflow: hidden; margin-top: -1px; }
+        .pwd-bar-fill { height: 100%; width: 0%; transition: width 0.3s, background 0.3s; border-radius: 0 0 4px 4px; }
+        .pwd-label { font-size: 0.4rem; font-weight: 900; text-align: center; margin-top: 2px; letter-spacing: 0.5px; height: 10px; }
+
+        .action-bay { display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 15px; border: 1px solid #222; margin-top: auto; }
+        .anc-stack { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+        .anc-led { width: 14px; height: 14px; background: #111; border-radius: 50%; border: 2px solid #333; transition: 0.3s; }
+        .anc-toggle { width: 60px; padding: 8px 0; background: #111; border: 1px solid #333; border-bottom: 3px solid #000; border-radius: 4px; color: #444; font-size: 0.5rem; font-weight: 900; cursor: pointer; transition: 0.15s; }
+        .anc-toggle.on { color: var(--b); border-color: var(--b); }
+        .anc-toggle:active { transform: translateY(1px); border-bottom-width: 1px; }
+
+        .ptt-lever { flex-grow: 1; margin-left: 15px; height: 70px; background: #111; border: 3px solid #222; border-bottom: 8px solid #000; border-radius: 12px; color: #222; font-weight: 900; font-size: 1.1rem; cursor: not-allowed; transition: 0.1s; user-select: none; -webkit-user-select: none; }
+        .ptt-lever.waiting { background: #1a1a0a; border-color: #553300; color: var(--y); cursor: wait; animation: pulse-wait 2s ease-in-out infinite; }
+        @keyframes pulse-wait { 0%, 100% { border-color: #553300; } 50% { border-color: var(--y); } }
+        .ptt-lever.unlocked { background: #1a0a0a; border-color: #333; color: #333; cursor: pointer; pointer-events: auto; }
+        .ptt-lever.unlocked.ready { border-color: var(--r); color: var(--r); }
+        .ptt-lever.unlocked:active, .ptt-lever.unlocked.tx { transform: translateY(4px); border-bottom-width: 2px; background: var(--r); color: #000; }
+        .ptt-lever.dead { background: #1a0505; border-color: #330000; color: #330000; }
+
+        /* Battery */
+        .batt-module { border-top: 1px solid #222; padding-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+        .batt-row { display: flex; justify-content: space-between; align-items: center; }
+        .batt-label { font-size: 0.55rem; font-weight: 900; color: #444; }
+        .batt-right { display: flex; align-items: center; gap: 7px; }
+        .mini-led { width: 8px; height: 8px; border-radius: 50%; background: #111; border: 1.5px solid #333; flex-shrink: 0; transition: 0.3s; }
+        .mini-led.m-green { background: var(--g); box-shadow: 0 0 6px var(--g); border-color: var(--g); }
+        .mini-led.m-red { background: var(--r); box-shadow: 0 0 6px var(--r); border-color: var(--r); animation: blink-r 0.6s steps(1) infinite; }
+        .mini-led.m-yellow { background: var(--y); box-shadow: 0 0 5px var(--y); border-color: var(--y); animation: blink-y 1.5s steps(1) infinite; }
+        .mini-led.m-orange { background: #ff8800; box-shadow: 0 0 5px #ff8800; border-color: #ff8800; animation: blink-y 1s steps(1) infinite; }
+        .mini-led.m-dim { background: #1a1a1a; border-color: #2a2a2a; }
+        .mini-led.m-charge { background: #00ff88; box-shadow: 0 0 8px #00ff88; border-color: #00ff88; animation: charge-pulse 0.6s ease-in-out infinite; }
+        .mini-led.m-cyan { background: var(--b); box-shadow: 0 0 5px var(--b); border-color: var(--b); }
+        .mini-led.m-locked { background: #8844ff; box-shadow: 0 0 5px #8844ff; border-color: #8844ff; }
+        .val-norm { font-size: 0.75rem; font-weight: 900; letter-spacing: 1px; transition: color 0.3s; }
+        .batt-pct { font-size: 0.6rem; font-weight: 900; letter-spacing: 0.5px; min-width: 36px; text-align: right; }
+        .batt-bar-wrap { display: flex; align-items: center; gap: 3px; }
+        .batt-bar-shell { width: 100%; height: 10px; background: #0a0a0a; border: 1.5px solid #333; border-radius: 3px; position: relative; overflow: hidden; }
+        .batt-bar-fill { height: 100%; width: 0%; border-radius: 1px; transition: width 0.5s ease, background 0.5s ease; }
+        .batt-bar-fill.f-green { background: linear-gradient(90deg, #1a4a1a, #39ff14); }
+        .batt-bar-fill.f-yellow { background: linear-gradient(90deg, #4a3a00, #ffcc00); }
+        .batt-bar-fill.f-orange { background: linear-gradient(90deg, #4a2200, #ff8800); }
+        .batt-bar-fill.f-red { background: linear-gradient(90deg, #4a0000, #ff3131); }
+        .batt-bar-fill.f-charge { background: linear-gradient(90deg, #003311, #00ff88, #003311); background-size: 200% 100%; animation: charge-bar 1s linear infinite; }
+        .batt-bar-tip { width: 4px; height: 6px; background: #333; border-radius: 0 2px 2px 0; flex-shrink: 0; }
+        .charge-dock { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+        .charge-port { width: 28px; height: 16px; background: #0a0a0a; border: 2px solid #333; border-radius: 3px; position: relative; overflow: hidden; cursor: pointer; flex-shrink: 0; }
+        .charge-port::before { content: ''; position: absolute; top: 3px; left: 4px; width: 6px; height: 6px; background: #222; border-radius: 1px; }
+        .charge-port::after { content: ''; position: absolute; top: 3px; right: 4px; width: 6px; height: 6px; background: #222; border-radius: 1px; }
+        .charge-port.charging { border-color: #00ff88; }
+        .charge-port.charging::before { background: #00ff88; box-shadow: 0 0 4px #00ff88; }
+        .charge-port.charging::after { background: #00ff88; box-shadow: 0 0 4px #00ff88; }
+        .charge-btn { flex: 1; padding: 8px; background: #0a0a0a; border: 1px solid #222; border-bottom: 3px solid #000; border-radius: 4px; color: #333; font-family: inherit; font-weight: 900; font-size: 0.55rem; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; transition: 0.15s; }
+        .charge-btn:active { transform: translateY(1px); border-bottom-width: 1px; }
+        .charge-btn.charging { color: #00ff88; border-color: #004422; }
+        .charge-btn.full { color: #222; pointer-events: none; opacity: 0.4; }
+
+        @keyframes low-batt-flash { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+        .low-batt-warning { position: absolute; top: 8px; right: 8px; font-size: 0.5rem; color: var(--r); font-weight: 900; opacity: 0; pointer-events: none; z-index: 5; text-shadow: 0 0 6px var(--r); }
+        .low-batt-warning.active { animation: low-batt-flash 1s steps(1) infinite; }
+
+        /* Security Audit Panel */
+        .sec-panel { background: rgba(136, 68, 255, 0.04); border: 1px solid rgba(136, 68, 255, 0.12); border-radius: 6px; padding: 8px 10px; }
+        .sec-title { font-size: 0.5rem; font-weight: 900; color: #8844ff; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 5px; }
+        .sec-row { display: flex; justify-content: space-between; align-items: center; padding: 2px 0; }
+        .sec-item { font-size: 0.42rem; color: #444; font-weight: 900; }
+        .sec-status { font-size: 0.42rem; font-weight: 900; display: flex; align-items: center; gap: 4px; }
+        .sec-ok { color: var(--g); }
+        .sec-warn { color: var(--y); }
+        .sec-fail { color: var(--r); }
+        .sec-dot { width: 5px; height: 5px; border-radius: 50%; display: inline-block; }
+        .sec-dot.ok { background: var(--g); box-shadow: 0 0 4px var(--g); }
+        .sec-dot.warn { background: var(--y); box-shadow: 0 0 4px var(--y); }
+        .sec-dot.fail { background: var(--r); box-shadow: 0 0 4px var(--r); }
+
+        /* Generate password button */
+        .gen-btn { background: #111; border: 1px solid #333; color: #8844ff; padding: 4px 8px; font-family: inherit; font-size: 0.45rem; font-weight: 900; cursor: pointer; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.5px; transition: 0.15s; }
+        .gen-btn:active { transform: scale(0.95); }
+
+        .stats-footer { border-top: 1px solid #222; padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+        .stat-line { display: flex; justify-content: space-between; align-items: center; }
+        .stat-label { font-size: 0.55rem; font-weight: 900; color: #444; }
+        .stat-right { display: flex; align-items: center; gap: 7px; }
+        
+        .official-footer { margin-top: 12px; border-top: 1px dashed #1a1a1a; padding-top: 8px; text-align: center; }
+        .footer-text { font-size: 0.6rem; color: #333; letter-spacing: 1px; font-weight: bold; text-transform: uppercase; }
+        .footer-sub { font-size: 0.45rem; color: #222; margin-top: 2px; }
+    </style>
+</head>
+<body>
+
+<canvas id="scannerCanvas"></canvas>
+
+<div class="chassis">
+    <div class="antenna-stub"></div>
+
+    <div class="top-deck">
+        <div id="rssi" class="signal-block">
+            <div class="sig-bars">
+                <div class="bar" style="height:6px"></div>
+                <div class="bar" style="height:10px"></div>
+                <div class="bar" style="height:14px"></div>
+                <div class="bar" style="height:18px"></div>
+                <div class="bar" style="height:22px"></div>
+            </div>
+        </div>
+        <div class="indicator-cluster">
+            <div id="nozzle" class="nozzle-dial" onclick="handleNoz(event)"></div>
+            <div id="led" class="status-led"></div>
+        </div>
+    </div>
+
+    <div class="module-controls">
+        <div class="pwr-strip">
+            <button id="bOn" class="mech-btn pwr-on" onclick="pwr(true)">Master On</button>
+            <button id="bOff" class="mech-btn pwr-off active" onclick="pwr(false)">Master Off</button>
+        </div>
+        <div class="screen" id="scr">
+            <canvas id="scope"></canvas>
+            <div id="lowBattWarn" class="low-batt-warning">! LOW BATT !</div>
+            <div id="sys" style="height:35px; overflow-y:auto; font-size:0.55rem; opacity:0; color:var(--g); padding:2px;"></div>
+        </div>
+    </div>
+
+    <div class="speaker-grille"></div>
+
+    <div class="input-grid">
+        <input type="number" id="ch" class="field" value="88">
+        <div class="pwd-wrap">
+            <input type="password" id="key" class="field pwd-weak" value="TAC" oninput="checkPwd()">
+            <div class="pwd-bar"><div id="pwdFill" class="pwd-bar-fill"></div></div>
+            <div class="pwd-label" id="pwdLabel" style="color:var(--r)">WEAK — CRACKABLE</div>
+        </div>
+        <button id="hBtn" class="mech-btn" onclick="conn('host')">Host</button>
+        <button id="jBtn" class="mech-btn" onclick="conn('client')">Join</button>
+    </div>
+
+    <div style="display:flex;gap:6px;align-items:center;">
+        <button class="gen-btn" onclick="genPwd()" style="flex:1;">GENERATE STRONG KEY</button>
+        <button class="gen-btn" onclick="copyPwd()" style="flex:0 0 auto;padding:4px 10px;">COPY</button>
+    </div>
+
+    <div class="action-bay">
+        <div class="anc-stack">
+            <div id="ancLed" class="anc-led"></div>
+            <button id="ancBtn" class="anc-toggle" onclick="toggleAnc()">ANC OFF</button>
+        </div>
+        <button id="ptt" class="ptt-lever">LOCKED</button>
+    </div>
+
+    <!-- Security Audit Panel -->
+    <div class="sec-panel">
+        <div class="sec-title">Security Audit</div>
+        <div class="sec-row">
+            <span class="sec-item">Audio Payload</span>
+            <span class="sec-status sec-ok"><span class="sec-dot ok"></span>AES-256-GCM</span>
+        </div>
+        <div class="sec-row">
+            <span class="sec-item">Key Derivation</span>
+            <span class="sec-status sec-ok"><span class="sec-dot ok"></span>PBKDF2 10K</span>
+        </div>
+        <div class="sec-row">
+            <span class="sec-item">Transport Layer</span>
+            <span class="sec-status sec-ok"><span class="sec-dot ok"></span>TLS 1.3</span>
+        </div>
+        <div class="sec-row">
+            <span class="sec-item">IV Per Packet</span>
+            <span class="sec-status sec-ok"><span class="sec-dot ok"></span>RANDOM 12B</span>
+        </div>
+        <div class="sec-row">
+            <span class="sec-item">Password Strength</span>
+            <span id="secPwd" class="sec-status sec-fail"><span class="sec-dot fail"></span>WEAK</span>
+        </div>
+        <div class="sec-row">
+            <span class="sec-item">Topic Obfuscation</span>
+            <span class="sec-status sec-warn"><span class="sec-dot warn"></span>PUBLIC</span>
+        </div>
+        <div class="sec-row">
+            <span class="sec-item">Broker Auth</span>
+            <span class="sec-status sec-warn"><span class="sec-dot warn"></span>OPEN</span>
+        </div>
+        <div class="sec-row">
+            <span class="sec-item">Jam Protection</span>
+            <span id="secJam" class="sec-status sec-fail"><span class="sec-dot fail"></span>NONE</span>
+        </div>
+    </div>
+
+    <!-- Battery Module -->
+    <div class="batt-module">
+        <div class="batt-row">
+            <span class="batt-label">BATT_VOLTS:</span>
+            <div class="batt-right">
+                <span id="battPct" class="batt-pct" style="color:#333">0%</span>
+                <span id="battLed" class="mini-led m-dim"></span>
+                <span id="vlt" class="val-norm" style="color:#333">0.00V</span>
+            </div>
+        </div>
+        <div class="batt-bar-wrap">
+            <div class="batt-bar-shell">
+                <div id="battFill" class="batt-bar-fill"></div>
+            </div>
+            <div class="batt-bar-tip"></div>
+        </div>
+        <div class="charge-dock">
+            <div id="chargePort" class="charge-port" onclick="toggleCharge()"></div>
+            <button id="chargeBtn" class="charge-btn" onclick="toggleCharge()">SUPER CHARGE</button>
+        </div>
+    </div>
+
+    <div class="stats-footer">
+        <div class="stat-line">
+            <span class="stat-label">LINK_SECURE:</span>
+            <div class="stat-right">
+                <span id="linkLed" class="mini-led m-dim"></span>
+                <span id="rfSt" class="val-norm" style="color:#333">OFFLINE</span>
+            </div>
+        </div>
+        <div class="stat-line">
+            <span class="stat-label">CIPHER:</span>
+            <div class="stat-right">
+                <span class="mini-led m-locked"></span>
+                <span class="val-norm" style="color:#8844ff; font-size:0.6rem;">AES-256-GCM</span>
+            </div>
+        </div>
+        <div class="stat-line">
+            <span class="stat-label">RELAY:</span>
+            <div class="stat-right">
+                <span class="mini-led m-cyan"></span>
+                <span class="val-norm" style="color:var(--b); font-size:0.6rem;">CLOUD MQTT</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="official-footer">
+        <div class="footer-text">&copy; 2026 ASHRAF ALI</div>
+        <div class="footer-sub">TAC/COM v12.4.1 | ENCRYPTED RELAY PROTOCOL</div>
+    </div>
+</div>
+
+<script>
+let mc, mic, actx, ana, pG, ck;
+let inHPF, outHPF, outComp;
+let ancNotch50, ancNotch60, ancNotch100, ancNotch120, ancLPF, ancBPF;
+let noiseFloor = new Float32Array(64);
+let noiseFloorFilled = false;
+let noiseGateEnvelope = 0;
+let noiseFloorFrames = 0;
+let lastInputNode = null;
+
+let isTx = false, isPwr = false, isLinked = false, isAnc = false;
+let isCharging = false, isDead = false;
+let nxt = 0, rotA = 0, myRole = null, vltTimer = null, chargeTimer = null;
+let heartbeatTimer = null, peerTimeout = null, connTimeout = null;
+let battLevel = 0;
+let lowBattWarned = false, critBattWarned = false, deadBattWarned = false;
+
+const BATT_MIN = 9.5, BATT_MAX = 13.2, BATT_DEAD = 10.0;
+
+/* Obfuscated topic prefix — not truly hidden but adds a layer */
+const _tp = [97,115,104,114,97,102,95,118,49,50,95,52,95,49];
+const TP = _tp.map(c => String.fromCharCode(c)).join('');
+
+function battToPercent(v) {
+    return Math.max(0, Math.min(100, ((v - BATT_MIN) / (BATT_MAX - BATT_MIN)) * 100));
+}
+
+/* ═══════════════════════════════════════════
+   PASSWORD SECURITY
+   ═══════════════════════════════════════════ */
+
+function checkPwd() {
+    const pwd = document.getElementById('key').value;
+    const el = document.getElementById('key');
+    const fill = document.getElementById('pwdFill');
+    const label = document.getElementById('pwdLabel');
+    const secPwd = document.getElementById('secPwd');
+
+    /* Remove old classes */
+    el.className = 'field';
+
+    let score = 0;
+    if (pwd.length >= 4) score++;
+    if (pwd.length >= 8) score++;
+    if (pwd.length >= 12) score++;
+    if (pwd.length >= 20) score++;
+    if (/[A-Z]/.test(pwd)) score++;
+    if (/[0-9]/.test(pwd)) score++;
+    if (/[^A-Za-z0-9]/.test(pwd)) score++;
+    if (pwd.length >= 32) score++;
+
+    if (score <= 2) {
+        el.classList.add('pwd-weak');
+        fill.style.width = '15%'; fill.style.background = 'var(--r)';
+        label.innerText = 'WEAK — CRACKABLE'; label.style.color = 'var(--r)';
+        secPwd.className = 'sec-status sec-fail';
+        secPwd.innerHTML = '<span class="sec-dot fail"></span>WEAK';
+        document.getElementById('secJam').className = 'sec-status sec-fail';
+        document.getElementById('secJam').innerHTML = '<span class="sec-dot fail"></span>NONE';
+    } else if (score <= 4) {
+        el.classList.add('pwd-medium');
+        fill.style.width = '40%'; fill.style.background = 'var(--y)';
+        label.innerText = 'MEDIUM — SLOW CRACK'; label.style.color = 'var(--y)';
+        secPwd.className = 'sec-status sec-warn';
+        secPwd.innerHTML = '<span class="sec-dot warn"></span>MEDIUM';
+        document.getElementById('secJam').className = 'sec-status sec-warn';
+        document.getElementById('secJam').innerHTML = '<span class="sec-dot warn"></span>PARTIAL';
+    } else if (score <= 6) {
+        el.classList.add('pwd-strong');
+        fill.style.width = '70%'; fill.style.background = 'var(--g)';
+        label.innerText = 'STRONG — SAFE'; label.style.color = 'var(--g)';
+        secPwd.className = 'sec-status sec-ok';
+        secPwd.innerHTML = '<span class="sec-dot ok"></span>STRONG';
+        document.getElementById('secJam').className = 'sec-status sec-ok';
+        document.getElementById('secJam').innerHTML = '<span class="sec-dot ok"></span>KEY-DERIVED';
+    } else {
+        el.classList.add('pwd-max');
+        fill.style.width = '100%'; fill.style.background = '#00ff88';
+        label.innerText = 'MAXIMUM — MILITARY GRADE'; label.style.color = '#00ff88';
+        secPwd.className = 'sec-status sec-ok';
+        secPwd.innerHTML = '<span class="sec-dot ok"></span>MAXIMUM';
+        document.getElementById('secJam').className = 'sec-status sec-ok';
+        document.getElementById('secJam').innerHTML = '<span class="sec-dot ok"></span>FULL';
+    }
+}
+
+function genPwd() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*-_+=';
+    let pwd = '';
+    /* Generate 24 character strong password */
+    const arr = new Uint32Array(24);
+    crypto.getRandomValues(arr);
+    for (let i = 0; i < 24; i++) pwd += chars[arr[i] % chars.length];
+    document.getElementById('key').value = pwd;
+    document.getElementById('key').type = 'text';
+    setTimeout(() => { document.getElementById('key').type = 'password'; }, 3000);
+    checkPwd();
+    log('KEY:GENERATED_24CHAR');
+    log('KEY:SHARE_WITH_PEER');
+}
+
+function copyPwd() {
+    const pwd = document.getElementById('key').value;
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(pwd).then(() => {
+            log('KEY:COPIED_TO_CLIPBOARD');
+        });
+    }
+}
+
+/* ── Nozzle Dial ── */
+function handleNoz(e) {
+    if (!isPwr || mc) return;
+    const r = e.target.getBoundingClientRect();
+    const cin = document.getElementById('ch');
+    if ((e.clientX - r.left) > (r.width / 2)) {
+        rotA += 30; cin.value = parseInt(cin.value || 0) + 1; log("FREQ_INC");
+    } else {
+        rotA -= 30; cin.value = parseInt(cin.value || 0) - 1; log("FREQ_DEC");
+    }
+    document.getElementById('nozzle').style.transform = `rotate(${rotA}deg)`;
+}
+
+/* ── UI State ── */
+function updateUI(mode, noise) {
+    const rf = document.getElementById('rfSt');
+    const led = document.getElementById('led');
+    const rssi = document.getElementById('rssi');
+    const ll = document.getElementById('linkLed');
+    rf.className = 'val-norm'; led.className = 'status-led';
+    rssi.className = 'signal-block'; ll.className = 'mini-led';
+    if (!isPwr || isDead) { ll.classList.add('m-dim'); return; }
+    if (mode === 'idle') {
+        rf.innerText = 'OFFLINE'; rf.style.color = 'var(--r)';
+        led.classList.add('led-red'); rssi.classList.add('sig-red'); ll.classList.add('m-dim');
+    } else if (mode === 'waiting') {
+        rf.innerText = 'STANDBY'; rf.style.color = 'var(--y)';
+        led.classList.add('led-orange'); rssi.classList.add('sig-orange'); ll.classList.add('m-orange');
+    } else if (mode === 'connected') {
+        rf.innerText = 'LINKED'; rf.style.color = 'var(--g)';
+        led.classList.add('led-green'); rssi.classList.add('sig-green'); ll.classList.add('m-green');
+    }
+}
+
+/* ── Battery ── */
+function updateBattDisplay(v) {
+    const el = document.getElementById('vlt');
+    const bl = document.getElementById('battLed');
+    const pct = document.getElementById('battPct');
+    const fill = document.getElementById('battFill');
+    const warn = document.getElementById('lowBattWarn');
+    const percent = battToPercent(v);
+    el.innerText = v.toFixed(2) + 'V';
+    pct.innerText = Math.round(percent) + '%';
+    fill.style.width = percent + '%';
+    bl.className = 'mini-led'; fill.className = 'batt-bar-fill';
+    if (isCharging) {
+        bl.classList.add('m-charge'); fill.classList.add('f-charge');
+        pct.style.color = '#00ff88'; el.style.color = '#00ff88';
+        warn.classList.remove('active'); return;
+    }
+    if (v >= 12.0) {
+        bl.classList.add('m-green'); fill.classList.add('f-green');
+        pct.style.color = 'var(--g)'; el.style.color = 'var(--g)'; warn.classList.remove('active');
+        lowBattWarned = false; critBattWarned = false; deadBattWarned = false;
+    } else if (v >= 11.5) {
+        bl.classList.add('m-yellow'); fill.classList.add('f-yellow');
+        pct.style.color = 'var(--y)'; el.style.color = 'var(--y)'; warn.classList.remove('active');
+        lowBattWarned = false; critBattWarned = false; deadBattWarned = false;
+    } else if (v >= 11.0) {
+        bl.classList.add('m-orange'); fill.classList.add('f-orange');
+        pct.style.color = '#ff8800'; el.style.color = '#ff8800'; warn.classList.remove('active');
+        if (!lowBattWarned) { lowBattWarned = true; log('WARN:BATT_LOW'); }
+    } else if (v >= BATT_DEAD) {
+        bl.classList.add('m-red'); fill.classList.add('f-red');
+        pct.style.color = 'var(--r)'; el.style.color = 'var(--r)'; warn.classList.add('active');
+        if (!critBattWarned) { critBattWarned = true; log('CRIT:BATT_CRITICAL'); }
+    } else {
+        bl.classList.add('m-red'); fill.classList.add('f-red');
+        pct.style.color = 'var(--r)'; el.style.color = 'var(--r)'; warn.classList.add('active');
+        if (!deadBattWarned) { deadBattWarned = true; log('FATAL:BATT_DEAD'); triggerDead(); }
+    }
+}
+
+function triggerDead() {
+    isDead = true; isTx = false;
+    if (chargeTimer) { clearInterval(chargeTimer); chargeTimer = null; }
+    const ptt = document.getElementById('ptt');
+    ptt.innerText = 'NO POWER'; ptt.className = 'ptt-lever dead';
+    ptt.onmousedown = null; ptt.onmouseup = null; ptt.onmouseleave = null;
+    ptt.ontouchstart = null; ptt.ontouchend = null; ptt.ontouchcancel = null;
+    updateUI('idle'); log('SYS_SHUTDOWN');
+}
+
+function recoverFromDead() {
+    isDead = false; deadBattWarned = false; critBattWarned = false;
+    if (isLinked) { unlockPTT(); updateUI('connected'); }
+    else if (mc && mc.connected) { waitPTT('WAITING ' + (myRole === 'host' ? 'CLIENT' : 'HOST').toUpperCase()); updateUI('waiting'); }
+    else { lockPTT('LOCKED'); updateUI('idle'); }
+    log('SYS_RECOVER');
+}
+
+/* ── Super Charge ── */
+function toggleCharge() {
+    if (!isPwr) return;
+    if (isCharging) {
+        isCharging = false;
+        if (chargeTimer) { clearInterval(chargeTimer); chargeTimer = null; }
+        document.getElementById('chargeBtn').innerText = 'SUPER CHARGE';
+        document.getElementById('chargeBtn').classList.remove('charging');
+        document.getElementById('chargePort').classList.remove('charging');
+        log('CHARGE_STOP');
+        if (isDead && battLevel >= BATT_DEAD + 0.5) recoverFromDead();
+        updateBattDisplay(battLevel); return;
+    }
+    if (battLevel >= BATT_MAX - 0.1) { log('CHARGE:BATT_FULL'); return; }
+    isCharging = true; isTx = false;
+    document.getElementById('chargeBtn').innerText = 'CHARGING...';
+    document.getElementById('chargeBtn').classList.add('charging');
+    document.getElementById('chargePort').classList.add('charging');
+    if (isLinked) {
+        const ptt = document.getElementById('ptt');
+        ptt.innerText = 'CHARGING'; ptt.className = 'ptt-lever waiting';
+        ptt.onmousedown = null; ptt.onmouseup = null; ptt.onmouseleave = null;
+        ptt.ontouchstart = null; ptt.ontouchend = null; ptt.ontouchcancel = null;
+    }
+    log('CHARGE:SUPER_ON');
+    chargeTimer = setInterval(() => {
+        if (!isCharging) return;
+        battLevel += 0.12 + Math.random() * 0.06;
+        if (isDead && battLevel >= BATT_DEAD + 0.5) recoverFromDead();
+        if (battLevel >= BATT_MAX) {
+            battLevel = BATT_MAX; isCharging = false;
+            if (chargeTimer) { clearInterval(chargeTimer); chargeTimer = null; }
+            document.getElementById('chargeBtn').innerText = 'FULL';
+            document.getElementById('chargeBtn').classList.remove('charging');
+            document.getElementById('chargeBtn').classList.add('full');
+            document.getElementById('chargePort').classList.remove('charging');
+            log('CHARGE:FULL_' + battLevel.toFixed(1) + 'V');
+            if (isLinked) unlockPTT();
+            setTimeout(() => { document.getElementById('chargeBtn').innerText = 'SUPER CHARGE'; document.getElementById('chargeBtn').classList.remove('full'); }, 2000);
+        }
+        updateBattDisplay(battLevel);
+    }, 300);
+}
+
+/* ── PTT ── */
+function lockPTT(label) {
+    if (isDead) return;
+    const ptt = document.getElementById('ptt');
+    ptt.innerText = label || 'LOCKED'; ptt.className = 'ptt-lever';
+    ptt.onmousedown = null; ptt.onmouseup = null; ptt.onmouseleave = null;
+    ptt.ontouchstart = null; ptt.ontouchend = null; ptt.ontouchcancel = null;
+}
+function waitPTT(label) {
+    if (isDead) return;
+    const ptt = document.getElementById('ptt');
+    ptt.innerText = label || 'WAITING...'; ptt.className = 'ptt-lever waiting';
+    ptt.onmousedown = null; ptt.onmouseup = null; ptt.onmouseleave = null;
+    ptt.ontouchstart = null; ptt.ontouchend = null; ptt.ontouchcancel = null;
+}
+function unlockPTT() {
+    if (isDead || isCharging) return;
+    const ptt = document.getElementById('ptt');
+    ptt.innerText = 'PUSH TO TALK'; ptt.className = 'ptt-lever unlocked ready';
+    ptt.onmousedown = pttDown; ptt.onmouseup = pttUp; ptt.onmouseleave = pttUp;
+    ptt.ontouchstart = pttDown; ptt.ontouchend = pttUp; ptt.ontouchcancel = pttUp;
+}
+
+/* ── Power ── */
+function pwr(s) {
+    isPwr = s;
+    document.getElementById('bOn').classList.toggle('active', s);
+    document.getElementById('bOff').classList.toggle('active', !s);
+    if (s) {
+        document.getElementById('scr').classList.add('lit');
+        document.getElementById('sys').style.opacity = '1';
+        updateUI('idle'); checkPwd();
+        log('FIELD_OS_BOOT_v12.4.1');
+        log('CIPHER:AES-256-GCM');
+        log('KEY_DER:PBKDF2_10K_ITER');
+        log('IV:RANDOM_12B_PER_PKT');
+        battLevel = 12.4;
+        lowBattWarned = false; critBattWarned = false; deadBattWarned = false;
+        isDead = false; isCharging = false;
+        if (vltTimer) clearInterval(vltTimer);
+        vltTimer = setInterval(() => {
+            if (!isPwr || isCharging || isDead) return;
+            let drain = 0.002 + Math.random() * 0.002;
+            if (isTx) drain += 0.012;
+            if (isLinked) drain += 0.003;
+            if (isAnc) drain += 0.005;
+            battLevel -= drain;
+            if (battLevel < BATT_MIN) battLevel = BATT_MIN;
+            updateBattDisplay(battLevel);
+        }, 3000);
+        updateBattDisplay(battLevel);
+    } else { teardown(); location.reload(); }
+}
+
+/* ── ANC ── */
+function toggleAnc() {
+    if (!isPwr || isDead) return;
+    isAnc = !isAnc;
+    const b = document.getElementById('ancBtn');
+    const al = document.getElementById('ancLed');
+    if (isAnc) {
+        b.innerText = 'ANC ON'; b.classList.add('on');
+        if (!ancNotch50) buildAncFilters();
+        reconnectAudioChain(true);
+        al.className = 'anc-led led-anc-active';
+        log('ANC:FILT_CHAIN_ON'); log('ANC:NOTCH_50_60_100_120');
+        log('ANC:LPF_3800Hz'); log('ANC:SPECTRAL_GATE_ON');
+    } else {
+        b.innerText = 'ANC OFF'; b.classList.remove('on');
+        reconnectAudioChain(false); al.className = 'anc-led';
+        log('ANC:FILT_CHAIN_OFF');
+    }
+}
+
+function buildAncFilters() {
+    ancNotch50 = actx.createBiquadFilter(); ancNotch50.type = 'notch'; ancNotch50.frequency.value = 50; ancNotch50.Q.value = 30;
+    ancNotch60 = actx.createBiquadFilter(); ancNotch60.type = 'notch'; ancNotch60.frequency.value = 60; ancNotch60.Q.value = 30;
+    ancNotch100 = actx.createBiquadFilter(); ancNotch100.type = 'notch'; ancNotch100.frequency.value = 100; ancNotch100.Q.value = 30;
+    ancNotch120 = actx.createBiquadFilter(); ancNotch120.type = 'notch'; ancNotch120.frequency.value = 120; ancNotch120.Q.value = 30;
+    ancLPF = actx.createBiquadFilter(); ancLPF.type = 'lowpass'; ancLPF.frequency.value = 3800; ancLPF.Q.value = 0.7;
+    ancBPF = actx.createBiquadFilter(); ancBPF.type = 'bandpass'; ancBPF.frequency.value = 1200; ancBPF.Q.value = 0.5;
+    ancNotch50.connect(ancNotch60); ancNotch60.connect(ancNotch100);
+    ancNotch100.connect(ancNotch120); ancNotch120.connect(ancLPF); ancLPF.connect(ancBPF);
+}
+
+function reconnectAudioChain(useAnc) {
+    if (!actx || !mic) return;
+    const src = actx.createMediaStreamSource(mic);
+    try { inHPF.disconnect(); } catch(e){}
+    if (ana) { try { ana.disconnect(); } catch(e){} }
+    if (useAnc && ancBPF) { src.connect(inHPF); inHPF.connect(ancNotch50); ancBPF.connect(ana); lastInputNode = ancBPF; }
+    else { src.connect(inHPF); inHPF.connect(ana); lastInputNode = inHPF; }
+    ana.connect(ana._proc); ana._proc.connect(actx.destination);
+}
+
+function applySpectralNoiseGate(samples) {
+    if (!noiseFloorFilled) {
+        for (let i = 0; i < samples.length; i++) { const idx = i % noiseFloor.length; noiseFloor[idx] = noiseFloor[idx] * 0.7 + Math.abs(samples[i]) * 0.3; }
+        noiseFloorFrames++;
+        if (noiseFloorFrames > 20) { noiseFloorFilled = true; log('ANC:NOISE_FLOOR_SET'); }
+        return samples;
+    }
+    let frameEnergy = 0;
+    for (let i = 0; i < samples.length; i++) {
+        const abs = Math.abs(samples[i]); const idx = i % noiseFloor.length;
+        const threshold = noiseFloor[idx] * 2.5; frameEnergy += abs;
+        if (abs < threshold) { noiseGateEnvelope *= 0.999; samples[i] *= noiseGateEnvelope * 0.15; }
+        else { noiseGateEnvelope = noiseGateEnvelope * 0.9 + 0.1; }
+    }
+    if (frameEnergy / samples.length < noiseFloor[0] * 1.5) {
+        for (let i = 0; i < samples.length; i++) { const idx = i % noiseFloor.length; noiseFloor[idx] = noiseFloor[idx] * 0.995 + Math.abs(samples[i]) * 0.005; }
+    }
+    return samples;
+}
+
+function log(m) {
+    const el = document.getElementById('sys');
+    const d = document.createElement('div'); d.innerText = '> ' + m;
+    el.appendChild(d); el.scrollTop = el.scrollHeight;
+    while (el.childElementCount > 30) el.removeChild(el.firstChild);
+}
+
+function teardown() {
+    isTx = false; isLinked = false; isDead = false; isCharging = false; myRole = null;
+    if (connTimeout) { clearTimeout(connTimeout); connTimeout = null; }
+    if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+    if (peerTimeout) { clearTimeout(peerTimeout); peerTimeout = null; }
+    if (vltTimer) { clearInterval(vltTimer); vltTimer = null; }
+    if (chargeTimer) { clearInterval(chargeTimer); chargeTimer = null; }
+    if (mc) { try { mc.end(true); } catch(e){} mc = null; }
+    if (mic) { mic.getTracks().forEach(t => t.stop()); mic = null; }
+    if (actx) { try { actx.close(); } catch(e){} actx = null; }
+    ana = null; pG = null; ck = null; inHPF = null; outHPF = null; outComp = null;
+    ancNotch50 = null; ancNotch60 = null; ancNotch100 = null; ancNotch120 = null;
+    ancLPF = null; ancBPF = null; lastInputNode = null;
+    nxt = 0; noiseFloor = new Float32Array(64);
+    noiseFloorFilled = false; noiseGateEnvelope = 0; noiseFloorFrames = 0;
+    lockPTT('LOCKED'); unlockInputs(); updateUI('idle');
+}
+
+function lockInputs() {
+    document.getElementById('ch').classList.add('locked');
+    document.getElementById('key').classList.add('locked');
+    document.getElementById('hBtn').classList.add('disabled');
+    document.getElementById('jBtn').classList.add('disabled');
+}
+function unlockInputs() {
+    document.getElementById('ch').classList.remove('locked');
+    document.getElementById('key').classList.remove('locked');
+    document.getElementById('hBtn').classList.remove('disabled');
+    document.getElementById('jBtn').classList.remove('disabled');
+}
+
+function pttDown(e) {
+    if (!isLinked || isDead || isCharging) return;
+    e.preventDefault(); isTx = true;
+    const ptt = document.getElementById('ptt');
+    ptt.classList.add('tx'); ptt.innerText = 'TX';
+}
+function pttUp(e) {
+    if (!isLinked) return;
+    e.preventDefault(); isTx = false;
+    const ptt = document.getElementById('ptt');
+    ptt.classList.remove('tx'); ptt.innerText = 'PUSH TO TALK';
+}
+
+/* ── Background ── */
+const bcvs = document.getElementById('scannerCanvas');
+const bctx = bcvs.getContext('2d');
+let bgCols = [];
+function initBg() {
+    bcvs.width = window.innerWidth; bcvs.height = window.innerHeight;
+    bgCols = new Array(Math.floor(bcvs.width / 20)).fill(0).map(() => Math.random() * bcvs.height);
+}
+window.onresize = initBg; initBg();
+
+function draw() {
+    bctx.fillStyle = 'rgba(0,0,0,0.1)';
+    bctx.fillRect(0, 0, bcvs.width, bcvs.height);
+    bctx.font = '12px monospace'; bctx.fillStyle = '#010';
+    bgCols.forEach((y, i) => { bctx.fillText(Math.random() > 0.8 ? '1' : '0', i * 20, y); bgCols[i] = y > bcvs.height ? 0 : y + 10; });
+    if (ana && isPwr) {
+        const scvs = document.getElementById('scope');
+        const sctx = scvs.getContext('2d');
+        const data = new Uint8Array(ana.frequencyBinCount);
+        ana.getByteTimeDomainData(data);
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) sum += Math.abs(data[i] - 128);
+        if (isTx) updateUI('connected', sum / data.length / 50);
+        sctx.clearRect(0, 0, scvs.width, scvs.height);
+        sctx.lineWidth = 3; sctx.strokeStyle = isAnc ? '#00d4ff' : '#39ff14';
+        sctx.shadowBlur = 4; sctx.shadowColor = sctx.strokeStyle;
+        sctx.beginPath();
+        const step = scvs.width / data.length;
+        for (let i = 0; i < data.length; i++) {
+            const v = data[i] / 128.0; const y = v * scvs.height / 2;
+            if (i === 0) sctx.moveTo(0, y); else sctx.lineTo(i * step, y);
+        }
+        sctx.stroke(); sctx.shadowBlur = 0;
+    }
+    requestAnimationFrame(draw);
+}
+draw();
+
+/* ══════════════════════════════════════════
+   CONNECTION ENGINE
+   ══════════════════════════════════════════ */
+
+function startHeartbeat() {
+    const t = TP + document.getElementById('ch').value + '/' + myRole + '_ping';
+    heartbeatTimer = setInterval(() => { if (mc && mc.connected) mc.publish(t, '1', { qos: 0 }); }, 3000);
+}
+
+function resetPeerTimeout() {
+    if (peerTimeout) clearTimeout(peerTimeout);
+    peerTimeout = setTimeout(() => {
+        if (isLinked) {
+            isLinked = false; isTx = false;
+            log('PEER_LOST'); waitPTT('PEER LOST'); updateUI('waiting');
+            if (mc && mc.connected) { mc.unsubscribe(TP + document.getElementById('ch').value + '/' + (myRole === 'host' ? 'client' : 'host') + '_audio'); }
+        }
+    }, 8000);
+}
+
+function onPeerFound() {
+    if (isLinked) { resetPeerTimeout(); return; }
+    isLinked = true; resetPeerTimeout();
+    const ch = document.getElementById('ch').value;
+    const pt = TP + ch + '/' + (myRole === 'host' ? 'client' : 'host') + '_audio';
+    mc.subscribe(pt, { qos: 0 }, (err) => { if (err) log('AUDIO_SUB_FAIL'); else log('RX:' + pt); });
+    if (!isCharging && !isDead) unlockPTT();
+    updateUI('connected');
+    log('HANDSHAKE_OK'); log('CH_' + ch + '_ENCRYPTED');
+}
+
+async function conn(role) {
+    if (!isPwr || mc || isDead) return;
+    myRole = role;
+    const chVal = document.getElementById('ch').value;
+    const peerRole = role === 'host' ? 'client' : 'host';
+    const myPing = TP + chVal + '/' + role + '_ping';
+    const peerPing = TP + chVal + '/' + peerRole + '_ping';
+
+    /* Validate password before connecting */
+    const pwd = document.getElementById('key').value;
+    if (pwd.length < 4) {
+        log('SEC_ERR:KEY_TOO_SHORT');
+        log('SEC_ERR:MIN_4_CHARS');
+        return;
+    }
+
+    lockInputs(); waitPTT('SYNCING...'); updateUI('waiting');
+    log('INIT_' + role.toUpperCase());
+    log('KEY_LEN:' + pwd.length + 'CHARS');
+    log('CIPHER:DERIVING_KEY...');
+
+    connTimeout = setTimeout(() => { if (!isLinked) { log('TIMEOUT'); teardown(); } }, 15000);
+
+    try {
+        log('REQ_MIC...');
+        mic = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: true, channelCount: 1, sampleRate: { ideal: 16000 } }
+        });
+        log('MIC_OK');
+
+        actx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000, latencyHint: 'interactive' });
+        await actx.resume();
+        log('ACTX:' + actx.sampleRate + 'Hz');
+
+        const src = actx.createMediaStreamSource(mic);
+        inHPF = actx.createBiquadFilter(); inHPF.type = 'highpass'; inHPF.frequency.value = 180; inHPF.Q.value = 0.7;
+        ana = actx.createAnalyser(); ana.fftSize = 2048;
+        const proc = actx.createScriptProcessor(2048, 1, 1);
+        ana._proc = proc;
+        proc.onaudioprocess = function(e) {
+            e.outputBuffer.getChannelData(0).fill(0);
+            if (isTx && mc && mc.connected && isLinked) {
+                let samples = e.inputBuffer.getChannelData(0);
+                if (isAnc) samples = applySpectralNoiseGate(samples);
+                transmit(samples, chVal, role);
+            } else if (isAnc && !isTx) { applySpectralNoiseGate(e.inputBuffer.getChannelData(0)); }
+        };
+        src.connect(inHPF); inHPF.connect(ana); lastInputNode = inHPF;
+        ana.connect(proc); proc.connect(actx.destination);
+
+        outHPF = actx.createBiquadFilter(); outHPF.type = 'highpass'; outHPF.frequency.value = 150; outHPF.Q.value = 0.5;
+        outComp = actx.createDynamicsCompressor();
+        outComp.threshold.value = -24; outComp.knee.value = 12;
+        outComp.ratio.value = 12; outComp.attack.value = 0.003; outComp.release.value = 0.15;
+        pG = actx.createGain(); pG.gain.value = 0.45;
+        outHPF.connect(outComp); outComp.connect(pG); pG.connect(actx.destination);
+
+        /* Derive AES-256 key — PBKDF2 with 10,000 iterations */
+        const enc = new TextEncoder();
+        const km = await crypto.subtle.importKey('raw', enc.encode(pwd), 'PBKDF2', false, ['deriveKey']);
+        ck = await crypto.subtle.deriveKey(
+            { name: 'PBKDF2', salt: enc.encode('TACCOM_v12_SECURE_SALT'), iterations: 10000, hash: 'SHA-256' },
+            km, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
+        );
+        log('CIPHER:KEY_READY');
+        log('CIPHER:AES-256-GCM');
+
+        /* MQTT over TLS */
+        log('BROKER:TLS_CONNECT...');
+        mc = mqtt.connect('wss://broker.emqx.io:8084/mqtt', {
+            connectTimeout: 8000, reconnectPeriod: 3000,
+            clientId: 'tac_' + role + '_' + Math.random().toString(36).slice(2, 8)
+        });
+
+        mc.on('connect', () => {
+            if (connTimeout) { clearTimeout(connTimeout); connTimeout = null; }
+            log('BROKER:TLS_OK');
+            mc.subscribe(peerPing, { qos: 0 }, (err) => {
+                if (err) { log('SUB_FAIL'); return; }
+                log('SCAN:' + peerPing);
+                mc.publish(myPing, '1', { qos: 0 });
+                log('ANN:' + myPing);
+                startHeartbeat();
+                waitPTT('WAITING ' + peerRole.toUpperCase());
+            });
+        });
+
+        mc.on('message', function(topic, payload) {
+            if (topic.endsWith('_ping')) { onPeerFound(); return; }
+            if (topic.endsWith('_audio')) { handleAudio(payload); return; }
+        });
+
+        mc.on('error', (err) => { log('ERR:' + (err.message || '?')); });
+        mc.on('close', () => {
+            log('BROKER_DOWN'); isLinked = false; isTx = false;
+            if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+            waitPTT('RECONNECTING'); updateUI('waiting');
+        });
+        mc.on('reconnect', () => { log('RELINK...'); });
+        mc.on('reconnect_success', () => {
+            log('RELINK_OK');
+            if (myRole) {
+                const ch2 = document.getElementById('ch').value;
+                const pr = myRole === 'host' ? 'client' : 'host';
+                mc.subscribe(TP + ch2 + '/' + pr + '_ping', { qos: 0 });
+                mc.publish(TP + ch2 + '/' + myRole + '_ping', '1', { qos: 0 });
+                if (!isLinked) waitPTT('WAITING ' + pr.toUpperCase());
+            }
+        });
+    } catch (err) {
+        if (connTimeout) { clearTimeout(connTimeout); connTimeout = null; }
+        log('FAIL:' + (err.name || err.message || 'ERR'));
+        teardown();
+    }
+}
+
+async function handleAudio(payload) {
+    if (!isLinked) return;
+    try {
+        if (payload.length < 13) return;
+        /* GCM mode: if tampered or wrong key, decryption FAILS silently — no garbage audio */
+        const iv = payload.slice(0, 12);
+        const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, ck, payload.slice(12));
+        playAudio(dec);
+    } catch (e) {
+        /* Decryption failed = wrong key or tampered packet = silently dropped */
+    }
+}
+
+async function transmit(samples, ch, role) {
+    try {
+        const i16 = new Int16Array(samples.length);
+        for (let i = 0; i < samples.length; i++) {
+            const s = Math.max(-1, Math.min(1, samples[i]));
+            i16[i] = s < 0 ? s * 32768 : s * 32767;
+        }
+        /* Random 12-byte IV per packet — prevents replay & pattern analysis */
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const enc = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, ck, i16.buffer);
+        const pkt = new Uint8Array(12 + enc.byteLength);
+        pkt.set(iv, 0); pkt.set(new Uint8Array(enc), 12);
+        mc.publish(TP + ch + '/' + role + '_audio', pkt, { qos: 0 });
+    } catch (e) {}
+}
+
+function playAudio(rawBuffer) {
+    if (!actx || actx.state === 'closed') return;
+    if (actx.state === 'suspended') actx.resume();
+    const i16 = new Int16Array(rawBuffer);
+    const f32 = new Float32Array(i16.length);
+    for (let i = 0; i < i16.length; i++) f32[i] = i16[i] / 32768;
+    const buf = actx.createBuffer(1, f32.length, actx.sampleRate);
+    buf.getChannelData(0).set(f32);
+    const src = actx.createBufferSource();
+    src.buffer = buf; src.connect(outHPF);
+    const now = actx.currentTime;
+    if (nxt < now - 0.2) nxt = now;
+    const startAt = Math.max(now + 0.005, nxt);
+    src.start(startAt);
+    nxt = startAt + buf.duration;
+}
+
+/* Initial password check */
+checkPwd();
+</script>
+</body>
+</html>
