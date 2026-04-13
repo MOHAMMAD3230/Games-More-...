@@ -65,6 +65,7 @@
         @keyframes charge-bar { 0%{ background:#003311; } 50%{ background:#00ff88; } 100%{ background:#003311; } }
         @keyframes pulse-wait { 0%,100%{ border-color:#553300; } 50%{ border-color:var(--y); } }
         @keyframes low-batt-flash { 0%,100%{ opacity:0; } 50%{ opacity:1; } }
+        @keyframes cursor-blink { 0%,49%{ opacity:1; } 50%,100%{ opacity:0; } }
         .led-red,.sig-red .bar { animation: blink-r 1s steps(1) infinite; }
         .led-green,.sig-green .bar { animation: blink-g 1s steps(1) infinite; }
         .led-orange,.sig-orange .bar { animation: blink-y 1s steps(1) infinite; }
@@ -77,18 +78,100 @@
         .pwr-on.active { color: var(--g); border-color: var(--g); }
         .pwr-off.active { color: var(--r); border-color: var(--r); }
 
-        /* ========== SCREEN: holds all data/display components ========== */
+        /* ========== SMALL INPUT SCREEN — ALWAYS VISIBLE ========== */
+        .input-screen {
+            background: #060604;
+            border: 3px solid #2a2a2a;
+            border-radius: 5px;
+            padding: 10px 12px;
+            position: relative;
+            overflow: hidden;
+            flex-shrink: 0;
+            transition: background 0.4s, border-color 0.4s, box-shadow 0.4s;
+        }
+        .input-screen::before {
+            content: ""; position: absolute; inset: 0;
+            background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.15) 50%), linear-gradient(90deg, rgba(255,0,0,0.02), rgba(0,255,0,0.01), rgba(0,0,255,0.02));
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none; z-index: 2; opacity: 1;
+        }
+        /* OFF state */
+        .input-screen.is-off {
+            border-color: #2a2a2a;
+            background: #060604;
+        }
+        .input-screen.is-off .input-screen-title { color: #444; }
+        .input-screen.is-off .input-screen-cursor { background: #333; }
+        .input-screen.is-off .field { color: #555; border-color: #333; background: #080806; }
+        .input-screen.is-off .pwd-bar { background: #111; }
+        .input-screen.is-off .pwd-label { color: #333; }
+
+        /* ON (dim amber) state */
+        .input-screen.is-dim {
+            border-color: #332800;
+            background: #0a0800;
+        }
+        .input-screen.is-dim .input-screen-title { color: #886600; }
+        .input-screen.is-dim .input-screen-cursor { background: #886600; animation: cursor-blink 1s steps(1) infinite; }
+        .input-screen.is-dim .field { color: #aa8800; border-color: #443300; background: #0a0800; }
+        .input-screen.is-dim .pwd-bar { background: #1a1400; }
+        .input-screen.is-dim .pwd-label { color: #664400; }
+
+        /* LINKED (lit amber) state */
+        .input-screen.is-lit {
+            border-color: #554400;
+            background: #0c0a02;
+            box-shadow: inset 0 0 15px rgba(255,204,0,0.05), 0 0 8px rgba(255,204,0,0.08);
+        }
+        .input-screen.is-lit .input-screen-title { color: #ccaa00; }
+        .input-screen.is-lit .input-screen-cursor { background: #ffcc00; animation: cursor-blink 0.8s steps(1) infinite; }
+        .input-screen.is-lit .field { color: var(--b); border-color: #334400; background: #0a0900; }
+        .input-screen.is-lit .field:focus { border-color: var(--b); box-shadow: 0 0 8px rgba(0,212,255,0.2); }
+        .input-screen.is-lit .pwd-bar { background: #1a1600; }
+        .input-screen.is-lit .pwd-label { color: #886600; }
+
+        .input-screen-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 8px; position: relative; z-index: 3;
+        }
+        .input-screen-title {
+            font-size: 0.48rem; font-weight: 900; letter-spacing: 2px;
+            text-transform: uppercase; transition: color 0.4s;
+        }
+        .input-screen-cursor {
+            display: inline-block; width: 7px; height: 11px; background: #333;
+            margin-left: 5px; vertical-align: middle; transition: background 0.4s;
+        }
+
+        .input-screen-fields {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+            position: relative; z-index: 3;
+        }
+        .input-screen-fields .field {
+            padding: 9px 8px; font-family: inherit; text-align: center; width: 100%;
+            font-weight: bold; border-radius: 3px; font-size: 0.9rem;
+            border: 1px solid #333; transition: all 0.3s;
+        }
+        .input-screen-fields .field:focus { outline: none; }
+        .input-screen-fields .field.locked { opacity: 0.3; pointer-events: none; }
+
+        .pwd-wrap { position: relative; }
+        .pwd-bar { height: 3px; border-radius: 0 0 3px 3px; overflow: hidden; margin-top: -1px; transition: background 0.3s; }
+        .pwd-bar-fill { height: 100%; width: 0%; transition: width 0.3s, background 0.3s; border-radius: 0 0 3px 3px; }
+        .pwd-label { font-size: 0.38rem; font-weight: 900; text-align: center; margin-top: 3px; letter-spacing: 0.5px; height: 10px; position: relative; z-index: 3; transition: color 0.3s; }
+
+        /* ========== MAIN DISPLAY SCREEN ========== */
         .screen {
             background: #050505;
             border: 4px solid #222;
             border-radius: 6px;
             flex: 1;
-            min-height: 200px;
+            min-height: 180px;
             position: relative;
             padding: 10px;
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 7px;
             overflow: hidden;
         }
         .screen::before {
@@ -109,10 +192,10 @@
         }
         .low-batt-warning.active { animation: low-batt-flash 1s steps(1) infinite; }
 
-        #scope { width: 100%; height: 40px; opacity: 0; transition: opacity 0.3s; flex-shrink: 0; }
+        #scope { width: 100%; height: 38px; opacity: 0; transition: opacity 0.3s; flex-shrink: 0; }
 
         .sys-log {
-            height: 42px; overflow-y: auto; font-size: 0.5rem; padding: 2px;
+            height: 38px; overflow-y: auto; font-size: 0.48rem; padding: 2px;
             opacity: 0; transition: opacity 0.3s; flex-shrink: 0;
         }
         .sys-log::-webkit-scrollbar { width: 3px; }
@@ -126,38 +209,15 @@
         .lit.screen .scr-sep { background: linear-gradient(90deg, transparent, #1a3310, transparent); }
 
         .scr-section-label {
-            font-size: 0.38rem; font-weight: 900; letter-spacing: 1.5px;
+            font-size: 0.36rem; font-weight: 900; letter-spacing: 1.5px;
             text-transform: uppercase; color: #222; flex-shrink: 0;
         }
         .s-dim.screen .scr-section-label { color: #554400; }
         .lit.screen .scr-section-label { color: #336622; }
 
-        .screen .input-grid {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 6px; flex-shrink: 0;
-        }
-        .screen .field {
-            background: #020200; border: 1px solid #222; color: var(--b);
-            padding: 8px 6px; font-family: inherit; text-align: center; width: 100%;
-            font-weight: bold; border-radius: 3px; font-size: 0.85rem;
-        }
-        .screen .field:focus { outline: none; border-color: var(--b); }
-        .screen .field.locked { opacity: 0.3; pointer-events: none; }
-        .screen .field.pwd-weak { border-color: #440000; }
-        .screen .field.pwd-medium { border-color: #443300; }
-        .screen .field.pwd-strong { border-color: #003300; }
-        .screen .field.pwd-max { border-color: #003322; box-shadow: 0 0 6px rgba(0,255,136,0.15); }
-        .s-dim.screen .field { color: #886600; border-color: #332200; background: #0a0700; }
-        .lit.screen .field { color: var(--b); }
-
-        .pwd-wrap { position: relative; }
-        .pwd-bar { height: 3px; background: #0a0a00; border-radius: 0 0 3px 3px; overflow: hidden; margin-top: -1px; }
-        .pwd-bar-fill { height: 100%; width: 0%; transition: width 0.3s, background 0.3s; border-radius: 0 0 3px 3px; }
-        .pwd-label { font-size: 0.38rem; font-weight: 900; text-align: center; margin-top: 2px; letter-spacing: 0.5px; height: 10px; }
-
-        /* Battery display inside screen */
         .batt-display { flex-shrink: 0; }
         .batt-row { display: flex; justify-content: space-between; align-items: center; }
-        .batt-label { font-size: 0.5rem; font-weight: 900; color: #222; transition: color 0.3s; }
+        .batt-label { font-size: 0.48rem; font-weight: 900; color: #222; transition: color 0.3s; }
         .s-dim.screen .batt-label { color: #554400; }
         .lit.screen .batt-label { color: #336622; }
         .batt-right { display: flex; align-items: center; gap: 7px; }
@@ -171,27 +231,26 @@
         .mini-led.m-charge { background: #00ff88; box-shadow: 0 0 8px #00ff88; border-color: #00ff88; animation: charge-pulse 0.6s ease-in-out infinite; }
         .mini-led.m-cyan { background: var(--b); box-shadow: 0 0 5px var(--b); border-color: var(--b); }
         .mini-led.m-locked { background: #8844ff; box-shadow: 0 0 5px #8844ff; border-color: #8844ff; }
-        .val-norm { font-size: 0.7rem; font-weight: 900; letter-spacing: 1px; transition: color 0.3s; }
-        .batt-pct { font-size: 0.55rem; font-weight: 900; letter-spacing: 0.5px; min-width: 32px; text-align: right; }
-        .batt-bar-wrap { display: flex; align-items: center; gap: 3px; margin-top: 5px; }
-        .batt-bar-shell { width: 100%; height: 10px; background: #0a0a0a; border: 1.5px solid #222; border-radius: 3px; position: relative; overflow: hidden; }
+        .val-norm { font-size: 0.65rem; font-weight: 900; letter-spacing: 1px; transition: color 0.3s; }
+        .batt-pct { font-size: 0.5rem; font-weight: 900; letter-spacing: 0.5px; min-width: 30px; text-align: right; }
+        .batt-bar-wrap { display: flex; align-items: center; gap: 3px; margin-top: 4px; }
+        .batt-bar-shell { width: 100%; height: 9px; background: #0a0a0a; border: 1.5px solid #222; border-radius: 3px; position: relative; overflow: hidden; }
         .batt-bar-fill { height: 100%; width: 0%; border-radius: 1px; transition: width 0.5s ease, background 0.5s ease; }
         .batt-bar-fill.f-green { background: linear-gradient(90deg, #1a4a1a, #39ff14); }
         .batt-bar-fill.f-yellow { background: linear-gradient(90deg, #4a3a00, #ffcc00); }
         .batt-bar-fill.f-orange { background: linear-gradient(90deg, #4a2200, #ff8800); }
         .batt-bar-fill.f-red { background: linear-gradient(90deg, #4a0000, #ff3131); }
         .batt-bar-fill.f-charge { background: linear-gradient(90deg, #003311, #00ff88, #003311); background-size: 200% 100%; animation: charge-bar 1s linear infinite; }
-        .batt-bar-tip { width: 4px; height: 6px; background: #222; border-radius: 0 2px 2px 0; flex-shrink: 0; }
+        .batt-bar-tip { width: 4px; height: 5px; background: #222; border-radius: 0 2px 2px 0; flex-shrink: 0; }
 
-        /* Security panel inside screen */
         .screen .sec-panel {
             background: rgba(136,68,255,0.03); border: 1px solid rgba(136,68,255,0.08);
-            border-radius: 5px; padding: 7px 8px; flex-shrink: 0;
+            border-radius: 5px; padding: 6px 8px; flex-shrink: 0;
         }
-        .sec-title { font-size: 0.42rem; font-weight: 900; color: #553399; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+        .sec-title { font-size: 0.4rem; font-weight: 900; color: #553399; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 3px; }
         .sec-row { display: flex; justify-content: space-between; align-items: center; padding: 1.5px 0; }
-        .sec-item { font-size: 0.38rem; color: #333; font-weight: 900; }
-        .sec-status { font-size: 0.38rem; font-weight: 900; display: flex; align-items: center; gap: 3px; }
+        .sec-item { font-size: 0.36rem; color: #333; font-weight: 900; }
+        .sec-status { font-size: 0.36rem; font-weight: 900; display: flex; align-items: center; gap: 3px; }
         .sec-ok { color: #1a6a1a; }
         .sec-warn { color: #665500; }
         .sec-fail { color: #661111; }
@@ -200,31 +259,29 @@
         .sec-dot.warn { background: #665500; box-shadow: 0 0 3px #665500; }
         .sec-dot.fail { background: #661111; box-shadow: 0 0 3px #661111; }
 
-        /* Network route inside screen */
         .screen .net-banner {
             background: rgba(0,212,255,0.03); border: 1px solid rgba(0,212,255,0.08);
-            border-radius: 5px; padding: 7px 8px; display: flex; flex-direction: column; gap: 3px; flex-shrink: 0;
+            border-radius: 5px; padding: 6px 8px; display: flex; flex-direction: column; gap: 3px; flex-shrink: 0;
         }
-        .net-title { font-size: 0.42rem; font-weight: 900; color: #553399; letter-spacing: 1px; text-transform: uppercase; }
-        .net-route { display: flex; align-items: center; gap: 3px; font-size: 0.38rem; color: #222; flex-wrap: wrap; }
-        .net-node { background: #080800; border: 1px solid #1a1a1a; padding: 1px 4px; border-radius: 2px; color: #333; font-weight: 900; font-size: 0.36rem; }
+        .net-title { font-size: 0.4rem; font-weight: 900; color: #553399; letter-spacing: 1px; text-transform: uppercase; }
+        .net-route { display: flex; align-items: center; gap: 3px; font-size: 0.36rem; color: #222; flex-wrap: wrap; }
+        .net-node { background: #080800; border: 1px solid #1a1a1a; padding: 1px 4px; border-radius: 2px; color: #333; font-weight: 900; font-size: 0.34rem; }
         .net-node.active { border-color: #003344; color: #006688; }
-        .net-arrow { color: #1a1a1a; font-weight: 900; font-size: 0.5rem; }
-        .net-note { font-size: 0.35rem; color: #1a1a1a; line-height: 1.3; }
+        .net-arrow { color: #1a1a1a; font-weight: 900; font-size: 0.45rem; }
+        .net-note { font-size: 0.33rem; color: #1a1a1a; line-height: 1.3; }
 
-        /* Stats inside screen */
         .screen .stats-footer {
-            display: flex; flex-direction: column; gap: 5px; flex-shrink: 0;
+            display: flex; flex-direction: column; gap: 4px; flex-shrink: 0;
         }
         .stat-line { display: flex; justify-content: space-between; align-items: center; }
-        .stat-label { font-size: 0.5rem; font-weight: 900; color: #222; }
+        .stat-label { font-size: 0.48rem; font-weight: 900; color: #222; }
         .stat-right { display: flex; align-items: center; gap: 6px; }
 
-        /* ========== OUTSIDE SCREEN: physical controls ========== */
-        .speaker-grille { width: 100%; height: 35px; background: radial-gradient(circle, #222 1.5px, transparent 2px); background-size: 7px 7px; border: 1px solid #1a1a1a; border-radius: 4px; opacity: 0.4; flex-shrink: 0; }
+        /* ========== OUTSIDE: physical controls ========== */
+        .speaker-grille { width: 100%; height: 32px; background: radial-gradient(circle, #222 1.5px, transparent 2px); background-size: 7px 7px; border: 1px solid #1a1a1a; border-radius: 4px; opacity: 0.4; flex-shrink: 0; }
 
         .gen-row { display: flex; gap: 6px; }
-        .gen-btn { flex: 1; background: #111; border: 1px solid #333; color: #8844ff; padding: 8px; font-family: inherit; font-size: 0.45rem; font-weight: 900; cursor: pointer; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px; transition: 0.15s; }
+        .gen-btn { flex: 1; background: #111; border: 1px solid #333; color: #8844ff; padding: 7px; font-family: inherit; font-size: 0.42rem; font-weight: 900; cursor: pointer; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px; transition: 0.15s; }
         .gen-btn:active { transform: scale(0.95); }
 
         .conn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -242,7 +299,7 @@
         .anc-toggle.on { color: var(--b); border-color: var(--b); }
         .anc-toggle:active { transform: translateY(1px); border-bottom-width: 1px; }
 
-        .ptt-lever { flex-grow: 1; margin-left: 15px; height: 65px; background: #111; border: 3px solid #222; border-bottom: 8px solid #000; border-radius: 12px; color: #222; font-weight: 900; font-size: 1rem; cursor: not-allowed; transition: 0.1s; user-select: none; -webkit-user-select: none; }
+        .ptt-lever { flex-grow: 1; margin-left: 15px; height: 60px; background: #111; border: 3px solid #222; border-bottom: 8px solid #000; border-radius: 12px; color: #222; font-weight: 900; font-size: 0.95rem; cursor: not-allowed; transition: 0.1s; user-select: none; -webkit-user-select: none; }
         .ptt-lever.waiting { background: #1a1a0a; border-color: #553300; color: var(--y); cursor: wait; animation: pulse-wait 2s ease-in-out infinite; }
         .ptt-lever.unlocked { background: #1a0a0a; border-color: #333; color: #333; cursor: pointer; pointer-events: auto; }
         .ptt-lever.unlocked.ready { border-color: var(--r); color: var(--r); }
@@ -250,20 +307,20 @@
         .ptt-lever.dead { background: #1a0505; border-color: #330000; color: #330000; }
 
         .charge-dock { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-        .charge-port { width: 28px; height: 16px; background: #0a0a0a; border: 2px solid #333; border-radius: 3px; position: relative; overflow: hidden; cursor: pointer; flex-shrink: 0; }
-        .charge-port::before { content:''; position:absolute; top:3px; left:4px; width:6px; height:6px; background:#222; border-radius:1px; }
-        .charge-port::after { content:''; position:absolute; top:3px; right:4px; width:6px; height:6px; background:#222; border-radius:1px; }
+        .charge-port { width: 26px; height: 14px; background: #0a0a0a; border: 2px solid #333; border-radius: 3px; position: relative; overflow: hidden; cursor: pointer; flex-shrink: 0; }
+        .charge-port::before { content:''; position:absolute; top:2px; left:3px; width:6px; height:6px; background:#222; border-radius:1px; }
+        .charge-port::after { content:''; position:absolute; top:2px; right:3px; width:6px; height:6px; background:#222; border-radius:1px; }
         .charge-port.charging { border-color: #00ff88; }
         .charge-port.charging::before { background:#00ff88; box-shadow:0 0 4px #00ff88; }
         .charge-port.charging::after { background:#00ff88; box-shadow:0 0 4px #00ff88; }
-        .charge-btn { flex:1; padding:8px; background:#0a0a0a; border:1px solid #222; border-bottom:3px solid #000; border-radius:4px; color:#333; font-family:inherit; font-weight:900; font-size:0.5rem; cursor:pointer; text-transform:uppercase; letter-spacing:1px; transition:0.15s; }
+        .charge-btn { flex:1; padding:7px; background:#0a0a0a; border:1px solid #222; border-bottom:3px solid #000; border-radius:4px; color:#333; font-family:inherit; font-weight:900; font-size:0.48rem; cursor:pointer; text-transform:uppercase; letter-spacing:1px; transition:0.15s; }
         .charge-btn:active { transform:translateY(1px); border-bottom-width:1px; }
         .charge-btn.charging { color:#00ff88; border-color:#004422; }
         .charge-btn.full { color:#222; pointer-events:none; opacity:0.4; }
 
-        .official-footer { margin-top: 4px; border-top: 1px dashed #1a1a1a; padding-top: 6px; text-align: center; flex-shrink: 0; }
-        .footer-text { font-size: 0.55rem; color: #333; letter-spacing: 1px; font-weight: bold; text-transform: uppercase; }
-        .footer-sub { font-size: 0.4rem; color: #222; margin-top: 2px; }
+        .official-footer { margin-top: 2px; border-top: 1px dashed #1a1a1a; padding-top: 5px; text-align: center; flex-shrink: 0; }
+        .footer-text { font-size: 0.5rem; color: #333; letter-spacing: 1px; font-weight: bold; text-transform: uppercase; }
+        .footer-sub { font-size: 0.38rem; color: #222; margin-top: 2px; }
     </style>
 </head>
 <body>
@@ -272,13 +329,13 @@
 
 <div class="chassis" id="chassis">
 
-    <!-- === OUTSIDE SCREEN: Power buttons === -->
+    <!-- ALWAYS VISIBLE: Power buttons -->
     <div class="pwr-strip">
         <button id="bOn" class="mech-btn pwr-on" onclick="pwr(true)">Master On</button>
         <button id="bOff" class="mech-btn pwr-off active" onclick="pwr(false)">Master Off</button>
     </div>
 
-    <!-- === OUTSIDE SCREEN: Nozzle & indicators === -->
+    <!-- grp-b: Nozzle & indicators -->
     <div class="top-deck grp-b">
         <div id="rssi" class="sig-bars">
             <div class="bar" style="height:6px"></div>
@@ -293,13 +350,28 @@
         </div>
     </div>
 
-    <!-- === OUTSIDE SCREEN: Gen buttons === -->
-    <div class="gen-row grp-b">
-        <button class="gen-btn" onclick="genPwd()">GENERATE STRONG KEY</button>
-        <button class="gen-btn" onclick="copyPwd()" style="flex:0 0 auto; padding:8px 14px;">COPY</button>
+    <!-- ALWAYS VISIBLE: Small input screen -->
+    <div class="input-screen is-off" id="inputScr">
+        <div class="input-screen-header">
+            <span class="input-screen-title">DATA ENTRY<span class="input-screen-cursor"></span></span>
+        </div>
+        <div class="input-screen-fields">
+            <input type="number" id="ch" class="field" value="88" placeholder="CH">
+            <div class="pwd-wrap">
+                <input type="password" id="key" class="field" value="TAC" oninput="checkPwd()" placeholder="KEY">
+                <div class="pwd-bar"><div id="pwdFill" class="pwd-bar-fill"></div></div>
+                <div class="pwd-label" id="pwdLabel" style="color:#333">WEAK</div>
+            </div>
+        </div>
     </div>
 
-    <!-- === OUTSIDE SCREEN: Connection buttons === -->
+    <!-- grp-b: Gen & Copy -->
+    <div class="gen-row grp-b">
+        <button class="gen-btn" onclick="genPwd()">GENERATE STRONG KEY</button>
+        <button class="gen-btn" onclick="copyPwd()" style="flex:0 0 auto; padding:7px 14px;">COPY</button>
+    </div>
+
+    <!-- grp-b: Connection buttons -->
     <div class="conn-grid grp-b">
         <div class="conn-btn-wrap">
             <button id="hBtn" class="mech-btn" onclick="conn('host')">Host</button>
@@ -311,29 +383,15 @@
         </div>
     </div>
 
-    <!-- ==================== SCREEN ==================== -->
+    <!-- ==================== MAIN DISPLAY SCREEN ==================== -->
     <div class="screen grp-b" id="scr">
         <canvas id="scope"></canvas>
         <div id="lowBattWarn" class="low-batt-warning">! LOW BATT !</div>
         <div id="sys" class="sys-log"></div>
 
         <div class="scr-sep"></div>
-        <div class="scr-section-label">FREQUENCY &amp; ENCRYPTION KEY</div>
-
-        <!-- Inside screen: Channel & Password inputs -->
-        <div class="input-grid">
-            <input type="number" id="ch" class="field" value="88">
-            <div class="pwd-wrap">
-                <input type="password" id="key" class="field pwd-weak" value="TAC" oninput="checkPwd()">
-                <div class="pwd-bar"><div id="pwdFill" class="pwd-bar-fill"></div></div>
-                <div class="pwd-label" id="pwdLabel" style="color:var(--r)">WEAK — CRACKABLE</div>
-            </div>
-        </div>
-
-        <div class="scr-sep"></div>
         <div class="scr-section-label">POWER CELL</div>
 
-        <!-- Inside screen: Battery display -->
         <div class="batt-display">
             <div class="batt-row">
                 <span class="batt-label">CELL VOLTAGE</span>
@@ -351,7 +409,6 @@
             </div>
         </div>
 
-        <!-- Inside screen: Security panel (linked only) -->
         <div class="sec-panel grp-c">
             <div class="sec-title">Security Audit</div>
             <div class="sec-row"><span class="sec-item">Audio Payload</span><span class="sec-status sec-ok"><span class="sec-dot ok"></span>AES-256-GCM</span></div>
@@ -364,7 +421,6 @@
             <div class="sec-row"><span class="sec-item">Jam Protection</span><span id="secJam" class="sec-status sec-fail"><span class="sec-dot fail"></span>NONE</span></div>
         </div>
 
-        <!-- Inside screen: Network route (linked only) -->
         <div class="net-banner grp-c">
             <div class="net-title">Network Route</div>
             <div class="net-route">
@@ -378,7 +434,6 @@
             <div class="net-note">Requires active internet on BOTH devices. Works worldwide. Distance unlimited. AES-256 encrypted in transit.</div>
         </div>
 
-        <!-- Inside screen: Stats (linked only) -->
         <div class="stats-footer grp-c">
             <div class="stat-line">
                 <span class="stat-label">LINK_SECURE:</span>
@@ -391,24 +446,23 @@
                 <span class="stat-label">CIPHER:</span>
                 <div class="stat-right">
                     <span class="mini-led m-locked"></span>
-                    <span class="val-norm" style="color:#553399; font-size:0.55rem;">AES-256-GCM</span>
+                    <span class="val-norm" style="color:#553399; font-size:0.5rem;">AES-256-GCM</span>
                 </div>
             </div>
             <div class="stat-line">
                 <span class="stat-label">RELAY:</span>
                 <div class="stat-right">
                     <span class="mini-led m-cyan"></span>
-                    <span class="val-norm" style="color:#005577; font-size:0.55rem;">CLOUD MQTT</span>
+                    <span class="val-norm" style="color:#005577; font-size:0.5rem;">CLOUD MQTT</span>
                 </div>
             </div>
         </div>
     </div>
-    <!-- ==================== END SCREEN ==================== -->
 
-    <!-- === OUTSIDE SCREEN: Speaker grille === -->
+    <!-- ALWAYS VISIBLE: Speaker grille -->
     <div class="speaker-grille" id="grille"></div>
 
-    <!-- === OUTSIDE SCREEN: Action bay (PTT + ANC) === -->
+    <!-- grp-c: Action bay -->
     <div class="action-bay grp-c">
         <div class="anc-stack">
             <div id="ancLed" class="anc-led"></div>
@@ -417,13 +471,13 @@
         <button id="ptt" class="ptt-lever">LOCKED</button>
     </div>
 
-    <!-- === OUTSIDE SCREEN: Charge dock === -->
+    <!-- grp-b: Charge dock -->
     <div class="charge-dock grp-b">
         <div id="chargePort" class="charge-port"></div>
         <button id="chargeBtn" class="charge-btn" onclick="toggleCharge()">SUPER CHARGE</button>
     </div>
 
-    <!-- === OUTSIDE SCREEN: Copyright === -->
+    <!-- ALWAYS VISIBLE: Copyright -->
     <div class="official-footer">
         <div class="footer-text">&copy; 2026 ASHRAF ALI</div>
         <div class="footer-sub">TAC/COM v12.4.1 | ENCRYPTED RELAY PROTOCOL</div>
@@ -462,6 +516,14 @@ function setUILevel(level) {
     document.getElementById('bOn').classList.toggle('active', level !== 'off');
     document.getElementById('bOff').classList.toggle('active', level === 'off');
 
+    /* Input screen: always visible, 3 visual states */
+    const inpScr = document.getElementById('inputScr');
+    inpScr.className = 'input-screen';
+    if (level === 'off') inpScr.classList.add('is-off');
+    else if (level === 'on') inpScr.classList.add('is-dim');
+    else if (level === 'linked') inpScr.classList.add('is-lit');
+
+    /* Main screen states */
     const scr = document.getElementById('scr');
     const sys = document.getElementById('sys');
     scr.className = 'screen';
@@ -481,33 +543,31 @@ function battToPercent(v) { return Math.max(0, Math.min(100, ((v - BATT_MIN) / (
 
 function checkPwd() {
     const pwd = document.getElementById('key').value;
-    const el = document.getElementById('key');
     const fill = document.getElementById('pwdFill');
     const label = document.getElementById('pwdLabel');
     const secPwd = document.getElementById('secPwd');
     const secJam = document.getElementById('secJam');
-    el.className = 'field';
     let s = 0;
     if (pwd.length >= 4) s++; if (pwd.length >= 8) s++; if (pwd.length >= 12) s++; if (pwd.length >= 20) s++;
     if (/[A-Z]/.test(pwd)) s++; if (/[0-9]/.test(pwd)) s++; if (/[^A-Za-z0-9]/.test(pwd)) s++; if (pwd.length >= 32) s++;
     if (s <= 2) {
-        el.classList.add('pwd-weak'); fill.style.width='15%'; fill.style.background='var(--r)';
-        label.innerText='WEAK — CRACKABLE'; label.style.color='var(--r)';
+        fill.style.width='15%'; fill.style.background='#661111';
+        label.innerText='WEAK'; label.style.color='#661111';
         secPwd.className='sec-status sec-fail'; secPwd.innerHTML='<span class="sec-dot fail"></span>WEAK';
         secJam.className='sec-status sec-fail'; secJam.innerHTML='<span class="sec-dot fail"></span>NONE';
     } else if (s <= 4) {
-        el.classList.add('pwd-medium'); fill.style.width='40%'; fill.style.background='var(--y)';
-        label.innerText='MEDIUM — SLOW CRACK'; label.style.color='var(--y)';
+        fill.style.width='40%'; fill.style.background='#665500';
+        label.innerText='MEDIUM'; label.style.color='#665500';
         secPwd.className='sec-status sec-warn'; secPwd.innerHTML='<span class="sec-dot warn"></span>MEDIUM';
         secJam.className='sec-status sec-warn'; secJam.innerHTML='<span class="sec-dot warn"></span>PARTIAL';
     } else if (s <= 6) {
-        el.classList.add('pwd-strong'); fill.style.width='70%'; fill.style.background='var(--g)';
-        label.innerText='STRONG — SAFE'; label.style.color='var(--g)';
+        fill.style.width='70%'; fill.style.background='#1a6a1a';
+        label.innerText='STRONG'; label.style.color='#1a6a1a';
         secPwd.className='sec-status sec-ok'; secPwd.innerHTML='<span class="sec-dot ok"></span>STRONG';
         secJam.className='sec-status sec-ok'; secJam.innerHTML='<span class="sec-dot ok"></span>KEY-DERIVED';
     } else {
-        el.classList.add('pwd-max'); fill.style.width='100%'; fill.style.background='#00ff88';
-        label.innerText='MAXIMUM — MILITARY GRADE'; label.style.color='#00ff88';
+        fill.style.width='100%'; fill.style.background='#00aa55';
+        label.innerText='MAXIMUM'; label.style.color='#00aa55';
         secPwd.className='sec-status sec-ok'; secPwd.innerHTML='<span class="sec-dot ok"></span>MAXIMUM';
         secJam.className='sec-status sec-ok'; secJam.innerHTML='<span class="sec-dot ok"></span>FULL';
     }
