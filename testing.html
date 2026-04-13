@@ -2,8 +2,7 @@
 <html lang="en">
 <head>
 
-    <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=GT-NC6T5LRJ"></script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=GT-NC6T5LRJ"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
@@ -59,9 +58,9 @@
         @keyframes low-batt-flash { 0%,100%{ opacity:0; } 50%{ opacity:1; } }
         @keyframes cursor-blink { 0%,49%{ opacity:1; } 50%,100%{ opacity:0; } }
         @keyframes screen-appear { from { opacity:0; transform:scaleY(0.97); } to { opacity:1; transform:scaleY(1); } }
-        .led-red,.sig-red .bar { animation: blink-r 1s steps(1) infinite; }
-        .led-green,.sig-green .bar { animation: blink-g 1s steps(1) infinite; }
-        .led-orange,.sig-orange .bar { animation: blink-y 1s steps(1) infinite; }
+        .led-red { animation: blink-r 1s steps(1) infinite; }
+        .led-green { animation: blink-g 1s steps(1) infinite; }
+        .led-orange { animation: blink-y 1s steps(1) infinite; }
         .led-anc-active { animation: pulse-blue 0.6s ease-in-out infinite; }
 
         .pwr-strip { display: flex; gap: 8px; }
@@ -125,8 +124,9 @@
 
         .sig-row { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
         .sig-bars { display: flex; gap: 3px; align-items: flex-end; height: 22px; }
-        .bar { width: 5px; background: #111; border-radius: 1px; transition: 0.2s; }
+        .sig-bars .bar { width: 5px; background: #111; border-radius: 1px; transition: background 0.3s, box-shadow 0.3s; }
         .sig-text { font-size: 0.52rem; font-weight: 900; color: var(--g); letter-spacing: 1px; }
+        .sig-detail { font-size: 0.33rem; color: #335522; font-weight: 900; letter-spacing: 0.5px; }
 
         .batt-display { flex-shrink: 0; }
         .batt-row { display: flex; justify-content: space-between; align-items: center; }
@@ -198,6 +198,13 @@
         .conn-led.c-ok { background: var(--g); box-shadow: 0 0 4px var(--g); }
         .conn-led.c-fail { background: var(--r); box-shadow: 0 0 4px var(--r); animation: blink-r 0.6s steps(1) infinite; }
 
+        .disc-row { display: none; align-items: center; gap: 8px; flex-shrink: 0; }
+        .disc-row.visible { display: flex; }
+        .disc-btn-wrap { position: relative; flex: 1; }
+        .disc-btn { width: 100%; padding: 10px; background: #1a0505; border: 1px solid #330000; border-bottom: 4px solid #220000; border-radius: 4px; color: #441111; font-family: inherit; font-weight: 900; font-size: 0.55rem; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; transition: 0.15s; }
+        .disc-btn:active { transform: translateY(2px); border-bottom-width: 2px; }
+        .disc-led { position: absolute; top: 10px; right: 10px; width: 8px; height: 8px; border-radius: 50%; background: var(--g); border: 1.5px solid var(--g); box-shadow: 0 0 6px var(--g); transition: 0.3s; }
+
         .action-bay { display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 14px; border: 1px solid #222; flex-shrink: 0; }
         .anc-stack { display: flex; flex-direction: column; align-items: center; gap: 5px; }
         .anc-led { width: 13px; height: 13px; background: #111; border-radius: 50%; border: 2px solid #333; transition: 0.3s; }
@@ -211,14 +218,6 @@
         .ptt-lever.unlocked.ready { border-color: var(--r); color: var(--r); }
         .ptt-lever.unlocked:active, .ptt-lever.unlocked.tx { transform: translateY(3px); border-bottom-width: 2px; background: var(--r); color: #000; }
         .ptt-lever.dead { background: #1a0505; border-color: #330000; color: #330000; }
-
-        /* Disconnect button */
-        .disc-row { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-        .disc-btn-wrap { position: relative; flex: 1; }
-        .disc-btn { width: 100%; padding: 10px; background: #1a0505; border: 1px solid #330000; border-bottom: 4px solid #220000; border-radius: 4px; color: #441111; font-family: inherit; font-weight: 900; font-size: 0.55rem; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; transition: 0.15s; }
-        .disc-btn:active { transform: translateY(2px); border-bottom-width: 2px; }
-        .disc-led { position: absolute; top: 10px; right: 10px; width: 8px; height: 8px; border-radius: 50%; background: var(--g); border: 1.5px solid var(--g); box-shadow: 0 0 6px var(--g); transition: 0.3s; }
-        .disc-led.idle { background: #111; border-color: #333; box-shadow: none; }
 
         .charge-dock { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
         .charge-port { width: 24px; height: 13px; background: #0a0a0a; border: 2px solid #333; border-radius: 3px; position: relative; overflow: hidden; cursor: pointer; flex-shrink: 0; }
@@ -313,6 +312,14 @@
         </div>
     </div>
 
+    <!-- DISCONNECT BUTTON — AT TOP -->
+    <div class="disc-row" id="discRow">
+        <div class="disc-btn-wrap">
+            <button class="disc-btn" onclick="doDisconnect()">Disconnect</button>
+            <span class="disc-led"></span>
+        </div>
+    </div>
+
     <div class="standby-screen grp-b" id="standbyScr">
         <div class="standby-row">
             <span class="standby-label">CELL VOLTAGE</span>
@@ -329,10 +336,13 @@
         <div id="lowBattWarn" class="low-batt-warning">! LOW BATT !</div>
         <div class="conn-lbl">SIGNAL STRENGTH</div>
         <div class="sig-row">
-            <div id="rssi" class="sig-bars sig-green">
+            <div id="rssi" class="sig-bars">
                 <div class="bar" style="height:5px"></div><div class="bar" style="height:9px"></div><div class="bar" style="height:13px"></div><div class="bar" style="height:17px"></div><div class="bar" style="height:22px"></div>
             </div>
-            <span class="sig-text" id="sigText">LINKED</span>
+            <div style="display:flex;flex-direction:column;gap:2px;">
+                <span class="sig-text" id="sigText">OFFLINE</span>
+                <span class="sig-detail" id="sigDetail"></span>
+            </div>
         </div>
         <div class="conn-sep"></div>
         <div class="conn-lbl">POWER CELL</div>
@@ -405,7 +415,7 @@
         </div>
     </div>
 
-    <div class="speaker-grille" id="grille"></div>
+    <div class="speaker-grille grp-b" id="grille"></div>
 
     <div class="action-bay grp-c">
         <div class="anc-stack">
@@ -413,14 +423,6 @@
             <button id="ancBtn" class="anc-toggle" onclick="toggleAnc()">ANC OFF</button>
         </div>
         <button id="ptt" class="ptt-lever">LOCKED</button>
-    </div>
-
-    <!-- Disconnect button — only when linked -->
-    <div class="disc-row grp-c">
-        <div class="disc-btn-wrap">
-            <button class="disc-btn" onclick="doDisconnect()">Disconnect</button>
-            <span id="discLed" class="disc-led idle"></span>
-        </div>
     </div>
 
     <div class="charge-dock grp-b">
@@ -441,22 +443,103 @@ let inHPF, inBPF, inComp, outHPF, outComp, inMute;
 let ancNotch50, ancNotch60, ancNotch100, ancNotch120, ancLPF, ancBPF;
 let noiseFloor = new Float32Array(64);
 let noiseFloorFilled = false, noiseGateEnvelope = 0, noiseFloorFrames = 0;
+let noiseFloorAvg = 0, noiseThreshold = 0, voiceHangover = 0;
+const HANGOVER_FRAMES = 3;
 let isTx = false, isPwr = false, isLinked = false, isAnc = false;
 let isCharging = false, isDead = false;
 let nxt = 0, rotA = 0, myRole = null, vltTimer = null, chargeTimer = null;
 let heartbeatTimer = null, peerTimeout = null, connTimeout = null;
 let battLevel = 0;
 let lowBattWarned = false, critBattWarned = false, deadBattWarned = false;
+let txTailTimer = null;
 const BATT_MIN = 9.5, BATT_MAX = 13.2, BATT_DEAD = 10.0;
 const BASE_OUT_VOL = 0.35, TX_OUT_VOL = 0.0;
 const _tp = [97,115,104,114,97,102,95,118,49,50,95,52,95,49];
 const TP = _tp.map(c => String.fromCharCode(c)).join('');
 
+/* ===== SIGNAL QUALITY TRACKING ===== */
+let sigGaps = [];
+let lastAudioTime = 0;
+let sigQuality = 0;
+let sigDecayTimer = null;
+let lastPacketIV = '';
+let expectedInterval = 128; /* 2048 samples / 16000 Hz = 128ms */
+
+function updateSignalFromPacket() {
+    const now = performance.now();
+    if (lastAudioTime > 0) {
+        const gap = now - lastAudioTime;
+        sigGaps.push(gap);
+        if (sigGaps.length > 25) sigGaps.shift();
+        if (sigGaps.length >= 5) {
+            const avg = sigGaps.reduce((a,b) => a+b, 0) / sigGaps.length;
+            const variance = sigGaps.reduce((a,b) => a + (b-avg)*(b-avg), 0) / sigGaps.length;
+            const jitter = Math.sqrt(variance);
+            /* Score: how close to expected interval + how low jitter */
+            const gapScore = Math.max(0, 100 - Math.abs(avg - expectedInterval) * 1.5);
+            const jitterScore = Math.max(0, 100 - jitter * 2.5);
+            sigQuality = gapScore * 0.35 + jitterScore * 0.65;
+            /* Penalize large gaps (missed packets) */
+            const maxGap = Math.max(...sigGaps);
+            if (maxGap > expectedInterval * 3) sigQuality -= 25;
+            if (maxGap > expectedInterval * 5) sigQuality -= 20;
+            sigQuality = Math.max(0, Math.min(100, sigQuality));
+        }
+    }
+    lastAudioTime = now;
+    updateSignalDisplay();
+    /* Reset decay */
+    if (sigDecayTimer) clearTimeout(sigDecayTimer);
+    sigDecayTimer = setTimeout(() => {
+        sigQuality = Math.max(0, sigQuality - 15);
+        updateSignalDisplay();
+    }, 2500);
+}
+
+function updateSignalDisplay() {
+    const bars = document.querySelectorAll('#rssi .bar');
+    const sigText = document.getElementById('sigText');
+    const sigDetail = document.getElementById('sigDetail');
+    let level, color, text, textColor;
+    if (sigQuality >= 75) { level=5; color='var(--g)'; text='STRONG'; textColor='var(--g)'; }
+    else if (sigQuality >= 55) { level=4; color='var(--g)'; text='GOOD'; textColor='var(--g)'; }
+    else if (sigQuality >= 38) { level=3; color='var(--y)'; text='FAIR'; textColor='var(--y)'; }
+    else if (sigQuality >= 18) { level=2; color='#ff8800'; text='WEAK'; textColor='#ff8800'; }
+    else { level=1; color='var(--r)'; text='CRITICAL'; textColor='var(--r)'; }
+    bars.forEach((bar, i) => {
+        if (i < level) {
+            bar.style.background = color;
+            bar.style.boxShadow = '0 0 4px ' + color;
+        } else {
+            bar.style.background = '#111';
+            bar.style.boxShadow = 'none';
+        }
+    });
+    sigText.innerText = text;
+    sigText.style.color = textColor;
+    /* Detail line */
+    if (sigGaps.length >= 3) {
+        const avg = (sigGaps.reduce((a,b)=>a+b,0)/sigGaps.length).toFixed(0);
+        const jit = Math.sqrt(sigGaps.reduce((a,b)=>a+(b-avg)*(b-avg),0)/sigGaps.length).toFixed(0);
+        sigDetail.innerText = 'AVG:' + avg + 'ms JIT:' + jit + 'ms Q:' + Math.round(sigQuality);
+    }
+}
+
+function resetSignalBars() {
+    const bars = document.querySelectorAll('#rssi .bar');
+    bars.forEach(bar => { bar.style.background='#111'; bar.style.boxShadow='none'; });
+    document.getElementById('sigText').innerText = 'OFFLINE';
+    document.getElementById('sigText').style.color = 'var(--r)';
+    document.getElementById('sigDetail').innerText = '';
+}
+
+/* ===== UI LEVEL MANAGEMENT ===== */
 function setUILevel(level) {
     const chassis = document.getElementById('chassis');
     chassis.className = 'chassis' + (level === 'off' ? '' : ' s-on');
     document.querySelectorAll('.grp-b').forEach(el => { el.style.display = (level === 'off') ? 'none' : ''; });
     document.querySelectorAll('.grp-c').forEach(el => { el.style.display = (level === 'linked') ? '' : 'none'; });
+    document.getElementById('discRow').className = (level === 'linked') ? 'disc-row visible' : 'disc-row';
     document.getElementById('bOn').classList.toggle('active', level !== 'off');
     document.getElementById('bOff').classList.toggle('active', level === 'off');
     const inpScr = document.getElementById('inputScr');
@@ -471,9 +554,6 @@ function setUILevel(level) {
     const cs = document.getElementById('connScr');
     if (level === 'linked') cs.classList.add('visible');
     else cs.classList.remove('visible');
-    /* Disconnect LED */
-    const dl = document.getElementById('discLed');
-    dl.className = (level === 'linked') ? 'disc-led' : 'disc-led idle';
 }
 
 function battToPercent(v) { return Math.max(0, Math.min(100, ((v - BATT_MIN) / (BATT_MAX - BATT_MIN)) * 100)); }
@@ -497,13 +577,13 @@ function copyPwd() { if(navigator.clipboard) navigator.clipboard.writeText(docum
 function handleNoz(e) { if(!isPwr||mc)return; const r=e.target.getBoundingClientRect(),cin=document.getElementById('ch'); if((e.clientX-r.left)>(r.width/2)){rotA+=30;cin.value=parseInt(cin.value||0)+1;log("FREQ_INC");}else{rotA-=30;cin.value=parseInt(cin.value||0)-1;log("FREQ_DEC");} document.getElementById('nozzle').style.transform=`rotate(${rotA}deg)`; }
 
 function updateUI(mode) {
-    const led=document.getElementById('led'),rssi=document.getElementById('rssi');
-    const sigText=document.getElementById('sigText'),sbStatus=document.getElementById('sbStatus');
-    led.className='status-led'; rssi.className='sig-bars';
+    const led=document.getElementById('led');
+    const sbStatus=document.getElementById('sbStatus');
+    led.className='status-led';
     if(!isPwr||isDead){if(sbStatus){sbStatus.innerText='OFFLINE';sbStatus.style.color='#662200';}updateNetRoute('off');return;}
-    if(mode==='idle'){led.classList.add('led-red');rssi.classList.add('sig-red');if(sigText){sigText.innerText='OFFLINE';sigText.style.color='var(--r)';}if(sbStatus){sbStatus.innerText='OFFLINE';sbStatus.style.color='#662200';}updateNetRoute('off');}
-    else if(mode==='waiting'){led.classList.add('led-orange');rssi.classList.add('sig-orange');if(sigText){sigText.innerText='STANDBY';sigText.style.color='var(--y)';}if(sbStatus){sbStatus.innerText='SCANNING...';sbStatus.style.color='#665500';}updateNetRoute('connecting');}
-    else if(mode==='connected'){led.classList.add('led-green');rssi.classList.add('sig-green');if(sigText){sigText.innerText='LINKED';sigText.style.color='var(--g)';}updateNetRoute('linked');}
+    if(mode==='idle'){led.classList.add('led-red');resetSignalBars();if(sbStatus){sbStatus.innerText='OFFLINE';sbStatus.style.color='#662200';}updateNetRoute('off');}
+    else if(mode==='waiting'){led.classList.add('led-orange');resetSignalBars();const st=document.getElementById('sigText');st.innerText='SYNCING';st.style.color='var(--y)';if(sbStatus){sbStatus.innerText='SCANNING...';sbStatus.style.color='#665500';}updateNetRoute('connecting');}
+    else if(mode==='connected'){led.classList.add('led-green');if(sbStatus){sbStatus.innerText='LINKED';sbStatus.style.color='#336622';}updateNetRoute('linked');}
 }
 
 function updateNetRoute(state){ const ids=['netA','netB','netC','netD','netE','netF']; ids.forEach(id=>document.getElementById(id).classList.remove('active')); if(state==='connecting')['netA','netB','netC','netD'].forEach(id=>document.getElementById(id).classList.add('active')); else if(state==='linked') ids.forEach(id=>document.getElementById(id).classList.add('active')); }
@@ -526,43 +606,65 @@ function updateBattDisplay(v){
     else{bl.classList.add('m-red');fill.classList.add('f-red');pct.style.color='var(--r)';el.style.color='var(--r)';warn.classList.add('active');if(!deadBattWarned){deadBattWarned=true;log('FATAL:BATT_DEAD');triggerDead();}}
 }
 
-function triggerDead(){ isDead=true;isTx=false;if(chargeTimer){clearInterval(chargeTimer);chargeTimer=null;} const ptt=document.getElementById('ptt');ptt.innerText='NO POWER';ptt.className='ptt-lever dead';ptt.onmousedown=null;ptt.onmouseup=null;ptt.onmouseleave=null;ptt.ontouchstart=null;ptt.ontouchend=null;ptt.ontouchcancel=null; updateUI('idle');log('SYS_SHUTDOWN'); }
+function triggerDead(){ isDead=true;isTx=false;if(txTailTimer){clearTimeout(txTailTimer);txTailTimer=null;}if(chargeTimer){clearInterval(chargeTimer);chargeTimer=null;} const ptt=document.getElementById('ptt');ptt.innerText='NO POWER';ptt.className='ptt-lever dead';clearPTTHandlers(); updateUI('idle');log('SYS_SHUTDOWN'); }
 function recoverFromDead(){ isDead=false;deadBattWarned=false;critBattWarned=false; if(isLinked){unlockPTT();updateUI('connected');}else if(mc&&mc.connected){waitPTT('WAITING '+(myRole==='host'?'CLIENT':'HOST').toUpperCase());updateUI('waiting');}else{lockPTT('LOCKED');updateUI('idle');} log('SYS_RECOVER'); }
 
 function toggleCharge(){
     if(!isPwr)return;
     if(isCharging){isCharging=false;if(chargeTimer){clearInterval(chargeTimer);chargeTimer=null;}document.getElementById('chargeBtn').innerText='SUPER CHARGE';document.getElementById('chargeBtn').classList.remove('charging');document.getElementById('chargePort').classList.remove('charging');log('CHARGE_STOP');if(isDead&&battLevel>=BATT_DEAD+0.5)recoverFromDead();updateBattDisplay(battLevel);return;}
     if(battLevel>=BATT_MAX-0.1){log('CHARGE:BATT_FULL');return;}
-    isCharging=true;isTx=false;document.getElementById('chargeBtn').innerText='CHARGING...';document.getElementById('chargeBtn').classList.add('charging');document.getElementById('chargePort').classList.add('charging');
-    if(isLinked){const ptt=document.getElementById('ptt');ptt.innerText='CHARGING';ptt.className='ptt-lever waiting';ptt.onmousedown=null;ptt.onmouseup=null;ptt.onmouseleave=null;ptt.ontouchstart=null;ptt.ontouchend=null;ptt.ontouchcancel=null;}
+    isCharging=true;isTx=false;if(txTailTimer){clearTimeout(txTailTimer);txTailTimer=null;}
+    document.getElementById('chargeBtn').innerText='CHARGING...';document.getElementById('chargeBtn').classList.add('charging');document.getElementById('chargePort').classList.add('charging');
+    if(isLinked){const ptt=document.getElementById('ptt');ptt.innerText='CHARGING';ptt.className='ptt-lever waiting';clearPTTHandlers();}
     log('CHARGE:SUPER_ON');
     chargeTimer=setInterval(()=>{if(!isCharging)return;battLevel+=0.12+Math.random()*0.06;if(isDead&&battLevel>=BATT_DEAD+0.5)recoverFromDead();if(battLevel>=BATT_MAX){battLevel=BATT_MAX;isCharging=false;if(chargeTimer){clearInterval(chargeTimer);chargeTimer=null;}document.getElementById('chargeBtn').innerText='FULL';document.getElementById('chargeBtn').classList.remove('charging');document.getElementById('chargeBtn').classList.add('full');document.getElementById('chargePort').classList.remove('charging');log('CHARGE:FULL');if(isLinked)unlockPTT();setTimeout(()=>{document.getElementById('chargeBtn').innerText='SUPER CHARGE';document.getElementById('chargeBtn').classList.remove('full');},2000);}updateBattDisplay(battLevel);},300);
 }
 
+/* ===== ECHO PREVENTION: duck output + tail suppression ===== */
 function duckOutput(tx){ if(!pG||!actx)return; pG.gain.setTargetAtTime(tx?TX_OUT_VOL:BASE_OUT_VOL,actx.currentTime,tx?0.005:0.08); }
 
-function lockPTT(l){if(isDead)return;const p=document.getElementById('ptt');p.innerText=l||'LOCKED';p.className='ptt-lever';p.onmousedown=null;p.onmouseup=null;p.onmouseleave=null;p.ontouchstart=null;p.ontouchend=null;p.ontouchcancel=null;}
-function waitPTT(l){if(isDead)return;const p=document.getElementById('ptt');p.innerText=l||'WAITING...';p.className='ptt-lever waiting';p.onmousedown=null;p.onmouseup=null;p.onmouseleave=null;p.ontouchstart=null;p.ontouchend=null;p.ontouchcancel=null;}
+function clearPTTHandlers(){ const p=document.getElementById('ptt');p.onmousedown=null;p.onmouseup=null;p.onmouseleave=null;p.ontouchstart=null;p.ontouchend=null;p.ontouchcancel=null; }
+function lockPTT(l){if(isDead)return;const p=document.getElementById('ptt');p.innerText=l||'LOCKED';p.className='ptt-lever';clearPTTHandlers();}
+function waitPTT(l){if(isDead)return;const p=document.getElementById('ptt');p.innerText=l||'WAITING...';p.className='ptt-lever waiting';clearPTTHandlers();}
 function unlockPTT(){if(isDead||isCharging)return;const p=document.getElementById('ptt');p.innerText='PUSH TO TALK';p.className='ptt-lever unlocked ready';p.onmousedown=pttDown;p.onmouseup=pttUp;p.onmouseleave=pttUp;p.ontouchstart=pttDown;p.ontouchend=pttUp;p.ontouchcancel=pttUp;}
-function pttDown(e){if(!isLinked||isDead||isCharging)return;e.preventDefault();isTx=true;duckOutput(true);const p=document.getElementById('ptt');p.classList.add('tx');p.innerText='TX';}
-function pttUp(e){if(!isLinked)return;e.preventDefault();isTx=false;duckOutput(false);const p=document.getElementById('ptt');p.classList.remove('tx');p.innerText='PUSH TO TALK';}
+
+function pttDown(e){
+    if(!isLinked||isDead||isCharging)return;e.preventDefault();
+    isTx=true;duckOutput(true);
+    if(txTailTimer){clearTimeout(txTailTimer);txTailTimer=null;}
+    const p=document.getElementById('ptt');p.classList.add('tx');p.innerText='TX';
+}
+function pttUp(e){
+    if(!isLinked)return;e.preventDefault();
+    isTx=false;
+    const p=document.getElementById('ptt');p.classList.remove('tx');p.innerText='PUSH TO TALK';
+    /* TAIL SUPPRESSION: keep output muted 400ms after TX to kill echo tail */
+    if(txTailTimer) clearTimeout(txTailTimer);
+    txTailTimer = setTimeout(() => {
+        duckOutput(false);
+        txTailTimer = null;
+    }, 400);
+}
 
 function doDisconnect(){
     if(!isLinked)return;
     isTx=false;duckOutput(false);
+    if(txTailTimer){clearTimeout(txTailTimer);txTailTimer=null;}
     log('USER_DISCONNECT');
     setConnLed(myRole==='host'?'hLed':'jLed','fail');
     if(mc){try{mc.end(true);}catch(e){}mc=null;}
     if(heartbeatTimer){clearInterval(heartbeatTimer);heartbeatTimer=null;}
     if(peerTimeout){clearTimeout(peerTimeout);peerTimeout=null;}
+    if(sigDecayTimer){clearTimeout(sigDecayTimer);sigDecayTimer=null;}
     isLinked=false; myRole=null;
+    sigGaps=[]; lastAudioTime=0; sigQuality=0; lastPacketIV='';
     setUILevel('on'); lockPTT('LOCKED'); unlockInputs(); updateUI('idle');
-    /* Reset audio */
     if(mic){mic.getTracks().forEach(t=>t.stop());mic=null;}
     if(actx){try{actx.close();}catch(e){}actx=null;}
     ana=null;pG=null;ck=null;inHPF=null;inBPF=null;inComp=null;outHPF=null;outComp=null;inMute=null;
     ancNotch50=null;ancNotch60=null;ancNotch100=null;ancNotch120=null;ancLPF=null;ancBPF=null;
-    nxt=0;noiseFloor=new Float32Array(64);noiseFloorFilled=false;noiseGateEnvelope=0;noiseFloorFrames=0;isAnc=false;
+    nxt=0;noiseFloor=new Float32Array(64);noiseFloorFilled=false;noiseGateEnvelope=0;noiseFloorFrames=0;noiseFloorAvg=0;noiseThreshold=0;voiceHangover=0;
+    isAnc=false;
     document.getElementById('ancBtn').innerText='ANC OFF';document.getElementById('ancBtn').classList.remove('on');document.getElementById('ancLed').className='anc-led';
 }
 
@@ -572,42 +674,124 @@ function pwr(s){
     else{setUILevel('off');teardown();location.reload();}
 }
 
+/* ===== ANC: AGGRESSIVE NOISE CANCELLATION ===== */
 function toggleAnc(){
-    if(!isPwr||isDead)return;isAnc=!isAnc;
+    if(!isPwr||isDead)return;
+    isAnc=!isAnc;
     const b=document.getElementById('ancBtn'),al=document.getElementById('ancLed');
-    if(isAnc){b.innerText='ANC ON';b.classList.add('on');if(!ancNotch50)buildAncFilters();reconnectAudioChain(true);al.className='anc-led led-anc-active';log('ANC:FILT_CHAIN_ON');log('ANC:SPECTRAL_GATE_ON');}
-    else{b.innerText='ANC OFF';b.classList.remove('on');reconnectAudioChain(false);al.className='anc-led';log('ANC:FILT_CHAIN_OFF');}
+    if(isAnc){
+        /* Reset noise floor for fresh calibration */
+        noiseFloor=new Float32Array(64);
+        noiseFloorFilled=false;noiseFloorFrames=0;
+        noiseGateEnvelope=0;voiceHangover=0;
+        noiseFloorAvg=0;noiseThreshold=0;
+        b.innerText='ANC ON';b.classList.add('on');
+        if(!ancNotch50)buildAncFilters();
+        reconnectAudioChain(true);
+        al.className='anc-led led-anc-active';
+        log('ANC:INIT_CALIBRATING...');
+    } else {
+        b.innerText='ANC OFF';b.classList.remove('on');
+        reconnectAudioChain(false);
+        al.className='anc-led';
+        log('ANC:DISABLED');
+    }
 }
 function buildAncFilters(){
     ancNotch50=actx.createBiquadFilter();ancNotch50.type='notch';ancNotch50.frequency.value=50;ancNotch50.Q.value=30;
     ancNotch60=actx.createBiquadFilter();ancNotch60.type='notch';ancNotch60.frequency.value=60;ancNotch60.Q.value=30;
     ancNotch100=actx.createBiquadFilter();ancNotch100.type='notch';ancNotch100.frequency.value=100;ancNotch100.Q.value=30;
     ancNotch120=actx.createBiquadFilter();ancNotch120.type='notch';ancNotch120.frequency.value=120;ancNotch120.Q.value=30;
-    ancLPF=actx.createBiquadFilter();ancLPF.type='lowpass';ancLPF.frequency.value=3400;ancLPF.Q.value=0.7;
+    ancLPF=actx.createBiquadFilter();ancLPF.type='lowpass';ancLPF.frequency.value=3200;ancLPF.Q.value=0.7;
     ancBPF=actx.createBiquadFilter();ancBPF.type='bandpass';ancBPF.frequency.value=1200;ancBPF.Q.value=0.5;
     ancNotch50.connect(ancNotch60);ancNotch60.connect(ancNotch100);ancNotch100.connect(ancNotch120);ancNotch120.connect(ancLPF);ancLPF.connect(ancBPF);
 }
 function reconnectAudioChain(useAnc){
-    if(!actx||!mic)return;const src=actx.createMediaStreamSource(mic);
+    if(!actx||!mic)return;
+    const src=actx.createMediaStreamSource(mic);
     try{inHPF.disconnect();}catch(e){}try{inBPF.disconnect();}catch(e){}try{inComp.disconnect();}catch(e){}if(ana){try{ana.disconnect();}catch(e){}}
     if(useAnc&&ancBPF){src.connect(inHPF);inHPF.connect(inBPF);inBPF.connect(inComp);inComp.connect(ancNotch50);ancBPF.connect(ana);}
     else{src.connect(inHPF);inHPF.connect(inBPF);inBPF.connect(inComp);inComp.connect(ana);}
     ana.connect(ana._proc);ana._proc.connect(inMute);inMute.connect(actx.destination);
 }
-function applySpectralNoiseGate(samples){
-    if(!noiseFloorFilled){for(let i=0;i<samples.length;i++){const idx=i%noiseFloor.length;noiseFloor[idx]=noiseFloor[idx]*0.7+Math.abs(samples[i])*0.3;}noiseFloorFrames++;if(noiseFloorFrames>20){noiseFloorFilled=true;log('ANC:NOISE_FLOOR_SET');}return samples;}
-    let fe=0;for(let i=0;i<samples.length;i++){const a=Math.abs(samples[i]),idx=i%noiseFloor.length,t=noiseFloor[idx]*3.0;fe+=a;if(a<t){noiseGateEnvelope*=0.997;samples[i]*=noiseGateEnvelope*0.05;}else{noiseGateEnvelope=noiseGateEnvelope*0.8+0.2;}}
-    if(fe/samples.length<noiseFloor[0]*1.2){for(let i=0;i<samples.length;i++){const idx=i%noiseFloor.length;noiseFloor[idx]=noiseFloor[idx]*0.997+Math.abs(samples[i])*0.003;}}
+
+/* ===== AGGRESSIVE NOISE GATE ===== */
+function applyNoiseGate(samples){
+    /* Calculate block RMS energy */
+    let energy = 0;
+    for(let i=0;i<samples.length;i++) energy += samples[i]*samples[i];
+    energy = Math.sqrt(energy / samples.length);
+
+    /* PHASE 1: NOISE FLOOR CALIBRATION (be quiet for ~1 sec) */
+    if(!noiseFloorFilled){
+        for(let i=0;i<samples.length;i++){
+            const idx=i%noiseFloor.length;
+            noiseFloor[idx]=noiseFloor[idx]*0.5+Math.abs(samples[i])*0.5;
+        }
+        noiseFloorFrames++;
+        if(noiseFloorFrames===1) log('ANC:STAY_QUIET_1SEC...');
+        if(noiseFloorFrames>30){
+            noiseFloorFilled=true;
+            let sum=0;
+            for(let i=0;i<noiseFloor.length;i++) sum+=noiseFloor[i];
+            noiseFloorAvg=sum/noiseFloor.length;
+            /* HIGH threshold: 4x noise floor — only voice passes */
+            noiseThreshold=noiseFloorAvg*4;
+            noiseGateEnvelope=0;
+            log('ANC:CALIBRATED THR:'+noiseThreshold.toFixed(4));
+        }
+        return samples;
+    }
+
+    /* PHASE 2: VOICE ACTIVITY DETECTION */
+    const isVoice = energy > noiseThreshold;
+
+    if(isVoice){
+        voiceHangover = HANGOVER_FRAMES;
+        noiseGateEnvelope = Math.min(1, noiseGateEnvelope + 0.4); /* Fast open */
+    } else {
+        if(voiceHangover > 0){
+            voiceHangover--;
+            noiseGateEnvelope *= 0.85; /* Medium close during hangover */
+        } else {
+            noiseGateEnvelope *= 0.75; /* HARD close — no slow fade */
+        }
+        /* Adapt noise floor slowly when no voice (track environment changes) */
+        for(let i=0;i<samples.length;i++){
+            const idx=i%noiseFloor.length;
+            if(Math.abs(samples[i]) < noiseFloor[idx]*2){
+                noiseFloor[idx]=noiseFloor[idx]*0.998+Math.abs(samples[i])*0.002;
+            }
+        }
+    }
+
+    /* HARD ENERGY GATE: if envelope too low, silence entire block */
+    if(noiseGateEnvelope < 0.04){
+        for(let i=0;i<samples.length;i++) samples[i]=0;
+        return samples;
+    }
+
+    /* PER-SAMPLE SPECTRAL GATE: attenuate samples below local noise floor */
+    for(let i=0;i<samples.length;i++){
+        const idx=i%noiseFloor.length;
+        /* 7x noise floor threshold per sample — very aggressive */
+        const sampleThresh = noiseFloor[idx] * 7;
+        if(Math.abs(samples[i]) < sampleThresh){
+            samples[i] *= noiseGateEnvelope * 0.03; /* Near-zero for noise */
+        }
+    }
+
     return samples;
 }
 
 function log(m){const el=document.getElementById('sys');if(!el)return;const d=document.createElement('div');d.innerText='> '+m;el.appendChild(d);el.scrollTop=el.scrollHeight;while(el.childElementCount>30)el.removeChild(el.firstChild);}
 
-function teardown(){isTx=false;isLinked=false;myRole=null;if(connTimeout){clearTimeout(connTimeout);connTimeout=null;}if(heartbeatTimer){clearInterval(heartbeatTimer);heartbeatTimer=null;}if(peerTimeout){clearTimeout(peerTimeout);peerTimeout=null;}if(vltTimer){clearInterval(vltTimer);vltTimer=null;}if(chargeTimer){clearInterval(chargeTimer);chargeTimer=null;}if(mc){try{mc.end(true);}catch(e){}mc=null;}if(mic){mic.getTracks().forEach(t=>t.stop());mic=null;}if(actx){try{actx.close();}catch(e){}actx=null;}ana=null;pG=null;ck=null;inHPF=null;inBPF=null;inComp=null;outHPF=null;outComp=null;inMute=null;ancNotch50=null;ancNotch60=null;ancNotch100=null;ancNotch120=null;ancLPF=null;ancBPF=null;nxt=0;noiseFloor=new Float32Array(64);noiseFloorFilled=false;noiseGateEnvelope=0;noiseFloorFrames=0;}
+function teardown(){isTx=false;isLinked=false;myRole=null;if(connTimeout){clearTimeout(connTimeout);connTimeout=null;}if(heartbeatTimer){clearInterval(heartbeatTimer);heartbeatTimer=null;}if(peerTimeout){clearTimeout(peerTimeout);peerTimeout=null;}if(vltTimer){clearInterval(vltTimer);vltTimer=null;}if(chargeTimer){clearInterval(chargeTimer);chargeTimer=null;}if(txTailTimer){clearTimeout(txTailTimer);txTailTimer=null;}if(sigDecayTimer){clearTimeout(sigDecayTimer);sigDecayTimer=null;}if(mc){try{mc.end(true);}catch(e){}mc=null;}if(mic){mic.getTracks().forEach(t=>t.stop());mic=null;}if(actx){try{actx.close();}catch(e){}actx=null;}ana=null;pG=null;ck=null;inHPF=null;inBPF=null;inComp=null;outHPF=null;outComp=null;inMute=null;ancNotch50=null;ancNotch60=null;ancNotch100=null;ancNotch120=null;ancLPF=null;ancBPF=null;nxt=0;noiseFloor=new Float32Array(64);noiseFloorFilled=false;noiseGateEnvelope=0;noiseFloorFrames=0;noiseFloorAvg=0;noiseThreshold=0;voiceHangover=0;sigGaps=[];lastAudioTime=0;sigQuality=0;lastPacketIV='';}
 
 function lockInputs(){document.getElementById('ch').classList.add('locked');document.getElementById('key').classList.add('locked');document.getElementById('hBtn').classList.add('disabled');document.getElementById('jBtn').classList.add('disabled');}
 function unlockInputs(){document.getElementById('ch').classList.remove('locked');document.getElementById('key').classList.remove('locked');document.getElementById('hBtn').classList.remove('disabled');document.getElementById('jBtn').classList.remove('disabled');}
 
+/* ===== BACKGROUND CANVAS ===== */
 const bcvs=document.getElementById('scannerCanvas'),bctx=bcvs.getContext('2d');
 let bgCols=[];
 function initBg(){bcvs.width=window.innerWidth;bcvs.height=window.innerHeight;bgCols=new Array(Math.floor(bcvs.width/20)).fill(0).map(()=>Math.random()*bcvs.height);}
@@ -620,7 +804,6 @@ function draw(){
     if(ana&&isPwr&&isLinked){
         const scvs=document.getElementById('scope'),sctx=scvs.getContext('2d');
         const data=new Uint8Array(ana.frequencyBinCount);ana.getByteTimeDomainData(data);
-        if(isTx)updateUI('connected');
         sctx.clearRect(0,0,scvs.width,scvs.height);
         sctx.lineWidth=2;sctx.strokeStyle=isAnc?'#00d4ff':'#39ff14';
         sctx.shadowBlur=3;sctx.shadowColor=sctx.strokeStyle;sctx.beginPath();
@@ -632,10 +815,12 @@ function draw(){
 }
 draw();
 
+/* ===== HEARTBEAT & PEER DETECTION ===== */
 function startHeartbeat(){const t=TP+document.getElementById('ch').value+'/'+myRole+'_ping';heartbeatTimer=setInterval(()=>{if(mc&&mc.connected)mc.publish(t,'1',{qos:0});},3000);}
-function resetPeerTimeout(){if(peerTimeout)clearTimeout(peerTimeout);peerTimeout=setTimeout(()=>{if(isLinked){isLinked=false;isTx=false;log('PEER_LOST');setConnLed(myRole==='host'?'hLed':'jLed','fail');setUILevel('on');lockPTT('LOCKED');unlockInputs();updateUI('idle');if(mc&&mc.connected)mc.unsubscribe(TP+document.getElementById('ch').value+'/'+(myRole==='host'?'client':'host')+'_audio');}},8000);}
+function resetPeerTimeout(){if(peerTimeout)clearTimeout(peerTimeout);peerTimeout=setTimeout(()=>{if(isLinked){isLinked=false;isTx=false;log('PEER_LOST');setConnLed(myRole==='host'?'hLed':'jLed','fail');sigGaps=[];sigQuality=0;lastAudioTime=0;setUILevel('on');lockPTT('LOCKED');unlockInputs();updateUI('idle');if(mc&&mc.connected)mc.unsubscribe(TP+document.getElementById('ch').value+'/'+(myRole==='host'?'client':'host')+'_audio');}},10000);}
 function onPeerFound(){if(isLinked){resetPeerTimeout();return;}isLinked=true;resetPeerTimeout();setUILevel('linked');setConnLed(myRole==='host'?'hLed':'jLed','ok');const ch=document.getElementById('ch').value;const pt=TP+ch+'/'+(myRole==='host'?'client':'host')+'_audio';mc.subscribe(pt,{qos:0},(err)=>{if(err)log('AUDIO_SUB_FAIL');else log('RX:'+pt);});if(!isCharging&&!isDead)unlockPTT();updateUI('connected');log('HANDSHAKE_OK');log('CH_'+ch+'_ENCRYPTED');}
 
+/* ===== MAIN CONNECTION ===== */
 async function conn(role){
     if(!isPwr||mc||isDead)return;
     myRole=role;const chVal=document.getElementById('ch').value;const peerRole=role==='host'?'client':'host';
@@ -647,75 +832,150 @@ async function conn(role){
     connTimeout=setTimeout(()=>{if(!isLinked){log('TIMEOUT');setConnLed(role==='host'?'hLed':'jLed','fail');teardown();setUILevel('on');updateUI('idle');}},15000);
     try{
         log('REQ_MIC...');
-        /* Browser-level echo cancel + noise suppress ON */
-        mic=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:false,channelCount:1,sampleRate:{ideal:16000}}});
+        /* Browser echo cancel ON, noise suppression OFF (we do ANC ourselves) */
+        mic=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:false,autoGainControl:false,channelCount:1,sampleRate:{ideal:16000}}});
         log('MIC_OK');
         actx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:16000,latencyHint:'interactive'});
         await actx.resume();log('ACTX:'+actx.sampleRate+'Hz');
         const src=actx.createMediaStreamSource(mic);
 
         /*
-         * INPUT CHAIN (mic → transmit only, NEVER to speakers):
-         * mic → HPF(300Hz) → BPF(300-3400Hz) → Compressor → [ANC] → Analyser → ScriptProc → MuteGain(0) → destination
+         * INPUT CHAIN — mic processing for TX only, ZERO output to speakers:
+         * mic → HPF(200Hz) → BPF(200-3200Hz) → Compressor → [ANC chain] → Analyser → ScriptProc → MuteGain(0) → destination
+         * ScriptProc fills output with silence. MuteGain at 0 is double insurance.
          */
-        inHPF=actx.createBiquadFilter();inHPF.type='highpass';inHPF.frequency.value=300;inHPF.Q.value=0.7;
+        inHPF=actx.createBiquadFilter();inHPF.type='highpass';inHPF.frequency.value=200;inHPF.Q.value=0.7;
         inBPF=actx.createBiquadFilter();inBPF.type='bandpass';inBPF.frequency.value=1000;inBPF.Q.value=0.8;
-        inComp=actx.createDynamicsCompressor();inComp.threshold.value=-35;inComp.knee.value=15;inComp.ratio.value=10;inComp.attack.value=0.003;inComp.release.value=0.08;
+        inComp=actx.createDynamicsCompressor();inComp.threshold.value=-35;inComp.knee.value=15;inComp.ratio.value=12;inComp.attack.value=0.003;inComp.release.value=0.08;
 
         ana=actx.createAnalyser();ana.fftSize=2048;
         const proc=actx.createScriptProcessor(2048,1,1);ana._proc=proc;
+
         proc.onaudioprocess=function(e){
             /* ABSOLUTE SILENCE to speakers — prevents ALL echo */
             e.outputBuffer.getChannelData(0).fill(0);
+
+            let s=e.inputBuffer.getChannelData(0);
+
+            /* Always run noise gate if ANC is on (for calibration + adaptation) */
+            if(isAnc) s=applyNoiseGate(s);
+
+            /* Only transmit when PTT is pressed AND linked */
             if(isTx&&mc&&mc.connected&&isLinked){
-                let s=e.inputBuffer.getChannelData(0);
-                if(isAnc)s=applySpectralNoiseGate(s);
                 transmit(s,chVal,role);
-            } else if(isAnc&&!isTx){
-                applySpectralNoiseGate(e.inputBuffer.getChannelData(0));
             }
         };
 
-        /* Mute node ensures ZERO output even if browser leaks */
+        /* Zero-gain node: double insurance nothing leaks to speakers */
         inMute=actx.createGain();inMute.gain.value=0;
 
         src.connect(inHPF);inHPF.connect(inBPF);inBPF.connect(inComp);inComp.connect(ana);
         ana.connect(proc);proc.connect(inMute);inMute.connect(actx.destination);
 
         /*
-         * OUTPUT CHAIN (received audio → speakers only):
-         * Buffer → HPF(250Hz) → LPF(3400Hz) → Compressor → Gain(duck) → destination
+         * OUTPUT CHAIN — received audio → speakers only (separate from input):
+         * BufferSource → HPF(250Hz) → LPF(3200Hz) → Compressor → Limiter → Gain(duck) → destination
          */
         outHPF=actx.createBiquadFilter();outHPF.type='highpass';outHPF.frequency.value=250;outHPF.Q.value=0.5;
-        const outLPF=actx.createBiquadFilter();outLPF.type='lowpass';outLPF.frequency.value=3400;outLPF.Q.value=0.5;
-        outComp=actx.createDynamicsCompressor();outComp.threshold.value=-20;outComp.knee.value=10;outComp.ratio.value=8;outComp.attack.value=0.003;outComp.release.value=0.1;
+        const outLPF=actx.createBiquadFilter();outLPF.type='lowpass';outLPF.frequency.value=3200;outLPF.Q.value=0.5;
+        outComp=actx.createDynamicsCompressor();outComp.threshold.value=-18;outComp.knee.value=10;outComp.ratio.value=8;outComp.attack.value=0.003;outComp.release.value=0.1;
+        /* Hard limiter prevents loud output that causes echo on the other end */
+        const outLimiter=actx.createDynamicsCompressor();outLimiter.threshold.value=-8;outLimiter.knee.value=0;outLimiter.ratio.value=20;outLimiter.attack.value=0.001;outLimiter.release.value=0.01;
         pG=actx.createGain();pG.gain.value=BASE_OUT_VOL;
-        outHPF.connect(outLPF);outLPF.connect(outComp);outComp.connect(pG);pG.connect(actx.destination);
+        outHPF.connect(outLPF);outLPF.connect(outComp);outComp.connect(outLimiter);outLimiter.connect(pG);pG.connect(actx.destination);
 
+        /* Derive AES-256 key from password */
         const enc=new TextEncoder();
         const km=await crypto.subtle.importKey('raw',enc.encode(pwd),'PBKDF2',false,['deriveKey']);
         ck=await crypto.subtle.deriveKey({name:'PBKDF2',salt:enc.encode('TACCOM_v12_SECURE_SALT'),iterations:10000,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
         log('CIPHER:KEY_READY');log('BROKER:TLS_CONNECT...');
+
         mc=mqtt.connect('wss://broker.emqx.io:8084/mqtt',{connectTimeout:8000,reconnectPeriod:3000,clientId:'tac_'+role+'_'+Math.random().toString(36).slice(2,8)});
-        mc.on('connect',()=>{if(connTimeout){clearTimeout(connTimeout);connTimeout=null;}log('BROKER:TLS_OK');mc.subscribe(peerPing,{qos:0},(err)=>{if(err){log('SUB_FAIL');setConnLed(role==='host'?'hLed':'jLed','fail');return;}log('SCAN:'+peerPing);mc.publish(myPing,'1',{qos:0});log('ANN:'+myPing);startHeartbeat();waitPTT('WAITING '+peerRole.toUpperCase());});});
-        mc.on('message',function(topic,payload){if(topic.endsWith('_ping')){onPeerFound();return;}if(topic.endsWith('_audio')){handleAudio(payload);return;}});
+
+        mc.on('connect',()=>{
+            if(connTimeout){clearTimeout(connTimeout);connTimeout=null;}
+            log('BROKER:TLS_OK');
+            mc.subscribe(peerPing,{qos:0},(err)=>{
+                if(err){log('SUB_FAIL');setConnLed(role==='host'?'hLed':'jLed','fail');return;}
+                log('SCAN:'+peerPing);
+                mc.publish(myPing,'1',{qos:0});log('ANN:'+myPing);
+                startHeartbeat();
+                waitPTT('WAITING '+peerRole.toUpperCase());
+            });
+        });
+        mc.on('message',function(topic,payload){
+            if(topic.endsWith('_ping')){onPeerFound();return;}
+            if(topic.endsWith('_audio')){handleAudio(payload);return;}
+        });
         mc.on('error',(err)=>{log('ERR:'+(err.message||'?'));});
-        mc.on('close',()=>{log('BROKER_DOWN');isLinked=false;isTx=false;if(heartbeatTimer){clearInterval(heartbeatTimer);heartbeatTimer=null;}setConnLed(role==='host'?'hLed':'jLed','fail');setUILevel('on');waitPTT('RECONNECTING');updateUI('waiting');});
+        mc.on('close',()=>{
+            log('BROKER_DOWN');isLinked=false;isTx=false;
+            if(heartbeatTimer){clearInterval(heartbeatTimer);heartbeatTimer=null;}
+            setConnLed(role==='host'?'hLed':'jLed','fail');
+            setUILevel('on');waitPTT('RECONNECTING');updateUI('waiting');
+            sigGaps=[];sigQuality=0;lastAudioTime=0;
+        });
         mc.on('reconnect',()=>{log('RELINK...');});
-        mc.on('reconnect_success',()=>{log('RELINK_OK');if(myRole){const ch2=document.getElementById('ch').value;const pr=myRole==='host'?'client':'host';mc.subscribe(TP+ch2+'/'+pr+'_ping',{qos:0});mc.publish(TP+ch2+'/'+myRole+'_ping','1',{qos:0});if(!isLinked)waitPTT('WAITING '+pr.toUpperCase());}});
-    } catch(err){if(connTimeout){clearTimeout(connTimeout);connTimeout=null;}log('FAIL:'+(err.name||err.message||'ERR'));setConnLed(role==='host'?'hLed':'jLed','fail');teardown();setUILevel('on');updateUI('idle');}
+        mc.on('reconnect_success',()=>{
+            log('RELINK_OK');
+            if(myRole){
+                const ch2=document.getElementById('ch').value;
+                const pr=myRole==='host'?'client':'host';
+                mc.subscribe(TP+ch2+'/'+pr+'_ping',{qos:0});
+                mc.publish(TP+ch2+'/'+myRole+'_ping','1',{qos:0});
+                if(!isLinked)waitPTT('WAITING '+pr.toUpperCase());
+            }
+        });
+    } catch(err){
+        if(connTimeout){clearTimeout(connTimeout);connTimeout=null;}
+        log('FAIL:'+(err.name||err.message||'ERR'));
+        setConnLed(role==='host'?'hLed':'jLed','fail');
+        teardown();setUILevel('on');updateUI('idle');
+    }
 }
 
-async function handleAudio(payload){if(!isLinked)return;try{if(payload.length<13)return;const iv=payload.slice(0,12);const dec=await crypto.subtle.decrypt({name:'AES-GCM',iv:iv},ck,payload.slice(12));playAudio(dec);}catch(e){}}
-async function transmit(samples,ch,role){try{const i16=new Int16Array(samples.length);for(let i=0;i<samples.length;i++){const s=Math.max(-1,Math.min(1,samples[i]));i16[i]=s<0?s*32768:s*32767;}const iv=crypto.getRandomValues(new Uint8Array(12));const enc=await crypto.subtle.encrypt({name:'AES-GCM',iv:iv},ck,i16.buffer);const pkt=new Uint8Array(12+enc.byteLength);pkt.set(iv,0);pkt.set(new Uint8Array(enc),12);mc.publish(TP+ch+'/'+role+'_audio',pkt,{qos:0});}catch(e){}}
+/* ===== AUDIO RECEIVE with dedup + signal tracking ===== */
+async function handleAudio(payload){
+    if(!isLinked)return;
+    try{
+        if(payload.length<13)return;
+        const iv=payload.slice(0,12);
+        /* Dedup: skip if same IV seen (prevents repeated words from duplicate packets) */
+        const ivHex=Array.from(iv).map(b=>b.toString(16).padStart(2,'0')).join('');
+        if(ivHex===lastPacketIV)return;
+        lastPacketIV=ivHex;
+        /* Track signal quality from packet timing */
+        updateSignalFromPacket();
+        const dec=await crypto.subtle.decrypt({name:'AES-GCM',iv:iv},ck,payload.slice(12));
+        playAudio(dec);
+    }catch(e){}
+}
+
+/* ===== AUDIO TRANSMIT ===== */
+async function transmit(samples,ch,role){
+    try{
+        const i16=new Int16Array(samples.length);
+        for(let i=0;i<samples.length;i++){const s=Math.max(-1,Math.min(1,samples[i]));i16[i]=s<0?s*32768:s*32767;}
+        const iv=crypto.getRandomValues(new Uint8Array(12));
+        const enc=await crypto.subtle.encrypt({name:'AES-GCM',iv:iv},ck,i16.buffer);
+        const pkt=new Uint8Array(12+enc.byteLength);pkt.set(iv,0);pkt.set(new Uint8Array(enc),12);
+        mc.publish(TP+ch+'/'+role+'_audio',pkt,{qos:0});
+    }catch(e){}
+}
+
+/* ===== AUDIO PLAYBACK with gapless scheduling ===== */
 function playAudio(rawBuffer){
-    if(!actx||actx.state==='closed')return;if(actx.state==='suspended')actx.resume();
+    if(!actx||actx.state==='closed')return;
+    if(actx.state==='suspended')actx.resume();
     const i16=new Int16Array(rawBuffer);const f32=new Float32Array(i16.length);
     for(let i=0;i<i16.length;i++)f32[i]=i16[i]/32768;
     const buf=actx.createBuffer(1,f32.length,actx.sampleRate);buf.getChannelData(0).set(f32);
     const src=actx.createBufferSource();src.buffer=buf;src.connect(outHPF);
-    const now=actx.currentTime;if(nxt<now-0.2)nxt=now;
-    const startAt=Math.max(now+0.005,nxt);src.start(startAt);nxt=startAt+buf.duration;
+    const now=actx.currentTime;
+    /* If gap > 200ms, reset (don't try to catch up — prevents burst of old audio) */
+    if(nxt<now-0.2)nxt=now;
+    const startAt=Math.max(now+0.005,nxt);
+    src.start(startAt);nxt=startAt+buf.duration;
 }
 
 setUILevel('off');
