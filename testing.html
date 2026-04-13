@@ -312,7 +312,6 @@
         </div>
     </div>
 
-    <!-- DISCONNECT BUTTON — AT TOP -->
     <div class="disc-row" id="discRow">
         <div class="disc-btn-wrap">
             <button class="disc-btn" onclick="doDisconnect()">Disconnect</button>
@@ -441,10 +440,21 @@
 let mc, mic, actx, ana, pG, ck;
 let inHPF, inBPF, inComp, outHPF, outComp, inMute;
 let ancNotch50, ancNotch60, ancNotch100, ancNotch120, ancLPF, ancBPF;
-let noiseFloor = new Float32Array(64);
-let noiseFloorFilled = false, noiseGateEnvelope = 0, noiseFloorFrames = 0;
-let noiseFloorAvg = 0, noiseThreshold = 0, voiceHangover = 0;
-const HANGOVER_FRAMES = 3;
+
+/* ===== NOISE GATE STATE ===== */
+let noiseFloor = new Float32Array(128);
+let noiseFloorFilled = false;
+let noiseGateEnvelope = 0;
+let totalFrames = 0;       /* all frames seen during calibration */
+let quietFrames = 0;        /* frames quiet enough to learn from */
+let voiceHangover = 0;
+let noiseFloorAvg = 0;
+let noiseThreshold = 0;
+const HANGOVER_FRAMES = 5;
+const QUIET_ENERGY = 0.006; /* absolute RMS threshold for "quiet" */
+const NEEDED_QUIET = 18;    /* quiet frames needed to calibrate */
+const CAL_TIMEOUT = 120;    /* max frames before forced calibration */
+
 let isTx = false, isPwr = false, isLinked = false, isAnc = false;
 let isCharging = false, isDead = false;
 let nxt = 0, rotA = 0, myRole = null, vltTimer = null, chargeTimer = null;
@@ -457,13 +467,9 @@ const BASE_OUT_VOL = 0.35, TX_OUT_VOL = 0.0;
 const _tp = [97,115,104,114,97,102,95,118,49,50,95,52,95,49];
 const TP = _tp.map(c => String.fromCharCode(c)).join('');
 
-/* ===== SIGNAL QUALITY TRACKING ===== */
-let sigGaps = [];
-let lastAudioTime = 0;
-let sigQuality = 0;
-let sigDecayTimer = null;
-let lastPacketIV = '';
-let expectedInterval = 128; /* 2048 samples / 16000 Hz = 128ms */
+/* ===== SIGNAL QUALITY ===== */
+let sigGaps = [], lastAudioTime = 0, sigQuality = 0, sigDecayTimer = null;
+const expectedInterval = 128;
 
 function updateSignalFromPacket() {
     const now = performance.now();
@@ -472,132 +478,88 @@ function updateSignalFromPacket() {
         sigGaps.push(gap);
         if (sigGaps.length > 25) sigGaps.shift();
         if (sigGaps.length >= 5) {
-            const avg = sigGaps.reduce((a,b) => a+b, 0) / sigGaps.length;
-            const variance = sigGaps.reduce((a,b) => a + (b-avg)*(b-avg), 0) / sigGaps.length;
+            const avg = sigGaps.reduce((a,b)=>a+b,0)/sigGaps.length;
+            const variance = sigGaps.reduce((a,b)=>a+(b-avg)*(b-avg),0)/sigGaps.length;
             const jitter = Math.sqrt(variance);
-            /* Score: how close to expected interval + how low jitter */
-            const gapScore = Math.max(0, 100 - Math.abs(avg - expectedInterval) * 1.5);
-            const jitterScore = Math.max(0, 100 - jitter * 2.5);
-            sigQuality = gapScore * 0.35 + jitterScore * 0.65;
-            /* Penalize large gaps (missed packets) */
+            const gapScore = Math.max(0, 100 - Math.abs(avg - expectedInterval)*1.5);
+            const jitterScore = Math.max(0, 100 - jitter*2.5);
+            sigQuality = gapScore*0.35 + jitterScore*0.65;
             const maxGap = Math.max(...sigGaps);
-            if (maxGap > expectedInterval * 3) sigQuality -= 25;
-            if (maxGap > expectedInterval * 5) sigQuality -= 20;
+            if (maxGap > expectedInterval*3) sigQuality -= 25;
+            if (maxGap > expectedInterval*5) sigQuality -= 20;
             sigQuality = Math.max(0, Math.min(100, sigQuality));
         }
     }
     lastAudioTime = now;
     updateSignalDisplay();
-    /* Reset decay */
     if (sigDecayTimer) clearTimeout(sigDecayTimer);
-    sigDecayTimer = setTimeout(() => {
-        sigQuality = Math.max(0, sigQuality - 15);
-        updateSignalDisplay();
-    }, 2500);
+    sigDecayTimer = setTimeout(()=>{ sigQuality=Math.max(0,sigQuality-15); updateSignalDisplay(); }, 2500);
 }
 
 function updateSignalDisplay() {
     const bars = document.querySelectorAll('#rssi .bar');
-    const sigText = document.getElementById('sigText');
-    const sigDetail = document.getElementById('sigDetail');
+    const sigText = document.getElementById('sigText'), sigDetail = document.getElementById('sigDetail');
     let level, color, text, textColor;
-    if (sigQuality >= 75) { level=5; color='var(--g)'; text='STRONG'; textColor='var(--g)'; }
-    else if (sigQuality >= 55) { level=4; color='var(--g)'; text='GOOD'; textColor='var(--g)'; }
-    else if (sigQuality >= 38) { level=3; color='var(--y)'; text='FAIR'; textColor='var(--y)'; }
-    else if (sigQuality >= 18) { level=2; color='#ff8800'; text='WEAK'; textColor='#ff8800'; }
-    else { level=1; color='var(--r)'; text='CRITICAL'; textColor='var(--r)'; }
-    bars.forEach((bar, i) => {
-        if (i < level) {
-            bar.style.background = color;
-            bar.style.boxShadow = '0 0 4px ' + color;
-        } else {
-            bar.style.background = '#111';
-            bar.style.boxShadow = 'none';
-        }
-    });
-    sigText.innerText = text;
-    sigText.style.color = textColor;
-    /* Detail line */
-    if (sigGaps.length >= 3) {
-        const avg = (sigGaps.reduce((a,b)=>a+b,0)/sigGaps.length).toFixed(0);
-        const jit = Math.sqrt(sigGaps.reduce((a,b)=>a+(b-avg)*(b-avg),0)/sigGaps.length).toFixed(0);
-        sigDetail.innerText = 'AVG:' + avg + 'ms JIT:' + jit + 'ms Q:' + Math.round(sigQuality);
-    }
+    if (sigQuality>=75){level=5;color='var(--g)';text='STRONG';textColor='var(--g)';}
+    else if(sigQuality>=55){level=4;color='var(--g)';text='GOOD';textColor='var(--g)';}
+    else if(sigQuality>=38){level=3;color='var(--y)';text='FAIR';textColor='var(--y)';}
+    else if(sigQuality>=18){level=2;color='#ff8800';text='WEAK';textColor='#ff8800';}
+    else{level=1;color='var(--r)';text='CRITICAL';textColor='var(--r)';}
+    bars.forEach((bar,i)=>{if(i<level){bar.style.background=color;bar.style.boxShadow='0 0 4px '+color;}else{bar.style.background='#111';bar.style.boxShadow='none';}});
+    sigText.innerText=text; sigText.style.color=textColor;
+    if(sigGaps.length>=3){const avg=(sigGaps.reduce((a,b)=>a+b,0)/sigGaps.length).toFixed(0);const jit=Math.sqrt(sigGaps.reduce((a,b)=>a+(b-avg)*(b-avg),0)/sigGaps.length).toFixed(0);sigDetail.innerText='AVG:'+avg+'ms JIT:'+jit+'ms Q:'+Math.round(sigQuality);}
 }
 
-function resetSignalBars() {
-    const bars = document.querySelectorAll('#rssi .bar');
-    bars.forEach(bar => { bar.style.background='#111'; bar.style.boxShadow='none'; });
-    document.getElementById('sigText').innerText = 'OFFLINE';
-    document.getElementById('sigText').style.color = 'var(--r)';
-    document.getElementById('sigDetail').innerText = '';
+function resetSignalBars(){
+    document.querySelectorAll('#rssi .bar').forEach(b=>{b.style.background='#111';b.style.boxShadow='none';});
+    document.getElementById('sigText').innerText='OFFLINE';document.getElementById('sigText').style.color='var(--r)';document.getElementById('sigDetail').innerText='';
 }
 
-/* ===== UI LEVEL MANAGEMENT ===== */
+/* ===== UI ===== */
 function setUILevel(level) {
-    const chassis = document.getElementById('chassis');
-    chassis.className = 'chassis' + (level === 'off' ? '' : ' s-on');
-    document.querySelectorAll('.grp-b').forEach(el => { el.style.display = (level === 'off') ? 'none' : ''; });
-    document.querySelectorAll('.grp-c').forEach(el => { el.style.display = (level === 'linked') ? '' : 'none'; });
-    document.getElementById('discRow').className = (level === 'linked') ? 'disc-row visible' : 'disc-row';
-    document.getElementById('bOn').classList.toggle('active', level !== 'off');
-    document.getElementById('bOff').classList.toggle('active', level === 'off');
-    const inpScr = document.getElementById('inputScr');
-    inpScr.className = 'input-screen';
-    if (level === 'off') inpScr.classList.add('is-off');
-    else if (level === 'on') inpScr.classList.add('is-dim');
-    else if (level === 'linked') inpScr.classList.add('is-lit');
-    const sb = document.getElementById('standbyScr');
-    sb.style.display = (level === 'on') ? '' : 'none';
-    sb.className = 'standby-screen';
-    if (level === 'on') sb.classList.add('s-dim');
-    const cs = document.getElementById('connScr');
-    if (level === 'linked') cs.classList.add('visible');
-    else cs.classList.remove('visible');
+    document.getElementById('chassis').className='chassis'+(level==='off'?'':' s-on');
+    document.querySelectorAll('.grp-b').forEach(el=>{el.style.display=(level==='off')?'none':'';});
+    document.querySelectorAll('.grp-c').forEach(el=>{el.style.display=(level==='linked')?'':'none';});
+    document.getElementById('discRow').className=(level==='linked')?'disc-row visible':'disc-row';
+    document.getElementById('bOn').classList.toggle('active',level!=='off');
+    document.getElementById('bOff').classList.toggle('active',level==='off');
+    const inpScr=document.getElementById('inputScr');inpScr.className='input-screen';
+    if(level==='off')inpScr.classList.add('is-off');else if(level==='on')inpScr.classList.add('is-dim');else if(level==='linked')inpScr.classList.add('is-lit');
+    const sb=document.getElementById('standbyScr');sb.style.display=(level==='on')?'':'none';sb.className='standby-screen';if(level==='on')sb.classList.add('s-dim');
+    const cs=document.getElementById('connScr');if(level==='linked')cs.classList.add('visible');else cs.classList.remove('visible');
 }
 
-function battToPercent(v) { return Math.max(0, Math.min(100, ((v - BATT_MIN) / (BATT_MAX - BATT_MIN)) * 100)); }
+function battToPercent(v){return Math.max(0,Math.min(100,((v-BATT_MIN)/(BATT_MAX-BATT_MIN))*100));}
 
-function checkPwd() {
-    const pwd = document.getElementById('key').value;
-    const fill = document.getElementById('pwdFill'), label = document.getElementById('pwdLabel');
-    const secPwd = document.getElementById('secPwd'), secJam = document.getElementById('secJam');
-    let s = 0;
-    if (pwd.length >= 4) s++; if (pwd.length >= 8) s++; if (pwd.length >= 12) s++; if (pwd.length >= 20) s++;
-    if (/[A-Z]/.test(pwd)) s++; if (/[0-9]/.test(pwd)) s++; if (/[^A-Za-z0-9]/.test(pwd)) s++; if (pwd.length >= 32) s++;
-    if (s <= 2) { fill.style.width='15%'; fill.style.background='#661111'; label.innerText='WEAK'; label.style.color='#661111'; secPwd.className='sec-status sec-fail'; secPwd.innerHTML='<span class="sec-dot fail"></span>WEAK'; secJam.className='sec-status sec-fail'; secJam.innerHTML='<span class="sec-dot fail"></span>NONE'; }
-    else if (s <= 4) { fill.style.width='40%'; fill.style.background='#665500'; label.innerText='MEDIUM'; label.style.color='#665500'; secPwd.className='sec-status sec-warn'; secPwd.innerHTML='<span class="sec-dot warn"></span>MEDIUM'; secJam.className='sec-status sec-warn'; secJam.innerHTML='<span class="sec-dot warn"></span>PARTIAL'; }
-    else if (s <= 6) { fill.style.width='70%'; fill.style.background='#1a6a1a'; label.innerText='STRONG'; label.style.color='#1a6a1a'; secPwd.className='sec-status sec-ok'; secPwd.innerHTML='<span class="sec-dot ok"></span>STRONG'; secJam.className='sec-status sec-ok'; secJam.innerHTML='<span class="sec-dot ok"></span>KEY-DERIVED'; }
-    else { fill.style.width='100%'; fill.style.background='#00aa55'; label.innerText='MAXIMUM'; label.style.color='#00aa55'; secPwd.className='sec-status sec-ok'; secPwd.innerHTML='<span class="sec-dot ok"></span>MAXIMUM'; secJam.className='sec-status sec-ok'; secJam.innerHTML='<span class="sec-dot ok"></span>FULL'; }
+function checkPwd(){
+    const pwd=document.getElementById('key').value,fill=document.getElementById('pwdFill'),label=document.getElementById('pwdLabel'),secPwd=document.getElementById('secPwd'),secJam=document.getElementById('secJam');
+    let s=0;if(pwd.length>=4)s++;if(pwd.length>=8)s++;if(pwd.length>=12)s++;if(pwd.length>=20)s++;if(/[A-Z]/.test(pwd))s++;if(/[0-9]/.test(pwd))s++;if(/[^A-Za-z0-9]/.test(pwd))s++;if(pwd.length>=32)s++;
+    if(s<=2){fill.style.width='15%';fill.style.background='#661111';label.innerText='WEAK';label.style.color='#661111';secPwd.className='sec-status sec-fail';secPwd.innerHTML='<span class="sec-dot fail"></span>WEAK';secJam.className='sec-status sec-fail';secJam.innerHTML='<span class="sec-dot fail"></span>NONE';}
+    else if(s<=4){fill.style.width='40%';fill.style.background='#665500';label.innerText='MEDIUM';label.style.color='#665500';secPwd.className='sec-status sec-warn';secPwd.innerHTML='<span class="sec-dot warn"></span>MEDIUM';secJam.className='sec-status sec-warn';secJam.innerHTML='<span class="sec-dot warn"></span>PARTIAL';}
+    else if(s<=6){fill.style.width='70%';fill.style.background='#1a6a1a';label.innerText='STRONG';label.style.color='#1a6a1a';secPwd.className='sec-status sec-ok';secPwd.innerHTML='<span class="sec-dot ok"></span>STRONG';secJam.className='sec-status sec-ok';secJam.innerHTML='<span class="sec-dot ok"></span>KEY-DERIVED';}
+    else{fill.style.width='100%';fill.style.background='#00aa55';label.innerText='MAXIMUM';label.style.color='#00aa55';secPwd.className='sec-status sec-ok';secPwd.innerHTML='<span class="sec-dot ok"></span>MAXIMUM';secJam.className='sec-status sec-ok';secJam.innerHTML='<span class="sec-dot ok"></span>FULL';}
 }
 
-function genPwd() { const c='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*-_+='; let p=''; const a=new Uint32Array(24); crypto.getRandomValues(a); for(let i=0;i<24;i++) p+=c[a[i]%c.length]; document.getElementById('key').value=p; document.getElementById('key').type='text'; setTimeout(()=>{document.getElementById('key').type='password';},3000); checkPwd(); log('KEY:GENERATED_24CHAR'); }
-function copyPwd() { if(navigator.clipboard) navigator.clipboard.writeText(document.getElementById('key').value).then(()=>log('KEY:COPIED')); }
+function genPwd(){const c='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*-_+=';let p='';const a=new Uint32Array(24);crypto.getRandomValues(a);for(let i=0;i<24;i++)p+=c[a[i]%c.length];document.getElementById('key').value=p;document.getElementById('key').type='text';setTimeout(()=>{document.getElementById('key').type='password';},3000);checkPwd();log('KEY:GENERATED_24CHAR');}
+function copyPwd(){if(navigator.clipboard)navigator.clipboard.writeText(document.getElementById('key').value).then(()=>log('KEY:COPIED'));}
+function handleNoz(e){if(!isPwr||mc)return;const r=e.target.getBoundingClientRect(),cin=document.getElementById('ch');if((e.clientX-r.left)>(r.width/2)){rotA+=30;cin.value=parseInt(cin.value||0)+1;log("FREQ_INC");}else{rotA-=30;cin.value=parseInt(cin.value||0)-1;log("FREQ_DEC");}document.getElementById('nozzle').style.transform=`rotate(${rotA}deg)`;}
 
-function handleNoz(e) { if(!isPwr||mc)return; const r=e.target.getBoundingClientRect(),cin=document.getElementById('ch'); if((e.clientX-r.left)>(r.width/2)){rotA+=30;cin.value=parseInt(cin.value||0)+1;log("FREQ_INC");}else{rotA-=30;cin.value=parseInt(cin.value||0)-1;log("FREQ_DEC");} document.getElementById('nozzle').style.transform=`rotate(${rotA}deg)`; }
-
-function updateUI(mode) {
-    const led=document.getElementById('led');
-    const sbStatus=document.getElementById('sbStatus');
-    led.className='status-led';
+function updateUI(mode){
+    const led=document.getElementById('led'),sbStatus=document.getElementById('sbStatus');led.className='status-led';
     if(!isPwr||isDead){if(sbStatus){sbStatus.innerText='OFFLINE';sbStatus.style.color='#662200';}updateNetRoute('off');return;}
     if(mode==='idle'){led.classList.add('led-red');resetSignalBars();if(sbStatus){sbStatus.innerText='OFFLINE';sbStatus.style.color='#662200';}updateNetRoute('off');}
     else if(mode==='waiting'){led.classList.add('led-orange');resetSignalBars();const st=document.getElementById('sigText');st.innerText='SYNCING';st.style.color='var(--y)';if(sbStatus){sbStatus.innerText='SCANNING...';sbStatus.style.color='#665500';}updateNetRoute('connecting');}
     else if(mode==='connected'){led.classList.add('led-green');if(sbStatus){sbStatus.innerText='LINKED';sbStatus.style.color='#336622';}updateNetRoute('linked');}
 }
 
-function updateNetRoute(state){ const ids=['netA','netB','netC','netD','netE','netF']; ids.forEach(id=>document.getElementById(id).classList.remove('active')); if(state==='connecting')['netA','netB','netC','netD'].forEach(id=>document.getElementById(id).classList.add('active')); else if(state==='linked') ids.forEach(id=>document.getElementById(id).classList.add('active')); }
+function updateNetRoute(state){const ids=['netA','netB','netC','netD','netE','netF'];ids.forEach(id=>document.getElementById(id).classList.remove('active'));if(state==='connecting')['netA','netB','netC','netD'].forEach(id=>document.getElementById(id).classList.add('active'));else if(state==='linked')ids.forEach(id=>document.getElementById(id).classList.add('active'));}
 function setConnLed(id,state){document.getElementById(id).className='conn-led c-'+state;}
 
 function updateBattDisplay(v){
-    const p=battToPercent(v);
-    const el=document.getElementById('vlt'),bl=document.getElementById('battLed');
-    const pct=document.getElementById('battPct'),fill=document.getElementById('battFill'),warn=document.getElementById('lowBattWarn');
-    const sbVlt=document.getElementById('sbVlt'),sbFill=document.getElementById('sbFill');
-    if(sbVlt) sbVlt.innerText=v.toFixed(2)+'V';
+    const p=battToPercent(v),el=document.getElementById('vlt'),bl=document.getElementById('battLed'),pct=document.getElementById('battPct'),fill=document.getElementById('battFill'),warn=document.getElementById('lowBattWarn'),sbVlt=document.getElementById('sbVlt'),sbFill=document.getElementById('sbFill');
+    if(sbVlt)sbVlt.innerText=v.toFixed(2)+'V';
     if(sbFill){sbFill.style.width=p+'%';if(isCharging){sbFill.style.background='linear-gradient(90deg,#003311,#00ff88,#003311)';sbFill.style.backgroundSize='200% 100%';}else if(v>=12.0)sbFill.style.background='linear-gradient(90deg,#1a4a1a,#39ff14)';else if(v>=11.5)sbFill.style.background='linear-gradient(90deg,#4a3a00,#ffcc00)';else if(v>=11.0)sbFill.style.background='linear-gradient(90deg,#4a2200,#ff8800)';else sbFill.style.background='linear-gradient(90deg,#4a0000,#ff3131)';}
-    if(!el)return;
-    el.innerText=v.toFixed(2)+'V'; pct.innerText=Math.round(p)+'%'; fill.style.width=p+'%'; bl.className='mini-led'; fill.className='batt-bar-fill';
+    if(!el)return;el.innerText=v.toFixed(2)+'V';pct.innerText=Math.round(p)+'%';fill.style.width=p+'%';bl.className='mini-led';fill.className='batt-bar-fill';
     if(isCharging){bl.classList.add('m-charge');fill.classList.add('f-charge');pct.style.color='#00ff88';el.style.color='#00ff88';warn.classList.remove('active');return;}
     if(v>=12.0){bl.classList.add('m-green');fill.classList.add('f-green');pct.style.color='var(--g)';el.style.color='var(--g)';warn.classList.remove('active');lowBattWarned=critBattWarned=deadBattWarned=false;}
     else if(v>=11.5){bl.classList.add('m-yellow');fill.classList.add('f-yellow');pct.style.color='var(--y)';el.style.color='var(--y)';warn.classList.remove('active');lowBattWarned=critBattWarned=deadBattWarned=false;}
@@ -606,8 +568,8 @@ function updateBattDisplay(v){
     else{bl.classList.add('m-red');fill.classList.add('f-red');pct.style.color='var(--r)';el.style.color='var(--r)';warn.classList.add('active');if(!deadBattWarned){deadBattWarned=true;log('FATAL:BATT_DEAD');triggerDead();}}
 }
 
-function triggerDead(){ isDead=true;isTx=false;if(txTailTimer){clearTimeout(txTailTimer);txTailTimer=null;}if(chargeTimer){clearInterval(chargeTimer);chargeTimer=null;} const ptt=document.getElementById('ptt');ptt.innerText='NO POWER';ptt.className='ptt-lever dead';clearPTTHandlers(); updateUI('idle');log('SYS_SHUTDOWN'); }
-function recoverFromDead(){ isDead=false;deadBattWarned=false;critBattWarned=false; if(isLinked){unlockPTT();updateUI('connected');}else if(mc&&mc.connected){waitPTT('WAITING '+(myRole==='host'?'CLIENT':'HOST').toUpperCase());updateUI('waiting');}else{lockPTT('LOCKED');updateUI('idle');} log('SYS_RECOVER'); }
+function triggerDead(){isDead=true;isTx=false;if(txTailTimer){clearTimeout(txTailTimer);txTailTimer=null;}if(chargeTimer){clearInterval(chargeTimer);chargeTimer=null;}const ptt=document.getElementById('ptt');ptt.innerText='NO POWER';ptt.className='ptt-lever dead';clearPTTHandlers();updateUI('idle');log('SYS_SHUTDOWN');}
+function recoverFromDead(){isDead=false;deadBattWarned=false;critBattWarned=false;if(isLinked){unlockPTT();updateUI('connected');}else if(mc&&mc.connected){waitPTT('WAITING '+(myRole==='host'?'CLIENT':'HOST').toUpperCase());updateUI('waiting');}else{lockPTT('LOCKED');updateUI('idle');}log('SYS_RECOVER');}
 
 function toggleCharge(){
     if(!isPwr)return;
@@ -620,53 +582,34 @@ function toggleCharge(){
     chargeTimer=setInterval(()=>{if(!isCharging)return;battLevel+=0.12+Math.random()*0.06;if(isDead&&battLevel>=BATT_DEAD+0.5)recoverFromDead();if(battLevel>=BATT_MAX){battLevel=BATT_MAX;isCharging=false;if(chargeTimer){clearInterval(chargeTimer);chargeTimer=null;}document.getElementById('chargeBtn').innerText='FULL';document.getElementById('chargeBtn').classList.remove('charging');document.getElementById('chargeBtn').classList.add('full');document.getElementById('chargePort').classList.remove('charging');log('CHARGE:FULL');if(isLinked)unlockPTT();setTimeout(()=>{document.getElementById('chargeBtn').innerText='SUPER CHARGE';document.getElementById('chargeBtn').classList.remove('full');},2000);}updateBattDisplay(battLevel);},300);
 }
 
-/* ===== ECHO PREVENTION: duck output + tail suppression ===== */
-function duckOutput(tx){ if(!pG||!actx)return; pG.gain.setTargetAtTime(tx?TX_OUT_VOL:BASE_OUT_VOL,actx.currentTime,tx?0.005:0.08); }
+function duckOutput(tx){if(!pG||!actx)return;pG.gain.setTargetAtTime(tx?TX_OUT_VOL:BASE_OUT_VOL,actx.currentTime,tx?0.005:0.08);}
 
-function clearPTTHandlers(){ const p=document.getElementById('ptt');p.onmousedown=null;p.onmouseup=null;p.onmouseleave=null;p.ontouchstart=null;p.ontouchend=null;p.ontouchcancel=null; }
+function clearPTTHandlers(){const p=document.getElementById('ptt');p.onmousedown=null;p.onmouseup=null;p.onmouseleave=null;p.ontouchstart=null;p.ontouchend=null;p.ontouchcancel=null;}
 function lockPTT(l){if(isDead)return;const p=document.getElementById('ptt');p.innerText=l||'LOCKED';p.className='ptt-lever';clearPTTHandlers();}
 function waitPTT(l){if(isDead)return;const p=document.getElementById('ptt');p.innerText=l||'WAITING...';p.className='ptt-lever waiting';clearPTTHandlers();}
 function unlockPTT(){if(isDead||isCharging)return;const p=document.getElementById('ptt');p.innerText='PUSH TO TALK';p.className='ptt-lever unlocked ready';p.onmousedown=pttDown;p.onmouseup=pttUp;p.onmouseleave=pttUp;p.ontouchstart=pttDown;p.ontouchend=pttUp;p.ontouchcancel=pttUp;}
 
-function pttDown(e){
-    if(!isLinked||isDead||isCharging)return;e.preventDefault();
-    isTx=true;duckOutput(true);
-    if(txTailTimer){clearTimeout(txTailTimer);txTailTimer=null;}
-    const p=document.getElementById('ptt');p.classList.add('tx');p.innerText='TX';
-}
-function pttUp(e){
-    if(!isLinked)return;e.preventDefault();
-    isTx=false;
-    const p=document.getElementById('ptt');p.classList.remove('tx');p.innerText='PUSH TO TALK';
-    /* TAIL SUPPRESSION: keep output muted 400ms after TX to kill echo tail */
-    if(txTailTimer) clearTimeout(txTailTimer);
-    txTailTimer = setTimeout(() => {
-        duckOutput(false);
-        txTailTimer = null;
-    }, 400);
-}
+function pttDown(e){if(!isLinked||isDead||isCharging)return;e.preventDefault();isTx=true;duckOutput(true);if(txTailTimer){clearTimeout(txTailTimer);txTailTimer=null;}const p=document.getElementById('ptt');p.classList.add('tx');p.innerText='TX';}
+function pttUp(e){if(!isLinked)return;e.preventDefault();isTx=false;const p=document.getElementById('ptt');p.classList.remove('tx');p.innerText='PUSH TO TALK';if(txTailTimer)clearTimeout(txTailTimer);txTailTimer=setTimeout(()=>{duckOutput(false);txTailTimer=null;},400);}
 
 function doDisconnect(){
-    if(!isLinked)return;
-    isTx=false;duckOutput(false);
-    if(txTailTimer){clearTimeout(txTailTimer);txTailTimer=null;}
-    log('USER_DISCONNECT');
-    setConnLed(myRole==='host'?'hLed':'jLed','fail');
+    if(!isLinked)return;isTx=false;duckOutput(false);if(txTailTimer){clearTimeout(txTailTimer);txTailTimer=null;}
+    log('USER_DISCONNECT');setConnLed(myRole==='host'?'hLed':'jLed','fail');
     if(mc){try{mc.end(true);}catch(e){}mc=null;}
     if(heartbeatTimer){clearInterval(heartbeatTimer);heartbeatTimer=null;}
     if(peerTimeout){clearTimeout(peerTimeout);peerTimeout=null;}
     if(sigDecayTimer){clearTimeout(sigDecayTimer);sigDecayTimer=null;}
-    isLinked=false; myRole=null;
-    sigGaps=[]; lastAudioTime=0; sigQuality=0; lastPacketIV='';
-    setUILevel('on'); lockPTT('LOCKED'); unlockInputs(); updateUI('idle');
+    isLinked=false;myRole=null;sigGaps=[];lastAudioTime=0;sigQuality=0;
+    setUILevel('on');lockPTT('LOCKED');unlockInputs();updateUI('idle');
     if(mic){mic.getTracks().forEach(t=>t.stop());mic=null;}
     if(actx){try{actx.close();}catch(e){}actx=null;}
     ana=null;pG=null;ck=null;inHPF=null;inBPF=null;inComp=null;outHPF=null;outComp=null;inMute=null;
     ancNotch50=null;ancNotch60=null;ancNotch100=null;ancNotch120=null;ancLPF=null;ancBPF=null;
-    nxt=0;noiseFloor=new Float32Array(64);noiseFloorFilled=false;noiseGateEnvelope=0;noiseFloorFrames=0;noiseFloorAvg=0;noiseThreshold=0;voiceHangover=0;
-    isAnc=false;
+    nxt=0;resetNoiseState();isAnc=false;
     document.getElementById('ancBtn').innerText='ANC OFF';document.getElementById('ancBtn').classList.remove('on');document.getElementById('ancLed').className='anc-led';
 }
+
+function resetNoiseState(){noiseFloor=new Float32Array(128);noiseFloorFilled=false;noiseGateEnvelope=0;totalFrames=0;quietFrames=0;voiceHangover=0;noiseFloorAvg=0;noiseThreshold=0;}
 
 function pwr(s){
     isPwr=s;
@@ -674,26 +617,20 @@ function pwr(s){
     else{setUILevel('off');teardown();location.reload();}
 }
 
-/* ===== ANC: AGGRESSIVE NOISE CANCELLATION ===== */
+/* ===== ANC ===== */
 function toggleAnc(){
-    if(!isPwr||isDead)return;
-    isAnc=!isAnc;
+    if(!isPwr||isDead)return;isAnc=!isAnc;
     const b=document.getElementById('ancBtn'),al=document.getElementById('ancLed');
     if(isAnc){
-        /* Reset noise floor for fresh calibration */
-        noiseFloor=new Float32Array(64);
-        noiseFloorFilled=false;noiseFloorFrames=0;
-        noiseGateEnvelope=0;voiceHangover=0;
-        noiseFloorAvg=0;noiseThreshold=0;
+        resetNoiseState();
         b.innerText='ANC ON';b.classList.add('on');
         if(!ancNotch50)buildAncFilters();
         reconnectAudioChain(true);
         al.className='anc-led led-anc-active';
-        log('ANC:INIT_CALIBRATING...');
-    } else {
+        log('ANC:WAITING_FOR_SILENCE...');
+    }else{
         b.innerText='ANC OFF';b.classList.remove('on');
-        reconnectAudioChain(false);
-        al.className='anc-led';
+        reconnectAudioChain(false);al.className='anc-led';
         log('ANC:DISABLED');
     }
 }
@@ -707,77 +644,107 @@ function buildAncFilters(){
     ancNotch50.connect(ancNotch60);ancNotch60.connect(ancNotch100);ancNotch100.connect(ancNotch120);ancNotch120.connect(ancLPF);ancLPF.connect(ancBPF);
 }
 function reconnectAudioChain(useAnc){
-    if(!actx||!mic)return;
-    const src=actx.createMediaStreamSource(mic);
+    if(!actx||!mic)return;const src=actx.createMediaStreamSource(mic);
     try{inHPF.disconnect();}catch(e){}try{inBPF.disconnect();}catch(e){}try{inComp.disconnect();}catch(e){}if(ana){try{ana.disconnect();}catch(e){}}
     if(useAnc&&ancBPF){src.connect(inHPF);inHPF.connect(inBPF);inBPF.connect(inComp);inComp.connect(ancNotch50);ancBPF.connect(ana);}
     else{src.connect(inHPF);inHPF.connect(inBPF);inBPF.connect(inComp);inComp.connect(ana);}
     ana.connect(ana._proc);ana._proc.connect(inMute);inMute.connect(actx.destination);
 }
 
-/* ===== AGGRESSIVE NOISE GATE ===== */
+/* ===== SMART NOISE GATE =====
+   KEY INSIGHT: Only learn noise floor from TRULY QUIET frames.
+   If you talk during calibration, those frames are IGNORED.
+   This prevents voice from being learned as "noise".
+*/
 function applyNoiseGate(samples){
     /* Calculate block RMS energy */
     let energy = 0;
-    for(let i=0;i<samples.length;i++) energy += samples[i]*samples[i];
+    for(let i=0; i<samples.length; i++) energy += samples[i]*samples[i];
     energy = Math.sqrt(energy / samples.length);
 
-    /* PHASE 1: NOISE FLOOR CALIBRATION (be quiet for ~1 sec) */
+    /* === CALIBRATION PHASE === */
     if(!noiseFloorFilled){
-        for(let i=0;i<samples.length;i++){
-            const idx=i%noiseFloor.length;
-            noiseFloor[idx]=noiseFloor[idx]*0.5+Math.abs(samples[i])*0.5;
+        totalFrames++;
+
+        /* ONLY learn from frames that are genuinely quiet */
+        if(energy < QUIET_ENERGY){
+            quietFrames++;
+            for(let i=0; i<samples.length; i++){
+                const idx = i % noiseFloor.length;
+                noiseFloor[idx] = noiseFloor[idx]*0.5 + Math.abs(samples[i])*0.5;
+            }
         }
-        noiseFloorFrames++;
-        if(noiseFloorFrames===1) log('ANC:STAY_QUIET_1SEC...');
-        if(noiseFloorFrames>30){
-            noiseFloorFilled=true;
-            let sum=0;
-            for(let i=0;i<noiseFloor.length;i++) sum+=noiseFloor[i];
-            noiseFloorAvg=sum/noiseFloor.length;
-            /* HIGH threshold: 4x noise floor — only voice passes */
-            noiseThreshold=noiseFloorAvg*4;
-            noiseGateEnvelope=0;
-            log('ANC:CALIBRATED THR:'+noiseThreshold.toFixed(4));
+        /* Else: this frame has voice/sound — SKIP it, don't learn from it */
+
+        /* Log progress every 10 frames */
+        if(totalFrames % 10 === 0){
+            log('ANC:SILENCE_'+quietFrames+'/'+NEEDED_QUIET);
         }
+
+        /* Calibrated when we have enough quiet frames */
+        if(quietFrames >= NEEDED_QUIET){
+            noiseFloorFilled = true;
+            let sum = 0;
+            for(let i=0; i<noiseFloor.length; i++) sum += noiseFloor[i];
+            noiseFloorAvg = sum / noiseFloor.length;
+            /* Threshold: 1.6x noise floor — permissive enough for quiet voices */
+            noiseThreshold = Math.max(noiseFloorAvg * 1.6, 0.008);
+            noiseGateEnvelope = 0;
+            log('ANC:CALIBRATED_OK');
+            log('ANC:FLOOR:'+noiseFloorAvg.toFixed(5));
+            log('ANC:THRESH:'+noiseThreshold.toFixed(5));
+        }
+        /* Force-calibrate after timeout even if not enough quiet frames */
+        else if(totalFrames >= CAL_TIMEOUT){
+            noiseFloorFilled = true;
+            if(quietFrames < 3){
+                /* No quiet frames at all — use conservative default */
+                noiseFloorAvg = 0.002;
+                noiseThreshold = 0.008;
+                log('ANC:NOISY_ENV_DEFAULT');
+            } else {
+                let sum = 0;
+                for(let i=0; i<noiseFloor.length; i++) sum += noiseFloor[i];
+                noiseFloorAvg = sum / noiseFloor.length;
+                noiseThreshold = Math.max(noiseFloorAvg * 1.6, 0.008);
+                log('ANC:CAL_TIMEOUT_OK');
+            }
+            log('ANC:FLOOR:'+noiseFloorAvg.toFixed(5));
+            log('ANC:THRESH:'+noiseThreshold.toFixed(5));
+        }
+
+        /* ALWAYS pass through audio during calibration — never silence */
         return samples;
     }
 
-    /* PHASE 2: VOICE ACTIVITY DETECTION */
+    /* === ACTIVE GATING PHASE === */
     const isVoice = energy > noiseThreshold;
 
     if(isVoice){
         voiceHangover = HANGOVER_FRAMES;
-        noiseGateEnvelope = Math.min(1, noiseGateEnvelope + 0.4); /* Fast open */
+        noiseGateEnvelope = Math.min(1, noiseGateEnvelope + 0.5);
     } else {
         if(voiceHangover > 0){
             voiceHangover--;
-            noiseGateEnvelope *= 0.85; /* Medium close during hangover */
+            noiseGateEnvelope *= 0.88;
         } else {
-            noiseGateEnvelope *= 0.75; /* HARD close — no slow fade */
+            noiseGateEnvelope *= 0.82;
         }
-        /* Adapt noise floor slowly when no voice (track environment changes) */
-        for(let i=0;i<samples.length;i++){
-            const idx=i%noiseFloor.length;
-            if(Math.abs(samples[i]) < noiseFloor[idx]*2){
-                noiseFloor[idx]=noiseFloor[idx]*0.998+Math.abs(samples[i])*0.002;
+        /* Slowly adapt noise floor during confirmed silence */
+        if(energy < noiseThreshold * 0.7){
+            for(let i=0; i<samples.length; i++){
+                const idx = i % noiseFloor.length;
+                noiseFloor[idx] = noiseFloor[idx]*0.998 + Math.abs(samples[i])*0.002;
             }
         }
     }
 
-    /* HARD ENERGY GATE: if envelope too low, silence entire block */
-    if(noiseGateEnvelope < 0.04){
-        for(let i=0;i<samples.length;i++) samples[i]=0;
-        return samples;
-    }
-
-    /* PER-SAMPLE SPECTRAL GATE: attenuate samples below local noise floor */
-    for(let i=0;i<samples.length;i++){
-        const idx=i%noiseFloor.length;
-        /* 7x noise floor threshold per sample — very aggressive */
-        const sampleThresh = noiseFloor[idx] * 7;
-        if(Math.abs(samples[i]) < sampleThresh){
-            samples[i] *= noiseGateEnvelope * 0.03; /* Near-zero for noise */
+    /* Per-sample soft spectral gate: 2.2x local noise floor */
+    for(let i=0; i<samples.length; i++){
+        const idx = i % noiseFloor.length;
+        const localThresh = noiseFloor[idx] * 2.2;
+        if(Math.abs(samples[i]) < localThresh){
+            samples[i] *= noiseGateEnvelope * 0.08;
         }
     }
 
@@ -786,41 +753,25 @@ function applyNoiseGate(samples){
 
 function log(m){const el=document.getElementById('sys');if(!el)return;const d=document.createElement('div');d.innerText='> '+m;el.appendChild(d);el.scrollTop=el.scrollHeight;while(el.childElementCount>30)el.removeChild(el.firstChild);}
 
-function teardown(){isTx=false;isLinked=false;myRole=null;if(connTimeout){clearTimeout(connTimeout);connTimeout=null;}if(heartbeatTimer){clearInterval(heartbeatTimer);heartbeatTimer=null;}if(peerTimeout){clearTimeout(peerTimeout);peerTimeout=null;}if(vltTimer){clearInterval(vltTimer);vltTimer=null;}if(chargeTimer){clearInterval(chargeTimer);chargeTimer=null;}if(txTailTimer){clearTimeout(txTailTimer);txTailTimer=null;}if(sigDecayTimer){clearTimeout(sigDecayTimer);sigDecayTimer=null;}if(mc){try{mc.end(true);}catch(e){}mc=null;}if(mic){mic.getTracks().forEach(t=>t.stop());mic=null;}if(actx){try{actx.close();}catch(e){}actx=null;}ana=null;pG=null;ck=null;inHPF=null;inBPF=null;inComp=null;outHPF=null;outComp=null;inMute=null;ancNotch50=null;ancNotch60=null;ancNotch100=null;ancNotch120=null;ancLPF=null;ancBPF=null;nxt=0;noiseFloor=new Float32Array(64);noiseFloorFilled=false;noiseGateEnvelope=0;noiseFloorFrames=0;noiseFloorAvg=0;noiseThreshold=0;voiceHangover=0;sigGaps=[];lastAudioTime=0;sigQuality=0;lastPacketIV='';}
+function teardown(){isTx=false;isLinked=false;myRole=null;if(connTimeout){clearTimeout(connTimeout);connTimeout=null;}if(heartbeatTimer){clearInterval(heartbeatTimer);heartbeatTimer=null;}if(peerTimeout){clearTimeout(peerTimeout);peerTimeout=null;}if(vltTimer){clearInterval(vltTimer);vltTimer=null;}if(chargeTimer){clearInterval(chargeTimer);chargeTimer=null;}if(txTailTimer){clearTimeout(txTailTimer);txTailTimer=null;}if(sigDecayTimer){clearTimeout(sigDecayTimer);sigDecayTimer=null;}if(mc){try{mc.end(true);}catch(e){}mc=null;}if(mic){mic.getTracks().forEach(t=>t.stop());mic=null;}if(actx){try{actx.close();}catch(e){}actx=null;}ana=null;pG=null;ck=null;inHPF=null;inBPF=null;inComp=null;outHPF=null;outComp=null;inMute=null;ancNotch50=null;ancNotch60=null;ancNotch100=null;ancNotch120=null;ancLPF=null;ancBPF=null;nxt=0;resetNoiseState();sigGaps=[];lastAudioTime=0;sigQuality=0;}
 
 function lockInputs(){document.getElementById('ch').classList.add('locked');document.getElementById('key').classList.add('locked');document.getElementById('hBtn').classList.add('disabled');document.getElementById('jBtn').classList.add('disabled');}
 function unlockInputs(){document.getElementById('ch').classList.remove('locked');document.getElementById('key').classList.remove('locked');document.getElementById('hBtn').classList.remove('disabled');document.getElementById('jBtn').classList.remove('disabled');}
 
-/* ===== BACKGROUND CANVAS ===== */
+/* ===== BACKGROUND ===== */
 const bcvs=document.getElementById('scannerCanvas'),bctx=bcvs.getContext('2d');
 let bgCols=[];
 function initBg(){bcvs.width=window.innerWidth;bcvs.height=window.innerHeight;bgCols=new Array(Math.floor(bcvs.width/20)).fill(0).map(()=>Math.random()*bcvs.height);}
 window.onresize=initBg;initBg();
-
-function draw(){
-    bctx.fillStyle='rgba(0,0,0,0.1)';bctx.fillRect(0,0,bcvs.width,bcvs.height);
-    bctx.font='12px monospace';bctx.fillStyle='#010';
-    bgCols.forEach((y,i)=>{bctx.fillText(Math.random()>0.8?'1':'0',i*20,y);bgCols[i]=y>bcvs.height?0:y+10;});
-    if(ana&&isPwr&&isLinked){
-        const scvs=document.getElementById('scope'),sctx=scvs.getContext('2d');
-        const data=new Uint8Array(ana.frequencyBinCount);ana.getByteTimeDomainData(data);
-        sctx.clearRect(0,0,scvs.width,scvs.height);
-        sctx.lineWidth=2;sctx.strokeStyle=isAnc?'#00d4ff':'#39ff14';
-        sctx.shadowBlur=3;sctx.shadowColor=sctx.strokeStyle;sctx.beginPath();
-        const step=scvs.width/data.length;
-        for(let i=0;i<data.length;i++){const v=data[i]/128.0,y=v*scvs.height/2;if(i===0)sctx.moveTo(0,y);else sctx.lineTo(i*step,y);}
-        sctx.stroke();sctx.shadowBlur=0;
-    }
-    requestAnimationFrame(draw);
-}
+function draw(){bctx.fillStyle='rgba(0,0,0,0.1)';bctx.fillRect(0,0,bcvs.width,bcvs.height);bctx.font='12px monospace';bctx.fillStyle='#010';bgCols.forEach((y,i)=>{bctx.fillText(Math.random()>0.8?'1':'0',i*20,y);bgCols[i]=y>bcvs.height?0:y+10;});if(ana&&isPwr&&isLinked){const scvs=document.getElementById('scope'),sctx=scvs.getContext('2d');const data=new Uint8Array(ana.frequencyBinCount);ana.getByteTimeDomainData(data);sctx.clearRect(0,0,scvs.width,scvs.height);sctx.lineWidth=2;sctx.strokeStyle=isAnc?'#00d4ff':'#39ff14';sctx.shadowBlur=3;sctx.shadowColor=sctx.strokeStyle;sctx.beginPath();const step=scvs.width/data.length;for(let i=0;i<data.length;i++){const v=data[i]/128.0,y=v*scvs.height/2;if(i===0)sctx.moveTo(0,y);else sctx.lineTo(i*step,y);}sctx.stroke();sctx.shadowBlur=0;}requestAnimationFrame(draw);}
 draw();
 
-/* ===== HEARTBEAT & PEER DETECTION ===== */
+/* ===== HEARTBEAT ===== */
 function startHeartbeat(){const t=TP+document.getElementById('ch').value+'/'+myRole+'_ping';heartbeatTimer=setInterval(()=>{if(mc&&mc.connected)mc.publish(t,'1',{qos:0});},3000);}
 function resetPeerTimeout(){if(peerTimeout)clearTimeout(peerTimeout);peerTimeout=setTimeout(()=>{if(isLinked){isLinked=false;isTx=false;log('PEER_LOST');setConnLed(myRole==='host'?'hLed':'jLed','fail');sigGaps=[];sigQuality=0;lastAudioTime=0;setUILevel('on');lockPTT('LOCKED');unlockInputs();updateUI('idle');if(mc&&mc.connected)mc.unsubscribe(TP+document.getElementById('ch').value+'/'+(myRole==='host'?'client':'host')+'_audio');}},10000);}
 function onPeerFound(){if(isLinked){resetPeerTimeout();return;}isLinked=true;resetPeerTimeout();setUILevel('linked');setConnLed(myRole==='host'?'hLed':'jLed','ok');const ch=document.getElementById('ch').value;const pt=TP+ch+'/'+(myRole==='host'?'client':'host')+'_audio';mc.subscribe(pt,{qos:0},(err)=>{if(err)log('AUDIO_SUB_FAIL');else log('RX:'+pt);});if(!isCharging&&!isDead)unlockPTT();updateUI('connected');log('HANDSHAKE_OK');log('CH_'+ch+'_ENCRYPTED');}
 
-/* ===== MAIN CONNECTION ===== */
+/* ===== CONNECTION ===== */
 async function conn(role){
     if(!isPwr||mc||isDead)return;
     myRole=role;const chVal=document.getElementById('ch').value;const peerRole=role==='host'?'client':'host';
@@ -832,154 +783,82 @@ async function conn(role){
     connTimeout=setTimeout(()=>{if(!isLinked){log('TIMEOUT');setConnLed(role==='host'?'hLed':'jLed','fail');teardown();setUILevel('on');updateUI('idle');}},15000);
     try{
         log('REQ_MIC...');
-        /* Browser echo cancel ON, noise suppression OFF (we do ANC ourselves) */
         mic=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:false,autoGainControl:false,channelCount:1,sampleRate:{ideal:16000}}});
         log('MIC_OK');
         actx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:16000,latencyHint:'interactive'});
         await actx.resume();log('ACTX:'+actx.sampleRate+'Hz');
         const src=actx.createMediaStreamSource(mic);
 
-        /*
-         * INPUT CHAIN — mic processing for TX only, ZERO output to speakers:
-         * mic → HPF(200Hz) → BPF(200-3200Hz) → Compressor → [ANC chain] → Analyser → ScriptProc → MuteGain(0) → destination
-         * ScriptProc fills output with silence. MuteGain at 0 is double insurance.
-         */
-        inHPF=actx.createBiquadFilter();inHPF.type='highpass';inHPF.frequency.value=200;inHPF.Q.value=0.7;
-        inBPF=actx.createBiquadFilter();inBPF.type='bandpass';inBPF.frequency.value=1000;inBPF.Q.value=0.8;
-        inComp=actx.createDynamicsCompressor();inComp.threshold.value=-35;inComp.knee.value=15;inComp.ratio.value=12;inComp.attack.value=0.003;inComp.release.value=0.08;
+        inHPF=actx.createBiquadFilter();inHPF.type='highpass';inHPF.frequency.value=150;inHPF.Q.value=0.7;
+        inBPF=actx.createBiquadFilter();inBPF.type='bandpass';inBPF.frequency.value=1000;inBPF.Q.value=0.7;
+        inComp=actx.createDynamicsCompressor();inComp.threshold.value=-32;inComp.knee.value=15;inComp.ratio.value=12;inComp.attack.value=0.003;inComp.release.value=0.08;
 
         ana=actx.createAnalyser();ana.fftSize=2048;
         const proc=actx.createScriptProcessor(2048,1,1);ana._proc=proc;
 
         proc.onaudioprocess=function(e){
-            /* ABSOLUTE SILENCE to speakers — prevents ALL echo */
             e.outputBuffer.getChannelData(0).fill(0);
-
             let s=e.inputBuffer.getChannelData(0);
-
-            /* Always run noise gate if ANC is on (for calibration + adaptation) */
             if(isAnc) s=applyNoiseGate(s);
-
-            /* Only transmit when PTT is pressed AND linked */
-            if(isTx&&mc&&mc.connected&&isLinked){
-                transmit(s,chVal,role);
-            }
+            if(isTx&&mc&&mc.connected&&isLinked) transmit(s,chVal,role);
         };
 
-        /* Zero-gain node: double insurance nothing leaks to speakers */
         inMute=actx.createGain();inMute.gain.value=0;
-
         src.connect(inHPF);inHPF.connect(inBPF);inBPF.connect(inComp);inComp.connect(ana);
         ana.connect(proc);proc.connect(inMute);inMute.connect(actx.destination);
 
-        /*
-         * OUTPUT CHAIN — received audio → speakers only (separate from input):
-         * BufferSource → HPF(250Hz) → LPF(3200Hz) → Compressor → Limiter → Gain(duck) → destination
-         */
-        outHPF=actx.createBiquadFilter();outHPF.type='highpass';outHPF.frequency.value=250;outHPF.Q.value=0.5;
+        outHPF=actx.createBiquadFilter();outHPF.type='highpass';outHPF.frequency.value=200;outHPF.Q.value=0.5;
         const outLPF=actx.createBiquadFilter();outLPF.type='lowpass';outLPF.frequency.value=3200;outLPF.Q.value=0.5;
         outComp=actx.createDynamicsCompressor();outComp.threshold.value=-18;outComp.knee.value=10;outComp.ratio.value=8;outComp.attack.value=0.003;outComp.release.value=0.1;
-        /* Hard limiter prevents loud output that causes echo on the other end */
-        const outLimiter=actx.createDynamicsCompressor();outLimiter.threshold.value=-8;outLimiter.knee.value=0;outLimiter.ratio.value=20;outLimiter.attack.value=0.001;outLimiter.release.value=0.01;
+        const outLimiter=actx.createDynamicsCompressor();outLimiter.threshold.value=-6;outLimiter.knee.value=0;outLimiter.ratio.value=20;outLimiter.attack.value=0.001;outLimiter.release.value=0.01;
         pG=actx.createGain();pG.gain.value=BASE_OUT_VOL;
         outHPF.connect(outLPF);outLPF.connect(outComp);outComp.connect(outLimiter);outLimiter.connect(pG);pG.connect(actx.destination);
 
-        /* Derive AES-256 key from password */
         const enc=new TextEncoder();
         const km=await crypto.subtle.importKey('raw',enc.encode(pwd),'PBKDF2',false,['deriveKey']);
         ck=await crypto.subtle.deriveKey({name:'PBKDF2',salt:enc.encode('TACCOM_v12_SECURE_SALT'),iterations:10000,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
         log('CIPHER:KEY_READY');log('BROKER:TLS_CONNECT...');
 
         mc=mqtt.connect('wss://broker.emqx.io:8084/mqtt',{connectTimeout:8000,reconnectPeriod:3000,clientId:'tac_'+role+'_'+Math.random().toString(36).slice(2,8)});
-
-        mc.on('connect',()=>{
-            if(connTimeout){clearTimeout(connTimeout);connTimeout=null;}
-            log('BROKER:TLS_OK');
-            mc.subscribe(peerPing,{qos:0},(err)=>{
-                if(err){log('SUB_FAIL');setConnLed(role==='host'?'hLed':'jLed','fail');return;}
-                log('SCAN:'+peerPing);
-                mc.publish(myPing,'1',{qos:0});log('ANN:'+myPing);
-                startHeartbeat();
-                waitPTT('WAITING '+peerRole.toUpperCase());
-            });
-        });
-        mc.on('message',function(topic,payload){
-            if(topic.endsWith('_ping')){onPeerFound();return;}
-            if(topic.endsWith('_audio')){handleAudio(payload);return;}
-        });
+        mc.on('connect',()=>{if(connTimeout){clearTimeout(connTimeout);connTimeout=null;}log('BROKER:TLS_OK');mc.subscribe(peerPing,{qos:0},(err)=>{if(err){log('SUB_FAIL');setConnLed(role==='host'?'hLed':'jLed','fail');return;}log('SCAN:'+peerPing);mc.publish(myPing,'1',{qos:0});log('ANN:'+myPing);startHeartbeat();waitPTT('WAITING '+peerRole.toUpperCase());});});
+        mc.on('message',function(topic,payload){if(topic.endsWith('_ping')){onPeerFound();return;}if(topic.endsWith('_audio')){handleAudio(payload);return;}});
         mc.on('error',(err)=>{log('ERR:'+(err.message||'?'));});
-        mc.on('close',()=>{
-            log('BROKER_DOWN');isLinked=false;isTx=false;
-            if(heartbeatTimer){clearInterval(heartbeatTimer);heartbeatTimer=null;}
-            setConnLed(role==='host'?'hLed':'jLed','fail');
-            setUILevel('on');waitPTT('RECONNECTING');updateUI('waiting');
-            sigGaps=[];sigQuality=0;lastAudioTime=0;
-        });
+        mc.on('close',()=>{log('BROKER_DOWN');isLinked=false;isTx=false;if(heartbeatTimer){clearInterval(heartbeatTimer);heartbeatTimer=null;}setConnLed(role==='host'?'hLed':'jLed','fail');setUILevel('on');waitPTT('RECONNECTING');updateUI('waiting');sigGaps=[];sigQuality=0;lastAudioTime=0;});
         mc.on('reconnect',()=>{log('RELINK...');});
-        mc.on('reconnect_success',()=>{
-            log('RELINK_OK');
-            if(myRole){
-                const ch2=document.getElementById('ch').value;
-                const pr=myRole==='host'?'client':'host';
-                mc.subscribe(TP+ch2+'/'+pr+'_ping',{qos:0});
-                mc.publish(TP+ch2+'/'+myRole+'_ping','1',{qos:0});
-                if(!isLinked)waitPTT('WAITING '+pr.toUpperCase());
-            }
-        });
-    } catch(err){
-        if(connTimeout){clearTimeout(connTimeout);connTimeout=null;}
-        log('FAIL:'+(err.name||err.message||'ERR'));
-        setConnLed(role==='host'?'hLed':'jLed','fail');
-        teardown();setUILevel('on');updateUI('idle');
-    }
+        mc.on('reconnect_success',()=>{log('RELINK_OK');if(myRole){const ch2=document.getElementById('ch').value;const pr=myRole==='host'?'client':'host';mc.subscribe(TP+ch2+'/'+pr+'_ping',{qos:0});mc.publish(TP+ch2+'/'+myRole+'_ping','1',{qos:0});if(!isLinked)waitPTT('WAITING '+pr.toUpperCase());}});
+    }catch(err){if(connTimeout){clearTimeout(connTimeout);connTimeout=null;}log('FAIL:'+(err.name||err.message||'ERR'));setConnLed(role==='host'?'hLed':'jLed','fail');teardown();setUILevel('on');updateUI('idle');}
 }
 
-/* ===== AUDIO RECEIVE with dedup + signal tracking ===== */
+/* ===== RECEIVE ===== */
+let lastPacketIV = '';
 async function handleAudio(payload){
-    if(!isLinked)return;
-    try{
+    if(!isLinked)return;try{
         if(payload.length<13)return;
         const iv=payload.slice(0,12);
-        /* Dedup: skip if same IV seen (prevents repeated words from duplicate packets) */
         const ivHex=Array.from(iv).map(b=>b.toString(16).padStart(2,'0')).join('');
         if(ivHex===lastPacketIV)return;
         lastPacketIV=ivHex;
-        /* Track signal quality from packet timing */
         updateSignalFromPacket();
         const dec=await crypto.subtle.decrypt({name:'AES-GCM',iv:iv},ck,payload.slice(12));
         playAudio(dec);
     }catch(e){}
 }
 
-/* ===== AUDIO TRANSMIT ===== */
-async function transmit(samples,ch,role){
-    try{
-        const i16=new Int16Array(samples.length);
-        for(let i=0;i<samples.length;i++){const s=Math.max(-1,Math.min(1,samples[i]));i16[i]=s<0?s*32768:s*32767;}
-        const iv=crypto.getRandomValues(new Uint8Array(12));
-        const enc=await crypto.subtle.encrypt({name:'AES-GCM',iv:iv},ck,i16.buffer);
-        const pkt=new Uint8Array(12+enc.byteLength);pkt.set(iv,0);pkt.set(new Uint8Array(enc),12);
-        mc.publish(TP+ch+'/'+role+'_audio',pkt,{qos:0});
-    }catch(e){}
-}
+/* ===== TRANSMIT ===== */
+async function transmit(samples,ch,role){try{const i16=new Int16Array(samples.length);for(let i=0;i<samples.length;i++){const s=Math.max(-1,Math.min(1,samples[i]));i16[i]=s<0?s*32768:s*32767;}const iv=crypto.getRandomValues(new Uint8Array(12));const enc=await crypto.subtle.encrypt({name:'AES-GCM',iv:iv},ck,i16.buffer);const pkt=new Uint8Array(12+enc.byteLength);pkt.set(iv,0);pkt.set(new Uint8Array(enc),12);mc.publish(TP+ch+'/'+role+'_audio',pkt,{qos:0});}catch(e){}}
 
-/* ===== AUDIO PLAYBACK with gapless scheduling ===== */
+/* ===== PLAYBACK ===== */
 function playAudio(rawBuffer){
-    if(!actx||actx.state==='closed')return;
-    if(actx.state==='suspended')actx.resume();
+    if(!actx||actx.state==='closed')return;if(actx.state==='suspended')actx.resume();
     const i16=new Int16Array(rawBuffer);const f32=new Float32Array(i16.length);
     for(let i=0;i<i16.length;i++)f32[i]=i16[i]/32768;
     const buf=actx.createBuffer(1,f32.length,actx.sampleRate);buf.getChannelData(0).set(f32);
     const src=actx.createBufferSource();src.buffer=buf;src.connect(outHPF);
-    const now=actx.currentTime;
-    /* If gap > 200ms, reset (don't try to catch up — prevents burst of old audio) */
-    if(nxt<now-0.2)nxt=now;
-    const startAt=Math.max(now+0.005,nxt);
-    src.start(startAt);nxt=startAt+buf.duration;
+    const now=actx.currentTime;if(nxt<now-0.2)nxt=now;
+    const startAt=Math.max(now+0.005,nxt);src.start(startAt);nxt=startAt+buf.duration;
 }
 
-setUILevel('off');
-checkPwd();
+setUILevel('off');checkPwd();
 </script>
 </body>
 </html>
