@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+    <script async src="https://www.googletagmanager.com/gtag/js?id=GT-NC6T5LRJ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'GT-NC6T5LRJ');
+</script>
+
+    <link rel="icon" href="https://mohammad3230.github.io/PROJECT/favicon.png" type="image/png" sizes="32x32" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TAC/COM v12.4.1 | ASHRAF ALI MASTER</title>
+    <script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.4/dist/mqtt.min.js"></script>
+    <style>
+        :root {
+            --g: #39ff14; --b: #00d4ff; --r: #ff3131; --y: #ffcc00;
+            --chassis-w: clamp(300px, 94vw, 380px);
+            --gap: 8px; --pad: 16px; --brd: 10px; --brd-bot: 28px;
+            --rad-top: 28px; --rad-bot: 60px;
+        }
+        * { box-sizing: border-box; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+        body { background: #000; color: var(--g); font-family: 'Courier New', monospace; margin: 0; padding: 12px; min-height: 100vh; min-height: 100dvh; display: flex; justify-content: center; align-items: center; overflow-x: hidden; }
+        #scannerCanvas { position: fixed; inset: 0; z-index: -1; opacity: 0.1; }
+
+        .chassis {
+            width: var(--chassis-w); max-height: 97vh; max-height: 97dvh; overflow-y: auto; overflow-x: hidden;
+            background: linear-gradient(180deg, #0e0e0e 0%, #050505 100%);
+            border: var(--brd) solid #1a1a1a; border-radius: var(--rad-top) var(--rad-top) var(--rad-bot) var(--rad-bot);
+            padding: var(--pad); box-shadow: 0 50px 100px rgba(0,0,0,1);
+            position: relative; border-bottom-width: var(--brd-bot);
+            display: flex; flex-direction: column; gap: var(--gap);
+            transition: background 0.4s, border-color 0.4s;
+        }
+        .chassis::-webkit-scrollbar { width: 4px; }
+        .chassis::-webkit-scrollbar-track { background: transparent; }
+        .chassis::-webkit-scrollbar-thumb { background: #1a1a1a; border-radius: 2px; }
+        .chassis.s-on { background: linear-gradient(180deg, #1e1e1e 0%, #0a0a0a 100%); border-color: #2a2a2a; border-bottom-color: #050505; }
+
+        .antenna-stub { position: absolute; top: -50px; left: 35px; width: 10px; height: 60px; background: #111; border: 3px solid #333; border-radius: 4px 4px 0 0; z-index: -1; }
+
+        .top-deck { height: 44px; display: flex; align-items: center; justify-content: flex-end; position: relative; padding: 0 4px; }
+        .indicator-cluster { display: flex; align-items: center; gap: 12px; }
+        .nozzle-dial { width: 38px; height: 38px; background: conic-gradient(#222 0deg 90deg, #111 90deg 180deg, #222 180deg 270deg, #111 270deg 360deg); border-radius: 50%; border: 4px solid #444; cursor: pointer; position: relative; transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .nozzle-dial::after { content: ''; position: absolute; top: 3px; left: 50%; width: 4px; height: 7px; background: var(--r); transform: translateX(-50%); border-radius: 2px; }
+        .status-led { width: 16px; height: 16px; background: #000; border-radius: 50%; border: 2px solid #333; }
+
+        @keyframes blink-r { 0%,49%{ background:var(--r); box-shadow:0 0 8px var(--r); } 50%,100%{ background:#300; box-shadow:none; } }
+        @keyframes blink-g { 0%,49%{ background:var(--g); box-shadow:0 0 8px var(--g); } 50%,100%{ background:#030; box-shadow:none; } }
+        @keyframes blink-y { 0%,49%{ background:var(--y); box-shadow:0 0 8px var(--y); } 50%,100%{ background:#330; box-shadow:none; } }
+        @keyframes pulse-blue { 0%,100%{ background:var(--b); box-shadow:0 0 5px var(--b); } 50%{ background:#003344; box-shadow:none; } }
+        @keyframes charge-pulse { 0%,100%{ background:#00ff88; box-shadow:0 0 3px #00ff88; } 50%{ background:#004422; box-shadow:0 0 8px #00ff88; } }
+        @keyframes charge-bar { 0%{ background:#003311; } 50%{ background:#00ff88; } 100%{ background:#003311; } }
+        @keyframes pulse-wait { 0%,100%{ border-color:#553300; } 50%{ border-color:var(--y); } }
+        @keyframes low-batt-flash { 0%,100%{ opacity:0; } 50%{ opacity:1; } }
+        @keyframes cursor-blink { 0%,49%{ opacity:1; } 50%,100%{ opacity:0; } }
+        @keyframes screen-appear { from { opacity:0; transform:scaleY(0.97); } to { opacity:1; transform:scaleY(1); } }
+        .led-red { animation: blink-r 1s steps(1) infinite; }
+        .led-green { animation: blink-g 1s steps(1) infinite; }
+        .led-orange { animation: blink-y 1s steps(1) infinite; }
+        .led-anc-active { animation: pulse-blue 0.6s ease-in-out infinite; }
+
+        .pwr-strip { display: flex; gap: 8px; }
+        .mech-btn { flex: 1; padding: 11px 6px; background: #151515; color: #444; font-weight: 900; font-size: 0.6rem; border: 1px solid #333; border-bottom: 4px solid #000; cursor: pointer; border-radius: 4px; text-transform: uppercase; transition: 0.15s; letter-spacing: 0.5px; }
+        .mech-btn:active { transform: translateY(2px); border-bottom-width: 2px; }
+        .mech-btn.disabled { opacity: 0.3; pointer-events: none; }
+        .pwr-on.active { color: var(--g); border-color: var(--g); }
+        .pwr-off.active { color: var(--r); border-color: var(--r); }
+
+        .input-screen { background: #060604; border: 3px solid #2a2a2a; border-radius: 5px; padding: 8px 10px; position: relative; overflow: hidden; flex-shrink: 0; transition: background 0.4s, border-color 0.4s, box-shadow 0.4s; }
+        .input-screen::before { content: ""; position: absolute; inset: 0; background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.15) 50%), linear-gradient(90deg, rgba(255,0,0,0.02), rgba(0,255,0,0.01), rgba(0,0,255,0.02)); background-size: 100% 2px, 3px 100%; pointer-events: none; z-index: 2; opacity: 1; }
+        .input-screen.is-off { border-color: #2a2a2a; background: #060604; }
+        .input-screen.is-off .input-screen-title { color: #444; }
+        .input-screen.is-off .input-screen-cursor { background: #333; }
+        .input-screen.is-off .field { color: #555; border-color: #333; background: #080806; }
+        .input-screen.is-off .pwd-bar { background: #111; }
+        .input-screen.is-off .pwd-label { color: #333; }
+        .input-screen.is-dim { border-color: #332800; background: #0a0800; }
+        .input-screen.is-dim .input-screen-title { color: #886600; }
+        .input-screen.is-dim .input-screen-cursor { background: #886600; animation: cursor-blink 1s steps(1) infinite; }
+        .input-screen.is-dim .field { color: #aa8800; border-color: #443300; background: #0a0800; }
+        .input-screen.is-dim .pwd-bar { background: #1a1400; }
+        .input-screen.is-dim .pwd-label { color: #664400; }
+        .input-screen.is-lit { border-color: #554400; background: #0c0a02; box-shadow: inset 0 0 12px rgba(255,204,0,0.05), 0 0 6px rgba(255,204,0,0.06); }
+        .input-screen.is-lit .input-screen-title { color: #ccaa00; }
+        .input-screen.is-lit .input-screen-cursor { background: #ffcc00; animation: cursor-blink 0.8s steps(1) infinite; }
+        .input-screen.is-lit .field { color: var(--b); border-color: #334400; background: #0a0900; }
+        .input-screen.is-lit .field:focus { border-color: var(--b); box-shadow: 0 0 6px rgba(0,212,255,0.15); }
+        .input-screen.is-lit .pwd-bar { background: #1a1600; }
+        .input-screen.is-lit .pwd-label { color: #886600; }
+        .input-screen-header { display: flex; align-items: center; margin-bottom: 6px; position: relative; z-index: 3; }
+        .input-screen-title { font-size: 0.42rem; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; transition: color 0.4s; }
+        .input-screen-cursor { display: inline-block; width: 6px; height: 10px; background: #333; margin-left: 4px; vertical-align: middle; transition: background 0.4s; }
+        .input-screen-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; position: relative; z-index: 3; }
+        .input-screen-fields .field { padding: 8px 6px; font-family: inherit; text-align: center; width: 100%; font-weight: bold; border-radius: 3px; font-size: 0.82rem; border: 1px solid #333; transition: all 0.3s; }
+        .input-screen-fields .field:focus { outline: none; }
+        .input-screen-fields .field.locked { opacity: 0.3; pointer-events: none; }
+        .pwd-wrap { position: relative; }
+        .pwd-bar { height: 3px; border-radius: 0 0 3px 3px; overflow: hidden; margin-top: -1px; transition: background 0.3s; }
+        .pwd-bar-fill { height: 100%; width: 0%; transition: width 0.3s, background 0.3s; border-radius: 0 0 3px 3px; }
+        .pwd-label { font-size: 0.35rem; font-weight: 900; text-align: center; margin-top: 2px; letter-spacing: 0.5px; height: 9px; position: relative; z-index: 3; transition: color 0.3s; }
+
+        .standby-screen { background: #050505; border: 4px solid #222; border-radius: 6px; height: 90px; position: relative; padding: 8px 10px; overflow: hidden; display: flex; flex-direction: column; justify-content: center; gap: 5px; flex-shrink: 0; }
+        .standby-screen::before { content: ""; position: absolute; inset: 0; background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.1) 50%), linear-gradient(90deg, rgba(255,0,0,0.03), rgba(0,255,0,0.01), rgba(0,0,255,0.03)); background-size: 100% 2px, 3px 100%; pointer-events: none; z-index: 2; opacity: 0; transition: opacity 0.3s; }
+        .standby-screen.s-dim { border-color: #2a2200; background: #0a0700; }
+        .standby-screen.s-dim::before { opacity: 1; }
+        .standby-row { display: flex; justify-content: space-between; align-items: center; }
+        .standby-label { font-size: 0.5rem; font-weight: 900; color: #443300; }
+        .standby-val { font-size: 0.65rem; font-weight: 900; color: #554400; letter-spacing: 1px; }
+        .standby-bar-shell { width: 100%; height: 7px; background: #0a0a00; border: 1px solid #221a00; border-radius: 2px; overflow: hidden; }
+        .standby-bar-fill { height: 100%; width: 0%; border-radius: 1px; transition: width 0.5s, background 0.5s; }
+
+        .connected-screen { background: #0a0800; border: 4px solid #443300; border-radius: 6px; position: relative; padding: 10px; display: none; flex-direction: column; gap: 8px; max-height: 55vh; overflow-y: auto; box-shadow: inset 0 0 25px rgba(255,204,0,0.07), 0 0 12px rgba(255,204,0,0.1); animation: screen-appear 0.4s ease-out; }
+        .connected-screen.visible { display: flex; }
+        .connected-screen::-webkit-scrollbar { width: 4px; }
+        .connected-screen::-webkit-scrollbar-track { background: transparent; }
+        .connected-screen::-webkit-scrollbar-thumb { background: #1a3310; border-radius: 2px; }
+        .connected-screen::before { content: ""; position: absolute; inset: 0; background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.06) 50%), linear-gradient(90deg, rgba(255,0,0,0.02), rgba(0,255,0,0.01), rgba(0,0,255,0.02)); background-size: 100% 2px, 3px 100%; pointer-events: none; z-index: 10; }
+        .conn-sep { height: 1px; flex-shrink: 0; background: linear-gradient(90deg, transparent, #1a3310, transparent); }
+        .conn-lbl { font-size: 0.38rem; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; color: #336622; flex-shrink: 0; }
+
+        .sig-row { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+        .sig-bars { display: flex; gap: 3px; align-items: flex-end; height: 22px; }
+        .sig-bars .bar { width: 5px; background: #111; border-radius: 1px; transition: background 0.3s, box-shadow 0.3s; }
+        .sig-text { font-size: 0.52rem; font-weight: 900; color: var(--g); letter-spacing: 1px; }
+        .sig-detail { font-size: 0.33rem; color: #335522; font-weight: 900; letter-spacing: 0.5px; }
+
+        .batt-display { flex-shrink: 0; }
+        .batt-row { display: flex; justify-content: space-between; align-items: center; }
+        .batt-label { font-size: 0.46rem; font-weight: 900; color: #336622; }
+        .batt-right { display: flex; align-items: center; gap: 6px; }
+        .mini-led { width: 7px; height: 7px; border-radius: 50%; background: #111; border: 1.5px solid #333; flex-shrink: 0; transition: 0.3s; }
+        .mini-led.m-green { background: var(--g); box-shadow: 0 0 5px var(--g); border-color: var(--g); }
+        .mini-led.m-red { background: var(--r); box-shadow: 0 0 5px var(--r); border-color: var(--r); animation: blink-r 0.6s steps(1) infinite; }
+        .mini-led.m-yellow { background: var(--y); box-shadow: 0 0 4px var(--y); border-color: var(--y); animation: blink-y 1.5s steps(1) infinite; }
+        .mini-led.m-orange { background: #ff8800; box-shadow: 0 0 4px #ff8800; border-color: #ff8800; animation: blink-y 1s steps(1) infinite; }
+        .mini-led.m-dim { background: #1a1a1a; border-color: #2a2a2a; }
+        .mini-led.m-charge { background: #00ff88; box-shadow: 0 0 7px #00ff88; border-color: #00ff88; animation: charge-pulse 0.6s ease-in-out infinite; }
+        .mini-led.m-cyan { background: var(--b); box-shadow: 0 0 4px var(--b); border-color: var(--b); }
+        .mini-led.m-locked { background: #8844ff; box-shadow: 0 0 4px #8844ff; border-color: #8844ff; }
+        .val-norm { font-size: 0.62rem; font-weight: 900; letter-spacing: 1px; transition: color 0.3s; }
+        .batt-pct { font-size: 0.48rem; font-weight: 900; letter-spacing: 0.5px; min-width: 28px; text-align: right; }
+        .batt-bar-wrap { display: flex; align-items: center; gap: 3px; margin-top: 4px; }
+        .batt-bar-shell { width: 100%; height: 9px; background: #0a0a00; border: 1.5px solid #223300; border-radius: 3px; overflow: hidden; }
+        .batt-bar-fill { height: 100%; width: 0%; border-radius: 1px; transition: width 0.5s ease, background 0.5s ease; }
+        .batt-bar-fill.f-green { background: linear-gradient(90deg, #1a4a1a, #39ff14); }
+        .batt-bar-fill.f-yellow { background: linear-gradient(90deg, #4a3a00, #ffcc00); }
+        .batt-bar-fill.f-orange { background: linear-gradient(90deg, #4a2200, #ff8800); }
+        .batt-bar-fill.f-red { background: linear-gradient(90deg, #4a0000, #ff3131); }
+        .batt-bar-fill.f-charge { background: linear-gradient(90deg, #003311, #00ff88, #003311); background-size: 200% 100%; animation: charge-bar 1s linear infinite; }
+        .batt-bar-tip { width: 4px; height: 5px; background: #223300; border-radius: 0 2px 2px 0; flex-shrink: 0; }
+
+        .low-batt-warning { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--r); font-size: 0.7rem; font-weight: 900; letter-spacing: 2px; opacity: 0; z-index: 11; pointer-events: none; }
+        .low-batt-warning.active { animation: low-batt-flash 1s steps(1) infinite; }
+        #scope { width: 100%; height: 40px; flex-shrink: 0; }
+        .sys-log { height: 44px; overflow-y: auto; font-size: 0.46rem; color: var(--g); padding: 2px; flex-shrink: 0; }
+        .sys-log::-webkit-scrollbar { width: 3px; }
+        .sys-log::-webkit-scrollbar-thumb { background: #1a3310; border-radius: 2px; }
+
+        .sec-panel { background: rgba(136,68,255,0.04); border: 1px solid rgba(136,68,255,0.12); border-radius: 5px; padding: 6px 8px; flex-shrink: 0; }
+        .sec-title { font-size: 0.4rem; font-weight: 900; color: #8844ff; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 3px; }
+        .sec-row { display: flex; justify-content: space-between; align-items: center; padding: 1.5px 0; }
+        .sec-item { font-size: 0.38rem; color: #556; font-weight: 900; }
+        .sec-status { font-size: 0.38rem; font-weight: 900; display: flex; align-items: center; gap: 3px; }
+        .sec-ok { color: var(--g); } .sec-warn { color: var(--y); } .sec-fail { color: var(--r); }
+        .sec-dot { width: 4px; height: 4px; border-radius: 50%; display: inline-block; }
+        .sec-dot.ok { background: var(--g); box-shadow: 0 0 3px var(--g); }
+        .sec-dot.warn { background: var(--y); box-shadow: 0 0 3px var(--y); }
+        .sec-dot.fail { background: var(--r); box-shadow: 0 0 3px var(--r); }
+
+        .net-banner { background: rgba(0,212,255,0.05); border: 1px solid rgba(0,212,255,0.15); border-radius: 5px; padding: 6px 8px; display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; }
+        .net-title { font-size: 0.4rem; font-weight: 900; color: #8844ff; letter-spacing: 1px; text-transform: uppercase; }
+        .net-route { display: flex; align-items: center; gap: 3px; font-size: 0.35rem; color: #445; flex-wrap: wrap; }
+        .net-node { background: #0a0a00; border: 1px solid #223300; padding: 2px 4px; border-radius: 3px; color: #556; font-weight: 900; }
+        .net-node.active { border-color: var(--b); color: var(--b); box-shadow: 0 0 3px rgba(0,212,255,0.12); }
+        .net-arrow { color: #336622; font-weight: 900; }
+        .net-note { font-size: 0.33rem; color: #334; line-height: 1.3; }
+
+        .stats-footer { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+        .stat-line { display: flex; justify-content: space-between; align-items: center; }
+        .stat-label { font-size: 0.5rem; font-weight: 900; color: #336622; }
+        .stat-right { display: flex; align-items: center; gap: 6px; }
+
+        .speaker-grille { width: 100%; height: 28px; background: radial-gradient(circle, #222 1.5px, transparent 2px); background-size: 7px 7px; border: 1px solid #1a1a1a; border-radius: 4px; opacity: 0.4; flex-shrink: 0; }
+
+        .gen-row { display: flex; gap: 6px; }
+        .gen-btn { flex: 1; background: #111; border: 1px solid #333; color: #8844ff; padding: 8px; font-family: inherit; font-size: 0.4rem; font-weight: 900; cursor: pointer; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px; transition: 0.15s; }
+        .gen-btn:active { transform: scale(0.95); }
+
+        .conn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .conn-btn-wrap { position: relative; }
+        .conn-led { position: absolute; top: 6px; right: 7px; width: 6px; height: 6px; border-radius: 50%; background: #111; border: 1px solid #333; transition: 0.3s; }
+        .conn-led.c-idle { background: #111; }
+        .conn-led.c-active { background: var(--y); box-shadow: 0 0 4px var(--y); animation: blink-y 0.8s steps(1) infinite; }
+        .conn-led.c-ok { background: var(--g); box-shadow: 0 0 4px var(--g); }
+        .conn-led.c-fail { background: var(--r); box-shadow: 0 0 4px var(--r); animation: blink-r 0.6s steps(1) infinite; }
+
+        .disc-row { display: none; align-items: center; gap: 8px; flex-shrink: 0; }
+        .disc-row.visible { display: flex; }
+        .disc-btn-wrap { position: relative; flex: 1; }
+        .disc-btn { width: 100%; padding: 10px; background: #1a0505; border: 1px solid #330000; border-bottom: 4px solid #220000; border-radius: 4px; color: #441111; font-family: inherit; font-weight: 900; font-size: 0.55rem; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; transition: 0.15s; }
+        .disc-btn:active { transform: translateY(2px); border-bottom-width: 2px; }
+        .disc-led { position: absolute; top: 10px; right: 10px; width: 8px; height: 8px; border-radius: 50%; background: var(--g); border: 1.5px solid var(--g); box-shadow: 0 0 6px var(--g); transition: 0.3s; }
+
+        .action-bay { display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 14px; border: 1px solid #222; flex-shrink: 0; }
+        .anc-stack { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+        .anc-led { width: 13px; height: 13px; background: #111; border-radius: 50%; border: 2px solid #333; transition: 0.3s; }
+        .anc-toggle { width: 56px; padding: 7px 0; background: #111; border: 1px solid #333; border-bottom: 3px solid #000; border-radius: 4px; color: #444; font-size: 0.45rem; font-weight: 900; cursor: pointer; transition: 0.15s; }
+        .anc-toggle.on { color: var(--b); border-color: var(--b); }
+        .anc-toggle:active { transform: translateY(1px); border-bottom-width: 1px; }
+
+        .ptt-lever { flex-grow: 1; margin-left: 12px; height: 56px; background: #111; border: 3px solid #222; border-bottom: 7px solid #000; border-radius: 10px; color: #222; font-weight: 900; font-size: 0.85rem; cursor: not-allowed; transition: 0.1s; user-select: none; -webkit-user-select: none; }
+        .ptt-lever.waiting { background: #1a1a0a; border-color: #553300; color: var(--y); cursor: wait; animation: pulse-wait 2s ease-in-out infinite; }
+        .ptt-lever.unlocked { background: #1a0a0a; border-color: #333; color: #333; cursor: pointer; pointer-events: auto; }
+        .ptt-lever.unlocked.ready { border-color: var(--r); color: var(--r); }
+        .ptt-lever.unlocked:active, .ptt-lever.unlocked.tx { transform: translateY(3px); border-bottom-width: 2px; background: var(--r); color: #000; }
+        .ptt-lever.dead { background: #1a0505; border-color: #330000; color: #330000; }
+
+        .charge-dock { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+        .charge-port { width: 24px; height: 13px; background: #0a0a0a; border: 2px solid #333; border-radius: 3px; position: relative; overflow: hidden; cursor: pointer; flex-shrink: 0; }
+        .charge-port::before { content:''; position:absolute; top:2px; left:3px; width:5px; height:5px; background:#222; border-radius:1px; }
+        .charge-port::after { content:''; position:absolute; top:2px; right:3px; width:5px; height:5px; background:#222; border-radius:1px; }
+        .charge-port.charging { border-color: #00ff88; }
+        .charge-port.charging::before { background:#00ff88; box-shadow:0 0 4px #00ff88; }
+        .charge-port.charging::after { background:#00ff88; box-shadow:0 0 4px #00ff88; }
+        .charge-btn { flex:1; padding:7px; background:#0a0a0a; border:1px solid #222; border-bottom:3px solid #000; border-radius:4px; color:#333; font-family:inherit; font-weight:900; font-size:0.44rem; cursor:pointer; text-transform:uppercase; letter-spacing:1px; transition:0.15s; }
+        .charge-btn:active { transform:translateY(1px); border-bottom-width:1px; }
+        .charge-btn.charging { color:#00ff88; border-color:#004422; }
+        .charge-btn.full { color:#222; pointer-events:none; opacity:0.4; }
+
+        .official-footer { margin-top: 2px; border-top: 1px dashed #1a1a1a; padding-top: 4px; text-align: center; flex-shrink: 0; }
+        .footer-text { font-size: 0.45rem; color: #333; letter-spacing: 1px; font-weight: bold; text-transform: uppercase; }
+        .footer-sub { font-size: 0.35rem; color: #222; margin-top: 1px; }
+
+        @media (max-width: 380px) {
+            body { padding: 6px; }
+            :root { --chassis-w: 100vw; --pad: 12px; --brd: 8px; --brd-bot: 22px; --rad-top: 22px; --rad-bot: 48px; --gap: 6px; }
+            .antenna-stub { top: -40px; left: 28px; width: 8px; height: 50px; }
+            .top-deck { height: 38px; }
+            .nozzle-dial { width: 32px; height: 32px; }
+            .status-led { width: 14px; height: 14px; }
+            .mech-btn { padding: 9px 4px; font-size: 0.55rem; }
+            .input-screen { padding: 6px 8px; }
+            .input-screen-fields .field { padding: 7px 5px; font-size: 0.75rem; }
+            .gen-btn { padding: 6px; font-size: 0.36rem; }
+            .standby-screen { height: 75px; padding: 6px 8px; }
+            .connected-screen { padding: 8px; gap: 6px; max-height: 52vh; }
+            #scope { height: 32px; }
+            .sys-log { height: 36px; font-size: 0.4rem; }
+            .sec-panel { padding: 5px 6px; }
+            .sec-item, .sec-status { font-size: 0.34rem; }
+            .net-route { font-size: 0.32rem; }
+            .action-bay { padding: 8px; }
+            .ptt-lever { height: 50px; font-size: 0.78rem; }
+            .anc-toggle { width: 50px; font-size: 0.4rem; padding: 6px 0; }
+            .speaker-grille { height: 22px; }
+            .batt-bar-shell { height: 7px; }
+            .disc-btn { padding: 8px; font-size: 0.5rem; }
+        }
+        @media (min-height: 800px) { .connected-screen { max-height: 60vh; } }
+        @media (max-height: 600px) { .connected-screen { max-height: 42vh; } .standby-screen { height: 65px; } .speaker-grille { height: 18px; } }
+    </style>
+</head>
+<body>
+
+<canvas id="scannerCanvas"></canvas>
+
+<div class="chassis" id="chassis">
+
+    <div class="pwr-strip">
+        <button id="bOn" class="mech-btn pwr-on" onclick="pwr(true)">Master On</button>
+        <button id="bOff" class="mech-btn pwr-off active" onclick="pwr(false)">Master Off</button>
+    </div>
+
+    <div class="top-deck grp-b">
+        <div class="indicator-cluster">
+            <div id="nozzle" class="nozzle-dial" onclick="handleNoz(event)"></div>
+            <div id="led" class="status-led"></div>
+        </div>
+    </div>
+
+    <div class="input-screen is-off" id="inputScr">
+        <div class="input-screen-header">
+            <span class="input-screen-title">DATA ENTRY<span class="input-screen-cursor"></span></span>
+        </div>
+        <div class="input-screen-fields">
+            <input type="number" id="ch" class="field" value="88" placeholder="CH">
+            <div class="pwd-wrap">
+                <input type="password" id="key" class="field" value="TAC" oninput="checkPwd()" placeholder="KEY">
+                <div class="pwd-bar"><div id="pwdFill" class="pwd-bar-fill"></div></div>
+                <div class="pwd-label" id="pwdLabel" style="color:#333">WEAK</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="gen-row grp-b">
+        <button class="gen-btn" onclick="genPwd()">GENERATE STRONG KEY</button>
+        <button class="gen-btn" onclick="copyPwd()" style="flex:0 0 auto; padding:8px 12px;">COPY</button>
+    </div>
+
+    <div class="conn-grid grp-b">
+        <div class="conn-btn-wrap">
+            <button id="hBtn" class="mech-btn" onclick="conn('host')">Host</button>
+            <span id="hLed" class="conn-led c-idle"></span>
+        </div>
+        <div class="conn-btn-wrap">
+            <button id="jBtn" class="mech-btn" onclick="conn('client')">Join</button>
+            <span id="jLed" class="conn-led c-idle"></span>
+        </div>
+    </div>
+
+    <div class="disc-row" id="discRow">
+        <div class="disc-btn-wrap">
+            <button class="disc-btn" onclick="doDisconnect()">Disconnect</button>
+            <span class="disc-led"></span>
+        </div>
+    </div>
+
+    <div class="standby-screen grp-b" id="standbyScr">
+        <div class="standby-row">
+            <span class="standby-label">CELL VOLTAGE</span>
+            <span id="sbVlt" class="standby-val">0.00V</span>
+        </div>
+        <div class="standby-bar-shell"><div id="sbFill" class="standby-bar-fill"></div></div>
+        <div class="standby-row" style="margin-top:3px">
+            <span class="standby-label">STATUS</span>
+            <span id="sbStatus" class="standby-val" style="color:#553300">STANDBY</span>
+        </div>
+    </div>
+
+    <div class="connected-screen" id="connScr">
+        <div id="lowBattWarn" class="low-batt-warning">! LOW BATT !</div>
+        <div class="conn-lbl">SIGNAL STRENGTH</div>
+        <div class="sig-row">
+            <div id="rssi" class="sig-bars">
+                <div class="bar" style="height:5px"></div><div class="bar" style="height:9px"></div><div class="bar" style="height:13px"></div><div class="bar" style="height:17px"></div><div class="bar" style="height:22px"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:2px;">
+                <span class="sig-text" id="sigText">OFFLINE</span>
+                <span class="sig-detail" id="sigDetail"></span>
+            </div>
+        </div>
+        <div class="conn-sep"></div>
+        <div class="conn-lbl">POWER CELL</div>
+        <div class="batt-display">
+            <div class="batt-row">
+                <span class="batt-label">CELL VOLTAGE</span>
+                <div class="batt-right">
+                    <span id="battLed" class="mini-led m-dim"></span>
+                    <span id="vlt" class="val-norm" style="color:var(--g)">0.00V</span>
+                    <span id="battPct" class="batt-pct" style="color:var(--g)">0%</span>
+                </div>
+            </div>
+            <div class="batt-bar-wrap">
+                <div class="batt-bar-shell"><div id="battFill" class="batt-bar-fill"></div></div>
+                <div class="batt-bar-tip"></div>
+            </div>
+        </div>
+        <div class="conn-sep"></div>
+        <div class="conn-lbl">AUDIO WAVEFORM</div>
+        <canvas id="scope"></canvas>
+        <div class="conn-sep"></div>
+        <div class="conn-lbl">SYSTEM LOG</div>
+        <div id="sys" class="sys-log"></div>
+        <div class="conn-sep"></div>
+        <div class="sec-panel">
+            <div class="sec-title">Security Audit</div>
+            <div class="sec-row"><span class="sec-item">Audio Payload</span><span class="sec-status sec-ok"><span class="sec-dot ok"></span>AES-256-GCM</span></div>
+            <div class="sec-row"><span class="sec-item">Key Derivation</span><span class="sec-status sec-ok"><span class="sec-dot ok"></span>PBKDF2 10K</span></div>
+            <div class="sec-row"><span class="sec-item">Transport Layer</span><span class="sec-status sec-ok"><span class="sec-dot ok"></span>TLS 1.3</span></div>
+            <div class="sec-row"><span class="sec-item">IV Per Packet</span><span class="sec-status sec-ok"><span class="sec-dot ok"></span>RANDOM 12B</span></div>
+            <div class="sec-row"><span class="sec-item">Password Strength</span><span id="secPwd" class="sec-status sec-fail"><span class="sec-dot fail"></span>WEAK</span></div>
+            <div class="sec-row"><span class="sec-item">Topic Obfuscation</span><span class="sec-status sec-warn"><span class="sec-dot warn"></span>PUBLIC</span></div>
+            <div class="sec-row"><span class="sec-item">Broker Auth</span><span class="sec-status sec-warn"><span class="sec-dot warn"></span>OPEN</span></div>
+            <div class="sec-row"><span class="sec-item">Jam Protection</span><span id="secJam" class="sec-status sec-fail"><span class="sec-dot fail"></span>NONE</span></div>
+        </div>
+        <div class="net-banner">
+            <div class="net-title">Network Route</div>
+            <div class="net-route">
+                <span id="netA" class="net-node">THIS DEVICE</span><span class="net-arrow">→</span>
+                <span id="netB" class="net-node">LOCAL NET</span><span class="net-arrow">→</span>
+                <span id="netC" class="net-node">INTERNET</span><span class="net-arrow">→</span>
+                <span id="netD" class="net-node">EMQX BROKER</span><span class="net-arrow">→</span>
+                <span id="netE" class="net-node">REMOTE NET</span><span class="net-arrow">→</span>
+                <span id="netF" class="net-node">PEER DEVICE</span>
+            </div>
+            <div class="net-note">Requires active internet on BOTH devices. Works worldwide. Distance unlimited. AES-256 encrypted in transit.</div>
+        </div>
+        <div class="stats-footer">
+            <div class="stat-line">
+                <span class="stat-label">LINK_SECURE:</span>
+                <div class="stat-right">
+                    <span id="linkLed" class="mini-led m-green"></span>
+                    <span id="rfSt" class="val-norm" style="color:var(--g)">LINKED</span>
+                </div>
+            </div>
+            <div class="stat-line">
+                <span class="stat-label">CIPHER:</span>
+                <div class="stat-right">
+                    <span class="mini-led m-locked"></span>
+                    <span class="val-norm" style="color:#8844ff; font-size:0.5rem;">AES-256-GCM</span>
+                </div>
+            </div>
+            <div class="stat-line">
+                <span class="stat-label">RELAY:</span>
+                <div class="stat-right">
+                    <span class="mini-led m-cyan"></span>
+                    <span class="val-norm" style="color:var(--b); font-size:0.5rem;">CLOUD MQTT</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="speaker-grille grp-b" id="grille"></div>
+
+    <div class="action-bay grp-c">
+        <div class="anc-stack">
+            <div id="ancLed" class="anc-led"></div>
+            <button id="ancBtn" class="anc-toggle" onclick="toggleAnc()">ANC OFF</button>
+        </div>
+        <button id="ptt" class="ptt-lever">LOCKED</button>
+    </div>
+
+    <div class="charge-dock grp-b">
+        <div id="chargePort" class="charge-port"></div>
+        <button id="chargeBtn" class="charge-btn" onclick="toggleCharge()">SUPER CHARGE</button>
+    </div>
+
+    <div class="official-footer">
+        <div class="footer-text">&copy; 2026 ASHRAF ALI</div>
+        <div class="footer-sub">TAC/COM v12.4.1 | ENCRYPTED RELAY PROTOCOL</div>
+    </div>
+
+</div>
+
+<script>
+let mc, mic, actx, ana, pG, ck;
+let inHPF, inBPF, inComp, outHPF, outComp, inMute;
+let ancNotch50, ancNotch60, ancNotch100, ancNotch120, ancLPF, ancBPF;
+
+/* ===== NOISE GATE STATE ===== */
+let noiseFloor = new Float32Array(128);
+let noiseFloorFilled = false;
+let noiseGateEnvelope = 0;
+let totalFrames = 0;       /* all frames seen during calibration */
+let quietFrames = 0;        /* frames quiet enough to learn from */
+let voiceHangover = 0;
+let noiseFloorAvg = 0;
+let noiseThreshold = 0;
+const HANGOVER_FRAMES = 5;
+const QUIET_ENERGY = 0.006; /* absolute RMS threshold for "quiet" */
+const NEEDED_QUIET = 18;    /* quiet frames needed to calibrate */
+const CAL_TIMEOUT = 120;    /* max frames before forced calibration */
+
+let isTx = false, isPwr = false, isLinked = false, isAnc = false;
+let isCharging = false, isDead = false;
+let nxt = 0, rotA = 0, myRole = null, vltTimer = null, chargeTimer = null;
+let heartbeatTimer = null, peerTimeout = null, connTimeout = null;
+let battLevel = 0;
+let lowBattWarned = false, critBattWarned = false, deadBattWarned = false;
+let txTailTimer = null;
+const BATT_MIN = 9.5, BATT_MAX = 13.2, BATT_DEAD = 10.0;
+const BASE_OUT_VOL = 0.35, TX_OUT_VOL = 0.0;
+const _tp = [97,115,104,114,97,102,95,118,49,50,95,52,95,49];
+const TP = _tp.map(c => String.fromCharCode(c)).join('');
+
+/* ===== SIGNAL QUALITY ===== */
+let sigGaps = [], lastAudioTime = 0, sigQuality = 0, sigDecayTimer = null;
+const expectedInterval = 128;
+
+function updateSignalFromPacket() {
+    const now = performance.now();
+    if (lastAudioTime > 0) {
+        const gap = now - lastAudioTime;
+        sigGaps.push(gap);
+        if (sigGaps.length > 25) sigGaps.shift();
+        if (sigGaps.length >= 5) {
+            const avg = sigGaps.reduce((a,b)=>a+b,0)/sigGaps.length;
+            const variance = sigGaps.reduce((a,b)=>a+(b-avg)*(b-avg),0)/sigGaps.length;
+            const jitter = Math.sqrt(variance);
+            const gapScore = Math.max(0, 100 - Math.abs(avg - expectedInterval)*1.5);
+            const jitterScore = Math.max(0, 100 - jitter*2.5);
+            sigQuality = gapScore*0.35 + jitterScore*0.65;
+            const maxGap = Math.max(...sigGaps);
+            if (maxGap > expectedInterval*3) sigQuality -= 25;
+            if (maxGap > expectedInterval*5) sigQuality -= 20;
+            sigQuality = Math.max(0, Math.min(100, sigQuality));
+        }
+    }
+    lastAudioTime = now;
+    updateSignalDisplay();
+    if (sigDecayTimer) clearTimeout(sigDecayTimer);
+    sigDecayTimer = setTimeout(()=>{ sigQuality=Math.max(0,sigQuality-15); updateSignalDisplay(); }, 2500);
+}
+
+function updateSignalDisplay() {
+    const bars = document.querySelectorAll('#rssi .bar');
+    const sigText = document.getElementById('sigText'), sigDetail = document.getElementById('sigDetail');
+    let level, color, text, textColor;
+    if (sigQuality>=75){level=5;color='var(--g)';text='STRONG';textColor='var(--g)';}
+    else if(sigQuality>=55){level=4;color='var(--g)';text='GOOD';textColor='var(--g)';}
+    else if(sigQuality>=38){level=3;color='var(--y)';text='FAIR';textColor='var(--y)';}
+    else if(sigQuality>=18){level=2;color='#ff8800';text='WEAK';textColor='#ff8800';}
+    else{level=1;color='var(--r)';text='CRITICAL';textColor='var(--r)';}
+    bars.forEach((bar,i)=>{if(i<level){bar.style.background=color;bar.style.boxShadow='0 0 4px '+color;}else{bar.style.background='#111';bar.style.boxShadow='none';}});
+    sigText.innerText=text; sigText.style.color=textColor;
+    if(sigGaps.length>=3){const avg=(sigGaps.reduce((a,b)=>a+b,0)/sigGaps.length).toFixed(0);const jit=Math.sqrt(sigGaps.reduce((a,b)=>a+(b-avg)*(b-avg),0)/sigGaps.length).toFixed(0);sigDetail.innerText='AVG:'+avg+'ms JIT:'+jit+'ms Q:'+Math.round(sigQuality);}
+}
+
+function resetSignalBars(){
+    document.querySelectorAll('#rssi .bar').forEach(b=>{b.style.background='#111';b.style.boxShadow='none';});
+    document.getElementById('sigText').innerText='OFFLINE';document.getElementById('sigText').style.color='var(--r)';document.getElementById('sigDetail').innerText='';
+}
+
+/* ===== UI ===== */
+function setUILevel(level) {
+    document.getElementById('chassis').className='chassis'+(level==='off'?'':' s-on');
+    document.querySelectorAll('.grp-b').forEach(el=>{el.style.display=(level==='off')?'none':'';});
+    document.querySelectorAll('.grp-c').forEach(el=>{el.style.display=(level==='linked')?'':'none';});
+    document.getElementById('discRow').className=(level==='linked')?'disc-row visible':'disc-row';
+    document.getElementById('bOn').classList.toggle('active',level!=='off');
+    document.getElementById('bOff').classList.toggle('active',level==='off');
+    const inpScr=document.getElementById('inputScr');inpScr.className='input-screen';
+    if(level==='off')inpScr.classList.add('is-off');else if(level==='on')inpScr.classList.add('is-dim');else if(level==='linked')inpScr.classList.add('is-lit');
+    const sb=document.getElementById('standbyScr');sb.style.display=(level==='on')?'':'none';sb.className='standby-screen';if(level==='on')sb.classList.add('s-dim');
+    const cs=document.getElementById('connScr');if(level==='linked')cs.classList.add('visible');else cs.classList.remove('visible');
+}
+
+function battToPercent(v){return Math.max(0,Math.min(100,((v-BATT_MIN)/(BATT_MAX-BATT_MIN))*100));}
+
+function checkPwd(){
+    const pwd=document.getElementById('key').value,fill=document.getElementById('pwdFill'),label=document.getElementById('pwdLabel'),secPwd=document.getElementById('secPwd'),secJam=document.getElementById('secJam');
+    let s=0;if(pwd.length>=4)s++;if(pwd.length>=8)s++;if(pwd.length>=12)s++;if(pwd.length>=20)s++;if(/[A-Z]/.test(pwd))s++;if(/[0-9]/.test(pwd))s++;if(/[^A-Za-z0-9]/.test(pwd))s++;if(pwd.length>=32)s++;
+    if(s<=2){fill.style.width='15%';fill.style.background='#661111';label.innerText='WEAK';label.style.color='#661111';secPwd.className='sec-status sec-fail';secPwd.innerHTML='<span class="sec-dot fail"></span>WEAK';secJam.className='sec-status sec-fail';secJam.innerHTML='<span class="sec-dot fail"></span>NONE';}
+    else if(s<=4){fill.style.width='40%';fill.style.background='#665500';label.innerText='MEDIUM';label.style.color='#665500';secPwd.className='sec-status sec-warn';secPwd.innerHTML='<span class="sec-dot warn"></span>MEDIUM';secJam.className='sec-status sec-warn';secJam.innerHTML='<span class="sec-dot warn"></span>PARTIAL';}
+    else if(s<=6){fill.style.width='70%';fill.style.background='#1a6a1a';label.innerText='STRONG';label.style.color='#1a6a1a';secPwd.className='sec-status sec-ok';secPwd.innerHTML='<span class="sec-dot ok"></span>STRONG';secJam.className='sec-status sec-ok';secJam.innerHTML='<span class="sec-dot ok"></span>KEY-DERIVED';}
+    else{fill.style.width='100%';fill.style.background='#00aa55';label.innerText='MAXIMUM';label.style.color='#00aa55';secPwd.className='sec-status sec-ok';secPwd.innerHTML='<span class="sec-dot ok"></span>MAXIMUM';secJam.className='sec-status sec-ok';secJam.innerHTML='<span class="sec-dot ok"></span>FULL';}
+}
+
+function genPwd(){const c='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*-_+=';let p='';const a=new Uint32Array(24);crypto.getRandomValues(a);for(let i=0;i<24;i++)p+=c[a[i]%c.length];document.getElementById('key').value=p;document.getElementById('key').type='text';setTimeout(()=>{document.getElementById('key').type='password';},3000);checkPwd();log('KEY:GENERATED_24CHAR');}
+function copyPwd(){if(navigator.clipboard)navigator.clipboard.writeText(document.getElementById('key').value).then(()=>log('KEY:COPIED'));}
+function handleNoz(e){if(!isPwr||mc)return;const r=e.target.getBoundingClientRect(),cin=document.getElementById('ch');if((e.clientX-r.left)>(r.width/2)){rotA+=30;cin.value=parseInt(cin.value||0)+1;log("FREQ_INC");}else{rotA-=30;cin.value=parseInt(cin.value||0)-1;log("FREQ_DEC");}document.getElementById('nozzle').style.transform=`rotate(${rotA}deg)`;}
+
+function updateUI(mode){
+    const led=document.getElementById('led'),sbStatus=document.getElementById('sbStatus');led.className='status-led';
+    if(!isPwr||isDead){if(sbStatus){sbStatus.innerText='OFFLINE';sbStatus.style.color='#662200';}updateNetRoute('off');return;}
+    if(mode==='idle'){led.classList.add('led-red');resetSignalBars();if(sbStatus){sbStatus.innerText='OFFLINE';sbStatus.style.color='#662200';}updateNetRoute('off');}
+    else if(mode==='waiting'){led.classList.add('led-orange');resetSignalBars();const st=document.getElementById('sigText');st.innerText='SYNCING';st.style.color='var(--y)';if(sbStatus){sbStatus.innerText='SCANNING...';sbStatus.style.color='#665500';}updateNetRoute('connecting');}
+    else if(mode==='connected'){led.classList.add('led-green');if(sbStatus){sbStatus.innerText='LINKED';sbStatus.style.color='#336622';}updateNetRoute('linked');}
+}
+
+function updateNetRoute(state){const ids=['netA','netB','netC','netD','netE','netF'];ids.forEach(id=>document.getElementById(id).classList.remove('active'));if(state==='connecting')['netA','netB','netC','netD'].forEach(id=>document.getElementById(id).classList.add('active'));else if(state==='linked')ids.forEach(id=>document.getElementById(id).classList.add('active'));}
+function setConnLed(id,state){document.getElementById(id).className='conn-led c-'+state;}
+
+function updateBattDisplay(v){
+    const p=battToPercent(v),el=document.getElementById('vlt'),bl=document.getElementById('battLed'),pct=document.getElementById('battPct'),fill=document.getElementById('battFill'),warn=document.getElementById('lowBattWarn'),sbVlt=document.getElementById('sbVlt'),sbFill=document.getElementById('sbFill');
+    if(sbVlt)sbVlt.innerText=v.toFixed(2)+'V';
+    if(sbFill){sbFill.style.width=p+'%';if(isCharging){sbFill.style.background='linear-gradient(90deg,#003311,#00ff88,#003311)';sbFill.style.backgroundSize='200% 100%';}else if(v>=12.0)sbFill.style.background='linear-gradient(90deg,#1a4a1a,#39ff14)';else if(v>=11.5)sbFill.style.background='linear-gradient(90deg,#4a3a00,#ffcc00)';else if(v>=11.0)sbFill.style.background='linear-gradient(90deg,#4a2200,#ff8800)';else sbFill.style.background='linear-gradient(90deg,#4a0000,#ff3131)';}
+    if(!el)return;el.innerText=v.toFixed(2)+'V';pct.innerText=Math.round(p)+'%';fill.style.width=p+'%';bl.className='mini-led';fill.className='batt-bar-fill';
+    if(isCharging){bl.classList.add('m-charge');fill.classList.add('f-charge');pct.style.color='#00ff88';el.style.color='#00ff88';warn.classList.remove('active');return;}
+    if(v>=12.0){bl.classList.add('m-green');fill.classList.add('f-green');pct.style.color='var(--g)';el.style.color='var(--g)';warn.classList.remove('active');lowBattWarned=critBattWarned=deadBattWarned=false;}
+    else if(v>=11.5){bl.classList.add('m-yellow');fill.classList.add('f-yellow');pct.style.color='var(--y)';el.style.color='var(--y)';warn.classList.remove('active');lowBattWarned=critBattWarned=deadBattWarned=false;}
+    else if(v>=11.0){bl.classList.add('m-orange');fill.classList.add('f-orange');pct.style.color='#ff8800';el.style.color='#ff8800';warn.classList.remove('active');if(!lowBattWarned){lowBattWarned=true;log('WARN:BATT_LOW');}}
+    else if(v>=BATT_DEAD){bl.classList.add('m-red');fill.classList.add('f-red');pct.style.color='var(--r)';el.style.color='var(--r)';warn.classList.add('active');if(!critBattWarned){critBattWarned=true;log('CRIT:BATT_CRITICAL');}}
+    else{bl.classList.add('m-red');fill.classList.add('f-red');pct.style.color='var(--r)';el.style.color='var(--r)';warn.classList.add('active');if(!deadBattWarned){deadBattWarned=true;log('FATAL:BATT_DEAD');triggerDead();}}
+}
+
+function triggerDead(){isDead=true;isTx=false;if(txTailTimer){clearTimeout(txTailTimer);txTailTimer=null;}if(chargeTimer){clearInterval(chargeTimer);chargeTimer=null;}const ptt=document.getElementById('ptt');ptt.innerText='NO POWER';ptt.className='ptt-lever dead';clearPTTHandlers();updateUI('idle');log('SYS_SHUTDOWN');}
+function recoverFromDead(){isDead=false;deadBattWarned=false;critBattWarned=false;if(isLinked){unlockPTT();updateUI('connected');}else if(mc&&mc.connected){waitPTT('WAITING '+(myRole==='host'?'CLIENT':'HOST').toUpperCase());updateUI('waiting');}else{lockPTT('LOCKED');updateUI('idle');}log('SYS_RECOVER');}
+
+function toggleCharge(){
+    if(!isPwr)return;
+    if(isCharging){isCharging=false;if(chargeTimer){clearInterval(chargeTimer);chargeTimer=null;}document.getElementById('chargeBtn').innerText='SUPER CHARGE';document.getElementById('chargeBtn').classList.remove('charging');document.getElementById('chargePort').classList.remove('charging');log('CHARGE_STOP');if(isDead&&battLevel>=BATT_DEAD+0.5)recoverFromDead();updateBattDisplay(battLevel);return;}
+    if(battLevel>=BATT_MAX-0.1){log('CHARGE:BATT_FULL');return;}
+    isCharging=true;isTx=false;if(txTailTimer){clearTimeout(txTailTimer);txTailTimer=null;}
+    document.getElementById('chargeBtn').innerText='CHARGING...';document.getElementById('chargeBtn').classList.add('charging');document.getElementById('chargePort').classList.add('charging');
+    if(isLinked){const ptt=document.getElementById('ptt');ptt.innerText='CHARGING';ptt.className='ptt-lever waiting';clearPTTHandlers();}
+    log('CHARGE:SUPER_ON');
+    chargeTimer=setInterval(()=>{if(!isCharging)return;battLevel+=0.12+Math.random()*0.06;if(isDead&&battLevel>=BATT_DEAD+0.5)recoverFromDead();if(battLevel>=BATT_MAX){battLevel=BATT_MAX;isCharging=false;if(chargeTimer){clearInterval(chargeTimer);chargeTimer=null;}document.getElementById('chargeBtn').innerText='FULL';document.getElementById('chargeBtn').classList.remove('charging');document.getElementById('chargeBtn').classList.add('full');document.getElementById('chargePort').classList.remove('charging');log('CHARGE:FULL');if(isLinked)unlockPTT();setTimeout(()=>{document.getElementById('chargeBtn').innerText='SUPER CHARGE';document.getElementById('chargeBtn').classList.remove('full');},2000);}updateBattDisplay(battLevel);},300);
+}
+
+function duckOutput(tx){if(!pG||!actx)return;pG.gain.setTargetAtTime(tx?TX_OUT_VOL:BASE_OUT_VOL,actx.currentTime,tx?0.005:0.08);}
+
+function clearPTTHandlers(){const p=document.getElementById('ptt');p.onmousedown=null;p.onmouseup=null;p.onmouseleave=null;p.ontouchstart=null;p.ontouchend=null;p.ontouchcancel=null;}
+function lockPTT(l){if(isDead)return;const p=document.getElementById('ptt');p.innerText=l||'LOCKED';p.className='ptt-lever';clearPTTHandlers();}
+function waitPTT(l){if(isDead)return;const p=document.getElementById('ptt');p.innerText=l||'WAITING...';p.className='ptt-lever waiting';clearPTTHandlers();}
+function unlockPTT(){if(isDead||isCharging)return;const p=document.getElementById('ptt');p.innerText='PUSH TO TALK';p.className='ptt-lever unlocked ready';p.onmousedown=pttDown;p.onmouseup=pttUp;p.onmouseleave=pttUp;p.ontouchstart=pttDown;p.ontouchend=pttUp;p.ontouchcancel=pttUp;}
+
+function pttDown(e){if(!isLinked||isDead||isCharging)return;e.preventDefault();isTx=true;duckOutput(true);if(txTailTimer){clearTimeout(txTailTimer);txTailTimer=null;}const p=document.getElementById('ptt');p.classList.add('tx');p.innerText='TX';}
+function pttUp(e){if(!isLinked)return;e.preventDefault();isTx=false;const p=document.getElementById('ptt');p.classList.remove('tx');p.innerText='PUSH TO TALK';if(txTailTimer)clearTimeout(txTailTimer);txTailTimer=setTimeout(()=>{duckOutput(false);txTailTimer=null;},400);}
+
+function doDisconnect(){
+    if(!isLinked)return;isTx=false;duckOutput(false);if(txTailTimer){clearTimeout(txTailTimer);txTailTimer=null;}
+    log('USER_DISCONNECT');setConnLed(myRole==='host'?'hLed':'jLed','fail');
+    if(mc){try{mc.end(true);}catch(e){}mc=null;}
+    if(heartbeatTimer){clearInterval(heartbeatTimer);heartbeatTimer=null;}
+    if(peerTimeout){clearTimeout(peerTimeout);peerTimeout=null;}
+    if(sigDecayTimer){clearTimeout(sigDecayTimer);sigDecayTimer=null;}
+    isLinked=false;myRole=null;sigGaps=[];lastAudioTime=0;sigQuality=0;
+    setUILevel('on');lockPTT('LOCKED');unlockInputs();updateUI('idle');
+    if(mic){mic.getTracks().forEach(t=>t.stop());mic=null;}
+    if(actx){try{actx.close();}catch(e){}actx=null;}
+    ana=null;pG=null;ck=null;inHPF=null;inBPF=null;inComp=null;outHPF=null;outComp=null;inMute=null;
+    ancNotch50=null;ancNotch60=null;ancNotch100=null;ancNotch120=null;ancLPF=null;ancBPF=null;
+    nxt=0;resetNoiseState();isAnc=false;
+    document.getElementById('ancBtn').innerText='ANC OFF';document.getElementById('ancBtn').classList.remove('on');document.getElementById('ancLed').className='anc-led';
+}
+
+function resetNoiseState(){noiseFloor=new Float32Array(128);noiseFloorFilled=false;noiseGateEnvelope=0;totalFrames=0;quietFrames=0;voiceHangover=0;noiseFloorAvg=0;noiseThreshold=0;}
+
+function pwr(s){
+    isPwr=s;
+    if(s){setUILevel('on');updateUI('idle');checkPwd();log('FIELD_OS_BOOT_v12.4.1');log('CIPHER:AES-256-GCM');battLevel=12.4;lowBattWarned=critBattWarned=deadBattWarned=false;isDead=false;isCharging=false;if(vltTimer)clearInterval(vltTimer);vltTimer=setInterval(()=>{if(!isPwr||isCharging||isDead)return;let d=0.002+Math.random()*0.002;if(isTx)d+=0.012;if(isLinked)d+=0.003;if(isAnc)d+=0.005;battLevel-=d;if(battLevel<BATT_MIN)battLevel=BATT_MIN;updateBattDisplay(battLevel);},3000);updateBattDisplay(battLevel);}
+    else{setUILevel('off');teardown();location.reload();}
+}
+
+/* ===== ANC ===== */
+function toggleAnc(){
+    if(!isPwr||isDead)return;isAnc=!isAnc;
+    const b=document.getElementById('ancBtn'),al=document.getElementById('ancLed');
+    if(isAnc){
+        resetNoiseState();
+        b.innerText='ANC ON';b.classList.add('on');
+        if(!ancNotch50)buildAncFilters();
+        reconnectAudioChain(true);
+        al.className='anc-led led-anc-active';
+        log('ANC:WAITING_FOR_SILENCE...');
+    }else{
+        b.innerText='ANC OFF';b.classList.remove('on');
+        reconnectAudioChain(false);al.className='anc-led';
+        log('ANC:DISABLED');
+    }
+}
+function buildAncFilters(){
+    ancNotch50=actx.createBiquadFilter();ancNotch50.type='notch';ancNotch50.frequency.value=50;ancNotch50.Q.value=30;
+    ancNotch60=actx.createBiquadFilter();ancNotch60.type='notch';ancNotch60.frequency.value=60;ancNotch60.Q.value=30;
+    ancNotch100=actx.createBiquadFilter();ancNotch100.type='notch';ancNotch100.frequency.value=100;ancNotch100.Q.value=30;
+    ancNotch120=actx.createBiquadFilter();ancNotch120.type='notch';ancNotch120.frequency.value=120;ancNotch120.Q.value=30;
+    ancLPF=actx.createBiquadFilter();ancLPF.type='lowpass';ancLPF.frequency.value=3200;ancLPF.Q.value=0.7;
+    ancBPF=actx.createBiquadFilter();ancBPF.type='bandpass';ancBPF.frequency.value=1200;ancBPF.Q.value=0.5;
+    ancNotch50.connect(ancNotch60);ancNotch60.connect(ancNotch100);ancNotch100.connect(ancNotch120);ancNotch120.connect(ancLPF);ancLPF.connect(ancBPF);
+}
+function reconnectAudioChain(useAnc){
+    if(!actx||!mic)return;const src=actx.createMediaStreamSource(mic);
+    try{inHPF.disconnect();}catch(e){}try{inBPF.disconnect();}catch(e){}try{inComp.disconnect();}catch(e){}if(ana){try{ana.disconnect();}catch(e){}}
+    if(useAnc&&ancBPF){src.connect(inHPF);inHPF.connect(inBPF);inBPF.connect(inComp);inComp.connect(ancNotch50);ancBPF.connect(ana);}
+    else{src.connect(inHPF);inHPF.connect(inBPF);inBPF.connect(inComp);inComp.connect(ana);}
+    ana.connect(ana._proc);ana._proc.connect(inMute);inMute.connect(actx.destination);
+}
+
+/* ===== SMART NOISE GATE =====
+   KEY INSIGHT: Only learn noise floor from TRULY QUIET frames.
+   If you talk during calibration, those frames are IGNORED.
+   This prevents voice from being learned as "noise".
+*/
+function applyNoiseGate(samples){
+    /* Calculate block RMS energy */
+    let energy = 0;
+    for(let i=0; i<samples.length; i++) energy += samples[i]*samples[i];
+    energy = Math.sqrt(energy / samples.length);
+
+    /* === CALIBRATION PHASE === */
+    if(!noiseFloorFilled){
+        totalFrames++;
+
+        /* ONLY learn from frames that are genuinely quiet */
+        if(energy < QUIET_ENERGY){
+            quietFrames++;
+            for(let i=0; i<samples.length; i++){
+                const idx = i % noiseFloor.length;
+                noiseFloor[idx] = noiseFloor[idx]*0.5 + Math.abs(samples[i])*0.5;
+            }
+        }
+        /* Else: this frame has voice/sound — SKIP it, don't learn from it */
+
+        /* Log progress every 10 frames */
+        if(totalFrames % 10 === 0){
+            log('ANC:SILENCE_'+quietFrames+'/'+NEEDED_QUIET);
+        }
+
+        /* Calibrated when we have enough quiet frames */
+        if(quietFrames >= NEEDED_QUIET){
+            noiseFloorFilled = true;
+            let sum = 0;
+            for(let i=0; i<noiseFloor.length; i++) sum += noiseFloor[i];
+            noiseFloorAvg = sum / noiseFloor.length;
+            /* Threshold: 1.6x noise floor — permissive enough for quiet voices */
+            noiseThreshold = Math.max(noiseFloorAvg * 1.6, 0.008);
+            noiseGateEnvelope = 0;
+            log('ANC:CALIBRATED_OK');
+            log('ANC:FLOOR:'+noiseFloorAvg.toFixed(5));
+            log('ANC:THRESH:'+noiseThreshold.toFixed(5));
+        }
+        /* Force-calibrate after timeout even if not enough quiet frames */
+        else if(totalFrames >= CAL_TIMEOUT){
+            noiseFloorFilled = true;
+            if(quietFrames < 3){
+                /* No quiet frames at all — use conservative default */
+                noiseFloorAvg = 0.002;
+                noiseThreshold = 0.008;
+                log('ANC:NOISY_ENV_DEFAULT');
+            } else {
+                let sum = 0;
+                for(let i=0; i<noiseFloor.length; i++) sum += noiseFloor[i];
+                noiseFloorAvg = sum / noiseFloor.length;
+                noiseThreshold = Math.max(noiseFloorAvg * 1.6, 0.008);
+                log('ANC:CAL_TIMEOUT_OK');
+            }
+            log('ANC:FLOOR:'+noiseFloorAvg.toFixed(5));
+            log('ANC:THRESH:'+noiseThreshold.toFixed(5));
+        }
+
+        /* ALWAYS pass through audio during calibration — never silence */
+        return samples;
+    }
+
+    /* === ACTIVE GATING PHASE === */
+    const isVoice = energy > noiseThreshold;
+
+    if(isVoice){
+        voiceHangover = HANGOVER_FRAMES;
+        noiseGateEnvelope = Math.min(1, noiseGateEnvelope + 0.5);
+    } else {
+        if(voiceHangover > 0){
+            voiceHangover--;
+            noiseGateEnvelope *= 0.88;
+        } else {
+            noiseGateEnvelope *= 0.82;
+        }
+        /* Slowly adapt noise floor during confirmed silence */
+        if(energy < noiseThreshold * 0.7){
+            for(let i=0; i<samples.length; i++){
+                const idx = i % noiseFloor.length;
+                noiseFloor[idx] = noiseFloor[idx]*0.998 + Math.abs(samples[i])*0.002;
+            }
+        }
+    }
+
+    /* Per-sample soft spectral gate: 2.2x local noise floor */
+    for(let i=0; i<samples.length; i++){
+        const idx = i % noiseFloor.length;
+        const localThresh = noiseFloor[idx] * 2.2;
+        if(Math.abs(samples[i]) < localThresh){
+            samples[i] *= noiseGateEnvelope * 0.08;
+        }
+    }
+
+    return samples;
+}
+
+function log(m){const el=document.getElementById('sys');if(!el)return;const d=document.createElement('div');d.innerText='> '+m;el.appendChild(d);el.scrollTop=el.scrollHeight;while(el.childElementCount>30)el.removeChild(el.firstChild);}
+
+function teardown(){isTx=false;isLinked=false;myRole=null;if(connTimeout){clearTimeout(connTimeout);connTimeout=null;}if(heartbeatTimer){clearInterval(heartbeatTimer);heartbeatTimer=null;}if(peerTimeout){clearTimeout(peerTimeout);peerTimeout=null;}if(vltTimer){clearInterval(vltTimer);vltTimer=null;}if(chargeTimer){clearInterval(chargeTimer);chargeTimer=null;}if(txTailTimer){clearTimeout(txTailTimer);txTailTimer=null;}if(sigDecayTimer){clearTimeout(sigDecayTimer);sigDecayTimer=null;}if(mc){try{mc.end(true);}catch(e){}mc=null;}if(mic){mic.getTracks().forEach(t=>t.stop());mic=null;}if(actx){try{actx.close();}catch(e){}actx=null;}ana=null;pG=null;ck=null;inHPF=null;inBPF=null;inComp=null;outHPF=null;outComp=null;inMute=null;ancNotch50=null;ancNotch60=null;ancNotch100=null;ancNotch120=null;ancLPF=null;ancBPF=null;nxt=0;resetNoiseState();sigGaps=[];lastAudioTime=0;sigQuality=0;}
+
+function lockInputs(){document.getElementById('ch').classList.add('locked');document.getElementById('key').classList.add('locked');document.getElementById('hBtn').classList.add('disabled');document.getElementById('jBtn').classList.add('disabled');}
+function unlockInputs(){document.getElementById('ch').classList.remove('locked');document.getElementById('key').classList.remove('locked');document.getElementById('hBtn').classList.remove('disabled');document.getElementById('jBtn').classList.remove('disabled');}
+
+/* ===== BACKGROUND ===== */
+const bcvs=document.getElementById('scannerCanvas'),bctx=bcvs.getContext('2d');
+let bgCols=[];
+function initBg(){bcvs.width=window.innerWidth;bcvs.height=window.innerHeight;bgCols=new Array(Math.floor(bcvs.width/20)).fill(0).map(()=>Math.random()*bcvs.height);}
+window.onresize=initBg;initBg();
+function draw(){bctx.fillStyle='rgba(0,0,0,0.1)';bctx.fillRect(0,0,bcvs.width,bcvs.height);bctx.font='12px monospace';bctx.fillStyle='#010';bgCols.forEach((y,i)=>{bctx.fillText(Math.random()>0.8?'1':'0',i*20,y);bgCols[i]=y>bcvs.height?0:y+10;});if(ana&&isPwr&&isLinked){const scvs=document.getElementById('scope'),sctx=scvs.getContext('2d');const data=new Uint8Array(ana.frequencyBinCount);ana.getByteTimeDomainData(data);sctx.clearRect(0,0,scvs.width,scvs.height);sctx.lineWidth=2;sctx.strokeStyle=isAnc?'#00d4ff':'#39ff14';sctx.shadowBlur=3;sctx.shadowColor=sctx.strokeStyle;sctx.beginPath();const step=scvs.width/data.length;for(let i=0;i<data.length;i++){const v=data[i]/128.0,y=v*scvs.height/2;if(i===0)sctx.moveTo(0,y);else sctx.lineTo(i*step,y);}sctx.stroke();sctx.shadowBlur=0;}requestAnimationFrame(draw);}
+draw();
+
+/* ===== HEARTBEAT ===== */
+function startHeartbeat(){const t=TP+document.getElementById('ch').value+'/'+myRole+'_ping';heartbeatTimer=setInterval(()=>{if(mc&&mc.connected)mc.publish(t,'1',{qos:0});},3000);}
+function resetPeerTimeout(){if(peerTimeout)clearTimeout(peerTimeout);peerTimeout=setTimeout(()=>{if(isLinked){isLinked=false;isTx=false;log('PEER_LOST');setConnLed(myRole==='host'?'hLed':'jLed','fail');sigGaps=[];sigQuality=0;lastAudioTime=0;setUILevel('on');lockPTT('LOCKED');unlockInputs();updateUI('idle');if(mc&&mc.connected)mc.unsubscribe(TP+document.getElementById('ch').value+'/'+(myRole==='host'?'client':'host')+'_audio');}},10000);}
+function onPeerFound(){if(isLinked){resetPeerTimeout();return;}isLinked=true;resetPeerTimeout();setUILevel('linked');setConnLed(myRole==='host'?'hLed':'jLed','ok');const ch=document.getElementById('ch').value;const pt=TP+ch+'/'+(myRole==='host'?'client':'host')+'_audio';mc.subscribe(pt,{qos:0},(err)=>{if(err)log('AUDIO_SUB_FAIL');else log('RX:'+pt);});if(!isCharging&&!isDead)unlockPTT();updateUI('connected');log('HANDSHAKE_OK');log('CH_'+ch+'_ENCRYPTED');}
+
+/* ===== CONNECTION ===== */
+async function conn(role){
+    if(!isPwr||mc||isDead)return;
+    myRole=role;const chVal=document.getElementById('ch').value;const peerRole=role==='host'?'client':'host';
+    const myPing=TP+chVal+'/'+role+'_ping';const peerPing=TP+chVal+'/'+peerRole+'_ping';
+    const pwd=document.getElementById('key').value;
+    if(pwd.length<4){log('SEC_ERR:KEY_MIN_4');return;}
+    setConnLed(role==='host'?'hLed':'jLed','active');lockInputs();waitPTT('SYNCING...');updateUI('waiting');
+    log('INIT_'+role.toUpperCase());log('KEY_LEN:'+pwd.length);
+    connTimeout=setTimeout(()=>{if(!isLinked){log('TIMEOUT');setConnLed(role==='host'?'hLed':'jLed','fail');teardown();setUILevel('on');updateUI('idle');}},15000);
+    try{
+        log('REQ_MIC...');
+        mic=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:false,autoGainControl:false,channelCount:1,sampleRate:{ideal:16000}}});
+        log('MIC_OK');
+        actx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:16000,latencyHint:'interactive'});
+        await actx.resume();log('ACTX:'+actx.sampleRate+'Hz');
+        const src=actx.createMediaStreamSource(mic);
+
+        inHPF=actx.createBiquadFilter();inHPF.type='highpass';inHPF.frequency.value=150;inHPF.Q.value=0.7;
+        inBPF=actx.createBiquadFilter();inBPF.type='bandpass';inBPF.frequency.value=1000;inBPF.Q.value=0.7;
+        inComp=actx.createDynamicsCompressor();inComp.threshold.value=-32;inComp.knee.value=15;inComp.ratio.value=12;inComp.attack.value=0.003;inComp.release.value=0.08;
+
+        ana=actx.createAnalyser();ana.fftSize=2048;
+        const proc=actx.createScriptProcessor(2048,1,1);ana._proc=proc;
+
+        proc.onaudioprocess=function(e){
+            e.outputBuffer.getChannelData(0).fill(0);
+            let s=e.inputBuffer.getChannelData(0);
+            if(isAnc) s=applyNoiseGate(s);
+            if(isTx&&mc&&mc.connected&&isLinked) transmit(s,chVal,role);
+        };
+
+        inMute=actx.createGain();inMute.gain.value=0;
+        src.connect(inHPF);inHPF.connect(inBPF);inBPF.connect(inComp);inComp.connect(ana);
+        ana.connect(proc);proc.connect(inMute);inMute.connect(actx.destination);
+
+        outHPF=actx.createBiquadFilter();outHPF.type='highpass';outHPF.frequency.value=200;outHPF.Q.value=0.5;
+        const outLPF=actx.createBiquadFilter();outLPF.type='lowpass';outLPF.frequency.value=3200;outLPF.Q.value=0.5;
+        outComp=actx.createDynamicsCompressor();outComp.threshold.value=-18;outComp.knee.value=10;outComp.ratio.value=8;outComp.attack.value=0.003;outComp.release.value=0.1;
+        const outLimiter=actx.createDynamicsCompressor();outLimiter.threshold.value=-6;outLimiter.knee.value=0;outLimiter.ratio.value=20;outLimiter.attack.value=0.001;outLimiter.release.value=0.01;
+        pG=actx.createGain();pG.gain.value=BASE_OUT_VOL;
+        outHPF.connect(outLPF);outLPF.connect(outComp);outComp.connect(outLimiter);outLimiter.connect(pG);pG.connect(actx.destination);
+
+        const enc=new TextEncoder();
+        const km=await crypto.subtle.importKey('raw',enc.encode(pwd),'PBKDF2',false,['deriveKey']);
+        ck=await crypto.subtle.deriveKey({name:'PBKDF2',salt:enc.encode('TACCOM_v12_SECURE_SALT'),iterations:10000,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+        log('CIPHER:KEY_READY');log('BROKER:TLS_CONNECT...');
+
+        mc=mqtt.connect('wss://broker.emqx.io:8084/mqtt',{connectTimeout:8000,reconnectPeriod:3000,clientId:'tac_'+role+'_'+Math.random().toString(36).slice(2,8)});
+        mc.on('connect',()=>{if(connTimeout){clearTimeout(connTimeout);connTimeout=null;}log('BROKER:TLS_OK');mc.subscribe(peerPing,{qos:0},(err)=>{if(err){log('SUB_FAIL');setConnLed(role==='host'?'hLed':'jLed','fail');return;}log('SCAN:'+peerPing);mc.publish(myPing,'1',{qos:0});log('ANN:'+myPing);startHeartbeat();waitPTT('WAITING '+peerRole.toUpperCase());});});
+        mc.on('message',function(topic,payload){if(topic.endsWith('_ping')){onPeerFound();return;}if(topic.endsWith('_audio')){handleAudio(payload);return;}});
+        mc.on('error',(err)=>{log('ERR:'+(err.message||'?'));});
+        mc.on('close',()=>{log('BROKER_DOWN');isLinked=false;isTx=false;if(heartbeatTimer){clearInterval(heartbeatTimer);heartbeatTimer=null;}setConnLed(role==='host'?'hLed':'jLed','fail');setUILevel('on');waitPTT('RECONNECTING');updateUI('waiting');sigGaps=[];sigQuality=0;lastAudioTime=0;});
+        mc.on('reconnect',()=>{log('RELINK...');});
+        mc.on('reconnect_success',()=>{log('RELINK_OK');if(myRole){const ch2=document.getElementById('ch').value;const pr=myRole==='host'?'client':'host';mc.subscribe(TP+ch2+'/'+pr+'_ping',{qos:0});mc.publish(TP+ch2+'/'+myRole+'_ping','1',{qos:0});if(!isLinked)waitPTT('WAITING '+pr.toUpperCase());}});
+    }catch(err){if(connTimeout){clearTimeout(connTimeout);connTimeout=null;}log('FAIL:'+(err.name||err.message||'ERR'));setConnLed(role==='host'?'hLed':'jLed','fail');teardown();setUILevel('on');updateUI('idle');}
+}
+
+/* ===== RECEIVE ===== */
+let lastPacketIV = '';
+async function handleAudio(payload){
+    if(!isLinked)return;try{
+        if(payload.length<13)return;
+        const iv=payload.slice(0,12);
+        const ivHex=Array.from(iv).map(b=>b.toString(16).padStart(2,'0')).join('');
+        if(ivHex===lastPacketIV)return;
+        lastPacketIV=ivHex;
+        updateSignalFromPacket();
+        const dec=await crypto.subtle.decrypt({name:'AES-GCM',iv:iv},ck,payload.slice(12));
+        playAudio(dec);
+    }catch(e){}
+}
+
+/* ===== TRANSMIT ===== */
+async function transmit(samples,ch,role){try{const i16=new Int16Array(samples.length);for(let i=0;i<samples.length;i++){const s=Math.max(-1,Math.min(1,samples[i]));i16[i]=s<0?s*32768:s*32767;}const iv=crypto.getRandomValues(new Uint8Array(12));const enc=await crypto.subtle.encrypt({name:'AES-GCM',iv:iv},ck,i16.buffer);const pkt=new Uint8Array(12+enc.byteLength);pkt.set(iv,0);pkt.set(new Uint8Array(enc),12);mc.publish(TP+ch+'/'+role+'_audio',pkt,{qos:0});}catch(e){}}
+
+/* ===== PLAYBACK ===== */
+function playAudio(rawBuffer){
+    if(!actx||actx.state==='closed')return;if(actx.state==='suspended')actx.resume();
+    const i16=new Int16Array(rawBuffer);const f32=new Float32Array(i16.length);
+    for(let i=0;i<i16.length;i++)f32[i]=i16[i]/32768;
+    const buf=actx.createBuffer(1,f32.length,actx.sampleRate);buf.getChannelData(0).set(f32);
+    const src=actx.createBufferSource();src.buffer=buf;src.connect(outHPF);
+    const now=actx.currentTime;if(nxt<now-0.2)nxt=now;
+    const startAt=Math.max(now+0.005,nxt);src.start(startAt);nxt=startAt+buf.duration;
+}
+
+setUILevel('off');checkPwd();
+</script>
+</body>
+</html>
