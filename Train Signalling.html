@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Railway Signal Control Panel</title>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #333;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+
+        svg {
+            background: #222;
+            border: 2px solid #444;
+            border-radius: 4px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .track {
+            stroke: #555;
+            stroke-width: 6;
+            fill: none;
+        }
+
+        .signal {
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .train {
+            transition: all 0.8s ease-in-out;
+            cursor: pointer;
+        }
+
+        .label {
+            fill: #aaa;
+            font-size: 12px;
+            text-transform: uppercase;
+            pointer-events: none;
+        }
+
+        .status-box {
+            margin-top: 10px;
+            font-family: monospace;
+            color: #00ff00;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Model Railway Dispatch Panel</h2>
+    
+    <div class="controls">
+        <strong>Instructions:</strong> 
+        1. Click <span style="color:red">●</span> Signals to toggle Green/Red. | 
+        2. Click the <span style="color:yellow">■</span> Train to advance.
+        <div id="status" class="status-box">System Ready. All signals at STOP.</div>
+    </div>
+
+    <svg width="800" height="200" viewBox="0 0 800 200">
+        <line class="track" x1="50" y1="100" x2="750" y2="100" />
+        
+        <line x1="300" y1="80" x2="300" y2="120" stroke="#333" stroke-width="2" />
+        <line x1="550" y1="80" x2="550" y2="120" stroke="#333" stroke-width="2" />
+
+        <text x="150" y="140" class="label" text-anchor="middle">Block A</text>
+        <text x="425" y="140" class="label" text-anchor="middle">Block B</text>
+        <text x="675" y="140" class="label" text-anchor="middle">Block C</text>
+
+        <g class="signal" onclick="toggleSignal('sig1')">
+            <circle cx="280" cy="70" r="12" fill="#000" />
+            <circle id="sig1" cx="280" cy="70" r="8" fill="red" />
+            <text x="270" y="50" class="label">S1</text>
+        </g>
+
+        <g class="signal" onclick="toggleSignal('sig2')">
+            <circle cx="530" cy="70" r="12" fill="#000" />
+            <circle id="sig2" cx="530" cy="70" r="8" fill="red" />
+            <text x="520" y="50" class="label">S2</text>
+        </g>
+
+        <g id="train1" class="train" onclick="moveTrain()">
+            <rect x="0" y="-15" width="40" height="30" fill="yellow" rx="4" />
+            <text x="20" y="5" fill="black" font-size="10" font-weight="bold" text-anchor="middle">T1</text>
+        </g>
+    </svg>
+
+    <script>
+        // State Management
+        let currentBlock = 'A'; // Start in Block A
+        const signals = {
+            sig1: 'red',
+            sig2: 'red'
+        };
+
+        const train = document.getElementById('train1');
+        const statusDisplay = document.getElementById('status');
+
+        // Initial Position
+        updateTrainPosition();
+
+        function toggleSignal(id) {
+            const sigElement = document.getElementById(id);
+            if (signals[id] === 'red') {
+                signals[id] = 'green';
+                sigElement.setAttribute('fill', '#00ff00');
+                log(`Signal ${id} set to PROCEED.`);
+            } else {
+                signals[id] = 'red';
+                sigElement.setAttribute('fill', 'red');
+                log(`Signal ${id} set to STOP.`);
+            }
+        }
+
+        function moveTrain() {
+            if (currentBlock === 'A') {
+                if (signals.sig1 === 'green') {
+                    currentBlock = 'B';
+                    log("Train moving to Block B...");
+                    updateTrainPosition();
+                } else {
+                    log("STOP! Signal S1 is red.");
+                }
+            } 
+            else if (currentBlock === 'B') {
+                if (signals.sig2 === 'green') {
+                    currentBlock = 'C';
+                    log("Train moving to Block C...");
+                    updateTrainPosition();
+                } else {
+                    log("STOP! Signal S2 is red.");
+                }
+            } 
+            else if (currentBlock === 'C') {
+                // Reset to start for demo purposes
+                currentBlock = 'A';
+                log("Train reset to start.");
+                updateTrainPosition();
+            }
+        }
+
+        function updateTrainPosition() {
+            let xPos = 0;
+            if (currentBlock === 'A') xPos = 130;
+            if (currentBlock === 'B') xPos = 405;
+            if (currentBlock === 'C') xPos = 655;
+
+            // Using SVG transform to move the train group
+            train.setAttribute('transform', `translate(${xPos}, 100)`);
+        }
+
+        function log(msg) {
+            statusDisplay.innerText = msg;
+        }
+    </script>
+</body>
+</html>
