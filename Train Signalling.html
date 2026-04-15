@@ -2,170 +2,243 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Railway Signal Control Panel</title>
+    <title>Mega-Junction CTC Terminal</title>
     <style>
-        body {
-            background-color: #1a1a1a;
-            color: #e0e0e0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 20px;
-        }
+        body { background: #0a0a0a; color: #fff; font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        header { background: #222; padding: 10px 20px; border-bottom: 3px solid #444; display: flex; justify-content: space-between; align-items: center; }
+        
+        #layout-container { flex-grow: 1; overflow: auto; padding: 20px; position: relative; background: #111; }
+        svg { background: #000; border: 1px solid #333; display: block; margin: auto; }
 
-        .controls {
-            margin-bottom: 20px;
-            padding: 15px;
-            background: #333;
-            border-radius: 8px;
-            border: 1px solid #444;
-        }
+        .track { stroke: #333; stroke-width: 4; fill: none; }
+        .station-area { fill: rgba(255, 255, 255, 0.05); stroke: #444; stroke-dasharray: 5; }
+        .signal-base { fill: #000; stroke: #666; }
+        .train { cursor: pointer; transition: transform 1.5s cubic-bezier(0.45, 0.05, 0.55, 0.95); }
+        .train:hover { filter: brightness(1.5); }
+        .train.selected { stroke: #fff; stroke-width: 2; }
 
-        svg {
-            background: #222;
-            border: 2px solid #444;
-            border-radius: 4px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-
-        .track {
-            stroke: #555;
-            stroke-width: 6;
-            fill: none;
-        }
-
-        .signal {
-            cursor: pointer;
-            transition: 0.3s;
-        }
-
-        .train {
-            transition: all 0.8s ease-in-out;
-            cursor: pointer;
-        }
-
-        .label {
-            fill: #aaa;
-            font-size: 12px;
-            text-transform: uppercase;
-            pointer-events: none;
-        }
-
-        .status-box {
-            margin-top: 10px;
-            font-family: monospace;
-            color: #00ff00;
-        }
+        .ui-panel { width: 300px; background: #181818; border-left: 2px solid #444; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+        .main-wrapper { display: flex; flex-grow: 1; overflow: hidden; }
+        
+        .log { flex-grow: 1; background: #000; border: 1px solid #333; padding: 10px; font-family: monospace; font-size: 11px; color: #0f0; overflow-y: auto; }
+        .btn { padding: 10px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; text-transform: uppercase; }
+        .btn-green { background: #2e7d32; color: white; }
+        .btn-red { background: #c62828; color: white; }
+        .btn-bypass { background: #f57f17; color: black; }
+        
+        .status-tag { padding: 2px 5px; border-radius: 3px; font-size: 10px; margin-left: 10px; }
+        .tag-red { background: #900; }
+        .tag-green { background: #060; }
     </style>
 </head>
 <body>
 
-    <h2>Model Railway Dispatch Panel</h2>
-    
-    <div class="controls">
-        <strong>Instructions:</strong> 
-        1. Click <span style="color:red">●</span> Signals to toggle Green/Red. | 
-        2. Click the <span style="color:yellow">■</span> Train to advance.
-        <div id="status" class="status-box">System Ready. All signals at STOP.</div>
+<header>
+    <div><strong>CENTRAL DISPATCH: TERMINAL 15</strong></div>
+    <div id="clock">12:00:00</div>
+</header>
+
+<div class="main-wrapper">
+    <div id="layout-container">
+        <svg id="yard" width="1200" height="900">
+            </svg>
     </div>
 
-    <svg width="800" height="200" viewBox="0 0 800 200">
-        <line class="track" x1="50" y1="100" x2="750" y2="100" />
+    <div class="ui-panel">
+        <div id="selection-info">
+            <h3>No Train Selected</h3>
+            <p>Click a train to issue orders.</p>
+        </div>
+        <hr border="1" color="#333">
+        <button class="btn btn-green" onclick="moveSelected()">Advance Train</button>
+        <button class="btn btn-bypass" onclick="requestBypass()">Request Red Bypass</button>
+        <button class="btn btn-red" onclick="emergencyStop()">Emergency Stop (All)</button>
         
-        <line x1="300" y1="80" x2="300" y2="120" stroke="#333" stroke-width="2" />
-        <line x1="550" y1="80" x2="550" y2="120" stroke="#333" stroke-width="2" />
+        <div class="log" id="system-log">
+            > SYSTEM INITIALIZED...<br>
+            > 15 LINES ONLINE...<br>
+            > 10 TRAINS READY...
+        </div>
+    </div>
+</div>
 
-        <text x="150" y="140" class="label" text-anchor="middle">Block A</text>
-        <text x="425" y="140" class="label" text-anchor="middle">Block B</text>
-        <text x="675" y="140" class="label" text-anchor="middle">Block C</text>
+<script>
+    const yard = document.getElementById('yard');
+    const systemLog = document.getElementById('system-log');
+    let selectedTrainId = null;
 
-        <g class="signal" onclick="toggleSignal('sig1')">
-            <circle cx="280" cy="70" r="12" fill="#000" />
-            <circle id="sig1" cx="280" cy="70" r="8" fill="red" />
-            <text x="270" y="50" class="label">S1</text>
-        </g>
+    const config = {
+        lines: 15,
+        trains: 10,
+        blocks: 4, // Horizontal segments
+        lineSpacing: 55,
+        blockWidth: 280
+    };
 
-        <g class="signal" onclick="toggleSignal('sig2')">
-            <circle cx="530" cy="70" r="12" fill="#000" />
-            <circle id="sig2" cx="530" cy="70" r="8" fill="red" />
-            <text x="520" y="50" class="label">S2</text>
-        </g>
+    const state = {
+        signals: {}, // key: line_block, value: 'red'|'green'
+        trains: {}   // key: id, value: {line, block}
+    };
 
-        <g id="train1" class="train" onclick="moveTrain()">
-            <rect x="0" y="-15" width="40" height="30" fill="yellow" rx="4" />
-            <text x="20" y="5" fill="black" font-size="10" font-weight="bold" text-anchor="middle">T1</text>
-        </g>
-    </svg>
+    // 1. GENERATE THE YARD
+    function initYard() {
+        for (let l = 0; l < config.lines; l++) {
+            const y = 50 + (l * config.lineSpacing);
+            
+            // Draw Line
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", 50); line.setAttribute("y1", y);
+            line.setAttribute("x2", 1150); line.setAttribute("y2", y);
+            line.setAttribute("class", "track");
+            yard.appendChild(line);
 
-    <script>
-        // State Management
-        let currentBlock = 'A'; // Start in Block A
-        const signals = {
-            sig1: 'red',
-            sig2: 'red'
-        };
+            // Draw Station Markers (at start and end)
+            if (l % 3 === 0) {
+                const station = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                station.setAttribute("x", 40); station.setAttribute("y", y - 15);
+                station.setAttribute("width", 80); station.setAttribute("height", 30);
+                station.setAttribute("class", "station-area");
+                yard.appendChild(station);
+            }
 
-        const train = document.getElementById('train1');
-        const statusDisplay = document.getElementById('status');
+            // Draw Signals for each block
+            for (let b = 1; b < config.blocks; b++) {
+                const x = b * config.blockWidth;
+                createSignal(l, b, x, y);
+            }
+        }
 
-        // Initial Position
-        updateTrainPosition();
+        // Generate 10 Trains
+        for (let t = 0; t < config.trains; t++) {
+            createTrain(t);
+        }
+    }
 
-        function toggleSignal(id) {
-            const sigElement = document.getElementById(id);
-            if (signals[id] === 'red') {
-                signals[id] = 'green';
-                sigElement.setAttribute('fill', '#00ff00');
-                log(`Signal ${id} set to PROCEED.`);
+    function createSignal(line, block, x, y) {
+        const id = `sig_${line}_${block}`;
+        state.signals[id] = 'red';
+
+        const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        g.onclick = () => toggleSignal(id);
+        
+        const base = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        base.setAttribute("cx", x); base.setAttribute("cy", y - 15);
+        base.setAttribute("r", 8); base.setAttribute("class", "signal-base");
+        
+        const lamp = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        lamp.setAttribute("id", id);
+        lamp.setAttribute("cx", x); lamp.setAttribute("cy", y - 15);
+        lamp.setAttribute("r", 5); lamp.setAttribute("fill", "red");
+        
+        g.appendChild(base);
+        g.appendChild(lamp);
+        yard.appendChild(g);
+    }
+
+    function createTrain(id) {
+        const tId = `T-${id + 101}`;
+        const line = id; // Start 1 train per line for the first 10
+        state.trains[tId] = { line: line, block: 0, bypass: false };
+
+        const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        g.setAttribute("id", tId);
+        g.setAttribute("class", "train");
+        g.onclick = (e) => { e.stopPropagation(); selectTrain(tId); };
+
+        const body = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        body.setAttribute("x", "-25"); body.setAttribute("y", "-12");
+        body.setAttribute("width", "50"); body.setAttribute("height", "24");
+        body.setAttribute("fill", `hsl(${id * 36}, 70%, 50%)`);
+        body.setAttribute("rx", "2");
+
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.textContent = tId;
+        text.setAttribute("y", "4"); text.setAttribute("font-size", "10");
+        text.setAttribute("text-anchor", "middle"); text.setAttribute("fill", "#000");
+
+        g.appendChild(body);
+        g.appendChild(text);
+        yard.appendChild(g);
+        
+        updateTrainVisual(tId);
+    }
+
+    // 2. LOGIC FUNCTIONS
+    function selectTrain(id) {
+        if (selectedTrainId) document.getElementById(selectedTrainId).classList.remove('selected');
+        selectedTrainId = id;
+        document.getElementById(id).classList.add('selected');
+        
+        const t = state.trains[id];
+        document.getElementById('selection-info').innerHTML = `
+            <h3>Train ${id}</h3>
+            <p>Line: ${t.line + 1} | Block: ${t.block}</p>
+            <p>Bypass Auth: ${t.bypass ? '<span class="tag-green">YES</span>' : '<span class="tag-red">NO</span>'}</p>
+        `;
+    }
+
+    function toggleSignal(id) {
+        state.signals[id] = state.signals[id] === 'red' ? 'green' : 'red';
+        document.getElementById(id).setAttribute("fill", state.signals[id] === 'green' ? "#0f0" : "red");
+        log(`Signal ${id} set to ${state.signals[id].toUpperCase()}`);
+    }
+
+    function moveSelected() {
+        if (!selectedTrainId) return log("Error: No train selected");
+        const t = state.trains[selectedTrainId];
+        const nextBlock = t.block + 1;
+        const sigId = `sig_${t.line}_${nextBlock}`;
+
+        if (nextBlock >= config.blocks) {
+            t.block = 0;
+            log(`${selectedTrainId} reached terminus. Returning to start.`);
+        } else {
+            // CHECK SIGNAL
+            if (state.signals[sigId] === 'green' || t.bypass) {
+                t.block = nextBlock;
+                t.bypass = false; // Reset bypass after use
+                log(`${selectedTrainId} advancing to Block ${t.block}`);
             } else {
-                signals[id] = 'red';
-                sigElement.setAttribute('fill', 'red');
-                log(`Signal ${id} set to STOP.`);
+                log(`STOP! ${selectedTrainId} held at Red Signal ${sigId}`);
+                return;
             }
         }
+        updateTrainVisual(selectedTrainId);
+        selectTrain(selectedTrainId);
+    }
 
-        function moveTrain() {
-            if (currentBlock === 'A') {
-                if (signals.sig1 === 'green') {
-                    currentBlock = 'B';
-                    log("Train moving to Block B...");
-                    updateTrainPosition();
-                } else {
-                    log("STOP! Signal S1 is red.");
-                }
-            } 
-            else if (currentBlock === 'B') {
-                if (signals.sig2 === 'green') {
-                    currentBlock = 'C';
-                    log("Train moving to Block C...");
-                    updateTrainPosition();
-                } else {
-                    log("STOP! Signal S2 is red.");
-                }
-            } 
-            else if (currentBlock === 'C') {
-                // Reset to start for demo purposes
-                currentBlock = 'A';
-                log("Train reset to start.");
-                updateTrainPosition();
-            }
-        }
+    function requestBypass() {
+        if (!selectedTrainId) return;
+        state.trains[selectedTrainId].bypass = true;
+        log(`AUTH: ${selectedTrainId} granted Restricted Proceed (Bypass).`);
+        selectTrain(selectedTrainId);
+    }
 
-        function updateTrainPosition() {
-            let xPos = 0;
-            if (currentBlock === 'A') xPos = 130;
-            if (currentBlock === 'B') xPos = 405;
-            if (currentBlock === 'C') xPos = 655;
+    function updateTrainVisual(id) {
+        const t = state.trains[id];
+        const x = 80 + (t.block * config.blockWidth);
+        const y = 50 + (t.line * config.lineSpacing);
+        document.getElementById(id).setAttribute("transform", `translate(${x}, ${y})`);
+    }
 
-            // Using SVG transform to move the train group
-            train.setAttribute('transform', `translate(${xPos}, 100)`);
-        }
+    function log(msg) {
+        const time = new Date().toLocaleTimeString();
+        systemLog.innerHTML = `[${time}] > ${msg}<br>` + systemLog.innerHTML;
+    }
 
-        function log(msg) {
-            statusDisplay.innerText = msg;
-        }
-    </script>
+    function emergencyStop() {
+        Object.keys(state.signals).forEach(id => {
+            state.signals[id] = 'red';
+            document.getElementById(id).setAttribute("fill", "red");
+        });
+        log("!!! EMERGENCY STOP: ALL SIGNALS SET TO RED !!!");
+    }
+
+    setInterval(() => {
+        document.getElementById('clock').innerText = new Date().toLocaleTimeString();
+    }, 1000);
+
+    initYard();
+</script>
 </body>
 </html>
