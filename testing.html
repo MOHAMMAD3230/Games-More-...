@@ -3,907 +3,844 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src wss: https:; media-src blob:; img-src 'self' data: blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'none'; object-src 'none'; sandbox allow-scripts allow-same-origin allow-popups allow-forms">
+    <meta name="referrer" content="no-referrer">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <title>StreamLine</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-... crossorigin="anonymous" referrerpolicy="no-referrer">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/webtorrent@1.9.7/webtorrent.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/webtorrent@1.9.7/webtorrent.min.js" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <style>
         :root {
-            --bg: #060b14;
-            --surface: #0c1322;
-            --card: #111b2e;
-            --border: #1a2744;
-            --fg: #e2e8f0;
-            --muted: #5a6b85;
-            --accent: #06d6a0;
-            --accent-dim: rgba(6,214,160,0.1);
-            --danger: #ef4444;
-            --warn: #f59e0b;
-            --cyan: #06b6d4;
+            --bg:#020204;--glass:rgba(255,255,255,0.03);--glass-up:rgba(255,255,255,0.05);
+            --glass-in:rgba(0,0,0,0.4);--g-bdr:rgba(255,255,255,0.06);--g-bdr-hi:rgba(255,255,255,0.11);
+            --blur:blur(44px) saturate(200%);--blur-s:blur(20px) saturate(170%);
+            --fg:#f8f8fc;--fg2:rgba(248,248,252,0.6);--mut:rgba(255,255,255,0.28);
+            --acc:#c8ff00;--acc2:rgba(200,255,0,0.1);--vio:#9b72ff;--ros:#ff6b6b;--amb:#ffbe0b;--cyn:#38d9a9;
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Space Grotesk', sans-serif; background: var(--bg); color: var(--fg); }
-        .mono { font-family: 'JetBrains Mono', monospace; }
-
-        .grid-bg {
-            position: fixed; inset: 0; z-index: 0; pointer-events: none;
-            background-image:
-                linear-gradient(rgba(6,214,160,0.025) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(6,214,160,0.025) 1px, transparent 1px);
-            background-size: 48px 48px;
-            animation: gridMove 30s linear infinite;
-        }
-        @keyframes gridMove { to { background-position: 48px 48px; } }
-
-        .glow { position: fixed; border-radius: 50%; filter: blur(130px); pointer-events: none; z-index: 0; }
-        .glow-1 { width: 420px; height: 420px; top: -120px; right: -60px; background: rgba(6,214,160,0.05); animation: drift 14s ease-in-out infinite alternate; }
-        .glow-2 { width: 350px; height: 350px; bottom: -80px; left: -50px; background: rgba(6,182,212,0.04); animation: drift 18s ease-in-out infinite alternate-reverse; }
-        @keyframes drift { to { transform: translate(30px, -25px) scale(1.1); } }
-
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-track { background: var(--surface); }
-        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-        #magnetInput {
-            font-family: 'JetBrains Mono', monospace;
-            background: var(--bg);
-            border: 1px solid var(--border);
-            color: var(--fg);
-            resize: none;
-            transition: border-color .2s, box-shadow .2s;
-        }
-        #magnetInput:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); outline: none; }
-        #magnetInput::placeholder { color: var(--muted); opacity: .5; }
-
-        .btn-primary {
-            background: var(--accent); color: #060b14; font-weight: 700; border: none;
-            cursor: pointer; transition: all .2s;
-        }
-        .btn-primary:hover:not(:disabled) { filter: brightness(1.12); transform: translateY(-1px); }
-        .btn-primary:active:not(:disabled) { transform: translateY(0); }
-        .btn-primary:disabled { opacity: .35; cursor: not-allowed; }
-
-        .btn-icon {
-            background: transparent; border: 1px solid var(--border); color: var(--muted);
-            cursor: pointer; transition: all .2s;
-        }
-        .btn-icon:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
-        .btn-icon:disabled { opacity: .25; cursor: not-allowed; }
-
-        .btn-danger-sm {
-            background: transparent; border: 1px solid rgba(239,68,68,.25); color: var(--danger);
-            cursor: pointer; transition: all .2s;
-        }
-        .btn-danger-sm:hover:not(:disabled) { background: rgba(239,68,68,.08); border-color: var(--danger); }
-        .btn-danger-sm:disabled { opacity: .25; cursor: not-allowed; }
-
-        .btn-file {
-            background: var(--accent-dim); border: 1px solid rgba(6,214,160,.2); color: var(--accent);
-            cursor: pointer; transition: all .2s; font-size: 11px; font-weight: 600;
-        }
-        .btn-file:hover:not(:disabled) { background: rgba(6,214,160,.18); }
-        .btn-file:disabled { opacity: .3; cursor: not-allowed; }
-
-        .btn-stream {
-            background: rgba(6,182,212,.1); border: 1px solid rgba(6,182,212,.25); color: var(--cyan);
-            cursor: pointer; transition: all .2s; font-size: 11px; font-weight: 600;
-        }
-        .btn-stream:hover:not(:disabled) { background: rgba(6,182,212,.18); }
-        .btn-stream:disabled { opacity: .3; cursor: not-allowed; }
-
-        .stat-card {
-            background: var(--surface); border: 1px solid var(--border);
-            border-radius: 10px; padding: 12px 14px;
-        }
-
-        .progress-track {
-            background: var(--surface); border: 1px solid var(--border);
-            border-radius: 6px; height: 20px; overflow: hidden;
-        }
-        .progress-fill {
-            height: 100%; border-radius: 5px;
-            background: linear-gradient(90deg, #06d6a0, #06b6d4);
-            transition: width .5s cubic-bezier(.22,1,.36,1);
-            position: relative; overflow: hidden;
-        }
-        .progress-fill::after {
-            content: ''; position: absolute; inset: 0;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,.1), transparent);
-            animation: shimmer 2.2s ease-in-out infinite;
-        }
-        @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
-
-        .status-badge {
-            display: inline-flex; align-items: center; gap: 6px;
-            padding: 3px 12px; border-radius: 20px;
-            font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em;
-        }
-        .status-dot {
-            width: 6px; height: 6px; border-radius: 50%;
-            animation: pulse 1.4s ease-in-out infinite;
-        }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
-
-        .file-row {
-            display: flex; align-items: center; gap: 10px;
-            padding: 8px 10px; border-radius: 8px; transition: background .15s;
-        }
-        .file-row:hover { background: rgba(6,214,160,.03); }
-
-        .file-bar-track { flex: 1; height: 3px; background: var(--surface); border-radius: 2px; overflow: hidden; }
-        .file-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width .5s; }
-
-        .tab-btn {
-            padding: 7px 14px; font-size: 11px; font-weight: 600; color: var(--muted);
-            background: transparent; border: none; cursor: pointer;
-            border-bottom: 2px solid transparent; transition: all .2s;
-        }
-        .tab-btn:hover { color: var(--fg); }
-        .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
-        .tab-panel { display: none; }
-        .tab-panel.active { display: block; }
-
-        .toast-container { position: fixed; top: 16px; right: 16px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
-        .toast {
-            background: var(--card); border: 1px solid var(--border); border-radius: 10px;
-            padding: 10px 16px; font-size: 12px; color: var(--fg);
-            box-shadow: 0 8px 30px rgba(0,0,0,.5);
-            display: flex; align-items: center; gap: 10px;
-            animation: toastIn .3s ease-out; max-width: 360px;
-        }
-        .toast.out { animation: toastOut .3s ease-in forwards; }
-        @keyframes toastIn { from{opacity:0;transform:translateX(30px)} to{opacity:1;transform:translateX(0)} }
-        @keyframes toastOut { from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(30px)} }
-
-        .fade-in { opacity: 0; transform: translateY(14px); transition: opacity .45s ease, transform .45s ease; }
-        .fade-in.show { opacity: 1; transform: translateY(0); }
-
-        .info-banner {
-            background: rgba(6,182,212,.07); border: 1px solid rgba(6,182,212,.18);
-            border-radius: 10px; padding: 12px 16px; font-size: 12px; color: var(--cyan);
-            line-height: 1.6; position: relative;
-        }
-        .info-banner .close-btn {
-            position: absolute; top: 8px; right: 10px; background: none; border: none;
-            color: var(--cyan); cursor: pointer; opacity: .5; transition: opacity .2s;
-        }
-        .info-banner .close-btn:hover { opacity: 1; }
-
-        #speedGraph { border-radius: 8px; display: block; width: 100%; }
-
-        #mediaOverlay {
-            position: fixed; inset: 0; z-index: 100;
-            background: rgba(6,11,20,.92); backdrop-filter: blur(8px);
-            display: none; align-items: flex-start; justify-content: center;
-            padding: 40px 16px; overflow-y: auto;
-        }
-        #mediaOverlay.open { display: flex; }
-        #mediaOverlay video, #mediaOverlay audio { width: 100%; max-height: 75vh; border-radius: 10px; background: #000; }
-
-        @media(max-width:640px) {
-            .stats-grid { grid-template-columns: 1fr 1fr !important; }
-        }
-
-        @media(prefers-reduced-motion: reduce) {
-            *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
-        }
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:'Space Grotesk',sans-serif;background:var(--bg);color:var(--fg);min-height:100vh;overflow-x:hidden}
+        .mo{font-family:'JetBrains Mono',monospace}
+        body::before{content:'';position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.25;
+            background:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='5' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E")}
+        body::after{content:'';position:fixed;inset:0;z-index:2;pointer-events:none;
+            background:radial-gradient(ellipse 80% 70% at 50% 40%,transparent 20%,rgba(2,2,4,0.7) 100%)}
+        .orb{position:fixed;border-radius:50%;pointer-events:none;z-index:0;will-change:transform;filter:blur(100px)}
+        .o1{width:550px;height:550px;top:-180px;left:-120px;background:rgba(200,255,0,0.1);animation:d1 20s ease-in-out infinite alternate}
+        .o2{width:500px;height:500px;bottom:-160px;right:-100px;background:rgba(155,114,255,0.08);animation:d2 24s ease-in-out infinite alternate}
+        .o3{width:280px;height:280px;top:45%;left:58%;background:rgba(255,107,107,0.05);animation:d3 16s ease-in-out infinite alternate-reverse}
+        .o4{width:220px;height:220px;top:18%;right:22%;background:rgba(56,217,169,0.05);animation:d1 18s ease-in-out infinite alternate-reverse}
+        @keyframes d1{to{transform:translate(65px,-45px) scale(1.1)}}
+        @keyframes d2{to{transform:translate(-55px,40px) scale(1.08)}}
+        @keyframes d3{to{transform:translate(-30px,-50px) scale(1.12)}}
+        .gl{background:linear-gradient(160deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01));
+            backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+            border:1px solid var(--g-bdr);border-top-color:rgba(255,255,255,0.09);border-bottom-color:rgba(255,255,255,0.02);
+            box-shadow:0 24px 80px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.04),inset 0 -1px 0 rgba(0,0,0,0.2)}
+        .gl-up{background:linear-gradient(160deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02));
+            backdrop-filter:var(--blur-s);-webkit-backdrop-filter:var(--blur-s);
+            border:1px solid var(--g-bdr);border-top-color:rgba(255,255,255,0.1);
+            box-shadow:0 8px 30px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.04)}
+        .gl-in{background:var(--glass-in);border:1px solid rgba(255,255,255,0.03);box-shadow:inset 0 2px 8px rgba(0,0,0,0.4)}
+        ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}
+        ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.06);border-radius:2px}
+        #mI{font-family:'JetBrains Mono',monospace;background:rgba(0,0,0,0.55);border:1px solid var(--g-bdr);
+            color:#ffffff;resize:none;transition:all .25s;font-size:13px;line-height:1.5}
+        #mI:focus{border-color:rgba(200,255,0,0.3);box-shadow:0 0 0 3px var(--acc2),inset 0 1px 0 rgba(255,255,255,0.03);outline:none}
+        #mI::placeholder{color:rgba(255,255,255,0.18)}
+        .b-g{background:rgba(255,255,255,0.05);border:1px solid var(--g-bdr-hi);color:var(--fg2);cursor:pointer;
+            transition:all .2s;box-shadow:0 2px 8px rgba(0,0,0,0.15),inset 0 1px 0 rgba(255,255,255,0.04)}
+        .b-g:hover:not(:disabled){background:rgba(255,255,255,0.09);border-color:rgba(255,255,255,0.16);color:var(--fg)}
+        .b-g:active:not(:disabled){transform:scale(.97)}.b-g:disabled{opacity:.2;cursor:not-allowed}
+        .b-a{background:linear-gradient(135deg,rgba(200,255,0,0.18),rgba(200,255,0,0.06));
+            border:1px solid rgba(200,255,0,0.3);color:var(--acc);cursor:pointer;transition:all .2s;font-weight:700;
+            box-shadow:0 4px 20px rgba(200,255,0,0.08),inset 0 1px 0 rgba(255,255,255,0.05)}
+        .b-a:hover:not(:disabled){background:linear-gradient(135deg,rgba(200,255,0,0.28),rgba(200,255,0,0.12));
+            border-color:rgba(200,255,0,0.5);box-shadow:0 6px 30px rgba(200,255,0,0.15)}
+        .b-a:active:not(:disabled){transform:scale(.97)}.b-a:disabled{opacity:.15;cursor:not-allowed}
+        .b-sv{background:rgba(255,255,255,0.03);border:1px solid var(--g-bdr);color:var(--mut);cursor:pointer;
+            transition:all .35s;font-weight:700;box-shadow:inset 0 1px 0 rgba(255,255,255,0.02)}
+        .b-sv.rdy{background:linear-gradient(135deg,rgba(200,255,0,0.15),rgba(200,255,0,0.05));
+            border-color:rgba(200,255,0,0.4);color:var(--acc);
+            box-shadow:0 0 40px rgba(200,255,0,0.1),0 4px 20px rgba(200,255,0,0.08);animation:svG 2.8s ease-in-out infinite}
+        .b-sv.done{background:rgba(200,255,0,0.03);border-color:rgba(200,255,0,0.08);
+            color:rgba(200,255,0,0.3);cursor:default;animation:none}
+        .b-sv:disabled:not(.done):not(.rdy){opacity:.12;cursor:not-allowed}
+        @keyframes svG{0%,100%{box-shadow:0 0 25px rgba(200,255,0,0.06),0 4px 20px rgba(200,255,0,0.06)}
+            50%{box-shadow:0 0 50px rgba(200,255,0,0.15),0 6px 28px rgba(200,255,0,0.12)}}
+        .b-d{background:rgba(255,107,107,0.04);border:1px solid rgba(255,107,107,0.15);color:var(--ros);cursor:pointer;transition:all .2s}
+        .b-d:hover:not(:disabled){background:rgba(255,107,107,0.1);border-color:rgba(255,107,107,0.35)}.b-d:disabled{opacity:.15;cursor:not-allowed}
+        .b-r{background:rgba(255,255,255,0.03);border:1px solid var(--g-bdr);color:var(--mut);cursor:pointer;transition:all .2s}
+        .b-r:hover:not(:disabled){background:rgba(255,255,255,0.07);border-color:var(--g-bdr-hi);color:var(--fg2)}.b-r:disabled{opacity:.15;cursor:not-allowed}
+        .b-fs{background:rgba(255,255,255,0.03);border:1px solid var(--g-bdr);color:var(--mut);cursor:pointer;transition:all .15s;font-size:10px}
+        .b-fs:hover:not(:disabled){background:rgba(255,255,255,0.07);color:var(--fg2)}.b-fs:disabled{opacity:.12;cursor:not-allowed}
+        .b-st{background:rgba(56,217,169,0.05);border:1px solid rgba(56,217,169,0.12);color:var(--cyn);cursor:pointer;transition:all .15s;font-size:10px}
+        .b-st:hover:not(:disabled){background:rgba(56,217,169,0.1);border-color:rgba(56,217,169,0.25)}.b-st:disabled{opacity:.12;cursor:not-allowed}
+        .ptr{background:rgba(0,0,0,0.45);border:1px solid rgba(255,255,255,0.04);border-radius:10px;height:22px;overflow:hidden}
+        .pfl{height:100%;border-radius:9px;background:linear-gradient(90deg,var(--acc),var(--cyn));transition:width .5s cubic-bezier(.22,1,.36,1);position:relative;overflow:hidden}
+        .pfl::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent);animation:shim 2.4s ease-in-out infinite}
+        @keyframes shim{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+        .ptr-ok .pfl{animation:dfl .6s ease-out}
+        @keyframes dfl{0%{filter:brightness(1)}30%{filter:brightness(1.8)}100%{filter:brightness(1)}}
+        .sp{display:inline-flex;align-items:center;gap:6px;padding:4px 14px;border-radius:20px;
+            font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+            background:rgba(255,255,255,0.03);border:1px solid var(--g-bdr)}
+        .sd{width:6px;height:6px;border-radius:50%;animation:pls 1.4s ease-in-out infinite}
+        @keyframes pls{0%,100%{opacity:1}50%{opacity:.15}}
+        .stg{background:var(--glass-in);border:1px solid rgba(255,255,255,0.03);border-radius:12px;padding:12px 14px;transition:border-color .3s}
+        .stg:hover{border-color:rgba(255,255,255,0.06)}
+        .fr{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;transition:background .15s}
+        .fr:hover{background:rgba(255,255,255,0.015)}
+        .fbt{flex:1;height:3px;background:rgba(255,255,255,0.04);border-radius:2px;overflow:hidden}
+        .fbf{height:100%;background:linear-gradient(90deg,var(--acc),var(--cyn));border-radius:2px;transition:width .5s}
+        .tb{padding:8px 16px;font-size:11px;font-weight:600;color:var(--mut);background:transparent;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:all .2s}
+        .tb:hover{color:var(--fg2)}.tb.on{color:var(--acc);border-bottom-color:var(--acc)}
+        .tp{display:none}.tp.on{display:block}
+        .tw{position:fixed;top:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+        .ts{pointer-events:auto;background:rgba(8,8,16,0.88);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+            border:1px solid var(--g-bdr-hi);border-radius:14px;padding:11px 16px;font-size:12px;color:var(--fg);
+            max-width:380px;box-shadow:0 12px 40px rgba(0,0,0,0.5);display:flex;align-items:center;gap:10px;animation:ti .3s ease-out}
+        .ts.out{animation:to .3s ease-in forwards}
+        @keyframes ti{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+        @keyframes to{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(30px)}}
+        .fi{opacity:0;transform:translateY(18px);transition:opacity .5s ease,transform .5s ease}.fi.sh{opacity:1;transform:translateY(0)}
+        .ib{background:rgba(56,217,169,0.03);border:1px solid rgba(56,217,169,0.08);border-radius:12px;
+            padding:12px 16px;font-size:12px;color:var(--cyn);line-height:1.65;position:relative;
+            backdrop-filter:var(--blur-s);-webkit-backdrop-filter:var(--blur-s)}
+        .ib .x{position:absolute;top:8px;right:10px;background:none;border:none;color:var(--cyn);cursor:pointer;opacity:.4;transition:opacity .2s}
+        .ib .x:hover{opacity:1}
+        #mo{position:fixed;inset:0;z-index:100;background:rgba(2,2,4,0.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+            display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto}
+        #mo.op{display:flex}
+        #mo video,#mo audio{width:100%;max-height:75vh;border-radius:14px;background:#000}
+        .lr{position:absolute;inset:-4px;border:1px solid rgba(200,255,0,0.1);border-radius:16px;animation:lrA 4s ease-in-out infinite;pointer-events:none}
+        @keyframes lrA{0%,100%{opacity:.15;transform:scale(1)}50%{opacity:.4;transform:scale(1.06)}}
+        #sg{border-radius:10px;display:block;width:100%}
+        @media(max-width:640px){.sg{grid-template-columns:1fr 1fr!important}.ar{flex-wrap:wrap}}
+        @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
     </style>
 </head>
-<body class="min-h-screen">
-
-    <div class="grid-bg"></div>
-    <div class="glow glow-1"></div>
-    <div class="glow glow-2"></div>
-    <div class="toast-container" id="toastBox"></div>
-
-    <!-- Media streaming overlay -->
-    <div id="mediaOverlay">
-        <div style="max-width:900px; width:100%;">
+<body class="min-h-screen flex items-center justify-center p-4">
+    <div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div><div class="orb o4"></div>
+    <div class="tw" id="tB" role="status" aria-live="polite"></div>
+    <div id="mo" role="dialog" aria-modal="true" aria-label="Media stream">
+        <div style="max-width:900px;width:100%">
             <div class="flex items-center justify-between mb-3">
-                <h3 id="mediaTitle" class="text-base font-bold truncate" style="max-width:80%;">Streaming</h3>
-                <button onclick="closeMedia()" class="btn-icon px-3 py-2 rounded-lg text-xs">
-                    <i class="fas fa-xmark"></i> Close
-                </button>
+                <h3 id="mT" class="text-sm font-bold truncate" style="max-width:80%">Streaming</h3>
+                <button onclick="cM()" class="b-g px-3 py-2 rounded-xl text-xs" aria-label="Close stream"><i class="fas fa-xmark"></i> Close</button>
             </div>
-            <div id="mediaContainer"></div>
+            <div id="mC"></div>
         </div>
     </div>
-
-    <main class="relative z-10 max-w-2xl w-full mx-auto py-8 px-4">
-
-        <!-- Header -->
-        <header class="text-center mb-6">
-            <div class="inline-flex items-center gap-2.5 mb-1.5">
-                <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background:var(--accent-dim);border:1px solid rgba(6,214,160,.22);">
-                    <i class="fas fa-bolt" style="color:var(--accent);font-size:16px;"></i>
+    <main class="relative z-10 max-w-2xl w-full py-8">
+        <header class="text-center mb-7">
+            <div class="inline-flex items-center gap-3 mb-1.5">
+                <div class="w-10 h-10 rounded-2xl flex items-center justify-center relative" style="background:var(--acc2);border:1px solid rgba(200,255,0,0.15)">
+                    <div class="lr"></div>
+                    <i class="fas fa-bolt" style="color:var(--acc);font-size:16px"></i>
                 </div>
-                <h1 class="text-2xl font-extrabold tracking-tight">StreamLine</h1>
+                <h1 class="text-[28px] font-extrabold tracking-tight">StreamLine</h1>
             </div>
-            <p style="color:var(--muted);font-size:13px;">Browser-native torrent client powered by WebTorrent</p>
+            <p style="color:var(--mut);font-size:13px">Browser-native BitTorrent via WebRTC</p>
         </header>
-
-        <!-- Info banner -->
-        <div class="info-banner mb-5" id="infoBanner">
-            <button class="close-btn" onclick="dismissBanner()" aria-label="Dismiss"><i class="fas fa-xmark"></i></button>
+        <div class="ib mb-5" id="iB">
+            <button class="x" onclick="dB()" aria-label="Dismiss"><i class="fas fa-xmark"></i></button>
             <i class="fas fa-circle-info mr-1"></i>
-            Downloads happen <strong>in your browser</strong> via WebRTC. This can connect to other WebTorrent peers but <strong>not</strong> traditional BitTorrent clients like qBittorrent. Popular, well-seeded torrents work best.
+            Downloads run <strong>entirely in your browser</strong>. Files persist in IndexedDB. Connects to WebTorrent peers only. Well-seeded public torrents work best.
         </div>
-
-        <!-- Input card -->
-        <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;box-shadow:0 4px 36px rgba(0,0,0,.3);">
-            <label class="block text-[10px] font-semibold uppercase tracking-wider mb-2" style="color:var(--muted);">Magnet Link</label>
-            <textarea id="magnetInput" rows="3" placeholder="magnet:?xt=urn:btih:..." class="w-full rounded-lg p-3 text-xs"></textarea>
+        <div class="gl rounded-[20px] p-6">
+            <label for="mI" class="block text-[10px] font-semibold uppercase tracking-wider mb-2" style="color:var(--mut)">Magnet Link</label>
+            <textarea id="mI" rows="3" placeholder="magnet:?xt=urn:btih:..." class="w-full rounded-xl p-3" autocomplete="off" spellcheck="false"></textarea>
             <div class="flex gap-2 mt-3">
-                <button id="btnStart" onclick="startDownload()" class="btn-primary flex-1 py-2.5 rounded-lg text-sm flex items-center justify-center gap-2">
+                <button id="bS" onclick="go()" class="b-a flex-1 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2">
                     <i class="fas fa-play text-[10px]"></i> Start Download
                 </button>
-                <button onclick="pasteMagnet()" class="btn-icon px-3.5 py-2.5 rounded-lg text-sm" title="Paste from clipboard">
-                    <i class="fas fa-paste"></i>
-                </button>
-                <button onclick="clearInput()" class="btn-icon px-3.5 py-2.5 rounded-lg text-sm" title="Clear">
-                    <i class="fas fa-xmark"></i>
-                </button>
+                <button onclick="pM()" class="b-g px-3.5 py-2.5 rounded-xl text-sm" title="Paste from clipboard" aria-label="Paste"><i class="fas fa-paste"></i></button>
+                <button onclick="cI()" class="b-g px-3.5 py-2.5 rounded-xl text-sm" title="Clear input" aria-label="Clear"><i class="fas fa-xmark"></i></button>
             </div>
         </div>
-
-        <!-- Torrent card -->
-        <div id="torrentCard" class="fade-in mt-5" style="display:none;">
-            <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;box-shadow:0 4px 36px rgba(0,0,0,.3);">
-
-                <!-- Top bar -->
-                <div class="flex flex-wrap items-center gap-3 mb-5">
-                    <span id="statusBadge" class="status-badge" style="background:var(--accent-dim);color:var(--accent);">
-                        <span class="status-dot" style="background:var(--accent);"></span>
-                        <span id="statusText">Idle</span>
-                    </span>
-                    <span id="fileName" class="mono text-[11px] truncate" style="color:var(--muted);max-width:280px;">—</span>
+        <div id="tC" class="fi mt-5" style="display:none">
+            <div class="gl rounded-[20px] p-6">
+                <div class="ar flex flex-wrap items-center gap-3 mb-5">
+                    <span id="sB" class="sp"><span class="sd" style="background:var(--mut)"></span><span id="sT">Idle</span></span>
+                    <span id="fN" class="mo text-[11px] truncate" style="color:var(--fg2);max-width:200px" title="">—</span>
                     <div class="flex gap-2 ml-auto">
-                        <button id="btnPause" onclick="togglePause()" class="btn-icon px-3 py-1.5 rounded-lg text-[11px] flex items-center gap-1.5" disabled>
-                            <i class="fas fa-pause" id="pauseIcon"></i> <span id="pauseLabel">Pause</span>
+                        <button id="bP" onclick="tP()" class="b-g px-3 py-1.5 rounded-xl text-[11px] flex items-center gap-1.5" disabled aria-label="Pause download">
+                            <i class="fas fa-pause" id="pI"></i><span id="pL">Pause</span>
                         </button>
-                        <button id="btnStop" onclick="stopDownload()" class="btn-danger-sm px-3 py-1.5 rounded-lg text-[11px] flex items-center gap-1.5" disabled>
+                        <button id="bX" onclick="sD()" class="b-d px-3 py-1.5 rounded-xl text-[11px] flex items-center gap-1.5" disabled aria-label="Stop download">
                             <i class="fas fa-stop"></i> Stop
                         </button>
+                        <button id="bR" onclick="rsA()" class="b-r px-3 py-1.5 rounded-xl text-[11px] flex items-center gap-1.5" disabled aria-label="Reset everything">
+                            <i class="fas fa-arrow-rotate-left"></i> Reset
+                        </button>
                     </div>
                 </div>
-
-                <!-- Progress -->
                 <div class="flex items-end justify-between mb-1.5">
-                    <span id="progressPct" class="text-3xl font-extrabold mono" style="color:var(--accent);">0.0%</span>
-                    <span id="sizeInfo" class="mono text-[11px]" style="color:var(--muted);">0 B / 0 B</span>
+                    <span id="pP" class="text-3xl font-extrabold mo" style="color:var(--acc)">0.0%</span>
+                    <span id="sI" class="mo text-[11px]" style="color:var(--mut)">—</span>
                 </div>
-                <div class="progress-track mb-5">
-                    <div id="progressBar" class="progress-fill" style="width:0%;"></div>
+                <div class="ptr mb-5" id="pTr"><div id="pBa" class="pfl" style="width:0%"></div></div>
+                <div class="sg grid gap-2.5 mb-4" style="grid-template-columns:repeat(4,1fr)">
+                    <div class="stg"><div class="text-[9px] uppercase tracking-wider font-semibold mb-1" style="color:var(--mut)"><i class="fas fa-arrow-down mr-1" style="color:var(--acc)"></i>Down</div><div id="dS" class="mo text-xs font-bold">0 B/s</div></div>
+                    <div class="stg"><div class="text-[9px] uppercase tracking-wider font-semibold mb-1" style="color:var(--mut)"><i class="fas fa-arrow-up mr-1" style="color:var(--amb)"></i>Up</div><div id="uS" class="mo text-xs font-bold">0 B/s</div></div>
+                    <div class="stg"><div class="text-[9px] uppercase tracking-wider font-semibold mb-1" style="color:var(--mut)"><i class="fas fa-users mr-1"></i>Peers</div><div id="pC" class="mo text-xs font-bold">0</div></div>
+                    <div class="stg"><div class="text-[9px] uppercase tracking-wider font-semibold mb-1" style="color:var(--mut)"><i class="fas fa-clock mr-1"></i>ETA</div><div id="eT" class="mo text-xs font-bold">—</div></div>
                 </div>
-
-                <!-- Stats -->
-                <div class="stats-grid grid gap-2.5 mb-5" style="grid-template-columns:repeat(4,1fr);">
-                    <div class="stat-card">
-                        <div class="text-[9px] uppercase tracking-wider font-semibold mb-1" style="color:var(--muted);"><i class="fas fa-arrow-down mr-1" style="color:var(--accent);"></i>Down</div>
-                        <div id="dlSpeed" class="mono text-xs font-bold">0 B/s</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="text-[9px] uppercase tracking-wider font-semibold mb-1" style="color:var(--muted);"><i class="fas fa-arrow-up mr-1" style="color:var(--warn);"></i>Up</div>
-                        <div id="ulSpeed" class="mono text-xs font-bold">0 B/s</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="text-[9px] uppercase tracking-wider font-semibold mb-1" style="color:var(--muted);"><i class="fas fa-users mr-1"></i>Peers</div>
-                        <div id="peerCount" class="mono text-xs font-bold">0</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="text-[9px] uppercase tracking-wider font-semibold mb-1" style="color:var(--muted);"><i class="fas fa-clock mr-1"></i>ETA</div>
-                        <div id="eta" class="mono text-xs font-bold">—</div>
-                    </div>
+                <div id="stoInfo" class="text-[10px] text-center mb-3 mo" style="color:var(--mut)"><i class="fas fa-database mr-1"></i>Storage: calculating...</div>
+                <div class="mb-5">
+                    <button id="bSv" onclick="svA()" class="b-sv w-full py-3 rounded-xl text-sm flex items-center justify-center gap-2.5" disabled aria-label="Save all files">
+                        <i class="fas fa-lock" id="svI"></i><span id="svL">Save All Files</span>
+                    </button>
                 </div>
-
-                <!-- Tabs -->
-                <div style="border-top:1px solid var(--border);padding-top:14px;">
-                    <div class="flex gap-1 mb-3" style="border-bottom:1px solid var(--border);">
-                        <button class="tab-btn active" onclick="switchTab('files',this)">Files</button>
-                        <button class="tab-btn" onclick="switchTab('graph',this)">Speed</button>
+                <div style="border-top:1px solid rgba(255,255,255,0.03);padding-top:14px">
+                    <div class="flex gap-1 mb-3" style="border-bottom:1px solid rgba(255,255,255,0.03)">
+                        <button class="tb on" onclick="sTb('fl',this)">Files</button>
+                        <button class="tb" onclick="sTb('gr',this)">Speed</button>
                     </div>
-
-                    <div id="tab-files" class="tab-panel active" style="max-height:220px;overflow-y:auto;">
-                        <div id="fileList"><p class="text-xs py-6 text-center" style="color:var(--muted);">Waiting for metadata...</p></div>
-                    </div>
-
-                    <div id="tab-graph" class="tab-panel">
-                        <canvas id="speedGraph" height="150"></canvas>
-                    </div>
+                    <div id="t-fl" class="tp on" style="max-height:220px;overflow-y:auto"><div id="fL"><p class="text-xs py-6 text-center" style="color:var(--mut)">Waiting for metadata...</p></div></div>
+                    <div id="t-gr" class="tp"><canvas id="sg" height="150"></canvas></div>
                 </div>
             </div>
         </div>
-
-        <footer class="text-center mt-8 text-[11px]" style="color:var(--muted);opacity:.4;">
-            StreamLine &mdash; Files never leave your browser. No server involved.
-        </footer>
+        <footer class="text-center mt-8 text-[11px]" style="color:var(--mut);opacity:.25">Files never leave your device. No server involved.</footer>
     </main>
 
-    <script>
-        /* ==========================================================
-           WebTorrent Client
-        ========================================================== */
-        let client = null;
-        let torrent = null;
-        let uiInterval = null;
-        let speedHistory = [];
-        let noPeerWarned = false;
-        let metadataTimeout = null;
+<script>
+/* ============================================================
+   SECURITY: Input Sanitization
+   Prevents XSS, script injection, HTML injection in magnet links
+   ============================================================ */
+function sanitizeMagnet(raw) {
+    if (typeof raw !== 'string') return '';
+    // Strip all HTML tags and script content
+    var clean = raw.replace(/<[^>]*>/gi, '');
+    // Remove null bytes and control characters (except newline in textarea)
+    clean = clean.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+    // Remove javascript:, data:, vbscript: protocol attempts
+    clean = clean.replace(/(javascript|data|vbscript)\s*:/gi, '');
+    // Trim whitespace
+    clean = clean.trim();
+    // Validate magnet URI scheme strictly
+    if (!clean.startsWith('magnet:?')) return '';
+    // Only allow known safe magnet parameters
+    var params = clean.substring(8).split('&');
+    var allowed = ['xt','dn','tr','xs','as','ws','kt','x.pe'];
+    var safeParams = [];
+    for (var i = 0; i < params.length; i++) {
+        var eq = params[i].indexOf('=');
+        if (eq < 1) continue;
+        var key = params[i].substring(0, eq).toLowerCase();
+        if (allowed.indexOf(key) === -1) continue;
+        // Validate xt must be btih
+        if (key === 'xt') {
+            var val = params[i].substring(eq + 1);
+            if (val.toLowerCase().indexOf('urn:btih:') !== 0) continue;
+        }
+        safeParams.push(params[i]);
+    }
+    if (safeParams.length === 0) return '';
+    // Reconstruct with only safe params, max 2048 chars
+    var result = 'magnet:?' + safeParams.join('&');
+    if (result.length > 2048) return '';
+    return result;
+}
 
-        function ensureClient() {
-            if (client) return;
-            if (typeof WebTorrent === 'undefined') {
-                toast('WebTorrent library failed to load. Try refreshing.', 'fa-exclamation-triangle', 'var(--danger)');
-                return null;
+/* HTML escape for dynamic content (file names, etc.) */
+function esc(s) {
+    if (typeof s !== 'string') return '';
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
+/* ============================================================
+   INDEXEDDB: Persistent Storage Layer
+   Files are stored on device storage via IndexedDB so downloads
+   survive page refreshes and the save button is reliable.
+   ============================================================ */
+var DB_NAME = 'streamline_db';
+var DB_VER = 1;
+var STORE = 'files';
+
+function openDB() {
+    return new Promise(function(resolve, reject) {
+        var req = indexedDB.open(DB_NAME, DB_VER);
+        req.onupgradeneeded = function(e) {
+            var db = e.target.result;
+            if (!db.objectStoreNames.contains(STORE)) {
+                db.createObjectStore(STORE, { keyPath: 'id' });
             }
-            client = new WebTorrent();
-            client.on('error', function(err) {
-                toast('Client error: ' + err.message, 'fa-exclamation-circle', 'var(--danger)');
-            });
-            return client;
-        }
+        };
+        req.onsuccess = function(e) { resolve(e.target.result); };
+        req.onerror = function(e) { reject(e.target.error); };
+    });
+}
 
-        /* ==========================================================
-           Helpers
-        ========================================================== */
-        function fmtBytes(b) {
-            if (b === 0) return '0 B';
-            var k = 1024, u = ['B','KB','MB','GB','TB'];
-            var i = Math.floor(Math.log(b) / Math.log(k));
-            return parseFloat((b / Math.pow(k, i)).toFixed(2)) + ' ' + u[i];
+async function storeFileBlob(hash, idx, blob, name) {
+    try {
+        var db = await openDB();
+        var tx = db.transaction(STORE, 'readwrite');
+        tx.objectStore(STORE).put({
+            id: hash + '_' + idx,
+            hash: hash, index: idx,
+            blob: blob, name: name,
+            saved: false, ts: Date.now()
+        });
+        await new Promise(function(res, rej) { tx.oncomplete = res; tx.onerror = rej; });
+        updateStorageInfo();
+    } catch (e) {
+        if (e.name === 'QuotaExceededError') {
+            tst('Storage full! Cannot persist file: ' + name, 'fa-hard-drive', 'var(--ros)');
+        } else {
+            console.error('[IndexedDB store]', e);
         }
-        function fmtSpeed(b) { return fmtBytes(b) + '/s'; }
-        function fmtETA(ms) {
-            if (!ms || ms === Infinity || ms <= 0) return '—';
-            var s = Math.round(ms / 1000);
-            if (s < 60) return s + 's';
-            if (s < 3600) return Math.floor(s/60) + 'm ' + (s%60) + 's';
-            return Math.floor(s/3600) + 'h ' + Math.floor((s%3600)/60) + 'm';
-        }
-        function isMedia(name) {
-            return /\.(mp4|webm|ogv|mp3|ogg|wav|flac|aac|m4a|m4v)$/i.test(name);
-        }
-        function isVideo(name) { return /\.(mp4|webm|ogv|m4v)$/i.test(name); }
-        function isAudio(name) { return /\.(mp3|ogg|wav|flac|aac|m4a)$/i.test(name); }
-        function fileIcon(name) {
-            if (isVideo(name)) return 'fa-film';
-            if (isAudio(name)) return 'fa-music';
-            if (/\.(jpg|png|gif|webp|bmp|svg)$/i.test(name)) return 'fa-image';
-            if (/\.(pdf|epub)$/i.test(name)) return 'fa-book';
-            if (/\.(zip|rar|7z|tar|gz|xz|bz2)$/i.test(name)) return 'fa-file-zipper';
-            if (/\.(exe|dmg|deb|rpm|msi)$/i.test(name)) return 'fa-cube';
-            if (/\.(txt|md|log|csv|json|xml|yaml|yml)$/i.test(name)) return 'fa-file-lines';
-            if (/\.(doc|docx|xls|xlsx|ppt|pptx|odt)$/i.test(name)) return 'fa-file-word';
-            return 'fa-file';
-        }
+    }
+}
 
-        /* ==========================================================
-           Toast
-        ========================================================== */
-        function toast(msg, icon, color) {
-            icon = icon || 'fa-info-circle';
-            color = color || 'var(--accent)';
-            var box = document.getElementById('toastBox');
-            var el = document.createElement('div');
-            el.className = 'toast';
-            el.innerHTML = '<i class="fas ' + icon + '" style="color:' + color + ';font-size:13px;flex-shrink:0;"></i><span>' + msg + '</span>';
-            box.appendChild(el);
-            setTimeout(function() {
-                el.classList.add('out');
-                setTimeout(function() { el.remove(); }, 300);
-            }, 4000);
-        }
+async function getStoredBlob(hash, idx) {
+    try {
+        var db = await openDB();
+        var tx = db.transaction(STORE, 'readonly');
+        var req = tx.objectStore(STORE).get(hash + '_' + idx);
+        return new Promise(function(res) {
+            req.onsuccess = function() { res(req.result || null); };
+            req.onerror = function() { res(null); };
+        });
+    } catch (e) { return null; }
+}
 
-        /* ==========================================================
-           Banner
-        ========================================================== */
-        function dismissBanner() {
-            document.getElementById('infoBanner').style.display = 'none';
-            sessionStorage.setItem('sl_banner_dismissed', '1');
-        }
-        if (sessionStorage.getItem('sl_banner_dismissed')) {
-            document.getElementById('infoBanner').style.display = 'none';
-        }
+async function markSaved(hash, idx) {
+    try {
+        var db = await openDB();
+        var tx = db.transaction(STORE, 'readwrite');
+        var store = tx.objectStore(STORE);
+        var req = store.get(hash + '_' + idx);
+        req.onsuccess = function() {
+            var d = req.result;
+            if (d) { d.saved = true; store.put(d); }
+        };
+    } catch (e) { console.error('[IndexedDB mark]', e); }
+}
 
-        /* ==========================================================
-           Tabs
-        ========================================================== */
-        function switchTab(name, btn) {
-            document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
-            document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
-            btn.classList.add('active');
-            document.getElementById('tab-' + name).classList.add('active');
-            if (name === 'graph') drawGraph();
-        }
-
-        /* ==========================================================
-           Status badge
-        ========================================================== */
-        function setStatus(key, label) {
-            var cfg = {
-                connecting:  { bg:'rgba(245,158,11,.1)',  color:'var(--warn)',   dot:'var(--warn)' },
-                metadata:    { bg:'rgba(245,158,11,.1)',  color:'var(--warn)',   dot:'var(--warn)' },
-                downloading: { bg:'var(--accent-dim)',     color:'var(--accent)', dot:'var(--accent)' },
-                paused:      { bg:'rgba(90,107,133,.12)', color:'var(--muted)',  dot:'var(--muted)' },
-                seeding:     { bg:'rgba(6,182,212,.1)',   color:'var(--cyan)',   dot:'var(--cyan)' },
-                complete:    { bg:'var(--accent-dim)',     color:'var(--accent)', dot:'var(--accent)' },
-                error:       { bg:'rgba(239,68,68,.1)',   color:'var(--danger)', dot:'var(--danger)' },
-                stopped:     { bg:'rgba(90,107,133,.12)', color:'var(--muted)',  dot:'var(--muted)' }
-            };
-            var c = cfg[key] || cfg.stopped;
-            var badge = document.getElementById('statusBadge');
-            badge.style.background = c.bg;
-            badge.style.color = c.color;
-            badge.querySelector('.status-dot').style.background = c.dot;
-            var shouldPulse = !['paused','complete','error','stopped'].includes(key);
-            badge.querySelector('.status-dot').style.animation = shouldPulse ? 'pulse 1.4s ease-in-out infinite' : 'none';
-            document.getElementById('statusText').textContent = label;
-        }
-
-        /* ==========================================================
-           Show / Hide torrent card
-        ========================================================== */
-        function showTorrentCard() {
-            var el = document.getElementById('torrentCard');
-            el.style.display = 'block';
-            requestAnimationFrame(function() { el.classList.add('show'); });
-        }
-        function hideTorrentCard() {
-            var el = document.getElementById('torrentCard');
-            el.classList.remove('show');
-            setTimeout(function() { el.style.display = 'none'; }, 450);
-        }
-
-        /* ==========================================================
-           File list rendering
-        ========================================================== */
-        function renderFiles() {
-            var container = document.getElementById('fileList');
-            if (!torrent || !torrent.files || torrent.files.length === 0) {
-                container.innerHTML = '<p class="text-xs py-6 text-center" style="color:var(--muted);">Waiting for metadata...</p>';
-                return;
+async function clearTorrentStorage(hash) {
+    try {
+        var db = await openDB();
+        var tx = db.transaction(STORE, 'readwrite');
+        var store = tx.objectStore(STORE);
+        var req = store.openCursor();
+        req.onsuccess = function(e) {
+            var cur = e.target.result;
+            if (cur) {
+                if (cur.value.hash === hash) store.delete(cur.key);
+                cur.continue();
             }
-            var html = '';
-            for (var i = 0; i < torrent.files.length; i++) {
-                var f = torrent.files[i];
-                var pct = (f.progress * 100).toFixed(1);
-                var done = f.progress >= 1;
-                var media = isMedia(f.name);
-                html += '<div class="file-row" id="file-' + i + '">';
-                html += '<i class="fas ' + fileIcon(f.name) + '" style="color:var(--muted);font-size:12px;width:16px;text-align:center;flex-shrink:0;"></i>';
-                html += '<div style="flex:1;min-width:0;">';
-                html += '<div class="text-[11px] truncate" style="color:var(--fg);" title="' + f.name.replace(/"/g,'&quot;') + '">' + f.name + '</div>';
-                html += '<div class="flex items-center gap-2 mt-1">';
-                html += '<div class="file-bar-track"><div class="file-bar-fill" style="width:' + pct + '%;' + (done ? 'background:var(--accent);' : '') + '"></div></div>';
-                html += '<span class="mono text-[10px] flex-shrink-0" style="color:var(--muted);">' + pct + '%</span>';
-                html += '<span class="mono text-[10px] flex-shrink-0" style="color:var(--muted);">' + fmtBytes(f.length) + '</span>';
-                html += '</div></div>';
-                html += '<div class="flex gap-1.5 flex-shrink-0">';
-                if (media) {
-                    html += '<button class="btn-stream px-2 py-1 rounded" onclick="streamFile(' + i + ')" ' + (done ? '' : 'disabled') + ' title="Stream"><i class="fas fa-play text-[9px]"></i></button>';
-                }
-                html += '<button class="btn-file px-2 py-1 rounded" onclick="downloadFile(' + i + ')" ' + (done ? '' : 'disabled') + ' title="Save to disk"><i class="fas fa-download text-[9px]"></i></button>';
-                html += '</div></div>';
-            }
-            container.innerHTML = html;
+        };
+        await new Promise(function(res, rej) { tx.oncomplete = res; tx.onerror = rej; });
+        updateStorageInfo();
+    } catch (e) { console.error('[IndexedDB clear]', e); }
+}
+
+async function getStorageUsage() {
+    try {
+        if (navigator.storage && navigator.storage.estimate) {
+            var est = await navigator.storage.estimate();
+            return est.usage || 0;
         }
+    } catch (e) {}
+    return 0;
+}
 
-        function updateFileProgress() {
-            if (!torrent || !torrent.files) return;
-            for (var i = 0; i < torrent.files.length; i++) {
-                var row = document.getElementById('file-' + i);
-                if (!row) continue;
-                var f = torrent.files[i];
-                var pct = (f.progress * 100).toFixed(1);
-                var done = f.progress >= 1;
-                var bar = row.querySelector('.file-bar-fill');
-                if (bar) bar.style.width = pct + '%';
-                var spans = row.querySelectorAll('.mono');
-                if (spans[0]) spans[0].textContent = pct + '%';
-                // Update button states
-                var btns = row.querySelectorAll('button');
-                for (var j = 0; j < btns.length; j++) btns[j].disabled = !done;
-            }
+async function updateStorageInfo() {
+    var bytes = await getStorageUsage();
+    document.getElementById('stoInfo').innerHTML = '<i class="fas fa-database mr-1"></i>Storage: ' + fB(bytes) + ' persisted';
+}
+
+/* ============================================================
+   AUDIO: Completion Beep via Web Audio API
+   AudioContext created on user gesture (iOS requirement).
+   Two ascending tones for a pleasant notification chime.
+   ============================================================ */
+var audioCtx = null;
+
+function initAudio() {
+    if (audioCtx) return;
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+}
+
+function playBeep() {
+    if (!audioCtx) return;
+    try {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        var now = audioCtx.currentTime;
+        // Tone 1: C6
+        var g1 = audioCtx.createGain();
+        var o1 = audioCtx.createOscillator();
+        o1.type = 'sine'; o1.frequency.value = 1046.63;
+        o1.connect(g1); g1.connect(audioCtx.destination);
+        g1.gain.setValueAtTime(0.18, now);
+        g1.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+        o1.start(now); o1.stop(now + 0.22);
+        // Tone 2: E6 (ascending, plays after first)
+        var g2 = audioCtx.createGain();
+        var o2 = audioCtx.createOscillator();
+        o2.type = 'sine'; o2.frequency.value = 1318.51;
+        o2.connect(g2); g2.connect(audioCtx.destination);
+        g2.gain.setValueAtTime(0.001, now + 0.14);
+        g2.gain.linearRampToValueAtTime(0.2, now + 0.18);
+        g2.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+        o2.start(now + 0.14); o2.stop(now + 0.45);
+        // Tone 3: G6 (third note for completeness)
+        var g3 = audioCtx.createGain();
+        var o3 = audioCtx.createOscillator();
+        o3.type = 'sine'; o3.frequency.value = 1567.98;
+        o3.connect(g3); g3.connect(audioCtx.destination);
+        g3.gain.setValueAtTime(0.001, now + 0.28);
+        g3.gain.linearRampToValueAtTime(0.15, now + 0.32);
+        g3.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+        o3.start(now + 0.28); o3.stop(now + 0.65);
+    } catch (e) { console.error('[Audio]', e); }
+}
+
+/* Browser notification for background tab awareness */
+function reqNotif() {
+    try {
+        if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+    } catch (e) {}
+}
+function sendNotif(title, body) {
+    try {
+        if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification(title, { body: body, silent: true });
         }
+    } catch (e) {}
+}
 
-        /* ==========================================================
-           File download (save to disk)
-        ========================================================== */
-        function downloadFile(index) {
-            if (!torrent || !torrent.files[index]) return;
-            var f = torrent.files[index];
-            if (f.progress < 1) {
-                toast('File is not fully downloaded yet', 'fa-hourglass-half', 'var(--warn)');
-                return;
-            }
-            toast('Preparing ' + f.name + ' for download...', 'fa-spinner fa-spin', 'var(--cyan)');
-            f.getBlobURL(function(err, url) {
-                if (err) {
-                    toast('Failed to prepare file: ' + err.message, 'fa-exclamation-circle', 'var(--danger)');
-                    return;
-                }
-                var a = document.createElement('a');
-                a.href = url;
-                a.download = f.name;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                setTimeout(function() { URL.revokeObjectURL(url); }, 60000);
-                toast('Download started: ' + f.name, 'fa-check', 'var(--accent)');
-            });
-        }
+/* ============================================================
+   HELPERS
+   ============================================================ */
+function fB(b) { if (!b || b <= 0) return '0 B'; var k = 1024, u = ['B','KB','MB','GB','TB'], i = Math.floor(Math.log(b) / Math.log(k)); return parseFloat((b / Math.pow(k, i)).toFixed(2)) + ' ' + u[i]; }
+function fS(b) { return fB(b) + '/s'; }
+function fE(ms) { if (!ms || !isFinite(ms) || ms <= 0) return '—'; var s = Math.round(ms / 1000); if (s < 60) return s + 's'; if (s < 3600) return Math.floor(s / 60) + 'm ' + (s % 60) + 's'; return Math.floor(s / 3600) + 'h ' + Math.floor((s % 3600) / 60) + 'm'; }
+function iV(n) { return /\.(mp4|webm|ogv|m4v)$/i.test(n); }
+function iA(n) { return /\.(mp3|ogg|wav|flac|aac|m4a)$/i.test(n); }
+function iM(n) { return iV(n) || iA(n); }
+function fI(n) { if (iV(n)) return 'fa-film'; if (iA(n)) return 'fa-music'; if (/\.(jpg|png|gif|webp|bmp|svg)$/i.test(n)) return 'fa-image'; if (/\.(pdf|epub)$/i.test(n)) return 'fa-book'; if (/\.(zip|rar|7z|tar|gz|xz|bz2)$/i.test(n)) return 'fa-file-zipper'; if (/\.(exe|dmg|deb|rpm|appimage)$/i.test(n)) return 'fa-cube'; if (/\.(txt|md|csv|json|xml|yaml|yml|log)$/i.test(n)) return 'fa-file-lines'; if (/\.(doc|docx|xls|xlsx|ppt|pptx|odt)$/i.test(n)) return 'fa-file-word'; return 'fa-file'; }
 
-        /* ==========================================================
-           Media streaming
-        ========================================================== */
-        function streamFile(index) {
-            if (!torrent || !torrent.files[index]) return;
-            var f = torrent.files[index];
-            if (f.progress < 0.01) {
-                toast('Not enough data to start streaming yet', 'fa-hourglass-half', 'var(--warn)');
-                return;
-            }
-            var container = document.getElementById('mediaContainer');
-            container.innerHTML = '';
-            document.getElementById('mediaTitle').textContent = f.name;
+/* ============================================================
+   TOAST
+   ============================================================ */
+function tst(m, ic, co) {
+    ic = ic || 'fa-info-circle'; co = co || 'var(--acc)';
+    var b = document.getElementById('tB'), e = document.createElement('div');
+    e.className = 'ts'; e.setAttribute('role', 'alert');
+    e.innerHTML = '<i class="fas ' + esc(ic) + '" style="color:' + esc(co) + ';font-size:13px;flex-shrink:0"></i><span>' + esc(m) + '</span>';
+    b.appendChild(e);
+    setTimeout(function() { e.classList.add('out'); setTimeout(function() { e.remove(); }, 300); }, 4500);
+}
 
-            if (isVideo(f.name)) {
-                var video = document.createElement('video');
-                video.controls = true;
-                video.playsInline = true;
-                container.appendChild(video);
-                f.renderTo(video, { autoplay: true }, function(err) {
-                    if (err) toast('Stream error: ' + err.message, 'fa-exclamation-circle', 'var(--danger)');
-                });
-            } else if (isAudio(f.name)) {
-                var audio = document.createElement('audio');
-                audio.controls = true;
-                container.appendChild(audio);
-                f.renderTo(audio, { autoplay: true }, function(err) {
-                    if (err) toast('Stream error: ' + err.message, 'fa-exclamation-circle', 'var(--danger)');
-                });
-            }
+/* Banner */
+function dB() { document.getElementById('iB').style.display = 'none'; sessionStorage.setItem('sl_d', '1'); }
+if (sessionStorage.getItem('sl_d')) document.getElementById('iB').style.display = 'none';
 
-            document.getElementById('mediaOverlay').classList.add('open');
-        }
+/* Tabs */
+function sTb(n, btn) {
+    document.querySelectorAll('.tb').forEach(function(b) { b.classList.remove('on'); });
+    document.querySelectorAll('.tp').forEach(function(p) { p.classList.remove('on'); });
+    btn.classList.add('on'); document.getElementById('t-' + n).classList.add('on');
+    if (n === 'gr') dG();
+}
 
-        function closeMedia() {
-            var container = document.getElementById('mediaContainer');
-            // Pause and remove any media elements
-            var media = container.querySelectorAll('video,audio');
-            media.forEach(function(m) { m.pause(); m.src = ''; });
-            container.innerHTML = '';
-            document.getElementById('mediaOverlay').classList.remove('open');
-        }
+/* Status pill */
+function sS(k, l) {
+    var c = {
+        connecting: { bg: 'rgba(255,190,11,0.06)', co: 'var(--amb)', bc: 'rgba(255,190,11,0.15)', d: 'var(--amb)' },
+        metadata: { bg: 'rgba(255,190,11,0.06)', co: 'var(--amb)', bc: 'rgba(255,190,11,0.15)', d: 'var(--amb)' },
+        downloading: { bg: 'var(--acc2)', co: 'var(--acc)', bc: 'rgba(200,255,0,0.15)', d: 'var(--acc)' },
+        paused: { bg: 'rgba(255,255,255,0.02)', co: 'var(--mut)', bc: 'var(--g-bdr)', d: 'var(--mut)' },
+        seeding: { bg: 'rgba(56,217,169,0.06)', co: 'var(--cyn)', bc: 'rgba(56,217,169,0.15)', d: 'var(--cyn)' },
+        error: { bg: 'rgba(255,107,107,0.06)', co: 'var(--ros)', bc: 'rgba(255,107,107,0.15)', d: 'var(--ros)' },
+        stopped: { bg: 'rgba(255,255,255,0.02)', co: 'var(--mut)', bc: 'var(--g-bdr)', d: 'var(--mut)' }
+    };
+    var v = c[k] || c.stopped, b = document.getElementById('sB');
+    b.style.background = v.bg; b.style.color = v.co; b.style.borderColor = v.bc;
+    b.querySelector('.sd').style.background = v.d;
+    b.querySelector('.sd').style.animation = ['paused', 'error', 'stopped'].indexOf(k) === -1 ? 'pls 1.4s ease-in-out infinite' : 'none';
+    document.getElementById('sT').textContent = l;
+}
 
-        /* ==========================================================
-           Speed graph
-        ========================================================== */
-        function drawGraph() {
-            var canvas = document.getElementById('speedGraph');
-            var ctx = canvas.getContext('2d');
-            var dpr = window.devicePixelRatio || 1;
-            var rect = canvas.getBoundingClientRect();
-            canvas.width = rect.width * dpr;
-            canvas.height = rect.height * dpr;
-            ctx.scale(dpr, dpr);
-            var w = rect.width, h = rect.height;
-            ctx.clearRect(0, 0, w, h);
+function sCd() { var e = document.getElementById('tC'); e.style.display = 'block'; requestAnimationFrame(function() { e.classList.add('sh'); }); }
+function hCd() { var e = document.getElementById('tC'); e.classList.remove('sh'); setTimeout(function() { e.style.display = 'none'; }, 500); }
 
-            ctx.fillStyle = '#060b14';
-            ctx.beginPath();
-            ctx.roundRect(0, 0, w, h, 8);
-            ctx.fill();
+/* Save button 3-state machine */
+function uSv() {
+    var b = document.getElementById('bSv'), ic = document.getElementById('svI'), lb = document.getElementById('svL');
+    if (svd) {
+        b.className = 'b-sv done w-full py-3 rounded-xl text-sm flex items-center justify-center gap-2.5';
+        ic.className = 'fas fa-check'; lb.textContent = 'Saved to Disk'; b.disabled = true;
+    } else if (tt && tt.done) {
+        b.className = 'b-sv rdy w-full py-3 rounded-xl text-sm flex items-center justify-center gap-2.5';
+        ic.className = 'fas fa-lock-open'; lb.textContent = 'Save All Files to Disk'; b.disabled = false;
+    } else {
+        b.className = 'b-sv w-full py-3 rounded-xl text-sm flex items-center justify-center gap-2.5';
+        ic.className = 'fas fa-lock'; lb.textContent = 'Save All Files'; b.disabled = true;
+    }
+}
 
-            if (speedHistory.length < 2) {
-                ctx.fillStyle = '#5a6b85';
-                ctx.font = '11px Space Grotesk';
-                ctx.textAlign = 'center';
-                ctx.fillText('Collecting data...', w / 2, h / 2);
-                return;
-            }
-
-            var maxPts = 60;
-            var data = speedHistory.slice(-maxPts);
-            var maxVal = Math.max(1);
-            for (var i = 0; i < data.length; i++) {
-                if (data[i].dl > maxVal) maxVal = data[i].dl;
-                if (data[i].ul > maxVal) maxVal = data[i].ul;
-            }
-            maxVal *= 1.15;
-
-            var pL = 6, pR = 6, pT = 14, pB = 18;
-            var gW = w - pL - pR, gH = h - pT - pB;
-
-            // Grid
-            ctx.strokeStyle = 'rgba(26,39,68,0.7)';
-            ctx.lineWidth = 0.5;
-            for (var g = 0; g <= 3; g++) {
-                var gy = pT + (gH / 3) * g;
-                ctx.beginPath(); ctx.moveTo(pL, gy); ctx.lineTo(w - pR, gy); ctx.stroke();
-                ctx.fillStyle = '#5a6b85';
-                ctx.font = '8px JetBrains Mono';
-                ctx.textAlign = 'left';
-                ctx.fillText(fmtBytes(maxVal - (maxVal / 3) * g), pL + 2, gy - 2);
-            }
-
-            function drawLine(key, strokeColor, fillColor) {
-                ctx.beginPath();
-                for (var j = 0; j < data.length; j++) {
-                    var x = pL + (j / (maxPts - 1)) * gW;
-                    var y = pT + gH - (data[j][key] / maxVal) * gH;
-                    if (j === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-                }
-                ctx.strokeStyle = strokeColor;
-                ctx.lineWidth = 1.5;
-                ctx.stroke();
-                var lastX = pL + ((data.length - 1) / (maxPts - 1)) * gW;
-                ctx.lineTo(lastX, pT + gH);
-                ctx.lineTo(pL, pT + gH);
-                ctx.closePath();
-                ctx.fillStyle = fillColor;
-                ctx.fill();
-            }
-
-            drawLine('ul', '#f59e0b', 'rgba(245,158,11,0.05)');
-            drawLine('dl', '#06d6a0', 'rgba(6,214,160,0.07)');
-
-            // Legend
-            ctx.font = '9px Space Grotesk';
-            ctx.fillStyle = '#06d6a0';
-            ctx.fillRect(w - 125, 4, 7, 7);
-            ctx.fillText('Download', w - 114, 11);
-            ctx.fillStyle = '#f59e0b';
-            ctx.fillRect(w - 56, 4, 7, 7);
-            ctx.fillText('Upload', w - 45, 11);
-        }
-
-        /* ==========================================================
-           UI update loop
-        ========================================================== */
-        function tickUI() {
-            if (!torrent) return;
-
-            var pct = (torrent.progress * 100).toFixed(1);
-            document.getElementById('progressPct').textContent = pct + '%';
-            document.getElementById('progressBar').style.width = Math.min(100, torrent.progress * 100) + '%';
-            document.getElementById('sizeInfo').textContent = fmtBytes(torrent.downloaded) + ' / ' + fmtBytes(torrent.length);
-            document.getElementById('dlSpeed').textContent = fmtSpeed(torrent.downloadSpeed);
-            document.getElementById('ulSpeed').textContent = fmtSpeed(torrent.uploadSpeed);
-            document.getElementById('peerCount').textContent = torrent.numPeers;
-            document.getElementById('eta').textContent = fmtETA(torrent.timeRemaining);
-
-            speedHistory.push({ dl: torrent.downloadSpeed, ul: torrent.uploadSpeed });
-            if (speedHistory.length > 120) speedHistory.shift();
-
-            updateFileProgress();
-
-            if (document.getElementById('tab-graph').classList.contains('active')) drawGraph();
-
-            // Auto-update status
-            if (torrent.done && document.getElementById('statusText').textContent === 'Downloading') {
-                setStatus('seeding', 'Seeding');
-                toast('Download complete — now seeding', 'fa-check-circle', 'var(--accent)');
-            }
-
-            // No-peer warning after 20s of zero peers
-            if (!torrent.done && torrent.numPeers === 0 && speedHistory.length > 20 && !noPeerWarned) {
-                var recent = speedHistory.slice(-20);
-                var allZero = true;
-                for (var i = 0; i < recent.length; i++) { if (recent[i].dl > 0) { allZero = false; break; } }
-                if (allZero) {
-                    noPeerWarned = true;
-                    toast('No WebRTC peers found. This torrent may not have browser-compatible seeds — try a more popular one.', 'fa-exclamation-triangle', 'var(--warn)');
-                }
-            }
-
-            // Update controls
-            var isRunning = !torrent.done && document.getElementById('statusText').textContent === 'Downloading';
-            var isPaused = document.getElementById('statusText').textContent === 'Paused';
-            document.getElementById('btnPause').disabled = !(isRunning || isPaused);
-            document.getElementById('btnStop').disabled = torrent.done;
-            document.getElementById('btnStart').disabled = isRunning || isPaused || document.getElementById('statusText').textContent === 'Connecting' || document.getElementById('statusText').textContent === 'Metadata';
-        }
-
-        /* ==========================================================
-           Start download
-        ========================================================== */
-        function startDownload() {
-            var magnet = document.getElementById('magnetInput').value.trim();
-            if (!magnet) {
-                toast('Paste a magnet link first', 'fa-exclamation-circle', 'var(--warn)');
-                return;
-            }
-            if (!magnet.startsWith('magnet:?')) {
-                toast('Invalid magnet link — must start with magnet:?', 'fa-exclamation-circle', 'var(--danger)');
-                return;
-            }
-
-            var c = ensureClient();
-            if (!c) return;
-
-            // Clean up previous
-            if (torrent) {
-                try { client.remove(torrent); } catch(e) {}
-                torrent = null;
-            }
-            if (uiInterval) { clearInterval(uiInterval); uiInterval = null; }
-            if (metadataTimeout) { clearTimeout(metadataTimeout); metadataTimeout = null; }
-            speedHistory = [];
-            noPeerWarned = false;
-            closeMedia();
-
-            showTorrentCard();
-            setStatus('connecting', 'Connecting');
-            document.getElementById('fileName').textContent = 'Resolving...';
-            document.getElementById('progressPct').textContent = '0.0%';
-            document.getElementById('progressBar').style.width = '0%';
-            document.getElementById('sizeInfo').textContent = '— / —';
-            document.getElementById('dlSpeed').textContent = '0 B/s';
-            document.getElementById('ulSpeed').textContent = '0 B/s';
-            document.getElementById('peerCount').textContent = '0';
-            document.getElementById('eta').textContent = '—';
-            document.getElementById('fileList').innerHTML = '<p class="text-xs py-6 text-center" style="color:var(--muted);"><i class="fas fa-spinner fa-spin mr-1"></i> Discovering peers and fetching metadata...</p>';
-
-            toast('Connecting to WebTorrent trackers...', 'fa-satellite-dish', 'var(--warn)');
-
-            // Metadata timeout
-            metadataTimeout = setTimeout(function() {
-                if (torrent && !torrent.files) {
-                    toast('Metadata timeout — no peers responded. The torrent may not have WebRTC seeds.', 'fa-exclamation-triangle', 'var(--warn)');
-                }
-            }, 30000);
-
-            try {
-                torrent = c.add(magnet, {
-                    announce: [
-                        'wss://tracker.openwebtorrent.com',
-                        'wss://tracker.btorrent.xyz',
-                        'wss://tracker.fastcast.nz',
-                        'wss://tracker.webtorrent.dev'
-                    ],
-                    maxConns: 80,
-                    path: '/' // in-memory only in browser
-                }, function(t) {
-                    // Metadata received
-                    if (metadataTimeout) { clearTimeout(metadataTimeout); metadataTimeout = null; }
-                    setStatus('downloading', 'Downloading');
-                    document.getElementById('fileName').textContent = t.name;
-                    toast('Metadata received: ' + t.name + ' (' + t.files.length + ' file' + (t.files.length > 1 ? 's' : '') + ')', 'fa-file', 'var(--accent)');
-                    renderFiles();
-
-                    t.on('done', function() {
-                        setStatus('seeding', 'Seeding');
-                        renderFiles(); // Update buttons
-                        toast('Download complete!', 'fa-check-circle', 'var(--accent)');
-                    });
-                });
-
-                torrent.on('error', function(err) {
-                    if (metadataTimeout) { clearTimeout(metadataTimeout); metadataTimeout = null; }
-                    setStatus('error', 'Error');
-                    toast('Torrent error: ' + err.message, 'fa-exclamation-circle', 'var(--danger)');
-                });
-
-                torrent.on('warning', function(w) {
-                    // Silently log warnings
-                    console.warn('[WebTorrent]', w.message);
-                });
-
-                // Start UI tick
-                uiInterval = setInterval(tickUI, 1000);
-
-                document.getElementById('btnStart').disabled = true;
-
-            } catch(err) {
-                setStatus('error', 'Error');
-                toast('Failed to add torrent: ' + err.message, 'fa-exclamation-circle', 'var(--danger)');
-            }
-        }
-
-        /* ==========================================================
-           Pause / Stop
-        ========================================================== */
-        function togglePause() {
-            if (!torrent) return;
-            var label = document.getElementById('statusText').textContent;
-            if (label === 'Downloading') {
-                // Pause: WebTorrent doesn't have a native pause,
-                // but we can throttle to 0 by destroying and re-adding.
-                // Simpler approach: just stop the wire traffic.
-                torrent.pause && torrent.pause();
-                // For webtorrent 1.x, there's no .pause(). Use a workaround:
-                // We store the magnet and will re-add on resume.
-                setStatus('paused', 'Paused');
-                toast('Download paused', 'fa-pause', 'var(--warn)');
-            } else if (label === 'Paused') {
-                torrent.resume && torrent.resume();
-                setStatus('downloading', 'Downloading');
-                toast('Download resumed', 'fa-play', 'var(--accent)');
-            }
-            updateControlStates();
-        }
-
-        function stopDownload() {
-            if (uiInterval) { clearInterval(uiInterval); uiInterval = null; }
-            if (metadataTimeout) { clearTimeout(metadataTimeout); metadataTimeout = null; }
-            closeMedia();
-
-            if (torrent && client) {
-                try { client.remove(torrent); } catch(e) {}
-                torrent = null;
-            }
-            setStatus('stopped', 'Stopped');
-            document.getElementById('dlSpeed').textContent = '0 B/s';
-            document.getElementById('ulSpeed').textContent = '0 B/s';
-            document.getElementById('peerCount').textContent = '0';
-            document.getElementById('eta').textContent = '—';
-            updateControlStates();
-            toast('Download stopped', 'fa-stop', 'var(--danger)');
-        }
-
-        function updateControlStates() {
-            var label = document.getElementById('statusText').textContent;
-            var isDownloading = label === 'Downloading';
-            var isPaused = label === 'Paused';
-            var isStopped = label === 'Stopped' || label === 'Error';
-            var isDone = label === 'Seeding';
-
-            document.getElementById('btnPause').disabled = !(isDownloading || isPaused);
-            document.getElementById('btnStop').disabled = isStopped || isDone;
-            document.getElementById('btnStart').disabled = isDownloading || isPaused || label === 'Connecting' || label === 'Metadata';
-            document.getElementById('pauseIcon').className = isPaused ? 'fas fa-play' : 'fas fa-pause';
-            document.getElementById('pauseLabel').textContent = isPaused ? 'Resume' : 'Pause';
-        }
-
-        /* ==========================================================
-           Clipboard / Clear
-        ========================================================== */
-        async function pasteMagnet() {
-            try {
-                var text = await navigator.clipboard.readText();
-                if (text && text.startsWith('magnet:')) {
-                    document.getElementById('magnetInput').value = text;
-                    toast('Magnet link pasted', 'fa-paste', 'var(--accent)');
+/* Save all — reads from IndexedDB (persistent storage) */
+async function svA() {
+    if (!tt || !tt.done || svd) return;
+    svd = true; uSv();
+    var fs = tt.files, hash = tt.infoHash;
+    tst('Saving ' + fs.length + ' file(s) from persistent storage...', 'fa-download', 'var(--acc)');
+    for (var i = 0; i < fs.length; i++) {
+        (function(idx) {
+            setTimeout(async function() {
+                var rec = await getStoredBlob(hash, idx);
+                if (rec && rec.blob) {
+                    var url = URL.createObjectURL(rec.blob);
+                    var a = document.createElement('a');
+                    a.href = url; a.download = rec.name;
+                    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                    setTimeout(function() { URL.revokeObjectURL(url); }, 60000);
+                    await markSaved(hash, idx);
                 } else {
-                    toast('Clipboard does not contain a magnet link', 'fa-exclamation-triangle', 'var(--warn)');
+                    // Fallback: try WebTorrent directly
+                    try {
+                        fs[idx].getBlobURL(function(err, url) {
+                            if (err) { tst('Failed: ' + fs[idx].name, 'fa-exclamation-circle', 'var(--ros)'); return; }
+                            var a = document.createElement('a'); a.href = url; a.download = fs[idx].name;
+                            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                            setTimeout(function() { URL.revokeObjectURL(url); }, 60000);
+                        });
+                    } catch (e) { tst('Failed: ' + fs[idx].name, 'fa-exclamation-circle', 'var(--ros)'); }
                 }
-            } catch(e) {
-                toast('Cannot read clipboard — check permissions', 'fa-exclamation-triangle', 'var(--warn)');
+            }, idx * 600);
+        })(i);
+    }
+    setTimeout(function() { tst('All files saved!', 'fa-check-circle', 'var(--acc)'); updateStorageInfo(); }, fs.length * 600 + 800);
+}
+
+/* File list */
+function rF() {
+    var c = document.getElementById('fL');
+    if (!tt || !tt.files || !tt.files.length) { c.innerHTML = '<p class="text-xs py-6 text-center" style="color:var(--mut)">Waiting for metadata...</p>'; return; }
+    var h = '';
+    for (var i = 0; i < tt.files.length; i++) {
+        var f = tt.files[i], p = (f.progress * 100).toFixed(1), d = f.progress >= 1, m = iM(f.name);
+        h += '<div class="fr" id="fr-' + i + '">';
+        h += '<i class="fas ' + fI(f.name) + '" style="color:var(--mut);font-size:12px;width:16px;text-align:center;flex-shrink:0"></i>';
+        h += '<div style="flex:1;min-width:0"><div class="text-[11px] truncate" style="color:var(--fg2)" title="' + esc(f.name) + '">' + esc(f.name) + '</div>';
+        h += '<div class="flex items-center gap-2 mt-1"><div class="fbt"><div class="fbf" style="width:' + p + '%"></div></div>';
+        h += '<span class="mo text-[10px] flex-shrink-0" style="color:var(--mut)">' + p + '%</span>';
+        h += '<span class="mo text-[10px] flex-shrink-0" style="color:var(--mut)">' + fB(f.length) + '</span></div></div>';
+        h += '<div class="flex gap-1.5 flex-shrink-0">';
+        if (m) h += '<button class="b-st px-2 py-1 rounded-lg" onclick="sF(' + i + ')" ' + (d ? '' : 'disabled') + ' title="Stream"><i class="fas fa-play text-[9px]"></i></button>';
+        h += '</div></div>';
+    }
+    c.innerHTML = h;
+}
+
+function uFP() {
+    if (!tt || !tt.files) return;
+    for (var i = 0; i < tt.files.length; i++) {
+        var r = document.getElementById('fr-' + i); if (!r) continue;
+        var f = tt.files[i], p = (f.progress * 100).toFixed(1), d = f.progress >= 1;
+        var bar = r.querySelector('.fbf'); if (bar) bar.style.width = p + '%';
+        var sp = r.querySelectorAll('.mo'); if (sp[0]) sp[0].textContent = p + '%';
+        var bs = r.querySelectorAll('button'); for (var j = 0; j < bs.length; j++) bs[j].disabled = !d;
+    }
+}
+
+/* Stream */
+function sF(idx) {
+    if (!tt || !tt.files[idx]) return;
+    var f = tt.files[idx];
+    if (f.progress < 0.01) { tst('Not enough data to stream yet', 'fa-hourglass-half', 'var(--amb)'); return; }
+    var con = document.getElementById('mC'); con.innerHTML = '';
+    document.getElementById('mT').textContent = f.name;
+    if (iV(f.name)) {
+        var v = document.createElement('video'); v.controls = true; v.playsInline = true; con.appendChild(v);
+        f.renderTo(v, { autoplay: true }, function(e) { if (e) tst('Stream error', 'fa-exclamation-circle', 'var(--ros)'); });
+    } else if (iA(f.name)) {
+        var a = document.createElement('audio'); a.controls = true; con.appendChild(a);
+        f.renderTo(a, { autoplay: true }, function(e) { if (e) tst('Stream error', 'fa-exclamation-circle', 'var(--ros)'); });
+    }
+    document.getElementById('mo').classList.add('op');
+}
+function cM() {
+    var c = document.getElementById('mC');
+    c.querySelectorAll('video,audio').forEach(function(m) { m.pause(); m.src = ''; });
+    c.innerHTML = ''; document.getElementById('mo').classList.remove('op');
+}
+
+/* Speed graph */
+function dG() {
+    var cv = document.getElementById('sg'), cx = cv.getContext('2d'), dp = window.devicePixelRatio || 1, rc = cv.getBoundingClientRect();
+    cv.width = rc.width * dp; cv.height = rc.height * dp; cx.scale(dp, dp);
+    var w = rc.width, h = rc.height; cx.clearRect(0, 0, w, h);
+    cx.fillStyle = 'rgba(0,0,0,0.35)'; cx.beginPath(); cx.roundRect(0, 0, w, h, 10); cx.fill();
+    if (sh.length < 2) { cx.fillStyle = 'rgba(255,255,255,0.2)'; cx.font = '11px Space Grotesk'; cx.textAlign = 'center'; cx.fillText('Collecting data...', w / 2, h / 2); return; }
+    var mx = 60, d = sh.slice(-mx), mv = 1;
+    for (var i = 0; i < d.length; i++) { if (d[i].dl > mv) mv = d[i].dl; if (d[i].ul > mv) mv = d[i].ul; }
+    mv *= 1.15;
+    var pL = 6, pR = 6, pT = 14, pB = 18, gW = w - pL - pR, gH = h - pT - pB;
+    cx.strokeStyle = 'rgba(255,255,255,0.03)'; cx.lineWidth = .5;
+    for (var g = 0; g <= 3; g++) {
+        var gy = pT + (gH / 3) * g; cx.beginPath(); cx.moveTo(pL, gy); cx.lineTo(w - pR, gy); cx.stroke();
+        cx.fillStyle = 'rgba(255,255,255,0.2)'; cx.font = '8px JetBrains Mono'; cx.textAlign = 'left';
+        cx.fillText(fB(mv - (mv / 3) * g), pL + 2, gy - 2);
+    }
+    function ln(k, sc, fc) {
+        cx.beginPath();
+        for (var j = 0; j < d.length; j++) { var x = pL + (j / (mx - 1)) * gW, y = pT + gH - (d[j][k] / mv) * gH; j === 0 ? cx.moveTo(x, y) : cx.lineTo(x, y); }
+        cx.strokeStyle = sc; cx.lineWidth = 1.5; cx.stroke();
+        var lx = pL + ((d.length - 1) / (mx - 1)) * gW; cx.lineTo(lx, pT + gH); cx.lineTo(pL, pT + gH); cx.closePath(); cx.fillStyle = fc; cx.fill();
+    }
+    ln('ul', 'rgba(255,190,11,0.65)', 'rgba(255,190,11,0.03)');
+    ln('dl', 'rgba(200,255,0,0.75)', 'rgba(200,255,0,0.05)');
+    cx.font = '9px Space Grotesk'; cx.fillStyle = '#c8ff00'; cx.fillRect(w - 120, 5, 7, 7); cx.fillText('Down', w - 109, 12);
+    cx.fillStyle = '#ffbe0b'; cx.fillRect(w - 56, 5, 7, 7); cx.fillText('Up', w - 45, 12);
+}
+
+/* Controls */
+function uCt() {
+    var l = document.getElementById('sT').textContent;
+    var dl = l === 'Downloading', pa = l === 'Paused', st = l === 'Stopped' || l === 'Error', dn = l === 'Seeding';
+    document.getElementById('bP').disabled = !(dl || pa);
+    document.getElementById('bX').disabled = st || dn;
+    document.getElementById('bR').disabled = st;
+    document.getElementById('bS').disabled = dl || pa || l === 'Connecting' || l === 'Metadata';
+    document.getElementById('pI').className = pa ? 'fas fa-play' : 'fas fa-pause';
+    document.getElementById('pL').textContent = pa ? 'Resume' : 'Pause';
+}
+
+/* ============================================================
+   WEBTORRENT ENGINE
+   ============================================================ */
+var cl = null, tt = null, ui = null, spdH = [], npw = false, mt = null, svd = false, wd = false;
+var storedFiles = new Set(); // Track which files are in IndexedDB
+
+async function onFileComplete(hash, idx, name) {
+    if (storedFiles.has(hash + '_' + idx)) return;
+    storedFiles.add(hash + '_' + idx);
+    try {
+        var blob = await new Promise(function(resolve, reject) {
+            tt.files[idx].getBlob(function(err, b) { err ? reject(err) : resolve(b); });
+        });
+        await storeFileBlob(hash, idx, blob, name);
+    } catch (e) { console.error('[Store file]', e); }
+}
+
+function tick() {
+    if (!tt) return;
+    document.getElementById('pP').textContent = (tt.progress * 100).toFixed(1) + '%';
+    document.getElementById('pBa').style.width = Math.min(100, tt.progress * 100) + '%';
+    document.getElementById('sI').textContent = fB(tt.downloaded) + ' / ' + fB(tt.length);
+    document.getElementById('dS').textContent = fS(tt.downloadSpeed);
+    document.getElementById('uS').textContent = fS(tt.uploadSpeed);
+    document.getElementById('pC').textContent = tt.numPeers;
+    document.getElementById('eT').textContent = fE(tt.timeRemaining);
+    spdH.push({ dl: tt.downloadSpeed, ul: tt.uploadSpeed });
+    if (spdH.length > 120) spdH.shift();
+    uFP();
+    if (document.getElementById('t-gr').classList.contains('on')) dG();
+
+    // Check individual file completion → store to IndexedDB
+    if (tt.files && tt.infoHash) {
+        for (var i = 0; i < tt.files.length; i++) {
+            if (tt.files[i].progress >= 1 && !storedFiles.has(tt.infoHash + '_' + i)) {
+                onFileComplete(tt.infoHash, i, tt.files[i].name);
             }
         }
+    }
 
-        function clearInput() {
-            document.getElementById('magnetInput').value = '';
-        }
-
-        /* ==========================================================
-           Keyboard shortcuts
-        ========================================================== */
-        document.getElementById('magnetInput').addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                startDownload();
+    // Torrent done
+    if (tt.done && !wd) {
+        wd = true;
+        sS('seeding', 'Seeding');
+        rF(); uSv(); uCt();
+        document.getElementById('pTr').classList.add('ptr-ok');
+        // Persist any remaining files
+        if (tt.files && tt.infoHash) {
+            for (var j = 0; j < tt.files.length; j++) {
+                if (!storedFiles.has(tt.infoHash + '_' + j)) {
+                    onFileComplete(tt.infoHash, j, tt.files[j].name);
+                }
             }
-        });
+        }
+        // Audio beep notification
+        playBeep();
+        // Browser notification for background tabs
+        sendNotif('StreamLine', 'Download complete — ready to save');
+        tst('Download complete — ready to save!', 'fa-check-circle', 'var(--acc)');
+    }
 
-        // Close media overlay with Escape
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') closeMedia();
-        });
+    // No peer warning
+    if (!tt.done && tt.numPeers === 0 && spdH.length > 20 && !npw) {
+        var rc = spdH.slice(-20), az = true;
+        for (var k = 0; k < rc.length; k++) { if (rc[k].dl > 0) { az = false; break; } }
+        if (az) { npw = true; tst('No WebRTC peers found. Try a more popular torrent.', 'fa-exclamation-triangle', 'var(--amb)'); }
+    }
+}
 
-        /* ==========================================================
-           Resize handler
-        ========================================================== */
-        window.addEventListener('resize', function() {
-            if (document.getElementById('tab-graph').classList.contains('active')) drawGraph();
-        });
+/* ============================================================
+   USER ACTIONS
+   ============================================================ */
+async function go() {
+    var raw = document.getElementById('mI').value;
+    var mg = sanitizeMagnet(raw);
+    if (!mg) { tst('Paste a valid magnet link (magnet:?xt=urn:btih:...)', 'fa-exclamation-circle', 'var(--amb)'); return; }
 
-        /* ==========================================================
-           Init
-        ========================================================== */
-        updateControlStates();
-    </script>
+    // Init audio on user gesture (iOS requirement)
+    initAudio();
+    reqNotif();
+
+    var c = eC(); if (!c) return;
+
+    // Cleanup previous
+    if (tt) { try { cl.remove(tt); } catch (e) {} tt = null; }
+    if (ui) { clearInterval(ui); ui = null; }
+    if (mt) { clearTimeout(mt); mt = null; }
+    spdH = []; npw = false; svd = false; wd = false; storedFiles = new Set(); cM();
+
+    sCd(); sS('connecting', 'Connecting');
+    document.getElementById('fN').textContent = 'Resolving...';
+    document.getElementById('fN').title = '';
+    document.getElementById('pP').textContent = '0.0%';
+    document.getElementById('pBa').style.width = '0%';
+    document.getElementById('pTr').classList.remove('ptr-ok');
+    document.getElementById('sI').textContent = '— / —';
+    document.getElementById('dS').textContent = '0 B/s';
+    document.getElementById('uS').textContent = '0 B/s';
+    document.getElementById('pC').textContent = '0';
+    document.getElementById('eT').textContent = '—';
+    document.getElementById('fL').innerHTML = '<p class="text-xs py-6 text-center" style="color:var(--mut)"><i class="fas fa-spinner fa-spin mr-1"></i>Discovering peers...</p>';
+    uSv(); uCt(); updateStorageInfo();
+    tst('Connecting to WebTorrent trackers...', 'fa-satellite-dish', 'var(--amb)');
+
+    mt = setTimeout(function() {
+        if (tt && !tt.files) tst('Metadata timeout — no WebRTC peers responded.', 'fa-exclamation-triangle', 'var(--amb)');
+    }, 30000);
+
+    try {
+        tt = c.add(mg, {
+            announce: ['wss://tracker.openwebtorrent.com', 'wss://tracker.btorrent.xyz', 'wss://tracker.fastcast.nz', 'wss://tracker.webtorrent.dev'],
+            maxConns: 80, path: '/'
+        }, function(t) {
+            if (mt) { clearTimeout(mt); mt = null; }
+            sS('downloading', 'Downloading');
+            document.getElementById('fN').textContent = t.name;
+            document.getElementById('fN').title = t.name;
+            tst('Metadata: ' + t.name + ' (' + t.files.length + ' file' + (t.files.length > 1 ? 's' : '') + ')', 'fa-file', 'var(--acc)');
+            rF(); uCt();
+            t.on('done', function() {});
+            t.on('error', function(e) { sS('error', 'Error'); tst('Error: ' + e.message, 'fa-exclamation-circle', 'var(--ros)'); uCt(); });
+        });
+        tt.on('error', function(e) {
+            if (mt) { clearTimeout(mt); mt = null; }
+            sS('error', 'Error'); tst('Error: ' + e.message, 'fa-exclamation-circle', 'var(--ros)'); uCt();
+        });
+        tt.on('warning', function(w) { console.warn('[WebTorrent]', w.message); });
+        ui = setInterval(tick, 1000);
+        document.getElementById('bS').disabled = true;
+    } catch (e) {
+        sS('error', 'Error'); tst('Failed to start: ' + e.message, 'fa-exclamation-circle', 'var(--ros)'); uCt();
+    }
+}
+
+function tP() {
+    if (!tt) return;
+    var l = document.getElementById('sT').textContent;
+    if (l === 'Downloading') { if (tt.pause) tt.pause(); sS('paused', 'Paused'); tst('Paused', 'fa-pause', 'var(--amb)'); }
+    else if (l === 'Paused') { if (tt.resume) tt.resume(); sS('downloading', 'Downloading'); tst('Resumed', 'fa-play', 'var(--acc)'); }
+    uCt();
+}
+
+function sD() {
+    if (ui) { clearInterval(ui); ui = null; }
+    if (mt) { clearTimeout(mt); mt = null; }
+    cM();
+    if (tt && cl) { try { cl.remove(tt); } catch (e) {} tt = null; }
+    sS('stopped', 'Stopped');
+    document.getElementById('dS').textContent = '0 B/s';
+    document.getElementById('uS').textContent = '0 B/s';
+    document.getElementById('pC').textContent = '0';
+    document.getElementById('eT').textContent = '—';
+    uCt(); uSv();
+    tst('Stopped', 'fa-stop', 'var(--ros)');
+}
+
+async function rsA() {
+    if (ui) { clearInterval(ui); ui = null; }
+    if (mt) { clearTimeout(mt); mt = null; }
+    cM();
+    var hash = tt ? tt.infoHash : null;
+    if (tt && cl) { try { cl.remove(tt); } catch (e) {} tt = null; }
+    // Clear IndexedDB for this torrent
+    if (hash) await clearTorrentStorage(hash);
+    svd = false; wd = false; spdH = []; npw = false; storedFiles = new Set();
+    hCd(); document.getElementById('mI').value = '';
+    setTimeout(function() {
+        document.getElementById('pP').textContent = '0.0%';
+        document.getElementById('pBa').style.width = '0%';
+        document.getElementById('pTr').classList.remove('ptr-ok');
+        document.getElementById('sI').textContent = '—';
+        document.getElementById('dS').textContent = '0 B/s';
+        document.getElementById('uS').textContent = '0 B/s';
+        document.getElementById('pC').textContent = '0';
+        document.getElementById('eT').textContent = '—';
+        document.getElementById('fN').textContent = '—';
+        document.getElementById('fN').title = '';
+        document.getElementById('fL').innerHTML = '<p class="text-xs py-6 text-center" style="color:var(--mut)">Waiting for metadata...</p>';
+        sS('idle', 'Idle'); uSv();
+        document.getElementById('bS').disabled = false;
+        document.getElementById('bP').disabled = true;
+        document.getElementById('bX').disabled = true;
+        document.getElementById('bR').disabled = true;
+        updateStorageInfo();
+    }, 500);
+    tst('Reset complete', 'fa-arrow-rotate-left', 'var(--acc)');
+}
+
+/* Clipboard / Clear */
+async function pM() {
+    try {
+        var t = await navigator.clipboard.readText();
+        if (t && t.startsWith('magnet:')) { document.getElementById('mI').value = t; tst('Pasted from clipboard', 'fa-paste', 'var(--acc)'); }
+        else tst('No magnet link in clipboard', 'fa-exclamation-triangle', 'var(--amb)');
+    } catch (e) { tst('Cannot read clipboard — check permissions', 'fa-exclamation-triangle', 'var(--amb)'); }
+}
+function cI() { document.getElementById('mI').value = ''; }
+
+/* WebTorrent client singleton */
+function eC() {
+    if (cl) return cl;
+    if (typeof WebTorrent === 'undefined') { tst('WebTorrent failed to load. Refresh the page.', 'fa-exclamation-triangle', 'var(--ros)'); return null; }
+    cl = new WebTorrent();
+    cl.on('error', function(e) { tst('Client error: ' + e.message, 'fa-exclamation-circle', 'var(--ros)'); });
+    return cl;
+}
+
+/* ============================================================
+   EVENT LISTENERS
+   ============================================================ */
+document.getElementById('mI').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); go(); }
+});
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') cM(); });
+window.addEventListener('resize', function() { if (document.getElementById('t-gr').classList.contains('on')) dG(); });
+
+// Prevent accidental navigation
+window.addEventListener('beforeunload', function(e) {
+    if (tt && !tt.done) { e.preventDefault(); e.returnValue = ''; }
+});
+
+/* ============================================================
+   INIT
+   ============================================================ */
+uSv(); uCt(); updateStorageInfo();
+</script>
 </body>
 </html>
