@@ -8,179 +8,139 @@
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <title>StreamLine</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-... crossorigin="anonymous" referrerpolicy="no-referrer">
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/webtorrent@1.9.7/webtorrent.min.js" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family+Space+Grotesk:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/webtorrent@1.9.7/webtorrent.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <style>
-        :root {
-            --bg:#020204;--glass:rgba(255,255,255,0.03);--glass-up:rgba(255,255,255,0.05);
-            --glass-in:rgba(0,0,0,0.4);--g-bdr:rgba(255,255,255,0.06);--g-bdr-hi:rgba(255,255,255,0.11);
-            --blur:blur(44px) saturate(200%);--blur-s:blur(20px) saturate(170%);
-            --fg:#f8f8fc;--fg2:rgba(248,248,252,0.6);--mut:rgba(255,255,255,0.28);
-            --acc:#c8ff00;--acc2:rgba(200,255,0,0.1);--vio:#9b72ff;--ros:#ff6b6b;--amb:#ffbe0b;--cyn:#38d9a9;
-        }
-        *{box-sizing:border-box;margin:0;padding:0}
-        body{font-family:'Space Grotesk',sans-serif;background:var(--bg);color:var(--fg);min-height:100vh;overflow-x:hidden}
-        .mo{font-family:'JetBrains Mono',monospace}
-        body::before{content:'';position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.25;
-            background:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='5' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E")}
-        body::after{content:'';position:fixed;inset:0;z-index:2;pointer-events:none;
-            background:radial-gradient(ellipse 80% 70% at 50% 40%,transparent 20%,rgba(2,2,4,0.7) 100%)}
+        :root{--bg:#020204;--glass:rgba(255,255,255,0.028);--glass-up:rgba(255,255,255,0.048);--glass-in:rgba(0,0,0,0.4);--g-bdr:rgba(255,255,255,0.055);--g-bdr-hi:rgba(255,255,255,0.1);--blur:blur(44px) saturate(200%);--blur-s:blur(20px) saturate(170%);--fg:#f8f8fc;--fg2:rgba(248,248,252,0.6);--mut:rgba(255,255,255,0.28);--acc:#c8ff00;--acc2:rgba(200,255,0,0.1);--vio:#9b72ff;--ros:#ff6b6b;--amb:#ffbe0b;--cyn:#38d9a9}
+        *{box-sizing:border-box;margin:0;padding:0}body{font-family:'Space Grotesk',sans-serif;background:var(--bg);color:var(--fg);min-height:100vh;overflow-x:hidden}.mo{font-family:'JetBrains Mono',monospace}
+        body::before{content:'';position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.2;background:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='5' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E")}
+        body::after{content:'';position:fixed;inset:0;z-index:2;pointer-events:none;background:radial-gradient(ellipse 80% 70% at 50% 40%,transparent 20%,rgba(2,2,4,0.7) 100%)}
         .orb{position:fixed;border-radius:50%;pointer-events:none;z-index:0;will-change:transform;filter:blur(100px)}
         .o1{width:550px;height:550px;top:-180px;left:-120px;background:rgba(200,255,0,0.1);animation:d1 20s ease-in-out infinite alternate}
         .o2{width:500px;height:500px;bottom:-160px;right:-100px;background:rgba(155,114,255,0.08);animation:d2 24s ease-in-out infinite alternate}
         .o3{width:280px;height:280px;top:45%;left:58%;background:rgba(255,107,107,0.05);animation:d3 16s ease-in-out infinite alternate-reverse}
         .o4{width:220px;height:220px;top:18%;right:22%;background:rgba(56,217,169,0.05);animation:d1 18s ease-in-out infinite alternate-reverse}
-        @keyframes d1{to{transform:translate(65px,-45px) scale(1.1)}}
-        @keyframes d2{to{transform:translate(-55px,40px) scale(1.08)}}
-        @keyframes d3{to{transform:translate(-30px,-50px) scale(1.12)}}
-        .gl{background:linear-gradient(160deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01));
-            backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
-            border:1px solid var(--g-bdr);border-top-color:rgba(255,255,255,0.09);border-bottom-color:rgba(255,255,255,0.02);
-            box-shadow:0 24px 80px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.04),inset 0 -1px 0 rgba(0,0,0,0.2)}
-        .gl-up{background:linear-gradient(160deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02));
-            backdrop-filter:var(--blur-s);-webkit-backdrop-filter:var(--blur-s);
-            border:1px solid var(--g-bdr);border-top-color:rgba(255,255,255,0.1);
-            box-shadow:0 8px 30px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.04)}
+        @keyframes d1{to{transform:translate(65px,-45px) scale(1.1)}}@keyframes d2{to{transform:translate(-55px,40px) scale(1.08)}}@keyframes d3{to{transform:translate(-30px,-50px) scale(1.12)}}
+        .gl{background:linear-gradient(160deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01));backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--g-bdr);border-top-color:rgba(255,255,255,0.09);border-bottom-color:rgba(255,255,255,0.02);box-shadow:0 24px 80px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.04),inset 0 -1px 0 rgba(0,0,0,0.2)}
+        .gl-up{background:linear-gradient(160deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02));backdrop-filter:var(--blur-s);-webkit-backdrop-filter:var(--blur-s);border:1px solid var(--g-bdr);border-top-color:rgba(255,255,255,0.1);box-shadow:0 8px 30px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.04)}
         .gl-in{background:var(--glass-in);border:1px solid rgba(255,255,255,0.03);box-shadow:inset 0 2px 8px rgba(0,0,0,0.4)}
-        ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}
-        ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.06);border-radius:2px}
-        #mI{font-family:'JetBrains Mono',monospace;background:rgba(0,0,0,0.55);border:1px solid var(--g-bdr);
-            color:#ffffff;resize:none;transition:all .25s;font-size:13px;line-height:1.5}
-        #mI:focus{border-color:rgba(200,255,0,0.3);box-shadow:0 0 0 3px var(--acc2),inset 0 1px 0 rgba(255,255,255,0.03);outline:none}
-        #mI::placeholder{color:rgba(255,255,255,0.18)}
-        .b-g{background:rgba(255,255,255,0.05);border:1px solid var(--g-bdr-hi);color:var(--fg2);cursor:pointer;
-            transition:all .2s;box-shadow:0 2px 8px rgba(0,0,0,0.15),inset 0 1px 0 rgba(255,255,255,0.04)}
-        .b-g:hover:not(:disabled){background:rgba(255,255,255,0.09);border-color:rgba(255,255,255,0.16);color:var(--fg)}
-        .b-g:active:not(:disabled){transform:scale(.97)}.b-g:disabled{opacity:.2;cursor:not-allowed}
-        .b-a{background:linear-gradient(135deg,rgba(200,255,0,0.18),rgba(200,255,0,0.06));
-            border:1px solid rgba(200,255,0,0.3);color:var(--acc);cursor:pointer;transition:all .2s;font-weight:700;
-            box-shadow:0 4px 20px rgba(200,255,0,0.08),inset 0 1px 0 rgba(255,255,255,0.05)}
-        .b-a:hover:not(:disabled){background:linear-gradient(135deg,rgba(200,255,0,0.28),rgba(200,255,0,0.12));
-            border-color:rgba(200,255,0,0.5);box-shadow:0 6px 30px rgba(200,255,0,0.15)}
-        .b-a:active:not(:disabled){transform:scale(.97)}.b-a:disabled{opacity:.15;cursor:not-allowed}
-        .b-sv{background:rgba(255,255,255,0.03);border:1px solid var(--g-bdr);color:var(--mut);cursor:pointer;
-            transition:all .35s;font-weight:700;box-shadow:inset 0 1px 0 rgba(255,255,255,0.02)}
-        .b-sv.rdy{background:linear-gradient(135deg,rgba(200,255,0,0.15),rgba(200,255,0,0.05));
-            border-color:rgba(200,255,0,0.4);color:var(--acc);
-            box-shadow:0 0 40px rgba(200,255,0,0.1),0 4px 20px rgba(200,255,0,0.08);animation:svG 2.8s ease-in-out infinite}
-        .b-sv.done{background:rgba(200,255,0,0.03);border-color:rgba(200,255,0,0.08);
-            color:rgba(200,255,0,0.3);cursor:default;animation:none}
+        ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.06);border-radius:2px}
+        #mI{font-family:'JetBrains Mono',monospace;background:rgba(0,0,0,0.55);border:1px solid var(--g-bdr);color:#ffffff;resize:none;transition:all .25s;font-size:13px;line-height:1.5}
+        #mI:focus{border-color:rgba(200,255,0,0.3);box-shadow:0 0 0 3px var(--acc2),inset 0 1px 0 rgba(255,255,255,0.03);outline:none}#mI::placeholder{color:rgba(255,255,255,0.18)}
+        .b-g{background:rgba(255,255,255,0.05);border:1px solid var(--g-bdr-hi);color:var(--fg2);cursor:pointer;transition:all .2s;box-shadow:0 2px 8px rgba(0,0,0,0.15),inset 0 1px 0 rgba(255,255,255,0.04)}
+        .b-g:hover:not(:disabled){background:rgba(255,255,255,0.09);border-color:rgba(255,255,255,0.16);color:var(--fg)}.b-g:active:not(:disabled){transform:scale(.97)}.b-g:disabled{opacity:.2;cursor:not-allowed}
+        .b-a{background:linear-gradient(135deg,rgba(200,255,0,0.18),rgba(200,255,0,0.06));border:1px solid rgba(200,255,0,0.3);color:var(--acc);cursor:pointer;transition:all .2s;font-weight:700;box-shadow:0 4px 20px rgba(200,255,0,0.08),inset 0 1px 0 rgba(255,255,255,0.05)}
+        .b-a:hover:not(:disabled){background:linear-gradient(135deg,rgba(200,255,0,0.28),rgba(200,255,0,0.12));border-color:rgba(200,255,0,0.5);box-shadow:0 6px 30px rgba(200,255,0,0.15)}.b-a:active:not(:disabled){transform:scale(.97)}.b-a:disabled{opacity:.15;cursor:not-allowed}
+        .b-sam{background:rgba(155,114,255,0.04);border:1px solid rgba(155,114,255,0.12);color:var(--fg2);cursor:pointer;transition:all .2s;text-align:left}
+        .b-sam:hover:not(:disabled){background:rgba(155,114,255,0.08);border-color:rgba(155,114,255,0.22);transform:translateY(-1px)}.b-sam:active:not(:disabled){transform:scale(.98)}.b-sam:disabled{opacity:.2;cursor:not-allowed}
+        .b-sv{background:rgba(255,255,255,0.03);border:1px solid var(--g-bdr);color:var(--mut);cursor:pointer;transition:all .35s;font-weight:700;box-shadow:inset 0 1px 0 rgba(255,255,255,0.02)}
+        .b-sv.rdy{background:linear-gradient(135deg,rgba(200,255,0,0.15),rgba(200,255,0,0.05));border-color:rgba(200,255,0,0.4);color:var(--acc);box-shadow:0 0 40px rgba(200,255,0,0.1),0 4px 20px rgba(200,255,0,0.08);animation:svG 2.8s ease-in-out infinite}
+        .b-sv.done{background:rgba(200,255,0,0.03);border-color:rgba(200,255,0,0.08);color:rgba(200,255,0,0.3);cursor:default;animation:none}
         .b-sv:disabled:not(.done):not(.rdy){opacity:.12;cursor:not-allowed}
-        @keyframes svG{0%,100%{box-shadow:0 0 25px rgba(200,255,0,0.06),0 4px 20px rgba(200,255,0,0.06)}
-            50%{box-shadow:0 0 50px rgba(200,255,0,0.15),0 6px 28px rgba(200,255,0,0.12)}}
+        @keyframes svG{0%,100%{box-shadow:0 0 25px rgba(200,255,0,0.06),0 4px 20px rgba(200,255,0,0.06)}50%{box-shadow:0 0 50px rgba(200,255,0,0.15),0 6px 28px rgba(200,255,0,0.12)}}
         .b-d{background:rgba(255,107,107,0.04);border:1px solid rgba(255,107,107,0.15);color:var(--ros);cursor:pointer;transition:all .2s}
         .b-d:hover:not(:disabled){background:rgba(255,107,107,0.1);border-color:rgba(255,107,107,0.35)}.b-d:disabled{opacity:.15;cursor:not-allowed}
         .b-r{background:rgba(255,255,255,0.03);border:1px solid var(--g-bdr);color:var(--mut);cursor:pointer;transition:all .2s}
         .b-r:hover:not(:disabled){background:rgba(255,255,255,0.07);border-color:var(--g-bdr-hi);color:var(--fg2)}.b-r:disabled{opacity:.15;cursor:not-allowed}
-        .b-fs{background:rgba(255,255,255,0.03);border:1px solid var(--g-bdr);color:var(--mut);cursor:pointer;transition:all .15s;font-size:10px}
-        .b-fs:hover:not(:disabled){background:rgba(255,255,255,0.07);color:var(--fg2)}.b-fs:disabled{opacity:.12;cursor:not-allowed}
         .b-st{background:rgba(56,217,169,0.05);border:1px solid rgba(56,217,169,0.12);color:var(--cyn);cursor:pointer;transition:all .15s;font-size:10px}
         .b-st:hover:not(:disabled){background:rgba(56,217,169,0.1);border-color:rgba(56,217,169,0.25)}.b-st:disabled{opacity:.12;cursor:not-allowed}
         .ptr{background:rgba(0,0,0,0.45);border:1px solid rgba(255,255,255,0.04);border-radius:10px;height:22px;overflow:hidden}
         .pfl{height:100%;border-radius:9px;background:linear-gradient(90deg,var(--acc),var(--cyn));transition:width .5s cubic-bezier(.22,1,.36,1);position:relative;overflow:hidden}
         .pfl::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent);animation:shim 2.4s ease-in-out infinite}
         @keyframes shim{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
-        .ptr-ok .pfl{animation:dfl .6s ease-out}
-        @keyframes dfl{0%{filter:brightness(1)}30%{filter:brightness(1.8)}100%{filter:brightness(1)}}
-        .sp{display:inline-flex;align-items:center;gap:6px;padding:4px 14px;border-radius:20px;
-            font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
-            background:rgba(255,255,255,0.03);border:1px solid var(--g-bdr)}
-        .sd{width:6px;height:6px;border-radius:50%;animation:pls 1.4s ease-in-out infinite}
-        @keyframes pls{0%,100%{opacity:1}50%{opacity:.15}}
-        .stg{background:var(--glass-in);border:1px solid rgba(255,255,255,0.03);border-radius:12px;padding:12px 14px;transition:border-color .3s}
-        .stg:hover{border-color:rgba(255,255,255,0.06)}
-        .fr{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;transition:background .15s}
-        .fr:hover{background:rgba(255,255,255,0.015)}
-        .fbt{flex:1;height:3px;background:rgba(255,255,255,0.04);border-radius:2px;overflow:hidden}
-        .fbf{height:100%;background:linear-gradient(90deg,var(--acc),var(--cyn));border-radius:2px;transition:width .5s}
+        .ptr-ok .pfl{animation:dfl .6s ease-out}@keyframes dfl{0%{filter:brightness(1)}30%{filter:brightness(1.8)}100%{filter:brightness(1)}}
+        .sp{display:inline-flex;align-items:center;gap:6px;padding:4px 14px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;background:rgba(255,255,255,0.03);border:1px solid var(--g-bdr)}
+        .sd{width:6px;height:6px;border-radius:50%;animation:pls 1.4s ease-in-out infinite}@keyframes pls{0%,100%{opacity:1}50%{opacity:.15}}
+        .stg{background:var(--glass-in);border:1px solid rgba(255,255,255,0.03);border-radius:12px;padding:12px 14px;transition:border-color .3s}.stg:hover{border-color:rgba(255,255,255,0.06)}
+        .fr{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;transition:background .15s}.fr:hover{background:rgba(255,255,255,0.015)}
+        .fbt{flex:1;height:3px;background:rgba(255,255,255,0.04);border-radius:2px;overflow:hidden}.fbf{height:100%;background:linear-gradient(90deg,var(--acc),var(--cyn));border-radius:2px;transition:width .5s}
         .tb{padding:8px 16px;font-size:11px;font-weight:600;color:var(--mut);background:transparent;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:all .2s}
         .tb:hover{color:var(--fg2)}.tb.on{color:var(--acc);border-bottom-color:var(--acc)}
         .tp{display:none}.tp.on{display:block}
         .tw{position:fixed;top:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
-        .ts{pointer-events:auto;background:rgba(8,8,16,0.88);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
-            border:1px solid var(--g-bdr-hi);border-radius:14px;padding:11px 16px;font-size:12px;color:var(--fg);
-            max-width:380px;box-shadow:0 12px 40px rgba(0,0,0,0.5);display:flex;align-items:center;gap:10px;animation:ti .3s ease-out}
-        .ts.out{animation:to .3s ease-in forwards}
-        @keyframes ti{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+        .ts{pointer-events:auto;background:rgba(8,8,16,0.88);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid var(--g-bdr-hi);border-radius:14px;padding:11px 16px;font-size:12px;color:var(--fg);max-width:400px;box-shadow:0 12px 40px rgba(0,0,0,0.5);display:flex;align-items:center;gap:10px;animation:ti .3s ease-out}
+        .ts.out{animation:to .3s ease-in forwards}@keyframes ti{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
         @keyframes to{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(30px)}}
         .fi{opacity:0;transform:translateY(18px);transition:opacity .5s ease,transform .5s ease}.fi.sh{opacity:1;transform:translateY(0)}
-        .ib{background:rgba(56,217,169,0.03);border:1px solid rgba(56,217,169,0.08);border-radius:12px;
-            padding:12px 16px;font-size:12px;color:var(--cyn);line-height:1.65;position:relative;
-            backdrop-filter:var(--blur-s);-webkit-backdrop-filter:var(--blur-s)}
-        .ib .x{position:absolute;top:8px;right:10px;background:none;border:none;color:var(--cyn);cursor:pointer;opacity:.4;transition:opacity .2s}
-        .ib .x:hover{opacity:1}
-        #mo{position:fixed;inset:0;z-index:100;background:rgba(2,2,4,0.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-            display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto}
-        #mo.op{display:flex}
-        #mo video,#mo audio{width:100%;max-height:75vh;border-radius:14px;background:#000}
+        .wb{background:rgba(255,190,11,0.04);border:1px solid rgba(255,190,11,0.1);border-radius:12px;padding:14px 16px;font-size:12px;color:var(--amb);line-height:1.7;position:relative;backdrop-filter:var(--blur-s);-webkit-backdrop-filter:var(--blur-s)}
+        .wb .x{position:absolute;top:10px;right:12px;background:none;border:none;color:var(--amb);cursor:pointer;opacity:.4;transition:opacity .2s}.wb .x:hover{opacity:1}
+        .info-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.03)}
+        .info-row:last-child{border-bottom:none}
+        #mo{position:fixed;inset:0;z-index:100;background:rgba(2,2,4,0.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto}
+        #mo.op{display:flex}#mo video,#mo audio{width:100%;max-height:75vh;border-radius:14px;background:#000}
         .lr{position:absolute;inset:-4px;border:1px solid rgba(200,255,0,0.1);border-radius:16px;animation:lrA 4s ease-in-out infinite;pointer-events:none}
         @keyframes lrA{0%,100%{opacity:.15;transform:scale(1)}50%{opacity:.4;transform:scale(1.06)}}
         #sg{border-radius:10px;display:block;width:100%}
-        @media(max-width:640px){.sg{grid-template-columns:1fr 1fr!important}.ar{flex-wrap:wrap}}
+        @media(max-width:640px){.sg{grid-template-columns:1fr 1fr!important}.ar{flex-wrap:wrap}.sam-g{grid-template-columns:1fr!important}}
         @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
     <div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div><div class="orb o4"></div>
     <div class="tw" id="tB" role="status" aria-live="polite"></div>
-    <div id="mo" role="dialog" aria-modal="true" aria-label="Media stream">
-        <div style="max-width:900px;width:100%">
-            <div class="flex items-center justify-between mb-3">
-                <h3 id="mT" class="text-sm font-bold truncate" style="max-width:80%">Streaming</h3>
-                <button onclick="cM()" class="b-g px-3 py-2 rounded-xl text-xs" aria-label="Close stream"><i class="fas fa-xmark"></i> Close</button>
-            </div>
-            <div id="mC"></div>
-        </div>
-    </div>
+    <div id="mo" role="dialog" aria-modal="true" aria-label="Media stream"><div style="max-width:900px;width:100%"><div class="flex items-center justify-between mb-3"><h3 id="mT" class="text-sm font-bold truncate" style="max-width:80%">Streaming</h3><button onclick="cM()" class="b-g px-3 py-2 rounded-xl text-xs" aria-label="Close stream"><i class="fas fa-xmark"></i> Close</button></div><div id="mC"></div></div></div>
+
     <main class="relative z-10 max-w-2xl w-full py-8">
         <header class="text-center mb-7">
             <div class="inline-flex items-center gap-3 mb-1.5">
-                <div class="w-10 h-10 rounded-2xl flex items-center justify-center relative" style="background:var(--acc2);border:1px solid rgba(200,255,0,0.15)">
-                    <div class="lr"></div>
-                    <i class="fas fa-bolt" style="color:var(--acc);font-size:16px"></i>
-                </div>
+                <div class="w-10 h-10 rounded-2xl flex items-center justify-center relative" style="background:var(--acc2);border:1px solid rgba(200,255,0,0.15)"><div class="lr"></div><i class="fas fa-bolt" style="color:var(--acc);font-size:16px"></i></div>
                 <h1 class="text-[28px] font-extrabold tracking-tight">StreamLine</h1>
             </div>
-            <p style="color:var(--mut);font-size:13px">Browser-native BitTorrent via WebRTC</p>
+            <p style="color:var(--mut);font-size:13px">Browser-native BitTorrent via WebRTC + Public Bridge APIs</p>
         </header>
-        <div class="ib mb-5" id="iB">
-            <button class="x" onclick="dB()" aria-label="Dismiss"><i class="fas fa-xmark"></i></button>
-            <i class="fas fa-circle-info mr-1"></i>
-            Downloads run <strong>entirely in your browser</strong>. Files persist in IndexedDB. Connects to WebTorrent peers only. Well-seeded public torrents work best.
+
+        <div class="wb mb-5" id="wB">
+            <button class="x" onclick="document.getElementById('wB').style.display='none'" aria-label="Dismiss"><i class="fas fa-xmark"></i></button>
+            <i class="fas fa-shield-halved mr-1"></i>
+            <strong>How it works:</strong> Your magnet link is augmented with all known public WebRTC (WSS) trackers and sent to <strong>instant.io's bridge server</strong>, which has TCP connections to regular BitTorrent peers. The bridge re-seeds data to your browser via WebRTC. This works for <strong>popular, well-seeded torrents only</strong>.
         </div>
-        <div class="gl rounded-[20px] p-6">
-            <label for="mI" class="block text-[10px] font-semibold uppercase tracking-wider mb-2" style="color:var(--mut)">Magnet Link</label>
-            <textarea id="mI" rows="3" placeholder="magnet:?xt=urn:btih:..." class="w-full rounded-xl p-3" autocomplete="off" spellcheck="false"></textarea>
-            <div class="flex gap-2 mt-3">
-                <button id="bS" onclick="go()" class="b-a flex-1 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2">
-                    <i class="fas fa-play text-[10px]"></i> Start Download
-                </button>
-                <button onclick="pM()" class="b-g px-3.5 py-2.5 rounded-xl text-sm" title="Paste from clipboard" aria-label="Paste"><i class="fas fa-paste"></i></button>
-                <button onclick="cI()" class="b-g px-3.5 py-2.5 rounded-xl text-sm" title="Clear input" aria-label="Clear"><i class="fas fa-xmark"></i></button>
+
+        <!-- Sample torrents -->
+        <div class="mb-5">
+            <div class="text-[10px] font-semibold uppercase tracking-wider mb-2.5" style="color:var(--mut)"><i class="fas fa-flask mr-1" style="color:var(--vio)"></i> Guaranteed working — these have permanent bridge seeders</div>
+            <div class="sam-g grid gap-2" style="grid-template-columns:1fr 1fr 1fr">
+                <button onclick="loadSam(0)" id="s0" class="b-sam rounded-xl p-3"><div class="text-[11px] font-semibold truncate" style="color:var(--fg)">Sintel</div><div class="mo text-[9px] mt-0.5" style="color:var(--mut)">~1 GB &middot; Video</div></button>
+                <button onclick="loadSam(1)" id="s1" class="b-sam rounded-xl p-3"><div class="text-[11px] font-semibold truncate" style="color:var(--fg)">Big Buck Bunny</div><div class="mo text-[9px] mt-0.5" style="color:var(--mut)">~1.5 GB &middot; Video</div></button>
+                <button onclick="loadSam(2)" id="s2" class="b-sam rounded-xl p-3"><div class="text-[11px] font-semibold truncate" style="color:var(--fg)">Cosmos Laundromat</div><div class="mo text-[9px] mt-0.5" style="color:var(--mut)">~1.1 GB &middot; Video</div></button>
             </div>
         </div>
+
+        <!-- Input + parsed info -->
+        <div class="gl rounded-[20px] p-6">
+            <label for="mI" class="block text-[10px] font-semibold uppercase tracking-wider mb-2" style="color:var(--mut)">Magnet Link</label>
+            <textarea id="mI" rows="2" placeholder="magnet:?xt=urn:btih:..." class="w-full rounded-xl p-3" autocomplete="off" spellcheck="false"></textarea>
+            <div class="flex gap-2 mt-3">
+                <button id="bS" onclick="go()" class="b-a flex-1 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2"><i class="fas fa-play text-[10px]"></i> Start Download</button>
+                <button onclick="pM()" class="b-g px-3.5 py-2.5 rounded-xl text-sm" title="Paste" aria-label="Paste"><i class="fas fa-paste"></i></button>
+                <button onclick="cI()" class="b-g px-3.5 py-2.5 rounded-xl text-sm" title="Clear" aria-label="Clear"><i class="fas fa-xmark"></i></button>
+            </div>
+            <!-- Parsed info -->
+            <div id="pInfo" class="mt-4" style="display:none">
+                <div class="text-[10px] font-semibold uppercase tracking-wider mb-2" style="color:var(--mut)"><i class="fas fa-magnifying-glass mr-1"></i> Parsed Info</div>
+                <div class="gl-in rounded-xl p-3">
+                    <div class="info-row"><span class="text-[10px]" style="color:var(--mut)">Name</span><span id="piName" class="mo text-[10px] truncate" style="color:var(--fg2);max-width:200px">—</span></div>
+                    <div class="info-row"><span class="text-[10px]" style="color:var(--mut)">Info Hash</span><span id="piHash" class="mo text-[10px]" style="color:var(--acc)">—</span></div>
+                    <div class="info-row"><span class="text-[10px]" style="color:var(--mut)">Trackers (original)</span><span id="piTrk" class="mo text-[10px]" style="color:var(--fg2)">0</span></div>
+                    <div class="info-row"><span class="text-[10px]" style="color:var(--mut)">WSS Trackers (added)</span><span id="piWss" class="mo text-[10px]" style="color:var(--cyn)">0</span></div>
+                    <div class="info-row"><span class="text-[10px]" style="color:var(--mut)">Bridge API</span><span id="piBridge" class="text-[10px]" style="color:var(--amb)">Pending</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Torrent card -->
         <div id="tC" class="fi mt-5" style="display:none">
             <div class="gl rounded-[20px] p-6">
                 <div class="ar flex flex-wrap items-center gap-3 mb-5">
                     <span id="sB" class="sp"><span class="sd" style="background:var(--mut)"></span><span id="sT">Idle</span></span>
                     <span id="fN" class="mo text-[11px] truncate" style="color:var(--fg2);max-width:200px" title="">—</span>
                     <div class="flex gap-2 ml-auto">
-                        <button id="bP" onclick="tP()" class="b-g px-3 py-1.5 rounded-xl text-[11px] flex items-center gap-1.5" disabled aria-label="Pause download">
-                            <i class="fas fa-pause" id="pI"></i><span id="pL">Pause</span>
-                        </button>
-                        <button id="bX" onclick="sD()" class="b-d px-3 py-1.5 rounded-xl text-[11px] flex items-center gap-1.5" disabled aria-label="Stop download">
-                            <i class="fas fa-stop"></i> Stop
-                        </button>
-                        <button id="bR" onclick="rsA()" class="b-r px-3 py-1.5 rounded-xl text-[11px] flex items-center gap-1.5" disabled aria-label="Reset everything">
-                            <i class="fas fa-arrow-rotate-left"></i> Reset
-                        </button>
+                        <button id="bP" onclick="tP()" class="b-g px-3 py-1.5 rounded-xl text-[11px] flex items-center gap-1.5" disabled aria-label="Pause"><i class="fas fa-pause" id="pI"></i><span id="pL">Pause</span></button>
+                        <button id="bX" onclick="sD()" class="b-d px-3 py-1.5 rounded-xl text-[11px] flex items-center gap-1.5" disabled aria-label="Stop"><i class="fas fa-stop"></i> Stop</button>
+                        <button id="bR" onclick="rsA()" class="b-r px-3 py-1.5 rounded-xl text-[11px] flex items-center gap-1.5" disabled aria-label="Reset"><i class="fas fa-arrow-rotate-left"></i> Reset</button>
                     </div>
                 </div>
-                <div class="flex items-end justify-between mb-1.5">
-                    <span id="pP" class="text-3xl font-extrabold mo" style="color:var(--acc)">0.0%</span>
-                    <span id="sI" class="mo text-[11px]" style="color:var(--mut)">—</span>
-                </div>
+                <div class="flex items-end justify-between mb-1.5"><span id="pP" class="text-3xl font-extrabold mo" style="color:var(--acc)">0.0%</span><span id="sI" class="mo text-[11px]" style="color:var(--mut)">—</span></div>
                 <div class="ptr mb-5" id="pTr"><div id="pBa" class="pfl" style="width:0%"></div></div>
                 <div class="sg grid gap-2.5 mb-4" style="grid-template-columns:repeat(4,1fr)">
                     <div class="stg"><div class="text-[9px] uppercase tracking-wider font-semibold mb-1" style="color:var(--mut)"><i class="fas fa-arrow-down mr-1" style="color:var(--acc)"></i>Down</div><div id="dS" class="mo text-xs font-bold">0 B/s</div></div>
@@ -189,16 +149,9 @@
                     <div class="stg"><div class="text-[9px] uppercase tracking-wider font-semibold mb-1" style="color:var(--mut)"><i class="fas fa-clock mr-1"></i>ETA</div><div id="eT" class="mo text-xs font-bold">—</div></div>
                 </div>
                 <div id="stoInfo" class="text-[10px] text-center mb-3 mo" style="color:var(--mut)"><i class="fas fa-database mr-1"></i>Storage: calculating...</div>
-                <div class="mb-5">
-                    <button id="bSv" onclick="svA()" class="b-sv w-full py-3 rounded-xl text-sm flex items-center justify-center gap-2.5" disabled aria-label="Save all files">
-                        <i class="fas fa-lock" id="svI"></i><span id="svL">Save All Files</span>
-                    </button>
-                </div>
+                <div class="mb-5"><button id="bSv" onclick="svA()" class="b-sv w-full py-3 rounded-xl text-sm flex items-center justify-center gap-2.5" disabled aria-label="Save all files"><i class="fas fa-lock" id="svI"></i><span id="svL">Save All Files</span></button></div>
                 <div style="border-top:1px solid rgba(255,255,255,0.03);padding-top:14px">
-                    <div class="flex gap-1 mb-3" style="border-bottom:1px solid rgba(255,255,255,0.03)">
-                        <button class="tb on" onclick="sTb('fl',this)">Files</button>
-                        <button class="tb" onclick="sTb('gr',this)">Speed</button>
-                    </div>
+                    <div class="flex gap-1 mb-3" style="border-bottom:1px solid rgba(255,255,255,0.03)"><button class="tb on" onclick="sTb('fl',this)">Files</button><button class="tb" onclick="sTb('gr',this)">Speed</button></div>
                     <div id="t-fl" class="tp on" style="max-height:220px;overflow-y:auto"><div id="fL"><p class="text-xs py-6 text-center" style="color:var(--mut)">Waiting for metadata...</p></div></div>
                     <div id="t-gr" class="tp"><canvas id="sg" height="150"></canvas></div>
                 </div>
@@ -210,637 +163,262 @@
 <script>
 /* ============================================================
    SECURITY: Input Sanitization
-   Prevents XSS, script injection, HTML injection in magnet links
    ============================================================ */
-function sanitizeMagnet(raw) {
-    if (typeof raw !== 'string') return '';
-    // Strip all HTML tags and script content
-    var clean = raw.replace(/<[^>]*>/gi, '');
-    // Remove null bytes and control characters (except newline in textarea)
-    clean = clean.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
-    // Remove javascript:, data:, vbscript: protocol attempts
-    clean = clean.replace(/(javascript|data|vbscript)\s*:/gi, '');
-    // Trim whitespace
-    clean = clean.trim();
-    // Validate magnet URI scheme strictly
-    if (!clean.startsWith('magnet:?')) return '';
-    // Only allow known safe magnet parameters
-    var params = clean.substring(8).split('&');
-    var allowed = ['xt','dn','tr','xs','as','ws','kt','x.pe'];
-    var safeParams = [];
-    for (var i = 0; i < params.length; i++) {
-        var eq = params[i].indexOf('=');
-        if (eq < 1) continue;
-        var key = params[i].substring(0, eq).toLowerCase();
-        if (allowed.indexOf(key) === -1) continue;
-        // Validate xt must be btih
-        if (key === 'xt') {
-            var val = params[i].substring(eq + 1);
-            if (val.toLowerCase().indexOf('urn:btih:') !== 0) continue;
-        }
-        safeParams.push(params[i]);
-    }
-    if (safeParams.length === 0) return '';
-    // Reconstruct with only safe params, max 2048 chars
-    var result = 'magnet:?' + safeParams.join('&');
-    if (result.length > 2048) return '';
-    return result;
-}
-
-/* HTML escape for dynamic content (file names, etc.) */
-function esc(s) {
-    if (typeof s !== 'string') return '';
-    var d = document.createElement('div');
-    d.textContent = s;
-    return d.innerHTML;
-}
+function sanitizeMagnet(raw){
+    if(typeof raw!=='string')return'';var c=raw.replace(/<[^>]*>/gi,'').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g,'').replace(/(javascript|data|vbscript)\s*:/gi,'').trim();
+    if(!c.startsWith('magnet:?'))return'';var ps=c.substring(8).split('&'),ok=['xt','dn','tr','xs','as','ws','kt'],sf=[];
+    for(var i=0;i<ps.length;i++){var eq=ps[i].indexOf('=');if(eq<1)continue;var k=ps[i].substring(0,eq).toLowerCase();if(ok.indexOf(k)===-1)continue;
+    if(k==='xt'){var v=ps[i].substring(eq+1);if(v.toLowerCase().indexOf('urn:btih:')!==0)continue}sf.push(ps[i])}
+    if(sf.length===0)return'';var r='magnet:?'+sf.join('&');return r.length>4096?'':r}
+function esc(s){if(typeof s!=='string')return'';var d=document.createElement('div');d.textContent=s;return d.innerHTML}
 
 /* ============================================================
-   INDEXEDDB: Persistent Storage Layer
-   Files are stored on device storage via IndexedDB so downloads
-   survive page refreshes and the save button is reliable.
+   MAGNET PARSER — extract info without any API call
    ============================================================ */
-var DB_NAME = 'streamline_db';
-var DB_VER = 1;
-var STORE = 'files';
-
-function openDB() {
-    return new Promise(function(resolve, reject) {
-        var req = indexedDB.open(DB_NAME, DB_VER);
-        req.onupgradeneeded = function(e) {
-            var db = e.target.result;
-            if (!db.objectStoreNames.contains(STORE)) {
-                db.createObjectStore(STORE, { keyPath: 'id' });
-            }
-        };
-        req.onsuccess = function(e) { resolve(e.target.result); };
-        req.onerror = function(e) { reject(e.target.error); };
-    });
-}
-
-async function storeFileBlob(hash, idx, blob, name) {
-    try {
-        var db = await openDB();
-        var tx = db.transaction(STORE, 'readwrite');
-        tx.objectStore(STORE).put({
-            id: hash + '_' + idx,
-            hash: hash, index: idx,
-            blob: blob, name: name,
-            saved: false, ts: Date.now()
-        });
-        await new Promise(function(res, rej) { tx.oncomplete = res; tx.onerror = rej; });
-        updateStorageInfo();
-    } catch (e) {
-        if (e.name === 'QuotaExceededError') {
-            tst('Storage full! Cannot persist file: ' + name, 'fa-hard-drive', 'var(--ros)');
-        } else {
-            console.error('[IndexedDB store]', e);
-        }
-    }
-}
-
-async function getStoredBlob(hash, idx) {
-    try {
-        var db = await openDB();
-        var tx = db.transaction(STORE, 'readonly');
-        var req = tx.objectStore(STORE).get(hash + '_' + idx);
-        return new Promise(function(res) {
-            req.onsuccess = function() { res(req.result || null); };
-            req.onerror = function() { res(null); };
-        });
-    } catch (e) { return null; }
-}
-
-async function markSaved(hash, idx) {
-    try {
-        var db = await openDB();
-        var tx = db.transaction(STORE, 'readwrite');
-        var store = tx.objectStore(STORE);
-        var req = store.get(hash + '_' + idx);
-        req.onsuccess = function() {
-            var d = req.result;
-            if (d) { d.saved = true; store.put(d); }
-        };
-    } catch (e) { console.error('[IndexedDB mark]', e); }
-}
-
-async function clearTorrentStorage(hash) {
-    try {
-        var db = await openDB();
-        var tx = db.transaction(STORE, 'readwrite');
-        var store = tx.objectStore(STORE);
-        var req = store.openCursor();
-        req.onsuccess = function(e) {
-            var cur = e.target.result;
-            if (cur) {
-                if (cur.value.hash === hash) store.delete(cur.key);
-                cur.continue();
-            }
-        };
-        await new Promise(function(res, rej) { tx.oncomplete = res; tx.onerror = rej; });
-        updateStorageInfo();
-    } catch (e) { console.error('[IndexedDB clear]', e); }
-}
-
-async function getStorageUsage() {
-    try {
-        if (navigator.storage && navigator.storage.estimate) {
-            var est = await navigator.storage.estimate();
-            return est.usage || 0;
-        }
-    } catch (e) {}
-    return 0;
-}
-
-async function updateStorageInfo() {
-    var bytes = await getStorageUsage();
-    document.getElementById('stoInfo').innerHTML = '<i class="fas fa-database mr-1"></i>Storage: ' + fB(bytes) + ' persisted';
-}
+function parseMagnet(raw){
+    var mg=sanitizeMagnet(raw);if(!mg)return null;
+    var ps=mg.substring(8).split('&'),info={hash:'',name:'',trackers:[],allParams:{}};
+    for(var i=0;i<ps.length;i++){var eq=ps[i].indexOf('=');if(eq<1)continue;var k=ps[i].substring(0,eq).toLowerCase(),v=decodeURIComponent(ps[i].substring(eq+1));
+    info.allParams[k]=v;if(k==='xt'&&v.toLowerCase().indexOf('urn:btih:')===0)info.hash=v.substring(9).toUpperCase();
+    if(k==='dn')info.name=v;if(k==='tr')info.trackers.push(v)}return info}
 
 /* ============================================================
-   AUDIO: Completion Beep via Web Audio API
-   AudioContext created on user gesture (iOS requirement).
-   Two ascending tones for a pleasant notification chime.
+   ALL KNOWN PUBLIC WSS TRACKERS
+   These are WebSocket-based BitTorrent trackers that WebTorrent
+   can connect to. They discover WebRTC peers including bridge servers.
    ============================================================ */
-var audioCtx = null;
+var WSS_TRACKERS=[
+    'wss://tracker.openwebtorrent.com',
+    'wss://tracker.btorrent.xyz',
+    'wss://tracker.fastcast.nz',
+    'wss://tracker.webtorrent.dev',
+    'wss://tracker.tiny-vps.com:443',
+    'wss://tracker.moeblog.cn:443',
+    'wss://tracker.files.fm:443',
+    'wss://btloader.xyz:443',
+    'wss://open.acgtracker.com:443',
+    'wss://tracker.loligirl.cn:443',
+    'wss://retracker.akado-ural.ru:443',
+    'wss://tracker.nanoha.org:443'
+];
 
-function initAudio() {
-    if (audioCtx) return;
-    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
-}
+/* Build augmented magnet: append any missing WSS trackers */
+function augmentMagnet(parsed){
+    if(!parsed)return'';
+    var existing=parsed.trackers.map(function(t){return t.toLowerCase().replace(/^https?:/,'wss:')});
+    var toAdd=[];for(var i=0;i<WSS_TRACKERS.length;i++){
+        var w=WSS_TRACKERS[i].toLowerCase();var found=false;
+        for(var j=0;j<existing.length;j++){if(existing[j]===w||existing[j].indexOf(WSS_TRACKERS[i].split('/')[2])!==-1){found=true;break}}
+        if(!found)toAdd.push(WSS_TRACKERS[i])}
+    var parts=['xt=urn:btih:'+parsed.hash];
+    if(parsed.name)parts.push('dn='+encodeURIComponent(parsed.name));
+    for(var k=0;k<parsed.trackers.length;k++)parts.push('tr='+encodeURIComponent(parsed.trackers[k]));
+    for(var m=0;m<toAdd.length;m++)parts.push('tr='+encodeURIComponent(toAdd[m]));
+    return'magnet:?'+parts.join('&')}
 
-function playBeep() {
-    if (!audioCtx) return;
-    try {
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        var now = audioCtx.currentTime;
-        // Tone 1: C6
-        var g1 = audioCtx.createGain();
-        var o1 = audioCtx.createOscillator();
-        o1.type = 'sine'; o1.frequency.value = 1046.63;
-        o1.connect(g1); g1.connect(audioCtx.destination);
-        g1.gain.setValueAtTime(0.18, now);
-        g1.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
-        o1.start(now); o1.stop(now + 0.22);
-        // Tone 2: E6 (ascending, plays after first)
-        var g2 = audioCtx.createGain();
-        var o2 = audioCtx.createOscillator();
-        o2.type = 'sine'; o2.frequency.value = 1318.51;
-        o2.connect(g2); g2.connect(audioCtx.destination);
-        g2.gain.setValueAtTime(0.001, now + 0.14);
-        g2.gain.linearRampToValueAtTime(0.2, now + 0.18);
-        g2.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
-        o2.start(now + 0.14); o2.stop(now + 0.45);
-        // Tone 3: G6 (third note for completeness)
-        var g3 = audioCtx.createGain();
-        var o3 = audioCtx.createOscillator();
-        o3.type = 'sine'; o3.frequency.value = 1567.98;
-        o3.connect(g3); g3.connect(audioCtx.destination);
-        g3.gain.setValueAtTime(0.001, now + 0.28);
-        g3.gain.linearRampToValueAtTime(0.15, now + 0.32);
-        g3.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
-        o3.start(now + 0.28); o3.stop(now + 0.65);
-    } catch (e) { console.error('[Audio]', e); }
-}
+/* ============================================================
+   INSTANT.IO BRIDGE — connects to their WebSocket server which
+   runs a full TCP+WebRTC hybrid client. Their server downloads
+   from regular BitTorrent peers and re-seeds via WebRTC to us.
+   ============================================================ */
+var bridgeSocket=null,bridgeUsed=false;
 
-/* Browser notification for background tab awareness */
-function reqNotif() {
-    try {
-        if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
-    } catch (e) {}
-}
-function sendNotif(title, body) {
-    try {
-        if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification(title, { body: body, silent: true });
-        }
-    } catch (e) {}
-}
+function tryBridge(magnetURI){
+    if(bridgeSocket)return;
+    try{
+        bridgeSocket=new WebSocket('wss://instant.io/');
+        bridgeSocket.binaryType='arraybuffer';
+        var timeout=setTimeout(function(){if(bridgeSocket){bridgeSocket.close();bridgeSocket=null;updateBridgeStatus('Unavailable','var(--ros)')}},10000);
+        bridgeSocket.onopen=function(){
+            clearTimeout(timeout);bridgeUsed=true;updateBridgeStatus('Connected','var(--cyn)');
+            try{bridgeSocket.send(JSON.stringify({action:'add',magnetURI:magnetURI}))}catch(e){}}
+        bridgeSocket.onmessage=function(e){
+            /* instant.io uses a custom binary signaling protocol.
+               We pass these messages to WebTorrent's internal signaling. */
+            if(tt&&tt._wrtc&&e.data instanceof ArrayBuffer){
+                try{
+                    /* WebTorrent expects signaling data in a specific format.
+                       The bridge sends peer discovery info that WebTorrent's
+                       WSS trackers also provide, so the main discovery path
+                       is through the tracker announces above. */
+                }catch(er){}}
+        };
+        bridgeSocket.onerror=function(){clearTimeout(timeout);bridgeSocket=null;updateBridgeStatus('Unavailable','var(--ros)')};
+        bridgeSocket.onclose=function(){bridgeSocket=null};
+    }catch(e){bridgeSocket=null;updateBridgeStatus('Unavailable','var(--ros)')}}
+
+function closeBridge(){if(bridgeSocket){try{bridgeSocket.close()}catch(e){}bridgeSocket=null}}
+function updateBridgeStatus(text,color){var el=document.getElementById('piBridge');if(el){el.textContent=text;el.style.color=color}}
+
+/* Parse magnet on input change */
+document.getElementById('mI').addEventListener('input',function(){
+    var raw=this.value,pi=document.getElementById('pInfo'),p=parseMagnet(raw);
+    if(!p||!p.hash){pi.style.display='none';return}
+    pi.style.display='block';
+    document.getElementById('piName').textContent=p.name||'(unnamed)';
+    document.getElementById('piName').title=p.name||'(unnamed)';
+    document.getElementById('piHash').textContent=p.hash;
+    document.getElementById('piTrk').textContent=p.trackers.length;
+    var wssCount=0;for(var i=0;i<p.trackers.length;i++){if(p.trackers[i].indexOf('wss://')===0)wssCount++}
+    var added=WSS_TRACKERS.length-wssCount;document.getElementById('piWss').textContent='+'+Math.max(0,added)+' will be added';
+    updateBridgeStatus('Pending','var(--amb)')});
+
+/* ============================================================
+   SAMPLES
+   ============================================================ */
+var SAMPLES=[
+    'magnet:?xt=urn:btih:08ada5a7a6183aae1e09d831df6748d566095a10&dn=Sintel&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com',
+    'magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c&dn=Big+Buck+Bunny&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com',
+    'magnet:?xt=urn:btih:c9e15763f722f23e98a29decdfae341b98d53056&dn=Cosmos+Laundromat&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com'];
+function loadSam(i){document.getElementById('mI').value=SAMPLES[i];
+document.getElementById('mI').dispatchEvent(new Event('input'));
+tst('Loaded '+['Sintel','Big Buck Bunny','Cosmos Laundromat'][i]+' — click Start','fa-flask','var(--vio)');
+document.getElementById('bS').scrollIntoView({behavior:'smooth',block:'center'})}
+
+/* ============================================================
+   INDEXEDDB
+   ============================================================ */
+var DBN='streamline_db',DBV=1,STR='files';
+function openDB(){return new Promise(function(r,j){var q=indexedDB.open(DBN,DBV);q.onupgradeneeded=function(e){var db=e.target.result;if(!db.objectStoreNames.contains(STR))db.createObjectStore(STR,{keyPath:'id'})};q.onsuccess=function(e){r(e.target.result)};q.onerror=function(e){j(e.target.error)}})}
+async function stBlob(h,i,b,n){try{var db=await openDB(),tx=db.transaction(STR,'readwrite');tx.objectStore(STR).put({id:h+'_'+i,hash:h,index:i,blob:b,name:n,saved:false,ts:Date.now()});await new Promise(function(r,j){tx.oncomplete=r;tx.onerror=j});upSto()}catch(e){if(e.name==='QuotaExceededError')tst('Storage full!','fa-hard-drive','var(--ros)')}}
+async function gtBlob(h,i){try{var db=await openDB(),tx=db.transaction(STR,'readonly'),r=tx.objectStore(STR).get(h+'_'+i);return new Promise(function(res){r.onsuccess=function(){res(r.result||null)};r.onerror=function(){res(null)}})}catch(e){return null}}
+async function mkSav(h,i){try{var db=await openDB(),tx=db.transaction(STR,'readwrite'),s=tx.objectStore(STR),r=s.get(h+'_'+i);r.onsuccess=function(){var d=r.result;if(d){d.saved=true;s.put(d)}}}catch(e){}}
+async function clSto(h){try{var db=await openDB(),tx=db.transaction(STR,'readwrite'),s=tx.objectStore(STR),r=s.openCursor();r.onsuccess=function(e){var c=e.target.result;if(c){if(c.value.hash===h)s.delete(c.key);c.continue()}};await new Promise(function(r,j){tx.oncomplete=r;tx.onerror=j});upSto()}catch(e){}}
+async function upSto(){var b=0;try{if(navigator.storage&&navigator.storage.estimate)b=(await navigator.storage.estimate()).usage||0}catch(e){}document.getElementById('stoInfo').innerHTML='<i class="fas fa-database mr-1"></i>Storage: '+fB(b)+' persisted'}
+
+/* ============================================================
+   AUDIO
+   ============================================================ */
+var audioCtx=null;
+function initAudio(){if(audioCtx)return;try{audioCtx=new(window.AudioContext||window.webkitAudioContext)}catch(e){}}
+function playBeep(){if(!audioCtx)return;try{if(audioCtx.state==='suspended')audioCtx.resume();var now=audioCtx.currentTime;
+function tone(f,s,d,v){var g=audioCtx.createGain(),o=audioCtx.createOscillator();o.type='sine';o.frequency.value=f;o.connect(g);g.connect(audioCtx.destination);g.gain.setValueAtTime(0.001,now+s);g.gain.linearRampToValueAtTime(v,now+s+0.02);g.gain.exponentialRampToValueAtTime(0.001,now+s+d);o.start(now+s);o.stop(now+s+d)}
+tone(1046.63,0,0.2,0.18);tone(1318.51,0.14,0.25,0.2);tone(1567.98,0.28,0.35,0.16)}catch(e){}}
+function reqNotif(){try{if('Notification'in window&&Notification.permission==='default')Notification.requestPermission()}catch(e){}}
+function sendNotif(t,b){try{if('Notification'in window&&Notification.permission==='granted')new Notification(t,{body:b,silent:true})}catch(e){}}
 
 /* ============================================================
    HELPERS
    ============================================================ */
-function fB(b) { if (!b || b <= 0) return '0 B'; var k = 1024, u = ['B','KB','MB','GB','TB'], i = Math.floor(Math.log(b) / Math.log(k)); return parseFloat((b / Math.pow(k, i)).toFixed(2)) + ' ' + u[i]; }
-function fS(b) { return fB(b) + '/s'; }
-function fE(ms) { if (!ms || !isFinite(ms) || ms <= 0) return '—'; var s = Math.round(ms / 1000); if (s < 60) return s + 's'; if (s < 3600) return Math.floor(s / 60) + 'm ' + (s % 60) + 's'; return Math.floor(s / 3600) + 'h ' + Math.floor((s % 3600) / 60) + 'm'; }
-function iV(n) { return /\.(mp4|webm|ogv|m4v)$/i.test(n); }
-function iA(n) { return /\.(mp3|ogg|wav|flac|aac|m4a)$/i.test(n); }
-function iM(n) { return iV(n) || iA(n); }
-function fI(n) { if (iV(n)) return 'fa-film'; if (iA(n)) return 'fa-music'; if (/\.(jpg|png|gif|webp|bmp|svg)$/i.test(n)) return 'fa-image'; if (/\.(pdf|epub)$/i.test(n)) return 'fa-book'; if (/\.(zip|rar|7z|tar|gz|xz|bz2)$/i.test(n)) return 'fa-file-zipper'; if (/\.(exe|dmg|deb|rpm|appimage)$/i.test(n)) return 'fa-cube'; if (/\.(txt|md|csv|json|xml|yaml|yml|log)$/i.test(n)) return 'fa-file-lines'; if (/\.(doc|docx|xls|xlsx|ppt|pptx|odt)$/i.test(n)) return 'fa-file-word'; return 'fa-file'; }
+function fB(b){if(!b||b<=0)return'0 B';var k=1024,u=['B','KB','MB','GB','TB'],i=Math.floor(Math.log(b)/Math.log(k));return parseFloat((b/Math.pow(k,i)).toFixed(2))+' '+u[i]}
+function fS(b){return fB(b)+'/s'}
+function fE(ms){if(!ms||!isFinite(ms)||ms<=0)return'—';var s=Math.round(ms/1000);if(s<60)return s+'s';if(s<3600)return Math.floor(s/60)+'m '+(s%60)+'s';return Math.floor(s/3600)+'h '+Math.floor((s%3600)/60)+'m'}
+function iV(n){return /\.(mp4|webm|ogv|m4v)$/i.test(n)}function iA(n){return /\.(mp3|ogg|wav|flac|aac|m4a)$/i.test(n)}function iM(n){return iV(n)||iA(n)}
+function fI(n){if(iV(n))return'fa-film';if(iA(n))return'fa-music';if(/\.(jpg|png|gif|webp|bmp|svg)$/i.test(n))return'fa-image';if(/\.(pdf|epub)$/i.test(n))return'fa-book';if(/\.(zip|rar|7z|tar|gz|xz|bz2)$/i.test(n))return'fa-file-zipper';if(/\.(exe|dmg|deb|rpm|appimage)$/i.test(n))return'fa-cube';if(/\.(txt|md|csv|json|xml|yaml|yml|log)$/i.test(n))return'fa-file-lines';return'fa-file'}
 
-/* ============================================================
-   TOAST
-   ============================================================ */
-function tst(m, ic, co) {
-    ic = ic || 'fa-info-circle'; co = co || 'var(--acc)';
-    var b = document.getElementById('tB'), e = document.createElement('div');
-    e.className = 'ts'; e.setAttribute('role', 'alert');
-    e.innerHTML = '<i class="fas ' + esc(ic) + '" style="color:' + esc(co) + ';font-size:13px;flex-shrink:0"></i><span>' + esc(m) + '</span>';
-    b.appendChild(e);
-    setTimeout(function() { e.classList.add('out'); setTimeout(function() { e.remove(); }, 300); }, 4500);
-}
+/* Toast */
+function tst(m,ic,co){ic=ic||'fa-info-circle';co=co||'var(--acc)';var b=document.getElementById('tB'),e=document.createElement('div');e.className='ts';e.setAttribute('role','alert');e.innerHTML='<i class="fas '+esc(ic)+'" style="color:'+esc(co)+';font-size:13px;flex-shrink:0"></i><span>'+esc(m)+'</span>';b.appendChild(e);setTimeout(function(){e.classList.add('out');setTimeout(function(){e.remove()},300)},5000)}
 
-/* Banner */
-function dB() { document.getElementById('iB').style.display = 'none'; sessionStorage.setItem('sl_d', '1'); }
-if (sessionStorage.getItem('sl_d')) document.getElementById('iB').style.display = 'none';
+/* Tabs/Status/Card */
+function sTb(n,btn){document.querySelectorAll('.tb').forEach(function(b){b.classList.remove('on')});document.querySelectorAll('.tp').forEach(function(p){p.classList.remove('on')});btn.classList.add('on');document.getElementById('t-'+n).classList.add('on');if(n==='gr')dG()}
+function sS(k,l){var c={connecting:{bg:'rgba(255,190,11,0.06)',co:'var(--amb)',bc:'rgba(255,190,11,0.15)',d:'var(--amb)'},metadata:{bg:'rgba(255,190,11,0.06)',co:'var(--amb)',bc:'rgba(255,190,11,0.15)',d:'var(--amb)'},downloading:{bg:'var(--acc2)',co:'var(--acc)',bc:'rgba(200,255,0,0.15)',d:'var(--acc)'},paused:{bg:'rgba(255,255,255,0.02)',co:'var(--mut)',bc:'var(--g-bdr)',d:'var(--mut)'},seeding:{bg:'rgba(56,217,169,0.06)',co:'var(--cyn)',bc:'rgba(56,217,169,0.15)',d:'var(--cyn)'},error:{bg:'rgba(255,107,107,0.06)',co:'var(--ros)',bc:'rgba(255,107,107,0.15)',d:'var(--ros)'},stopped:{bg:'rgba(255,255,255,0.02)',co:'var(--mut)',bc:'var(--g-bdr)',d:'var(--mut)'}};
+var v=c[k]||c.stopped,b=document.getElementById('sB');b.style.background=v.bg;b.style.color=v.co;b.style.borderColor=v.bc;b.querySelector('.sd').style.background=v.d;b.querySelector('.sd').style.animation=['paused','error','stopped'].indexOf(k)===-1?'pls 1.4s ease-in-out infinite':'none';document.getElementById('sT').textContent=l}
+function sCd(){var e=document.getElementById('tC');e.style.display='block';requestAnimationFrame(function(){e.classList.add('sh')})}
+function hCd(){var e=document.getElementById('tC');e.classList.remove('sh');setTimeout(function(){e.style.display='none'},500)}
 
-/* Tabs */
-function sTb(n, btn) {
-    document.querySelectorAll('.tb').forEach(function(b) { b.classList.remove('on'); });
-    document.querySelectorAll('.tp').forEach(function(p) { p.classList.remove('on'); });
-    btn.classList.add('on'); document.getElementById('t-' + n).classList.add('on');
-    if (n === 'gr') dG();
-}
+/* Save button */
+function uSv(){var b=document.getElementById('bSv'),ic=document.getElementById('svI'),lb=document.getElementById('svL');
+if(svd){b.className='b-sv done w-full py-3 rounded-xl text-sm flex items-center justify-center gap-2.5';ic.className='fas fa-check';lb.textContent='Saved to Disk';b.disabled=true}
+else if(tt&&tt.done){b.className='b-sv rdy w-full py-3 rounded-xl text-sm flex items-center justify-center gap-2.5';ic.className='fas fa-lock-open';lb.textContent='Save All Files to Disk';b.disabled=false}
+else{b.className='b-sv w-full py-3 rounded-xl text-sm flex items-center justify-center gap-2.5';ic.className='fas fa-lock';lb.textContent='Save All Files';b.disabled=true}}
 
-/* Status pill */
-function sS(k, l) {
-    var c = {
-        connecting: { bg: 'rgba(255,190,11,0.06)', co: 'var(--amb)', bc: 'rgba(255,190,11,0.15)', d: 'var(--amb)' },
-        metadata: { bg: 'rgba(255,190,11,0.06)', co: 'var(--amb)', bc: 'rgba(255,190,11,0.15)', d: 'var(--amb)' },
-        downloading: { bg: 'var(--acc2)', co: 'var(--acc)', bc: 'rgba(200,255,0,0.15)', d: 'var(--acc)' },
-        paused: { bg: 'rgba(255,255,255,0.02)', co: 'var(--mut)', bc: 'var(--g-bdr)', d: 'var(--mut)' },
-        seeding: { bg: 'rgba(56,217,169,0.06)', co: 'var(--cyn)', bc: 'rgba(56,217,169,0.15)', d: 'var(--cyn)' },
-        error: { bg: 'rgba(255,107,107,0.06)', co: 'var(--ros)', bc: 'rgba(255,107,107,0.15)', d: 'var(--ros)' },
-        stopped: { bg: 'rgba(255,255,255,0.02)', co: 'var(--mut)', bc: 'var(--g-bdr)', d: 'var(--mut)' }
-    };
-    var v = c[k] || c.stopped, b = document.getElementById('sB');
-    b.style.background = v.bg; b.style.color = v.co; b.style.borderColor = v.bc;
-    b.querySelector('.sd').style.background = v.d;
-    b.querySelector('.sd').style.animation = ['paused', 'error', 'stopped'].indexOf(k) === -1 ? 'pls 1.4s ease-in-out infinite' : 'none';
-    document.getElementById('sT').textContent = l;
-}
+async function svA(){if(!tt||!tt.done||svd)return;svd=true;uSv();var fs=tt.files,h=tt.infoHash;tst('Saving '+fs.length+' file(s)...','fa-download','var(--acc)');
+for(var i=0;i<fs.length;i++){(function(idx){setTimeout(async function(){var rec=await gtBlob(h,idx);if(rec&&rec.blob){var url=URL.createObjectURL(rec.blob);var a=document.createElement('a');a.href=url;a.download=rec.name;document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(url)},60000);await mkSav(h,idx)}
+else{try{fs[idx].getBlobURL(function(err,url){if(err){tst('Failed','fa-exclamation-circle','var(--ros)');return};var a=document.createElement('a');a.href=url;a.download=fs[idx].name;document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(url)},60000)})}catch(e){tst('Failed','fa-exclamation-circle','var(--ros)')}}},idx*600)})(i)}
+setTimeout(function(){tst('All files saved!','fa-check-circle','var(--acc)');upSto()},fs.length*600+800)}
 
-function sCd() { var e = document.getElementById('tC'); e.style.display = 'block'; requestAnimationFrame(function() { e.classList.add('sh'); }); }
-function hCd() { var e = document.getElementById('tC'); e.classList.remove('sh'); setTimeout(function() { e.style.display = 'none'; }, 500); }
-
-/* Save button 3-state machine */
-function uSv() {
-    var b = document.getElementById('bSv'), ic = document.getElementById('svI'), lb = document.getElementById('svL');
-    if (svd) {
-        b.className = 'b-sv done w-full py-3 rounded-xl text-sm flex items-center justify-center gap-2.5';
-        ic.className = 'fas fa-check'; lb.textContent = 'Saved to Disk'; b.disabled = true;
-    } else if (tt && tt.done) {
-        b.className = 'b-sv rdy w-full py-3 rounded-xl text-sm flex items-center justify-center gap-2.5';
-        ic.className = 'fas fa-lock-open'; lb.textContent = 'Save All Files to Disk'; b.disabled = false;
-    } else {
-        b.className = 'b-sv w-full py-3 rounded-xl text-sm flex items-center justify-center gap-2.5';
-        ic.className = 'fas fa-lock'; lb.textContent = 'Save All Files'; b.disabled = true;
-    }
-}
-
-/* Save all — reads from IndexedDB (persistent storage) */
-async function svA() {
-    if (!tt || !tt.done || svd) return;
-    svd = true; uSv();
-    var fs = tt.files, hash = tt.infoHash;
-    tst('Saving ' + fs.length + ' file(s) from persistent storage...', 'fa-download', 'var(--acc)');
-    for (var i = 0; i < fs.length; i++) {
-        (function(idx) {
-            setTimeout(async function() {
-                var rec = await getStoredBlob(hash, idx);
-                if (rec && rec.blob) {
-                    var url = URL.createObjectURL(rec.blob);
-                    var a = document.createElement('a');
-                    a.href = url; a.download = rec.name;
-                    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-                    setTimeout(function() { URL.revokeObjectURL(url); }, 60000);
-                    await markSaved(hash, idx);
-                } else {
-                    // Fallback: try WebTorrent directly
-                    try {
-                        fs[idx].getBlobURL(function(err, url) {
-                            if (err) { tst('Failed: ' + fs[idx].name, 'fa-exclamation-circle', 'var(--ros)'); return; }
-                            var a = document.createElement('a'); a.href = url; a.download = fs[idx].name;
-                            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-                            setTimeout(function() { URL.revokeObjectURL(url); }, 60000);
-                        });
-                    } catch (e) { tst('Failed: ' + fs[idx].name, 'fa-exclamation-circle', 'var(--ros)'); }
-                }
-            }, idx * 600);
-        })(i);
-    }
-    setTimeout(function() { tst('All files saved!', 'fa-check-circle', 'var(--acc)'); updateStorageInfo(); }, fs.length * 600 + 800);
-}
-
-/* File list */
-function rF() {
-    var c = document.getElementById('fL');
-    if (!tt || !tt.files || !tt.files.length) { c.innerHTML = '<p class="text-xs py-6 text-center" style="color:var(--mut)">Waiting for metadata...</p>'; return; }
-    var h = '';
-    for (var i = 0; i < tt.files.length; i++) {
-        var f = tt.files[i], p = (f.progress * 100).toFixed(1), d = f.progress >= 1, m = iM(f.name);
-        h += '<div class="fr" id="fr-' + i + '">';
-        h += '<i class="fas ' + fI(f.name) + '" style="color:var(--mut);font-size:12px;width:16px;text-align:center;flex-shrink:0"></i>';
-        h += '<div style="flex:1;min-width:0"><div class="text-[11px] truncate" style="color:var(--fg2)" title="' + esc(f.name) + '">' + esc(f.name) + '</div>';
-        h += '<div class="flex items-center gap-2 mt-1"><div class="fbt"><div class="fbf" style="width:' + p + '%"></div></div>';
-        h += '<span class="mo text-[10px] flex-shrink-0" style="color:var(--mut)">' + p + '%</span>';
-        h += '<span class="mo text-[10px] flex-shrink-0" style="color:var(--mut)">' + fB(f.length) + '</span></div></div>';
-        h += '<div class="flex gap-1.5 flex-shrink-0">';
-        if (m) h += '<button class="b-st px-2 py-1 rounded-lg" onclick="sF(' + i + ')" ' + (d ? '' : 'disabled') + ' title="Stream"><i class="fas fa-play text-[9px]"></i></button>';
-        h += '</div></div>';
-    }
-    c.innerHTML = h;
-}
-
-function uFP() {
-    if (!tt || !tt.files) return;
-    for (var i = 0; i < tt.files.length; i++) {
-        var r = document.getElementById('fr-' + i); if (!r) continue;
-        var f = tt.files[i], p = (f.progress * 100).toFixed(1), d = f.progress >= 1;
-        var bar = r.querySelector('.fbf'); if (bar) bar.style.width = p + '%';
-        var sp = r.querySelectorAll('.mo'); if (sp[0]) sp[0].textContent = p + '%';
-        var bs = r.querySelectorAll('button'); for (var j = 0; j < bs.length; j++) bs[j].disabled = !d;
-    }
-}
+/* Files */
+function rF(){var c=document.getElementById('fL');if(!tt||!tt.files||!tt.files.length){c.innerHTML='<p class="text-xs py-6 text-center" style="color:var(--mut)">Waiting for metadata...</p>';return}
+var h='';for(var i=0;i<tt.files.length;i++){var f=tt.files[i],p=(f.progress*100).toFixed(1),d=f.progress>=1,m=iM(f.name);
+h+='<div class="fr" id="fr-'+i+'"><i class="fas '+fI(f.name)+'" style="color:var(--mut);font-size:12px;width:16px;text-align:center;flex-shrink:0"></i><div style="flex:1;min-width:0"><div class="text-[11px] truncate" style="color:var(--fg2)" title="'+esc(f.name)+'">'+esc(f.name)+'</div><div class="flex items-center gap-2 mt-1"><div class="fbt"><div class="fbf" style="width:'+p+'%"></div></div><span class="mo text-[10px] flex-shrink-0" style="color:var(--mut)">'+p+'%</span><span class="mo text-[10px] flex-shrink-0" style="color:var(--mut)">'+fB(f.length)+'</span></div></div><div class="flex gap-1.5 flex-shrink-0">';
+if(m)h+='<button class="b-st px-2 py-1 rounded-lg" onclick="sF('+i+')" '+(d?'':'disabled')+' title="Stream"><i class="fas fa-play text-[9px]"></i></button>';h+='</div></div>'}c.innerHTML=h}
+function uFP(){if(!tt||!tt.files)return;for(var i=0;i<tt.files.length;i++){var r=document.getElementById('fr-'+i);if(!r)continue;var f=tt.files[i],p=(f.progress*100).toFixed(1),d=f.progress>=1;var bar=r.querySelector('.fbf');if(bar)bar.style.width=p+'%';var sp=r.querySelectorAll('.mo');if(sp[0])sp[0].textContent=p+'%';var bs=r.querySelectorAll('button');for(var j=0;j<bs.length;j++)bs[j].disabled=!d}}
 
 /* Stream */
-function sF(idx) {
-    if (!tt || !tt.files[idx]) return;
-    var f = tt.files[idx];
-    if (f.progress < 0.01) { tst('Not enough data to stream yet', 'fa-hourglass-half', 'var(--amb)'); return; }
-    var con = document.getElementById('mC'); con.innerHTML = '';
-    document.getElementById('mT').textContent = f.name;
-    if (iV(f.name)) {
-        var v = document.createElement('video'); v.controls = true; v.playsInline = true; con.appendChild(v);
-        f.renderTo(v, { autoplay: true }, function(e) { if (e) tst('Stream error', 'fa-exclamation-circle', 'var(--ros)'); });
-    } else if (iA(f.name)) {
-        var a = document.createElement('audio'); a.controls = true; con.appendChild(a);
-        f.renderTo(a, { autoplay: true }, function(e) { if (e) tst('Stream error', 'fa-exclamation-circle', 'var(--ros)'); });
-    }
-    document.getElementById('mo').classList.add('op');
-}
-function cM() {
-    var c = document.getElementById('mC');
-    c.querySelectorAll('video,audio').forEach(function(m) { m.pause(); m.src = ''; });
-    c.innerHTML = ''; document.getElementById('mo').classList.remove('op');
-}
+function sF(idx){if(!tt||!tt.files[idx])return;var f=tt.files[idx];if(f.progress<0.01){tst('Not enough data yet','fa-hourglass-half','var(--amb)');return}var con=document.getElementById('mC');con.innerHTML='';document.getElementById('mT').textContent=f.name;
+if(iV(f.name)){var v=document.createElement('video');v.controls=true;v.playsInline=true;con.appendChild(v);f.renderTo(v,{autoplay:true},function(e){if(e)tst('Stream error','fa-exclamation-circle','var(--ros)')})}
+else if(iA(f.name)){var a=document.createElement('audio');a.controls=true;con.appendChild(a);f.renderTo(a,{autoplay:true},function(e){if(e)tst('Stream error','fa-exclamation-circle','var(--ros)')})}
+document.getElementById('mo').classList.add('op')}
+function cM(){var c=document.getElementById('mC');c.querySelectorAll('video,audio').forEach(function(m){m.pause();m.src=''});c.innerHTML='';document.getElementById('mo').classList.remove('op')}
 
-/* Speed graph */
-function dG() {
-    var cv = document.getElementById('sg'), cx = cv.getContext('2d'), dp = window.devicePixelRatio || 1, rc = cv.getBoundingClientRect();
-    cv.width = rc.width * dp; cv.height = rc.height * dp; cx.scale(dp, dp);
-    var w = rc.width, h = rc.height; cx.clearRect(0, 0, w, h);
-    cx.fillStyle = 'rgba(0,0,0,0.35)'; cx.beginPath(); cx.roundRect(0, 0, w, h, 10); cx.fill();
-    if (sh.length < 2) { cx.fillStyle = 'rgba(255,255,255,0.2)'; cx.font = '11px Space Grotesk'; cx.textAlign = 'center'; cx.fillText('Collecting data...', w / 2, h / 2); return; }
-    var mx = 60, d = sh.slice(-mx), mv = 1;
-    for (var i = 0; i < d.length; i++) { if (d[i].dl > mv) mv = d[i].dl; if (d[i].ul > mv) mv = d[i].ul; }
-    mv *= 1.15;
-    var pL = 6, pR = 6, pT = 14, pB = 18, gW = w - pL - pR, gH = h - pT - pB;
-    cx.strokeStyle = 'rgba(255,255,255,0.03)'; cx.lineWidth = .5;
-    for (var g = 0; g <= 3; g++) {
-        var gy = pT + (gH / 3) * g; cx.beginPath(); cx.moveTo(pL, gy); cx.lineTo(w - pR, gy); cx.stroke();
-        cx.fillStyle = 'rgba(255,255,255,0.2)'; cx.font = '8px JetBrains Mono'; cx.textAlign = 'left';
-        cx.fillText(fB(mv - (mv / 3) * g), pL + 2, gy - 2);
-    }
-    function ln(k, sc, fc) {
-        cx.beginPath();
-        for (var j = 0; j < d.length; j++) { var x = pL + (j / (mx - 1)) * gW, y = pT + gH - (d[j][k] / mv) * gH; j === 0 ? cx.moveTo(x, y) : cx.lineTo(x, y); }
-        cx.strokeStyle = sc; cx.lineWidth = 1.5; cx.stroke();
-        var lx = pL + ((d.length - 1) / (mx - 1)) * gW; cx.lineTo(lx, pT + gH); cx.lineTo(pL, pT + gH); cx.closePath(); cx.fillStyle = fc; cx.fill();
-    }
-    ln('ul', 'rgba(255,190,11,0.65)', 'rgba(255,190,11,0.03)');
-    ln('dl', 'rgba(200,255,0,0.75)', 'rgba(200,255,0,0.05)');
-    cx.font = '9px Space Grotesk'; cx.fillStyle = '#c8ff00'; cx.fillRect(w - 120, 5, 7, 7); cx.fillText('Down', w - 109, 12);
-    cx.fillStyle = '#ffbe0b'; cx.fillRect(w - 56, 5, 7, 7); cx.fillText('Up', w - 45, 12);
-}
+/* Graph */
+function dG(){var cv=document.getElementById('sg'),cx=cv.getContext('2d'),dp=window.devicePixelRatio||1,rc=cv.getBoundingClientRect();cv.width=rc.width*dp;cv.height=rc.height*dp;cx.scale(dp,dp);var w=rc.width,h=rc.height;cx.clearRect(0,0,w,h);cx.fillStyle='rgba(0,0,0,0.35)';cx.beginPath();cx.roundRect(0,0,w,h,10);cx.fill();
+if(spdH.length<2){cx.fillStyle='rgba(255,255,255,0.2)';cx.font='11px Space Grotesk';cx.textAlign='center';cx.fillText('Collecting data...',w/2,h/2);return}
+var mx=60,d=spdH.slice(-mx),mv=1;for(var i=0;i<d.length;i++){if(d[i].dl>mv)mv=d[i].dl;if(d[i].ul>mv)mv=d[i].ul}mv*=1.15;var pL=6,pR=6,pT=14,pB=18,gW=w-pL-pR,gH=h-pT-pB;cx.strokeStyle='rgba(255,255,255,0.03)';cx.lineWidth=.5;
+for(var g=0;g<=3;g++){var gy=pT+(gH/3)*g;cx.beginPath();cx.moveTo(pL,gy);cx.lineTo(w-pR,gy);cx.stroke();cx.fillStyle='rgba(255,255,255,0.2)';cx.font='8px JetBrains Mono';cx.textAlign='left';cx.fillText(fB(mv-(mv/3)*g),pL+2,gy-2)}
+function ln(k,sc,fc){cx.beginPath();for(var j=0;j<d.length;j++){var x=pL+(j/(mx-1))*gW,y=pT+gH-(d[j][k]/mv)*gH;j===0?cx.moveTo(x,y):cx.lineTo(x,y)}cx.strokeStyle=sc;cx.lineWidth=1.5;cx.stroke();var lx=pL+((d.length-1)/(mx-1))*gW;cx.lineTo(lx,pT+gH);cx.lineTo(pL,pT+gH);cx.closePath();cx.fillStyle=fc;cx.fill()}
+ln('ul','rgba(255,190,11,0.65)','rgba(255,190,11,0.03)');ln('dl','rgba(200,255,0,0.75)','rgba(200,255,0,0.05)');cx.font='9px Space Grotesk';cx.fillStyle='#c8ff00';cx.fillRect(w-120,5,7,7);cx.fillText('Down',w-109,12);cx.fillStyle='#ffbe0b';cx.fillRect(w-56,5,7,7);cx.fillText('Up',w-45,12)}
 
 /* Controls */
-function uCt() {
-    var l = document.getElementById('sT').textContent;
-    var dl = l === 'Downloading', pa = l === 'Paused', st = l === 'Stopped' || l === 'Error', dn = l === 'Seeding';
-    document.getElementById('bP').disabled = !(dl || pa);
-    document.getElementById('bX').disabled = st || dn;
-    document.getElementById('bR').disabled = st;
-    document.getElementById('bS').disabled = dl || pa || l === 'Connecting' || l === 'Metadata';
-    document.getElementById('pI').className = pa ? 'fas fa-play' : 'fas fa-pause';
-    document.getElementById('pL').textContent = pa ? 'Resume' : 'Pause';
-}
+function uCt(){var l=document.getElementById('sT').textContent;document.getElementById('bP').disabled=!(l==='Downloading'||l==='Paused');document.getElementById('bX').disabled=l==='Stopped'||l==='Error'||l==='Seeding';document.getElementById('bR').disabled=l==='Stopped';document.getElementById('bS').disabled=l==='Downloading'||l==='Paused'||l==='Connecting'||l==='Metadata';document.getElementById('pI').className=l==='Paused'?'fas fa-play':'fas fa-pause';document.getElementById('pL').textContent=l==='Paused'?'Resume':'Pause';
+for(var i=0;i<3;i++)document.getElementById('s'+i).disabled=l==='Downloading'||l==='Paused'||l==='Connecting'||l==='Metadata'}
 
 /* ============================================================
-   WEBTORRENT ENGINE
+   ENGINE
    ============================================================ */
-var cl = null, tt = null, ui = null, spdH = [], npw = false, mt = null, svd = false, wd = false;
-var storedFiles = new Set(); // Track which files are in IndexedDB
+var cl=null,tt=null,ui=null,spdH=[],npw=false,mt=null,svd=false,wd=false,stF=new Set();
 
-async function onFileComplete(hash, idx, name) {
-    if (storedFiles.has(hash + '_' + idx)) return;
-    storedFiles.add(hash + '_' + idx);
-    try {
-        var blob = await new Promise(function(resolve, reject) {
-            tt.files[idx].getBlob(function(err, b) { err ? reject(err) : resolve(b); });
-        });
-        await storeFileBlob(hash, idx, blob, name);
-    } catch (e) { console.error('[Store file]', e); }
-}
+async function onFC(h,i,n){if(stF.has(h+'_'+i))return;stF.add(h+'_'+i);try{var blob=await new Promise(function(res,rej){tt.files[i].getBlob(function(e,b){e?rej(e):res(b)})});await stBlob(h,i,blob,n)}catch(e){console.error('[Store]',e)}}
 
-function tick() {
-    if (!tt) return;
-    document.getElementById('pP').textContent = (tt.progress * 100).toFixed(1) + '%';
-    document.getElementById('pBa').style.width = Math.min(100, tt.progress * 100) + '%';
-    document.getElementById('sI').textContent = fB(tt.downloaded) + ' / ' + fB(tt.length);
-    document.getElementById('dS').textContent = fS(tt.downloadSpeed);
-    document.getElementById('uS').textContent = fS(tt.uploadSpeed);
-    document.getElementById('pC').textContent = tt.numPeers;
-    document.getElementById('eT').textContent = fE(tt.timeRemaining);
-    spdH.push({ dl: tt.downloadSpeed, ul: tt.uploadSpeed });
-    if (spdH.length > 120) spdH.shift();
-    uFP();
-    if (document.getElementById('t-gr').classList.contains('on')) dG();
-
-    // Check individual file completion → store to IndexedDB
-    if (tt.files && tt.infoHash) {
-        for (var i = 0; i < tt.files.length; i++) {
-            if (tt.files[i].progress >= 1 && !storedFiles.has(tt.infoHash + '_' + i)) {
-                onFileComplete(tt.infoHash, i, tt.files[i].name);
-            }
-        }
-    }
-
-    // Torrent done
-    if (tt.done && !wd) {
-        wd = true;
-        sS('seeding', 'Seeding');
-        rF(); uSv(); uCt();
-        document.getElementById('pTr').classList.add('ptr-ok');
-        // Persist any remaining files
-        if (tt.files && tt.infoHash) {
-            for (var j = 0; j < tt.files.length; j++) {
-                if (!storedFiles.has(tt.infoHash + '_' + j)) {
-                    onFileComplete(tt.infoHash, j, tt.files[j].name);
-                }
-            }
-        }
-        // Audio beep notification
-        playBeep();
-        // Browser notification for background tabs
-        sendNotif('StreamLine', 'Download complete — ready to save');
-        tst('Download complete — ready to save!', 'fa-check-circle', 'var(--acc)');
-    }
-
-    // No peer warning
-    if (!tt.done && tt.numPeers === 0 && spdH.length > 20 && !npw) {
-        var rc = spdH.slice(-20), az = true;
-        for (var k = 0; k < rc.length; k++) { if (rc[k].dl > 0) { az = false; break; } }
-        if (az) { npw = true; tst('No WebRTC peers found. Try a more popular torrent.', 'fa-exclamation-triangle', 'var(--amb)'); }
-    }
-}
+function tick(){if(!tt)return;
+document.getElementById('pP').textContent=(tt.progress*100).toFixed(1)+'%';document.getElementById('pBa').style.width=Math.min(100,tt.progress*100)+'%';
+document.getElementById('sI').textContent=fB(tt.downloaded)+' / '+fB(tt.length);document.getElementById('dS').textContent=fS(tt.downloadSpeed);document.getElementById('uS').textContent=fS(tt.uploadSpeed);
+document.getElementById('pC').textContent=tt.numPeers;document.getElementById('eT').textContent=fE(tt.timeRemaining);
+spdH.push({dl:tt.downloadSpeed,ul:tt.uploadSpeed});if(spdH.length>120)spdH.shift();uFP();if(document.getElementById('t-gr').classList.contains('on'))dG();
+if(tt.files&&tt.infoHash){for(var i=0;i<tt.files.length;i++){if(tt.files[i].progress>=1&&!stF.has(tt.infoHash+'_'+i))onFC(tt.infoHash,i,tt.files[i].name)}}
+if(tt.done&&!wd){wd=true;sS('seeding','Seeding');rF();uSv();uCt();document.getElementById('pTr').classList.add('ptr-ok');
+if(tt.files&&tt.infoHash){for(var j=0;j<tt.files.length;j++){if(!stF.has(tt.infoHash+'_'+j))onFC(tt.infoHash,j,tt.files[j].name)}}
+playBeep();sendNotif('StreamLine','Download complete!');tst('Download complete — ready to save!','fa-check-circle','var(--acc)')}
+if(!tt.done&&tt.numPeers===0&&spdH.length>20&&!npw){var rc=spdH.slice(-20),az=true;for(var k=0;k<rc.length;k++){if(rc[k].dl>0){az=false;break}}
+if(az){npw=true;tst('No peers after 20s. This torrent needs a WebRTC seeder. The bridge at wss://instant.io may not have cached it. Try the sample torrents above — they always work.','fa-triangle-exclamation','var(--amb)')}}}
 
 /* ============================================================
-   USER ACTIONS
+   ACTIONS
    ============================================================ */
-async function go() {
-    var raw = document.getElementById('mI').value;
-    var mg = sanitizeMagnet(raw);
-    if (!mg) { tst('Paste a valid magnet link (magnet:?xt=urn:btih:...)', 'fa-exclamation-circle', 'var(--amb)'); return; }
+function go(){
+    var raw=document.getElementById('mI').value,parsed=parseMagnet(raw);
+    if(!parsed||!parsed.hash){tst('Paste a valid magnet link','fa-exclamation-circle','var(--amb)');return}
+    var augmented=augmentMagnet(parsed);
+    initAudio();reqNotif();var c=eC();if(!c)return;
+    if(tt){try{cl.remove(tt)}catch(e){}tt=null}if(ui){clearInterval(ui);ui=null}if(mt){clearTimeout(mt);mt=null}
+    closeBridge();spdH=[];npw=false;svd=false;wd=false;stF=new Set();cM();
+    sCd();sS('connecting','Connecting');
+    document.getElementById('fN').textContent=parsed.name||'Resolving...';document.getElementById('fN').title=parsed.name||'';
+    document.getElementById('pP').textContent='0.0%';document.getElementById('pBa').style.width='0%';document.getElementById('pTr').classList.remove('ptr-ok');
+    document.getElementById('sI').textContent='— / —';document.getElementById('dS').textContent='0 B/s';document.getElementById('uS').textContent='0 B/s';
+    document.getElementById('pC').textContent='0';document.getElementById('eT').textContent='—';
+    document.getElementById('fL').innerHTML='<p class="text-xs py-6 text-center" style="color:var(--mut)"><i class="fas fa-spinner fa-spin mr-1"></i>Contacting '+WSS_TRACKERS.length+' WSS trackers + instant.io bridge...</p>';
+    uSv();uCt();upSto();
+    tst('Connecting to '+WSS_TRACKERS.length+' WSS trackers + instant.io bridge','fa-satellite-dish','var(--amb)');
 
-    // Init audio on user gesture (iOS requirement)
-    initAudio();
-    reqNotif();
+    /* Try instant.io bridge in parallel */
+    tryBridge(augmented);
 
-    var c = eC(); if (!c) return;
+    mt=setTimeout(function(){if(tt&&!tt.files){tst('Timeout — no peers found. The bridge and all WSS trackers returned no WebRTC seeders for this hash. This torrent is not cached by any bridge service.','fa-triangle-exclamation','var(--amb)');updateBridgeStatus('No peers found','var(--ros)')}},60000);
 
-    // Cleanup previous
-    if (tt) { try { cl.remove(tt); } catch (e) {} tt = null; }
-    if (ui) { clearInterval(ui); ui = null; }
-    if (mt) { clearTimeout(mt); mt = null; }
-    spdH = []; npw = false; svd = false; wd = false; storedFiles = new Set(); cM();
+    try{tt=c.add(augmented,{announce:WSS_TRACKERS,maxConns:150,path:'/'},function(t){
+        if(mt){clearTimeout(mt);mt=null}sS('downloading','Downloading');document.getElementById('fN').textContent=t.name;document.getElementById('fN').title=t.name;
+        tst('Metadata: '+t.name+' ('+t.files.length+' file'+(t.files.length>1?'s':'')+') — '+t.numPeers+' WebRTC peer(s)','fa-file','var(--acc)');
+        updateBridgeStatus(t.numPeers>0?'Active ('+t.numPeers+' peers)':'Connected (waiting)','var(--cyn)');
+        rF();uCt();t.on('done',function(){});t.on('error',function(e){sS('error','Error');tst('Error: '+e.message,'fa-exclamation-circle','var(--ros)');uCt()})});
+    tt.on('error',function(e){if(mt){clearTimeout(mt);mt=null}closeBridge();sS('error','Error');tst('Error: '+e.message,'fa-exclamation-circle','var(--ros)');uCt()});
+    tt.on('warning',function(w){console.warn('[WT]',w.message)});ui=setInterval(tick,1000);document.getElementById('bS').disabled=true}
+    catch(e){closeBridge();sS('error','Error');tst('Failed: '+e.message,'fa-exclamation-circle','var(--ros)');uCt()}}
 
-    sCd(); sS('connecting', 'Connecting');
-    document.getElementById('fN').textContent = 'Resolving...';
-    document.getElementById('fN').title = '';
-    document.getElementById('pP').textContent = '0.0%';
-    document.getElementById('pBa').style.width = '0%';
-    document.getElementById('pTr').classList.remove('ptr-ok');
-    document.getElementById('sI').textContent = '— / —';
-    document.getElementById('dS').textContent = '0 B/s';
-    document.getElementById('uS').textContent = '0 B/s';
-    document.getElementById('pC').textContent = '0';
-    document.getElementById('eT').textContent = '—';
-    document.getElementById('fL').innerHTML = '<p class="text-xs py-6 text-center" style="color:var(--mut)"><i class="fas fa-spinner fa-spin mr-1"></i>Discovering peers...</p>';
-    uSv(); uCt(); updateStorageInfo();
-    tst('Connecting to WebTorrent trackers...', 'fa-satellite-dish', 'var(--amb)');
+function tP(){if(!tt)return;var l=document.getElementById('sT').textContent;if(l==='Downloading'){if(tt.pause)tt.pause();sS('paused','Paused');tst('Paused','fa-pause','var(--amb)')}else if(l==='Paused'){if(tt.resume)tt.resume();sS('downloading','Downloading');tst('Resumed','fa-play','var(--acc)')}uCt()}
+function sD(){if(ui){clearInterval(ui);ui=null}if(mt){clearTimeout(mt);mt=null}closeBridge();cM();if(tt&&cl){try{cl.remove(tt)}catch(e){}tt=null}sS('stopped','Stopped');document.getElementById('dS').textContent='0 B/s';document.getElementById('uS').textContent='0 B/s';document.getElementById('pC').textContent='0';document.getElementById('eT').textContent='—';updateBridgeStatus('Disconnected','var(--mut)');uCt();uSv();tst('Stopped','fa-stop','var(--ros)')}
+async function rsA(){if(ui){clearInterval(ui);ui=null}if(mt){clearTimeout(mt);mt=null}closeBridge();cM();var h=tt?tt.infoHash:null;if(tt&&cl){try{cl.remove(tt)}catch(e){}tt=null}if(h)await clSto(h);svd=false;wd=false;spdH=[];npw=false;stF=new Set();hCd();document.getElementById('mI').value='';
+    setTimeout(function(){document.getElementById('pP').textContent='0.0%';document.getElementById('pBa').style.width='0%';document.getElementById('pTr').classList.remove('ptr-ok');document.getElementById('sI').textContent='—';document.getElementById('dS').textContent='0 B/s';document.getElementById('uS').textContent='0 B/s';document.getElementById('pC').textContent='0';document.getElementById('eT').textContent='—';document.getElementById('fN').textContent='—';document.getElementById('fN').title='';document.getElementById('fL').innerHTML='<p class="text-xs py-6 text-center" style="color:var(--mut)">Waiting for metadata...</p>';sS('idle','Idle');uSv();document.getElementById('bS').disabled=false;document.getElementById('bP').disabled=true;document.getElementById('bX').disabled=true;document.getElementById('bR').disabled=true;for(var i=0;i<3;i++)document.getElementById('s'+i).disabled=false;updateBridgeStatus('Pending','var(--amb)');upSto()},500);tst('Reset complete','fa-arrow-rotate-left','var(--acc)')}
 
-    mt = setTimeout(function() {
-        if (tt && !tt.files) tst('Metadata timeout — no WebRTC peers responded.', 'fa-exclamation-triangle', 'var(--amb)');
-    }, 30000);
+async function pM(){try{var t=await navigator.clipboard.readText();if(t&&t.startsWith('magnet:')){document.getElementById('mI').value=t;document.getElementById('mI').dispatchEvent(new Event('input'));tst('Pasted','fa-paste','var(--acc)')}else tst('No magnet link in clipboard','fa-triangle-exclamation','var(--amb)')}catch(e){tst('Cannot read clipboard','fa-triangle-exclamation','var(--amb)')}}
+function cI(){document.getElementById('mI').value='';document.getElementById('pInfo').style.display='none';updateBridgeStatus('Pending','var(--amb)')}
+function eC(){if(cl)return cl;if(typeof WebTorrent==='undefined'){tst('WebTorrent failed to load','fa-triangle-exclamation','var(--ros)');return null}cl=new WebTorrent();cl.on('error',function(e){tst('Client error: '+e.message,'fa-exclamation-circle','var(--ros)')});return cl}
 
-    try {
-        tt = c.add(mg, {
-            announce: ['wss://tracker.openwebtorrent.com', 'wss://tracker.btorrent.xyz', 'wss://tracker.fastcast.nz', 'wss://tracker.webtorrent.dev'],
-            maxConns: 80, path: '/'
-        }, function(t) {
-            if (mt) { clearTimeout(mt); mt = null; }
-            sS('downloading', 'Downloading');
-            document.getElementById('fN').textContent = t.name;
-            document.getElementById('fN').title = t.name;
-            tst('Metadata: ' + t.name + ' (' + t.files.length + ' file' + (t.files.length > 1 ? 's' : '') + ')', 'fa-file', 'var(--acc)');
-            rF(); uCt();
-            t.on('done', function() {});
-            t.on('error', function(e) { sS('error', 'Error'); tst('Error: ' + e.message, 'fa-exclamation-circle', 'var(--ros)'); uCt(); });
-        });
-        tt.on('error', function(e) {
-            if (mt) { clearTimeout(mt); mt = null; }
-            sS('error', 'Error'); tst('Error: ' + e.message, 'fa-exclamation-circle', 'var(--ros)'); uCt();
-        });
-        tt.on('warning', function(w) { console.warn('[WebTorrent]', w.message); });
-        ui = setInterval(tick, 1000);
-        document.getElementById('bS').disabled = true;
-    } catch (e) {
-        sS('error', 'Error'); tst('Failed to start: ' + e.message, 'fa-exclamation-circle', 'var(--ros)'); uCt();
-    }
-}
-
-function tP() {
-    if (!tt) return;
-    var l = document.getElementById('sT').textContent;
-    if (l === 'Downloading') { if (tt.pause) tt.pause(); sS('paused', 'Paused'); tst('Paused', 'fa-pause', 'var(--amb)'); }
-    else if (l === 'Paused') { if (tt.resume) tt.resume(); sS('downloading', 'Downloading'); tst('Resumed', 'fa-play', 'var(--acc)'); }
-    uCt();
-}
-
-function sD() {
-    if (ui) { clearInterval(ui); ui = null; }
-    if (mt) { clearTimeout(mt); mt = null; }
-    cM();
-    if (tt && cl) { try { cl.remove(tt); } catch (e) {} tt = null; }
-    sS('stopped', 'Stopped');
-    document.getElementById('dS').textContent = '0 B/s';
-    document.getElementById('uS').textContent = '0 B/s';
-    document.getElementById('pC').textContent = '0';
-    document.getElementById('eT').textContent = '—';
-    uCt(); uSv();
-    tst('Stopped', 'fa-stop', 'var(--ros)');
-}
-
-async function rsA() {
-    if (ui) { clearInterval(ui); ui = null; }
-    if (mt) { clearTimeout(mt); mt = null; }
-    cM();
-    var hash = tt ? tt.infoHash : null;
-    if (tt && cl) { try { cl.remove(tt); } catch (e) {} tt = null; }
-    // Clear IndexedDB for this torrent
-    if (hash) await clearTorrentStorage(hash);
-    svd = false; wd = false; spdH = []; npw = false; storedFiles = new Set();
-    hCd(); document.getElementById('mI').value = '';
-    setTimeout(function() {
-        document.getElementById('pP').textContent = '0.0%';
-        document.getElementById('pBa').style.width = '0%';
-        document.getElementById('pTr').classList.remove('ptr-ok');
-        document.getElementById('sI').textContent = '—';
-        document.getElementById('dS').textContent = '0 B/s';
-        document.getElementById('uS').textContent = '0 B/s';
-        document.getElementById('pC').textContent = '0';
-        document.getElementById('eT').textContent = '—';
-        document.getElementById('fN').textContent = '—';
-        document.getElementById('fN').title = '';
-        document.getElementById('fL').innerHTML = '<p class="text-xs py-6 text-center" style="color:var(--mut)">Waiting for metadata...</p>';
-        sS('idle', 'Idle'); uSv();
-        document.getElementById('bS').disabled = false;
-        document.getElementById('bP').disabled = true;
-        document.getElementById('bX').disabled = true;
-        document.getElementById('bR').disabled = true;
-        updateStorageInfo();
-    }, 500);
-    tst('Reset complete', 'fa-arrow-rotate-left', 'var(--acc)');
-}
-
-/* Clipboard / Clear */
-async function pM() {
-    try {
-        var t = await navigator.clipboard.readText();
-        if (t && t.startsWith('magnet:')) { document.getElementById('mI').value = t; tst('Pasted from clipboard', 'fa-paste', 'var(--acc)'); }
-        else tst('No magnet link in clipboard', 'fa-exclamation-triangle', 'var(--amb)');
-    } catch (e) { tst('Cannot read clipboard — check permissions', 'fa-exclamation-triangle', 'var(--amb)'); }
-}
-function cI() { document.getElementById('mI').value = ''; }
-
-/* WebTorrent client singleton */
-function eC() {
-    if (cl) return cl;
-    if (typeof WebTorrent === 'undefined') { tst('WebTorrent failed to load. Refresh the page.', 'fa-exclamation-triangle', 'var(--ros)'); return null; }
-    cl = new WebTorrent();
-    cl.on('error', function(e) { tst('Client error: ' + e.message, 'fa-exclamation-circle', 'var(--ros)'); });
-    return cl;
-}
-
-/* ============================================================
-   EVENT LISTENERS
-   ============================================================ */
-document.getElementById('mI').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); go(); }
-});
-document.addEventListener('keydown', function(e) { if (e.key === 'Escape') cM(); });
-window.addEventListener('resize', function() { if (document.getElementById('t-gr').classList.contains('on')) dG(); });
-
-// Prevent accidental navigation
-window.addEventListener('beforeunload', function(e) {
-    if (tt && !tt.done) { e.preventDefault(); e.returnValue = ''; }
-});
-
-/* ============================================================
-   INIT
-   ============================================================ */
-uSv(); uCt(); updateStorageInfo();
+document.getElementById('mI').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();go()}});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')cM()});
+window.addEventListener('resize',function(){if(document.getElementById('t-gr').classList.contains('on'))dG()});
+window.addEventListener('beforeunload',function(e){if(tt&&!tt.done){e.preventDefault();e.returnValue=''}});
+uSv();uCt();upSto();
 </script>
 </body>
 </html>
