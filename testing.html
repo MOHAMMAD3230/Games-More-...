@@ -190,23 +190,34 @@
 function sanitizeMagnet(r){if(typeof r!=='string')return'';var c=r.replace(/<[^>]*>/gi,'').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g,'').replace(/(javascript|data|vbscript)\s*:/gi,'').trim();if(!c.startsWith('magnet:?'))return'';var ps=c.substring(8).split('&'),ok=['xt','dn','tr','xs','as','ws','kt'],sf=[];for(var i=0;i<ps.length;i++){var eq=ps[i].indexOf('=');if(eq<1)continue;var k=ps[i].substring(0,eq).toLowerCase();if(ok.indexOf(k)===-1)continue;if(k==='xt'){var v=ps[i].substring(eq+1);if(v.toLowerCase().indexOf('urn:btih:')!==0)continue}sf.push(ps[i])}if(!sf.length)return'';var r2='magnet:?'+sf.join('&');return r2.length>4096?'':r2}
 function esc(s){if(typeof s!=='string')return'';var d=document.createElement('div');d.textContent=s;return d.innerHTML}
 
-/* ===== TRACKERS — curated list, dead ones removed ===== */
+/* ===== TRACKERS — only WSS, only ones with real uptime ===== */
 var WSS=[
     'wss://tracker.openwebtorrent.com',
-    'wss://tracker.webtorrent.dev',
-    'wss://tracker.btorrent.xyz',
-    'wss://tracker.files.fm:443',
-    'wss://tracker.nanoha.org:443'
+    'wss://tracker.webtorrent.dev'
 ];
 
 /* ===== MAGNET PARSER ===== */
 function parseMagnet(m){if(!m||!m.startsWith('magnet:?'))return null;var params=m.substring(8).split('&'),hash='',name='',trackers=[];for(var i=0;i<params.length;i++){var eq=params[i].indexOf('=');if(eq<1)continue;var k=params[i].substring(0,eq).toLowerCase();var v=decodeURIComponent(params[i].substring(eq+1));if(k==='xt'){var m2=v.match(/urn:btih:([a-f0-9]{40})/i);if(m2){hash=m2[1].toLowerCase()}else{var m3=v.match(/urn:btih:([a-z2-7]{32})/i);if(m3)hash=m3[1]}}else if(k==='dn'){name=v}else if(k==='tr'){trackers.push(v)}}if(!hash)return null;return{hash:hash,name:name,trackers:trackers}}
 
-/* ===== AUGMENT — add missing WSS trackers ===== */
-function augment(parsed){if(!parsed)return'';var ex=parsed.trackers.map(function(t){return t.toLowerCase()}),ta=[];for(var i=0;i<WSS.length;i++){var w=WSS[i].toLowerCase(),f=false;for(var j=0;j<ex.length;j++){if(ex[j]===w||ex[j].indexOf(WSS[i].split('/')[2])!==-1){f=true;break}}if(!f)ta.push(WSS[i])}var p=['xt=urn:btih:'+parsed.hash];if(parsed.name)p.push('dn='+encodeURIComponent(parsed.name));for(var k=0;k<parsed.trackers.length;k++)p.push('tr='+encodeURIComponent(parsed.trackers[k]));for(var m=0;m<ta.length;m++)p.push('tr='+encodeURIComponent(ta[m]));return'magnet:?'+p.join('&')}
+/*
+ * AUGMENT — strip ALL non-WSS trackers, merge with curated list.
+ * Browsers cannot use UDP/HTTP/HTTPS trackers — keeping them
+ * only produces "Unsupported tracker protocol" warnings that
+ * drown out useful log lines.
+ */
+function augment(parsed){if(!parsed)return'';var seen={},all=[];
+/* Keep only WSS trackers from original magnet, dedup by hostname */
+for(var i=0;i<parsed.trackers.length;i++){var t=parsed.trackers[i];if(t.toLowerCase().indexOf('wss://')!==0)continue;var host=t.split('/')[2];if(!seen[host]){seen[host]=true;all.push(t)}}
+/* Add our curated WSS trackers unless hostname already present */
+for(var j=0;j<WSS.length;j++){var h2=WSS[j].split('/')[2];if(!seen[h2]){seen[h2]=true;all.push(WSS[j])}}
+var p=['xt=urn:btih:'+parsed.hash];if(parsed.name)p.push('dn='+encodeURIComponent(parsed.name));for(var k=0;k<all.length;k++)p.push('tr='+encodeURIComponent(all[k]));return'magnet:?'+p.join('&')}
 
-/* ===== SAMPLES ===== */
-var SAMPLES=['magnet:?xt=urn:btih:08ada5a7a6183aae1e09d831df6748d566095a10&dn=Sintel&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com','magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c&dn=Big+Buck+Bunny&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com','magnet:?xt=urn:btih:c9e15763f722f23e98a29decdfae341b98d53056&dn=Cosmos+Laundromat&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com'];
+/* ===== SAMPLES — hash + name only, no trackers. augment() adds WSS. ===== */
+var SAMPLES=[
+    'magnet:?xt=urn:btih:08ada5a7a6183aae1e09d831df6748d566095a10&dn=Sintel',
+    'magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c&dn=Big+Buck+Bunny',
+    'magnet:?xt=urn:btih:c9e15763f722f23e98a29decdfae341b98d53056&dn=Cosmos+Laundromat'
+];
 var SAM_NAMES=['Sintel','Big Buck Bunny','Cosmos Laundromat'];
 
 function autoStart(i){document.getElementById('mI').value=SAMPLES[i];log('Loaded '+SAM_NAMES[i]+' — starting...','info');go()}
@@ -243,7 +254,7 @@ async function stB(h,i,b,n){try{var db=await openDB(),tx=db.transaction(STR,'rea
 async function gB(h,i){try{var db=await openDB(),tx=db.transaction(STR,'readonly'),r=tx.objectStore(STR).get(h+'_'+i);return new Promise(function(res){r.onsuccess=function(){res(r.result||null)};r.onerror=function(){res(null)}})}catch(e){return null}}
 async function mS(h,i){try{var db=await openDB(),tx=db.transaction(STR,'readwrite'),s=tx.objectStore(STR),r=s.get(h+'_'+i);r.onsuccess=function(){var d=r.result;if(d){d.saved=true;s.put(d)}}}catch(e){}}
 async function clS(h){try{var db=await openDB(),tx=db.transaction(STR,'readwrite'),s=tx.objectStore(STR),r=s.openCursor();r.onsuccess=function(e){var c=e.target.result;if(c){if(c.value.hash===h)s.delete(c.key);c.continue()}};await new Promise(function(r,j){tx.oncomplete=r;tx.onerror=j});upSto()}catch(e){}}
-async function upSto(){var b=0;try{if(navigator.storage&&navigator.storage.estimate)b=(await navigator.storage.estimate()).usage||0}catch(e){}document.getElementById('stoInfo').innerHTML='<i class="fas fa-database mr-1"></i>Origin storage: '+fB(b)+' (includes other data on this domain)'}
+async function upSto(){var b=0;try{if(navigator.storage&&navigator.storage.estimate)b=(await navigator.storage.estimate()).usage||0}catch(e){}document.getElementById('stoInfo').innerHTML='<i class="fas fa-database mr-1"></i>Origin storage: '+fB(b)}
 
 /* ===== AUDIO ===== */
 var audioCtx=null;function initAudio(){if(audioCtx)return;try{audioCtx=new(window.AudioContext||window.webkitAudioContext)}catch(e){}}
@@ -269,7 +280,6 @@ if(svd){b.className='b-sv done w-full py-3 rounded-xl text-sm flex items-center 
 else if(tt&&tt.done){b.className='b-sv rdy w-full py-3 rounded-xl text-sm flex items-center justify-center gap-2.5';ic.className='fas fa-lock-open';lb.textContent='Save All Files to Disk';b.disabled=false}
 else{b.className='b-sv w-full py-3 rounded-xl text-sm flex items-center justify-center gap-2.5';ic.className='fas fa-lock';lb.textContent='Save All Files';b.disabled=true}}
 
-/* ===== SAVE — sequential chain ===== */
 async function svA(){if(!tt||!tt.done||svd)return;svd=true;uSv();var fs=tt.files,h=tt.infoHash;tst('Saving '+fs.length+' file(s)...','fa-download','var(--acc)');log('Saving '+fs.length+' files from IndexedDB...','info');
 for(var i=0;i<fs.length;i++){var rec=await gB(h,i);if(rec&&rec.blob){trigDl(rec.blob,rec.name);await mS(h,i);log('Saved: '+rec.name,'ok')}
 else{await new Promise(function(resolve){try{fs[i].getBlobURL(function(err,url){if(!err&&url){trigDlUrl(url,fs[i].name);log('Saved: '+fs[i].name,'ok')}else{log('Failed: '+fs[i].name,'err')}resolve()})}catch(e){log('Failed: '+fs[i].name,'err');resolve()}})}
@@ -302,11 +312,9 @@ for(var i=0;i<3;i++)document.getElementById('s'+i).disabled=l==='Downloading'||l
 /* ===== ENGINE ===== */
 var cl=null,tt=null,ui=null,spdH=[],npw=false,mt=null,svd=false,wd=false,stF=new Set(),peerLogTimer=0;
 
-/* Dedup set for tracker errors — each URL logs at most once */
+/* Dedup: each tracker URL logs at most one error and one success */
 var trkErrSeen=new Set();
-/* Track which trackers responded OK for the summary */
 var trkOkSeen=new Set();
-/* Summary timer — show a condensed tracker health line after 8s */
 var trkSumTimer=null;
 
 async function onFC(h,i,n){if(stF.has(h+'_'+i))return;stF.add(h+'_'+i);try{var result=await new Promise(function(res,rej){tt.files[i].getBlob(function(err,blob){if(err)return rej(err);if(blob instanceof Blob)return res(blob);return res(new Blob([blob],{type:'application/octet-stream'}))})});await stB(h,i,result,n);log('Persisted to storage: '+n,'ok')}catch(e){console.error(e)}}
@@ -332,23 +340,20 @@ function go(){
     var mg=sanitizeMagnet(raw);
     if(!mg){tst('Invalid magnet link','fa-exclamation-circle','var(--ros)');return}
 
-    /* Parse and augment with WSS trackers */
+    /* Parse → augment strips non-WSS trackers, adds curated ones */
     var parsed=parseMagnet(mg);
     if(parsed){
         var augmented=augment(parsed);
-        if(augmented){mg=augmented;log('Augmented magnet with additional WSS trackers','info')}
+        if(augmented){mg=augmented}
     }else{tst('Could not parse magnet hash','fa-exclamation-circle','var(--ros)');return}
 
     lastRaw=mg;initAudio();reqNotif();
-    if(typeof WebTorrent==='undefined'){tst('WebTorrent library failed to load! Cannot download.','fa-circle-xmark','var(--ros)');log('FATAL: WebTorrent is not loaded. Check your internet or ad blocker.','err');return}
+    if(typeof WebTorrent==='undefined'){tst('WebTorrent library failed to load! Cannot download.','fa-circle-xmark','var(--ros)');log('FATAL: WebTorrent is not loaded.','err');return}
     var c=eC();if(!c)return;
-    /* Cleanup previous */
     if(tt){try{cl.remove(tt)}catch(e){}tt=null}if(ui){clearInterval(ui);ui=null}if(mt){clearTimeout(mt);mt=null}if(trkSumTimer){clearTimeout(trkSumTimer);trkSumTimer=null}
     spdH=[];npw=false;svd=false;wd=false;stF=new Set();peerLogTimer=0;
-    /* Reset tracker dedup sets for this session */
     trkErrSeen=new Set();trkOkSeen=new Set();
     cM();
-    /* Show card */
     var card=document.getElementById('tC');card.style.display='block';requestAnimationFrame(function(){card.classList.add('fi');card.classList.add('sh')});
     sS('connecting','Connecting');
     document.getElementById('fN').textContent='Resolving...';document.getElementById('fN').title='';
@@ -359,46 +364,48 @@ function go(){
     document.getElementById('fbSec').style.display='none';
     uSv();uCt();upSto();clearLog();
     log('Starting WebTorrent client...','info');
-    log('Announcing to '+WSS.length+' WSS trackers...','info');
-    /* Timeout for peer discovery */
+    log('Announcing to '+WSS.length+' WSS trackers (UDP/HTTP stripped — not usable in browser)','info');
+
     mt=setTimeout(function(){if(tt&&!tt.files&&!wd){document.getElementById('fbSec').style.display='block';log('Peer discovery timeout — no WebRTC peers found.','warn')}},20000);
-    /* Condensed tracker health summary after 8s */
+
+    /* Condensed tracker summary after 8s */
     trkSumTimer=setTimeout(function(){
         if(!tt)return;
         var errs=trkErrSeen.size,oks=trkOkSeen.size;
-        if(errs>0){
-            log('Tracker summary: '+oks+' reachable, '+errs+' unreachable (non-blocking)','warn');
-        }else if(oks>0){
-            log('All '+oks+' contacted trackers responded OK','ok');
-        }
+        if(errs>0&&oks===0){log('All '+errs+' tracker(s) unreachable — your network may block WSS or trackers are down','err')}
+        else if(errs>0){log('Trackers: '+oks+' reachable, '+errs+' unreachable','warn')}
+        else if(oks>0){log('All '+oks+' tracker(s) responded OK','ok')}
     },8000);
+
     try{tt=c.add(mg,{announce:WSS,maxConns:150,path:'/'},function(t){
         if(mt){clearTimeout(mt);mt=null}document.getElementById('fbSec').style.display='none';
         sS('downloading','Downloading');document.getElementById('fN').textContent=t.name;document.getElementById('fN').title=t.name;
-        var peerMsg=t.numPeers>0?t.numPeers+' peer(s)':'no peers yet';
+        var peerMsg=t.numPeers>0?t.numPeers+' peer(s)':'no data peers yet';
         log('Metadata received: '+t.name+' ('+t.files.length+' files, '+peerMsg+')',t.numPeers>0?'ok':'warn');
-        if(t.numPeers===0)log('Note: metadata can arrive from the DHT without needing data peers.','warn');
+        if(t.numPeers===0)log('Metadata arrived via DHT. Data peers may connect shortly.','info');
         rF();uCt();
         t.on('done',function(){});
         t.on('error',function(e){sS('error','Error');log('Torrent error: '+e.message,'err');tst('Error: '+e.message,'fa-exclamation-circle','var(--ros)');uCt()});
         t.on('wire',function(wire){log('Peer connected: '+wire.remoteAddress,'ok')});
-        t.on('noPeers',function(){log('noPeers event fired — tracker returned zero peers','warn')});
+        t.on('noPeers',function(){log('noPeers event — tracker returned zero peers','warn')});
     });
-    /* FIX: Deduplicated tracker error logging — each URL logs once max */
+
+    /* Each tracker URL logs one error max */
     tt.on('trackerError',function(e,ticker){
-        if(!trkErrSeen.has(ticker)){
-            trkErrSeen.add(ticker);
-            log('Tracker unreachable: '+ticker,'warn');
-        }
+        if(!trkErrSeen.has(ticker)){trkErrSeen.add(ticker);log('Tracker unreachable: '+ticker,'warn')}
     });
-    tt.on('warning',function(w){log('Warning: '+w.message,'warn')});
-    /* FIX: Deduplicated tracker announce — only log first success per URL */
+
+    /* Suppress "Unsupported tracker protocol: udp" — expected in browsers */
+    tt.on('warning',function(w){
+        if(w.message&&w.message.indexOf('Unsupported tracker protocol')===0)return;
+        log('Warning: '+w.message,'warn');
+    });
+
+    /* Each tracker URL logs one announce success max */
     tt.on('trackerAnnounce',function(e,ticker){
-        if(!trkOkSeen.has(ticker)){
-            trkOkSeen.add(ticker);
-            log('Tracker OK: '+ticker,'info');
-        }
+        if(!trkOkSeen.has(ticker)){trkOkSeen.add(ticker);log('Tracker OK: '+ticker,'info')}
     });
+
     ui=setInterval(tick,1000);document.getElementById('bS').disabled=true}
     catch(e){sS('error','Error');log('Failed to add torrent: '+e.message,'err');tst('Failed: '+e.message,'fa-exclamation-circle','var(--ros)');document.getElementById('fbSec').style.display='block';uCt()}}
 
