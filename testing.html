@@ -92,14 +92,12 @@
             <p style="color:var(--mut);font-size:13px">Browser BitTorrent via WebRTC</p>
         </header>
 
-        <!-- Diagnostic bar -->
         <div class="diag mb-5" id="diagBar">
             <div class="diag-item" id="dLib"><i class="fas fa-circle-notch fa-spin text-[10px]"></i><span>WebTorrent</span></div>
             <div class="diag-item" id="dWrtc"><i class="fas fa-circle-notch fa-spin text-[10px]"></i><span>WebRTC</span></div>
             <div class="diag-item" id="dTrk"><i class="fas fa-circle-notch fa-spin text-[10px]"></i><span>Trackers</span></div>
         </div>
 
-        <!-- STEP 1: Test with guaranteed torrents -->
         <div class="mb-5">
             <div class="text-[10px] font-bold uppercase tracking-wider mb-2.5" style="color:var(--grn)">
                 <i class="fas fa-1 mr-1"></i> TEST FIRST — click a green button to verify it works
@@ -129,7 +127,6 @@
             </div>
         </div>
 
-        <!-- STEP 2: Or paste your own -->
         <div class="gl rounded-[20px] p-6 mb-5">
             <div class="text-[10px] font-bold uppercase tracking-wider mb-2" style="color:var(--amb)">
                 <i class="fas fa-2 mr-1"></i> OR paste any magnet link (may not find peers)
@@ -142,7 +139,6 @@
             </div>
         </div>
 
-        <!-- Torrent card -->
         <div id="tC" class="fi" style="display:none">
             <div class="gl rounded-[20px] p-6">
                 <div class="ar flex flex-wrap items-center gap-3 mb-4">
@@ -165,20 +161,17 @@
                 <div id="stoInfo" class="text-[10px] text-center mb-3 mo" style="color:var(--mut)"><i class="fas fa-database mr-1"></i>Storage: —</div>
                 <div class="mb-4"><button id="bSv" onclick="svA()" class="b-sv w-full py-3 rounded-xl text-sm flex items-center justify-center gap-2.5" disabled><i class="fas fa-lock" id="svI"></i><span id="svL">Save All Files</span></button></div>
 
-                <!-- Live log -->
                 <div style="border-top:1px solid rgba(255,255,255,0.03);padding-top:12px">
                     <div class="text-[10px] font-semibold uppercase tracking-wider mb-2" style="color:var(--mut)"><i class="fas fa-terminal mr-1"></i> Live Log</div>
                     <div id="logBox" style="max-height:140px;overflow-y:auto;background:rgba(0,0,0,0.3);border-radius:10px;padding:4px 0"></div>
                 </div>
 
-                <!-- Files -->
                 <div style="border-top:1px solid rgba(255,255,255,0.03);padding-top:12px;margin-top:12px">
                     <div class="flex gap-1 mb-3" style="border-bottom:1px solid rgba(255,255,255,0.03)"><button class="tb on" onclick="sTb('fl',this)">Files</button><button class="tb" onclick="sTb('gr',this)">Speed</button></div>
                     <div id="t-fl" class="tp on" style="max-height:200px;overflow-y:auto"><div id="fL"><p class="text-xs py-4 text-center" style="color:var(--mut)">Waiting for metadata...</p></div></div>
                     <div id="t-gr" class="tp"><canvas id="sg" height="140"></canvas></div>
                 </div>
 
-                <!-- Fallback -->
                 <div id="fbSec" class="fb-sec" style="display:none;margin-top:12px">
                     <div class="text-[10px] font-bold uppercase tracking-wider mb-2" style="color:var(--amb)"><i class="fas fa-triangle-exclamation mr-1"></i> No WebRTC peers — use an alternative</div>
                     <p class="text-[11px] mb-3" style="color:var(--fg2);line-height:1.6">Your browser cannot connect to traditional BitTorrent clients (qBittorrent, Transmission, etc.) — that is a browser security limitation. These services can download it for you:</p>
@@ -197,9 +190,19 @@
 function sanitizeMagnet(r){if(typeof r!=='string')return'';var c=r.replace(/<[^>]*>/gi,'').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g,'').replace(/(javascript|data|vbscript)\s*:/gi,'').trim();if(!c.startsWith('magnet:?'))return'';var ps=c.substring(8).split('&'),ok=['xt','dn','tr','xs','as','ws','kt'],sf=[];for(var i=0;i<ps.length;i++){var eq=ps[i].indexOf('=');if(eq<1)continue;var k=ps[i].substring(0,eq).toLowerCase();if(ok.indexOf(k)===-1)continue;if(k==='xt'){var v=ps[i].substring(eq+1);if(v.toLowerCase().indexOf('urn:btih:')!==0)continue}sf.push(ps[i])}if(!sf.length)return'';var r2='magnet:?'+sf.join('&');return r2.length>4096?'':r2}
 function esc(s){if(typeof s!=='string')return'';var d=document.createElement('div');d.textContent=s;return d.innerHTML}
 
-/* ===== TRACKERS ===== */
-var WSS=['wss://tracker.openwebtorrent.com','wss://tracker.btorrent.xyz','wss://tracker.fastcast.nz','wss://tracker.webtorrent.dev','wss://tracker.tiny-vps.com:443','wss://tracker.moeblog.cn:443','wss://tracker.files.fm:443','wss://btloader.xyz:443','wss://open.acgtracker.com:443','wss://tracker.loligirl.cn:443','wss://retracker.akado-ural.ru:443','wss://tracker.nanoha.org:443'];
+/* ===== TRACKERS — curated list, dead ones removed ===== */
+var WSS=[
+    'wss://tracker.openwebtorrent.com',
+    'wss://tracker.webtorrent.dev',
+    'wss://tracker.btorrent.xyz',
+    'wss://tracker.files.fm:443',
+    'wss://tracker.nanoha.org:443'
+];
 
+/* ===== MAGNET PARSER ===== */
+function parseMagnet(m){if(!m||!m.startsWith('magnet:?'))return null;var params=m.substring(8).split('&'),hash='',name='',trackers=[];for(var i=0;i<params.length;i++){var eq=params[i].indexOf('=');if(eq<1)continue;var k=params[i].substring(0,eq).toLowerCase();var v=decodeURIComponent(params[i].substring(eq+1));if(k==='xt'){var m2=v.match(/urn:btih:([a-f0-9]{40})/i);if(m2){hash=m2[1].toLowerCase()}else{var m3=v.match(/urn:btih:([a-z2-7]{32})/i);if(m3)hash=m3[1]}}else if(k==='dn'){name=v}else if(k==='tr'){trackers.push(v)}}if(!hash)return null;return{hash:hash,name:name,trackers:trackers}}
+
+/* ===== AUGMENT — add missing WSS trackers ===== */
 function augment(parsed){if(!parsed)return'';var ex=parsed.trackers.map(function(t){return t.toLowerCase()}),ta=[];for(var i=0;i<WSS.length;i++){var w=WSS[i].toLowerCase(),f=false;for(var j=0;j<ex.length;j++){if(ex[j]===w||ex[j].indexOf(WSS[i].split('/')[2])!==-1){f=true;break}}if(!f)ta.push(WSS[i])}var p=['xt=urn:btih:'+parsed.hash];if(parsed.name)p.push('dn='+encodeURIComponent(parsed.name));for(var k=0;k<parsed.trackers.length;k++)p.push('tr='+encodeURIComponent(parsed.trackers[k]));for(var m=0;m<ta.length;m++)p.push('tr='+encodeURIComponent(ta[m]));return'magnet:?'+p.join('&')}
 
 /* ===== SAMPLES ===== */
@@ -223,15 +226,12 @@ function tst(m,ic,co){ic=ic||'fa-info-circle';co=co||'var(--acc)';var b=document
 
 /* ===== DIAGNOSTICS ===== */
 function runDiag(){
-    // WebTorrent lib
     var lib=document.getElementById('dLib');
     if(typeof WebTorrent!=='undefined'){lib.className='diag-item diag-ok';lib.innerHTML='<i class="fas fa-circle-check text-[10px]"></i><span>WebTorrent loaded</span>'}
     else{lib.className='diag-item diag-fail';lib.innerHTML='<i class="fas fa-circle-xmark text-[10px]"></i><span>WebTorrent FAILED to load</span>';log('WebTorrent library did not load from CDN. Check your internet connection or ad blocker.','err');return}
-    // WebRTC support
     var wrtc=document.getElementById('dWrtc');
     if(window.RTCPeerConnection||window.webkitRTCPeerConnection||window.mozRTCPeerConnection){wrtc.className='diag-item diag-ok';wrtc.innerHTML='<i class="fas fa-circle-check text-[10px]"></i><span>WebRTC supported</span>'}
     else{wrtc.className='diag-item diag-fail';wrtc.innerHTML='<i class="fas fa-circle-xmark text-[10px]"></i><span>WebRTC NOT supported</span>';log('Your browser does not support WebRTC. Cannot download torrents.','err')}
-    // Trackers
     var trk=document.getElementById('dTrk');trk.className='diag-item diag-ok';trk.innerHTML='<i class="fas fa-circle-check text-[10px]"></i><span>'+WSS.length+' WSS trackers</span>';
 }
 setTimeout(runDiag,500);
@@ -243,7 +243,7 @@ async function stB(h,i,b,n){try{var db=await openDB(),tx=db.transaction(STR,'rea
 async function gB(h,i){try{var db=await openDB(),tx=db.transaction(STR,'readonly'),r=tx.objectStore(STR).get(h+'_'+i);return new Promise(function(res){r.onsuccess=function(){res(r.result||null)};r.onerror=function(){res(null)}})}catch(e){return null}}
 async function mS(h,i){try{var db=await openDB(),tx=db.transaction(STR,'readwrite'),s=tx.objectStore(STR),r=s.get(h+'_'+i);r.onsuccess=function(){var d=r.result;if(d){d.saved=true;s.put(d)}}}catch(e){}}
 async function clS(h){try{var db=await openDB(),tx=db.transaction(STR,'readwrite'),s=tx.objectStore(STR),r=s.openCursor();r.onsuccess=function(e){var c=e.target.result;if(c){if(c.value.hash===h)s.delete(c.key);c.continue()}};await new Promise(function(r,j){tx.oncomplete=r;tx.onerror=j});upSto()}catch(e){}}
-async function upSto(){var b=0;try{if(navigator.storage&&navigator.storage.estimate)b=(await navigator.storage.estimate()).usage||0}catch(e){}document.getElementById('stoInfo').innerHTML='<i class="fas fa-database mr-1"></i>Storage: '+fB(b)+' persisted'}
+async function upSto(){var b=0;try{if(navigator.storage&&navigator.storage.estimate)b=(await navigator.storage.estimate()).usage||0}catch(e){}document.getElementById('stoInfo').innerHTML='<i class="fas fa-database mr-1"></i>Origin storage: '+fB(b)+' (includes other data on this domain)'}
 
 /* ===== AUDIO ===== */
 var audioCtx=null;function initAudio(){if(audioCtx)return;try{audioCtx=new(window.AudioContext||window.webkitAudioContext)}catch(e){}}
@@ -257,6 +257,8 @@ function fS(b){return fB(b)+'/s'}
 function fE(ms){if(!ms||!isFinite(ms)||ms<=0)return'—';var s=Math.round(ms/1000);if(s<60)return s+'s';if(s<3600)return Math.floor(s/60)+'m '+(s%60)+'s';return Math.floor(s/3600)+'h '+Math.floor((s%3600)/60)+'m'}
 function iV(n){return /\.(mp4|webm|ogv|m4v)$/i.test(n)}function iA(n){return /\.(mp3|ogg|wav|flac|aac|m4a)$/i.test(n)}function iM(n){return iV(n)||iA(n)}
 function fI(n){if(iV(n))return'fa-film';if(iA(n))return'fa-music';if(/\.(jpg|png|gif|webp|bmp|svg)$/i.test(n))return'fa-image';if(/\.(pdf|epub)$/i.test(n))return'fa-book';if(/\.(zip|rar|7z|tar|gz|xz|bz2)$/i.test(n))return'fa-file-zipper';return'fa-file'}
+function trigDl(blob,name){var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(a.href)},60000)}
+function trigDlUrl(url,name){var a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(url)},60000)}
 
 /* ===== UI ===== */
 function sTb(n,btn){document.querySelectorAll('.tb').forEach(function(b){b.classList.remove('on')});document.querySelectorAll('.tp').forEach(function(p){p.classList.remove('on')});btn.classList.add('on');document.getElementById('t-'+n).classList.add('on');if(n==='gr')dG()}
@@ -267,10 +269,12 @@ if(svd){b.className='b-sv done w-full py-3 rounded-xl text-sm flex items-center 
 else if(tt&&tt.done){b.className='b-sv rdy w-full py-3 rounded-xl text-sm flex items-center justify-center gap-2.5';ic.className='fas fa-lock-open';lb.textContent='Save All Files to Disk';b.disabled=false}
 else{b.className='b-sv w-full py-3 rounded-xl text-sm flex items-center justify-center gap-2.5';ic.className='fas fa-lock';lb.textContent='Save All Files';b.disabled=true}}
 
+/* ===== SAVE — sequential chain ===== */
 async function svA(){if(!tt||!tt.done||svd)return;svd=true;uSv();var fs=tt.files,h=tt.infoHash;tst('Saving '+fs.length+' file(s)...','fa-download','var(--acc)');log('Saving '+fs.length+' files from IndexedDB...','info');
-for(var i=0;i<fs.length;i++){(function(idx){setTimeout(async function(){var rec=await gB(h,idx);if(rec&&rec.blob){var url=URL.createObjectURL(rec.blob);var a=document.createElement('a');a.href=url;a.download=rec.name;document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(url)},60000);await mS(h,idx);log('Saved: '+rec.name,'ok')}
-else{try{fs[idx].getBlobURL(function(err,url){if(err){log('Failed: '+fs[idx].name,'err');return};var a=document.createElement('a');a.href=url;a.download=fs[idx].name;document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(url)},60000);log('Saved: '+fs[idx].name,'ok')})}catch(e){log('Failed: '+fs[idx].name,'err')}}},idx*600)})(i)}
-setTimeout(function(){tst('All files saved!','fa-check-circle','var(--acc)');upSto()},fs.length*600+800)}
+for(var i=0;i<fs.length;i++){var rec=await gB(h,i);if(rec&&rec.blob){trigDl(rec.blob,rec.name);await mS(h,i);log('Saved: '+rec.name,'ok')}
+else{await new Promise(function(resolve){try{fs[i].getBlobURL(function(err,url){if(!err&&url){trigDlUrl(url,fs[i].name);log('Saved: '+fs[i].name,'ok')}else{log('Failed: '+fs[i].name,'err')}resolve()})}catch(e){log('Failed: '+fs[i].name,'err');resolve()}})}
+if(i<fs.length-1)await new Promise(function(r){setTimeout(r,400)})}
+tst('All files saved!','fa-check-circle','var(--acc)');upSto()}
 
 function rF(){var c=document.getElementById('fL');if(!tt||!tt.files||!tt.files.length){c.innerHTML='<p class="text-xs py-4 text-center" style="color:var(--mut)">Waiting for metadata...</p>';return}
 var h='';for(var i=0;i<tt.files.length;i++){var f=tt.files[i],p=(f.progress*100).toFixed(1),d=f.progress>=1,m=iM(f.name);
@@ -284,7 +288,8 @@ else if(iA(f.name)){var a=document.createElement('audio');a.controls=true;con.ap
 document.getElementById('mo').classList.add('op')}
 function cM(){var c=document.getElementById('mC');c.querySelectorAll('video,audio').forEach(function(m){m.pause();m.src=''});c.innerHTML='';document.getElementById('mo').classList.remove('op')}
 
-function dG(){var cv=document.getElementById('sg'),cx=cv.getContext('2d'),dp=window.devicePixelRatio||1,rc=cv.getBoundingClientRect();cv.width=rc.width*dp;cv.height=rc.height*dp;cx.scale(dp,dp);var w=rc.width,h=rc.height;cx.clearRect(0,0,w,h);cx.fillStyle='rgba(0,0,0,0.35)';cx.beginPath();cx.roundRect(0,0,w,h,10);cx.fill();
+function dG(){var cv=document.getElementById('sg'),cx=cv.getContext('2d'),dp=window.devicePixelRatio||1,rc=cv.getBoundingClientRect();cv.width=rc.width*dp;cv.height=rc.height*dp;cx.scale(dp,dp);var w=rc.width,h=rc.height;cx.clearRect(0,0,w,h);cx.fillStyle='rgba(0,0,0,0.35)';cx.beginPath();
+var rad=10;cx.moveTo(rad,0);cx.lineTo(w-rad,0);cx.quadraticCurveTo(w,0,w,rad);cx.lineTo(w,h-rad);cx.quadraticCurveTo(w,h,w-rad,h);cx.lineTo(rad,h);cx.quadraticCurveTo(0,h,0,h-rad);cx.lineTo(0,rad);cx.quadraticCurveTo(0,0,rad,0);cx.closePath();cx.fill();
 if(spdH.length<2){cx.fillStyle='rgba(255,255,255,0.2)';cx.font='11px Space Grotesk';cx.textAlign='center';cx.fillText('Collecting data...',w/2,h/2);return}
 var mx=60,d=spdH.slice(-mx),mv=1;for(var i=0;i<d.length;i++){if(d[i].dl>mv)mv=d[i].dl;if(d[i].ul>mv)mv=d[i].ul}mv*=1.15;var pL=6,pR=6,pT=14,pB=18,gW=w-pL-pR,gH=h-pT-pB;cx.strokeStyle='rgba(255,255,255,0.03)';cx.lineWidth=.5;
 for(var g=0;g<=3;g++){var gy=pT+(gH/3)*g;cx.beginPath();cx.moveTo(pL,gy);cx.lineTo(w-pR,gy);cx.stroke();cx.fillStyle='rgba(255,255,255,0.2)';cx.font='8px JetBrains Mono';cx.textAlign='left';cx.fillText(fB(mv-(mv/3)*g),pL+2,gy-2)}
@@ -297,7 +302,14 @@ for(var i=0;i<3;i++)document.getElementById('s'+i).disabled=l==='Downloading'||l
 /* ===== ENGINE ===== */
 var cl=null,tt=null,ui=null,spdH=[],npw=false,mt=null,svd=false,wd=false,stF=new Set(),peerLogTimer=0;
 
-async function onFC(h,i,n){if(stF.has(h+'_'+i))return;stF.add(h+'_'+i);try{var blob=await new Promise(function(res,rej){tt.files[i].getBlob(function(e,b){e?rej(e):res(b)})});await stB(h,i,blob,n);log('Persisted to storage: '+n,'ok')}catch(e){console.error(e)}}
+/* Dedup set for tracker errors — each URL logs at most once */
+var trkErrSeen=new Set();
+/* Track which trackers responded OK for the summary */
+var trkOkSeen=new Set();
+/* Summary timer — show a condensed tracker health line after 8s */
+var trkSumTimer=null;
+
+async function onFC(h,i,n){if(stF.has(h+'_'+i))return;stF.add(h+'_'+i);try{var result=await new Promise(function(res,rej){tt.files[i].getBlob(function(err,blob){if(err)return rej(err);if(blob instanceof Blob)return res(blob);return res(new Blob([blob],{type:'application/octet-stream'}))})});await stB(h,i,result,n);log('Persisted to storage: '+n,'ok')}catch(e){console.error(e)}}
 
 function tick(){if(!tt)return;
 document.getElementById('pP').textContent=(tt.progress*100).toFixed(1)+'%';document.getElementById('pBa').style.width=Math.min(100,tt.progress*100)+'%';
@@ -307,8 +319,8 @@ spdH.push({dl:tt.downloadSpeed,ul:tt.uploadSpeed});if(spdH.length>120)spdH.shift
 if(tt.files&&tt.infoHash){for(var i=0;i<tt.files.length;i++){if(tt.files[i].progress>=1&&!stF.has(tt.infoHash+'_'+i))onFC(tt.infoHash,i,tt.files[i].name)}}
 if(tt.done&&!wd){wd=true;sS('seeding','Seeding');rF();uSv();uCt();document.getElementById('fbSec').style.display='none';document.getElementById('pTr').classList.add('ptr-ok');
 if(tt.files&&tt.infoHash){for(var j=0;j<tt.files.length;j++){if(!stF.has(tt.infoHash+'_'+j))onFC(tt.infoHash,j,tt.files[j].name)}}
+if(trkSumTimer){clearTimeout(trkSumTimer);trkSumTimer=null}
 playBeep();sendNotif('StreamLine','Download complete!');tst('Download complete!','fa-check-circle','var(--acc)');log('Download complete! Files ready to save.','ok')}
-// Log peer count changes periodically
 peerLogTimer++;if(peerLogTimer%10===0&&tt.numPeers>0){log(tt.numPeers+' WebRTC peer(s) connected, '+fS(tt.downloadSpeed),'info')}
 if(!tt.done&&tt.numPeers===0&&spdH.length>15&&!npw){var rc=spdH.slice(-15),az=true;for(var k=0;k<rc.length;k++){if(rc[k].dl>0){az=false;break}}
 if(az){npw=true;document.getElementById('fbSec').style.display='block';log('No WebRTC peers found after 15s. See fallback options below.','warn');tst('No WebRTC peers — see fallback options','fa-triangle-exclamation','var(--amb)')}}}
@@ -319,13 +331,24 @@ function go(){
     if(!raw){tst('Paste a magnet link first','fa-exclamation-circle','var(--amb)');return}
     var mg=sanitizeMagnet(raw);
     if(!mg){tst('Invalid magnet link','fa-exclamation-circle','var(--ros)');return}
+
+    /* Parse and augment with WSS trackers */
+    var parsed=parseMagnet(mg);
+    if(parsed){
+        var augmented=augment(parsed);
+        if(augmented){mg=augmented;log('Augmented magnet with additional WSS trackers','info')}
+    }else{tst('Could not parse magnet hash','fa-exclamation-circle','var(--ros)');return}
+
     lastRaw=mg;initAudio();reqNotif();
     if(typeof WebTorrent==='undefined'){tst('WebTorrent library failed to load! Cannot download.','fa-circle-xmark','var(--ros)');log('FATAL: WebTorrent is not loaded. Check your internet or ad blocker.','err');return}
     var c=eC();if(!c)return;
-    // Cleanup previous
-    if(tt){try{cl.remove(tt)}catch(e){}tt=null}if(ui){clearInterval(ui);ui=null}if(mt){clearTimeout(mt);mt=null}
-    spdH=[];npw=false;svd=false;wd=false;stF=new Set();peerLogTimer=0;cM();
-    // Show card
+    /* Cleanup previous */
+    if(tt){try{cl.remove(tt)}catch(e){}tt=null}if(ui){clearInterval(ui);ui=null}if(mt){clearTimeout(mt);mt=null}if(trkSumTimer){clearTimeout(trkSumTimer);trkSumTimer=null}
+    spdH=[];npw=false;svd=false;wd=false;stF=new Set();peerLogTimer=0;
+    /* Reset tracker dedup sets for this session */
+    trkErrSeen=new Set();trkOkSeen=new Set();
+    cM();
+    /* Show card */
     var card=document.getElementById('tC');card.style.display='block';requestAnimationFrame(function(){card.classList.add('fi');card.classList.add('sh')});
     sS('connecting','Connecting');
     document.getElementById('fN').textContent='Resolving...';document.getElementById('fN').title='';
@@ -337,8 +360,18 @@ function go(){
     uSv();uCt();upSto();clearLog();
     log('Starting WebTorrent client...','info');
     log('Announcing to '+WSS.length+' WSS trackers...','info');
-    // Timeout for peer discovery
+    /* Timeout for peer discovery */
     mt=setTimeout(function(){if(tt&&!tt.files&&!wd){document.getElementById('fbSec').style.display='block';log('Peer discovery timeout — no WebRTC peers found.','warn')}},20000);
+    /* Condensed tracker health summary after 8s */
+    trkSumTimer=setTimeout(function(){
+        if(!tt)return;
+        var errs=trkErrSeen.size,oks=trkOkSeen.size;
+        if(errs>0){
+            log('Tracker summary: '+oks+' reachable, '+errs+' unreachable (non-blocking)','warn');
+        }else if(oks>0){
+            log('All '+oks+' contacted trackers responded OK','ok');
+        }
+    },8000);
     try{tt=c.add(mg,{announce:WSS,maxConns:150,path:'/'},function(t){
         if(mt){clearTimeout(mt);mt=null}document.getElementById('fbSec').style.display='none';
         sS('downloading','Downloading');document.getElementById('fN').textContent=t.name;document.getElementById('fN').title=t.name;
@@ -351,16 +384,27 @@ function go(){
         t.on('wire',function(wire){log('Peer connected: '+wire.remoteAddress,'ok')});
         t.on('noPeers',function(){log('noPeers event fired — tracker returned zero peers','warn')});
     });
-    tt.on('error',function(e){if(mt){clearTimeout(mt);mt=null}sS('error','Error');log('Client error: '+e.message,'err');tst('Error: '+e.message,'fa-exclamation-circle','var(--ros)');document.getElementById('fbSec').style.display='block';uCt()});
+    /* FIX: Deduplicated tracker error logging — each URL logs once max */
+    tt.on('trackerError',function(e,ticker){
+        if(!trkErrSeen.has(ticker)){
+            trkErrSeen.add(ticker);
+            log('Tracker unreachable: '+ticker,'warn');
+        }
+    });
     tt.on('warning',function(w){log('Warning: '+w.message,'warn')});
-    tt.on('trackerError',function(e,ticker){log('Tracker error: '+ticker,'err')});
-    tt.on('trackerAnnounce',function(e,ticker){log('Tracker announce: '+ticker,'info')});
+    /* FIX: Deduplicated tracker announce — only log first success per URL */
+    tt.on('trackerAnnounce',function(e,ticker){
+        if(!trkOkSeen.has(ticker)){
+            trkOkSeen.add(ticker);
+            log('Tracker OK: '+ticker,'info');
+        }
+    });
     ui=setInterval(tick,1000);document.getElementById('bS').disabled=true}
     catch(e){sS('error','Error');log('Failed to add torrent: '+e.message,'err');tst('Failed: '+e.message,'fa-exclamation-circle','var(--ros)');document.getElementById('fbSec').style.display='block';uCt()}}
 
 function tP(){if(!tt)return;var l=document.getElementById('sT').textContent;if(l==='Downloading'){if(tt.pause)tt.pause();sS('paused','Paused');log('Paused','warn');tst('Paused','fa-pause','var(--amb)')}else if(l==='Paused'){if(tt.resume)tt.resume();sS('downloading','Downloading');log('Resumed','info');tst('Resumed','fa-play','var(--acc)')}uCt()}
-function sD(){if(ui){clearInterval(ui);ui=null}if(mt){clearTimeout(mt);mt=null}cM();if(tt&&cl){try{cl.remove(tt)}catch(e){}tt=null}sS('stopped','Stopped');document.getElementById('dS').textContent='0 B/s';document.getElementById('uS').textContent='0 B/s';document.getElementById('pC').textContent='0';document.getElementById('eT').textContent='—';uCt();uSv();log('Stopped','warn');tst('Stopped','fa-stop','var(--ros)')}
-async function rsA(){if(ui){clearInterval(ui);ui=null}if(mt){clearTimeout(mt);mt=null}cM();var h=tt?tt.infoHash:null;if(tt&&cl){try{cl.remove(tt)}catch(e){}tt=null}if(h)await clS(h);svd=false;wd=false;spdH=[];npw=false;stF=new Set();var card=document.getElementById('tC');card.classList.remove('sh');setTimeout(function(){card.style.display='none';clearLog()},500);document.getElementById('mI').value='';lastRaw='';
+function sD(){if(ui){clearInterval(ui);ui=null}if(mt){clearTimeout(mt);mt=null}if(trkSumTimer){clearTimeout(trkSumTimer);trkSumTimer=null}cM();if(tt&&cl){try{cl.remove(tt)}catch(e){}tt=null}sS('stopped','Stopped');document.getElementById('dS').textContent='0 B/s';document.getElementById('uS').textContent='0 B/s';document.getElementById('pC').textContent='0';document.getElementById('eT').textContent='—';uCt();uSv();log('Stopped','warn');tst('Stopped','fa-stop','var(--ros)')}
+async function rsA(){if(ui){clearInterval(ui);ui=null}if(mt){clearTimeout(mt);mt=null}if(trkSumTimer){clearTimeout(trkSumTimer);trkSumTimer=null}cM();var h=tt?tt.infoHash:null;if(tt&&cl){try{cl.remove(tt)}catch(e){}tt=null}if(h)await clS(h);svd=false;wd=false;spdH=[];npw=false;stF=new Set();trkErrSeen=new Set();trkOkSeen=new Set();var card=document.getElementById('tC');card.classList.remove('sh');setTimeout(function(){card.style.display='none';clearLog()},500);document.getElementById('mI').value='';lastRaw='';
 setTimeout(function(){document.getElementById('pP').textContent='0.0%';document.getElementById('pBa').style.width='0%';document.getElementById('pTr').classList.remove('ptr-ok');document.getElementById('sI').textContent='—';document.getElementById('dS').textContent='0 B/s';document.getElementById('uS').textContent='0 B/s';document.getElementById('pC').textContent='0';document.getElementById('eT').textContent='—';document.getElementById('fN').textContent='—';document.getElementById('fN').title='';document.getElementById('fL').innerHTML='<p class="text-xs py-4 text-center" style="color:var(--mut)">Waiting for metadata...</p>';sS('idle','Idle');uSv();document.getElementById('bS').disabled=false;document.getElementById('bP').disabled=true;document.getElementById('bX').disabled=true;document.getElementById('bR').disabled=true;document.getElementById('fbSec').style.display='none';for(var i=0;i<3;i++)document.getElementById('s'+i).disabled=false;upSto()},500);tst('Reset','fa-arrow-rotate-left','var(--acc)')}
 
 async function pM(){try{var t=await navigator.clipboard.readText();if(t&&t.startsWith('magnet:')){document.getElementById('mI').value=t;tst('Pasted','fa-paste','var(--acc)')}else tst('No magnet link in clipboard','fa-triangle-exclamation','var(--amb)')}catch(e){tst('Cannot read clipboard','fa-triangle-exclamation','var(--amb)')}}
