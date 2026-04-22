@@ -3,61 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NativeIDE | Final Fixed</title>
+    <title>Polyglot IDE | Hardened Build</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
     <script src="https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js"></script>
     <style>
-        :root { --bg: #09090b; --panel: #121214; --accent: #6366f1; }
-        body { background: var(--bg); color: #f4f4f5; font-family: sans-serif; margin: 0; overflow: hidden; height: 100vh; }
+        :root { --bg: #09090b; --panel: #121214; --accent: #6366f1; --border: #27272a; }
+        body { background: var(--bg); color: #f4f4f5; font-family: 'Inter', sans-serif; margin: 0; overflow: hidden; height: 100vh; }
         
+        /* Layout Structure */
         .app-container { display: flex; flex-direction: column; height: 100%; width: 100%; }
+        header { height: 64px; background: #18181b; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 1rem; z-index: 100; }
         
-        /* Header Fix */
-        header { 
-            height: 64px; 
-            background: #18181b; 
-            border-bottom: 1px solid #27272a; 
-            display: flex; 
-            align-items: center; 
-            justify-content: space-between; 
-            padding: 0 1rem;
-            z-index: 50;
-        }
-
-        /* Screen Management */
         .view-content { flex: 1; position: relative; overflow: hidden; }
         .view-screen { position: absolute; inset: 0; display: none; flex-direction: column; }
         .view-screen.active { display: flex; }
 
-        /* Navigation Fix */
-        .tab-nav { 
-            display: flex; 
-            height: 60px; 
-            background: #111113; 
-            border-top: 1px solid #27272a; 
-            padding-bottom: env(safe-area-inset-bottom); /* Fix for iPhone Notch */
-        }
-        .tab-btn { 
-            flex: 1; 
-            color: #71717a; 
-            font-size: 11px; 
-            font-weight: bold; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            transition: 0.2s;
-        }
+        /* Mobile Navigation */
+        .tab-nav { display: flex; height: 65px; background: #111113; border-top: 1px solid var(--border); padding-bottom: env(safe-area-inset-bottom); }
+        .tab-btn { flex: 1; color: #71717a; font-size: 10px; font-weight: bold; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
         .tab-btn.active { color: white; background: #1c1c1f; }
 
-        /* Desktop Layout Override */
+        /* Desktop Grid */
         @media (min-width: 768px) {
             .tab-nav { display: none; }
             .view-content { display: grid; grid-template-columns: 1fr 1fr; }
-            .view-screen { position: relative; display: flex !important; border-right: 1px solid #27272a; }
+            .view-screen { position: relative; display: flex !important; border-right: 1px solid var(--border); }
         }
 
         iframe { background: white; width: 100%; height: 100%; border: none; }
+        .log-entry { border-bottom: 1px solid #1a1a1a; padding: 6px 0; font-family: 'Fira Code', monospace; }
+        
+        /* Loading pulse for status */
+        .pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
     </style>
 </head>
 <body>
@@ -65,18 +44,23 @@
     <div class="app-container">
         <header>
             <div class="flex items-center gap-3">
-                <span class="text-indigo-500 font-black">IDE</span>
-                <select id="lang" onchange="updateLang()" class="bg-zinc-800 text-xs px-2 py-1.5 rounded border border-zinc-700 outline-none text-white">
-                    <option value="python">Python</option>
+                <div class="w-8 h-8 rounded bg-indigo-600 flex items-center justify-center font-bold text-sm shadow-lg shadow-indigo-500/20">P</div>
+                <select id="lang" onchange="updateLang()" class="bg-zinc-800 text-xs px-2 py-2 rounded border border-zinc-700 outline-none text-white focus:border-indigo-500">
+                    <option value="python">Python 3</option>
                     <option value="javascript">JavaScript</option>
-                    <option value="html">HTML5</option>
-                    <option value="cpp">C++ (Sim)</option>
+                    <option value="html">HTML5/CSS3</option>
+                    <option value="cpp">C++ (Mock)</option>
                 </select>
             </div>
             
-            <button onclick="executeCode()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black px-5 py-2 rounded-md shadow-lg transition active:scale-90">
-                EXECUTE
-            </button>
+            <div class="flex items-center gap-2">
+                <div id="vm-indicator" class="hidden md:block text-[9px] font-bold text-zinc-500 uppercase mr-2 tracking-widest pulse">
+                    Engine: Loading...
+                </div>
+                <button onclick="executeCode()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-black px-6 py-2.5 rounded shadow-lg transition active:scale-90">
+                    EXECUTE
+                </button>
+            </div>
         </header>
 
         <main class="view-content">
@@ -84,53 +68,86 @@
                 <div id="editor-target" class="flex-1"></div>
             </section>
 
-            <section id="screen-result" class="view-screen bg-black">
+            <section id="screen-result" class="view-screen bg-[#050505]">
                 <div id="html-preview-box" class="hidden flex-1">
-                    <iframe id="preview-frame"></iframe>
+                    <iframe id="preview-frame" title="Output Preview"></iframe>
                 </div>
-                <div id="console-box" class="flex-1 p-4 overflow-auto font-mono text-sm">
-                    <div class="text-[9px] text-zinc-600 font-bold uppercase mb-2">System Output</div>
-                    <pre id="stdout" class="text-emerald-400 whitespace-pre-wrap">Waiting for execution...</pre>
+                <div id="console-box" class="flex-1 p-4 overflow-auto">
+                    <div class="flex justify-between items-center mb-4 border-b border-zinc-800 pb-2">
+                        <span class="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Standard Output</span>
+                        <button onclick="clearConsole()" class="text-[9px] text-zinc-600 hover:text-zinc-400 font-bold">CLEAR</button>
+                    </div>
+                    <div id="stdout" class="text-zinc-300 text-sm whitespace-pre-wrap"></div>
                     <div id="bug-report" class="mt-4"></div>
                 </div>
             </section>
         </main>
 
         <nav class="tab-nav">
-            <button id="nav-code" onclick="showTab('screen-code')" class="tab-btn active">CODE</button>
-            <button id="nav-result" onclick="showTab('screen-result')" class="tab-btn">RESULT</button>
+            <button id="nav-code" onclick="showTab('screen-code')" class="tab-btn active">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+                CODE
+            </button>
+            <button id="nav-result" onclick="showTab('screen-result')" class="tab-btn">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                RESULT
+            </button>
+            <button onclick="downloadFile()" class="tab-btn">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                SAVE
+            </button>
         </nav>
     </div>
 
     <script>
         let editor, pyodide;
-        const codes = {
-            python: "print('Hello from Python WASM!')",
-            javascript: "console.log('JavaScript is running.');\n'Return value: ' + (5+5);",
-            html: "<h1>HTML Preview</h1>\n<p>Edit code and click Execute.</p>",
-            cpp: "#include <iostream>\nint main() { return 0; }"
+        const defaultCodes = {
+            python: "print('Python engine check...')\n# Try x = 1/0 to test the bug scanner",
+            javascript: "console.log('JavaScript is active.');\n'Returns: ' + (window.innerWidth + 'px wide')",
+            html: "<div style='padding:20px; font-family:sans-serif;'>\n  <h1 style='color:indigo;'>HTML Preview</h1>\n  <p>Live render active.</p>\n</div>",
+            cpp: "#include <iostream>\n\nint main() {\n    std::cout << \"Mock C++ Executed\" << std::endl;\n    return 0;\n}"
         };
 
-        // Initialize Monaco
+        // 1. Monaco Initialization
         require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
         require(['vs/editor/editor.main'], async function () {
             editor = monaco.editor.create(document.getElementById('editor-target'), {
-                value: codes.python,
+                value: localStorage.getItem('last_code') || defaultCodes.python,
                 language: 'python',
                 theme: 'vs-dark',
                 automaticLayout: true,
                 fontSize: 16,
                 wordWrap: "on",
-                minimap: { enabled: false }
+                minimap: { enabled: false },
+                scrollbar: { vertical: 'hidden' }
             });
 
+            // Persist code on change
+            editor.onDidChangeModelContent(() => {
+                localStorage.setItem('last_code', editor.getValue());
+            });
+
+            // 2. Pyodide Initialization with Error Handling
             try {
                 pyodide = await loadPyodide();
-                console.log("Python Ready");
+                document.getElementById('vm-indicator').innerText = "Engine: Ready";
+                document.getElementById('vm-indicator').classList.remove('pulse');
+                log("Python WASM Engine initialized successfully.");
             } catch (e) {
-                document.getElementById('stdout').innerText = "WASM Engine Error: Use a local server.";
+                document.getElementById('vm-indicator').innerText = "Engine: Offline";
+                log("Python Engine Offline. Note: You must run this file via an HTTP Server (like Live Server) for Python to work.", "text-yellow-500");
+                console.error("WASM Load Failure:", e);
             }
         });
+
+        function log(msg, color = "text-emerald-400") {
+            const out = document.getElementById('stdout');
+            const time = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            out.innerHTML += `<div class="log-entry ${color}"><span class="text-zinc-600 text-[10px] mr-2">[${time}]</span>${msg}</div>`;
+            out.scrollTop = out.scrollHeight;
+        }
+
+        function clearConsole() { document.getElementById('stdout').innerHTML = ""; }
 
         function showTab(id) {
             document.querySelectorAll('.view-screen').forEach(s => s.classList.remove('active'));
@@ -142,7 +159,7 @@
         function updateLang() {
             const lang = document.getElementById('lang').value;
             monaco.editor.setModelLanguage(editor.getModel(), lang === 'cpp' ? 'cpp' : lang);
-            editor.setValue(codes[lang]);
+            editor.setValue(defaultCodes[lang]);
             
             const isHTML = lang === 'html';
             document.getElementById('html-preview-box').classList.toggle('hidden', !isHTML);
@@ -152,32 +169,49 @@
         async function executeCode() {
             const lang = document.getElementById('lang').value;
             const code = editor.getValue();
-            const stdout = document.getElementById('stdout');
             const bugs = document.getElementById('bug-report');
-            
-            stdout.innerText = "Executing...";
             bugs.innerHTML = "";
 
-            // Mobile: Auto-switch to result screen
             if (window.innerWidth < 768) showTab('screen-result');
 
             try {
                 if (lang === 'python') {
+                    if (!pyodide) throw new Error("Python Engine is not available. Please ensure you are running this page via 'http://' and not 'file://'.");
+                    
                     pyodide.runPython(`import sys, io; sys.stdout = io.StringIO()`);
                     await pyodide.runPythonAsync(code);
-                    stdout.innerText = pyodide.runPython("sys.stdout.getvalue()") || "Finished.";
-                } else if (lang === 'javascript') {
-                    stdout.innerText = eval(code) || "Script Finished.";
-                } else if (lang === 'html') {
+                    const output = pyodide.runPython("sys.stdout.getvalue()");
+                    log(output || "Execution finished (no output).");
+                } 
+                else if (lang === 'javascript') {
+                    const result = eval(code);
+                    log(result !== undefined ? `Return: ${result}` : "JS Execution Finished.");
+                } 
+                else if (lang === 'html') {
                     document.getElementById('preview-frame').srcdoc = code;
-                } else if (lang === 'cpp') {
-                    if(!code.includes(';')) throw new Error("Syntax Error: Missing Semicolon");
-                    stdout.innerText = "C++ Sim: Compilation Successful.";
+                    log("HTML Render Updated.");
+                } 
+                else if (lang === 'cpp') {
+                    if(!code.includes(';')) throw new Error("Potential Syntax Error: Missing Semicolon (;)");
+                    log("C++ Simulation Build: Success.");
                 }
             } catch (err) {
-                stdout.innerText = "Execution Failed.";
-                bugs.innerHTML = `<div class="p-3 bg-red-900/40 border border-red-500 rounded text-red-200 text-xs">${err.message}</div>`;
+                log("Execution Blocked", "text-red-500");
+                bugs.innerHTML = `<div class="p-3 bg-red-900/40 border border-red-500 rounded text-red-100 text-xs">
+                    <strong>Error:</strong> ${err.message}
+                </div>`;
             }
+        }
+
+        function downloadFile() {
+            const lang = document.getElementById('lang').value;
+            const ext = { python: 'py', javascript: 'js', html: 'html', cpp: 'cpp' }[lang];
+            const blob = new Blob([editor.getValue()], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `code_export.${ext}`;
+            a.click();
         }
     </script>
 </body>
