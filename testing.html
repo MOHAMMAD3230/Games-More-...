@@ -2,123 +2,151 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>NativeIDE | 4-Lang Fixed Layout</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NativeIDE | Final Fixed</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
     <script src="https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js"></script>
     <style>
-        :root { --panel: #18181b; --border: #3f3f46; --bg: #09090b; }
-        body { background: var(--bg); color: #f4f4f5; font-family: 'Inter', sans-serif; overflow: hidden; height: 100vh; }
+        :root { --bg: #09090b; --panel: #121214; --accent: #6366f1; }
+        body { background: var(--bg); color: #f4f4f5; font-family: sans-serif; margin: 0; overflow: hidden; height: 100vh; }
         
-        /* Main Layout Grid */
-        .app-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            grid-template-rows: 60px 1fr 200px;
-            height: 100vh;
-            width: 100vw;
+        .app-container { display: flex; flex-direction: column; height: 100%; width: 100%; }
+        
+        /* Header Fix */
+        header { 
+            height: 64px; 
+            background: #18181b; 
+            border-bottom: 1px solid #27272a; 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            padding: 0 1rem;
+            z-index: 50;
         }
 
-        header { grid-column: 1 / 3; background: var(--panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; }
-        
-        #editor-container { grid-column: 1; grid-row: 2; border-right: 1px solid var(--border); overflow: hidden; }
-        
-        #preview-panel { grid-column: 2; grid-row: 2; background: #ffffff; width: 100%; height: 100%; border: none; }
-        
-        /* This covers the bottom row */
-        .bottom-section { grid-column: 1 / 3; grid-row: 3; display: grid; grid-template-columns: 1fr 1fr; background: #000; border-top: 1px solid var(--border); }
-        
-        .console { border-right: 1px solid var(--border); padding: 1rem; overflow-y: auto; }
-        .inspector { padding: 1rem; background: #111; overflow-y: auto; }
+        /* Screen Management */
+        .view-content { flex: 1; position: relative; overflow: hidden; }
+        .view-screen { position: absolute; inset: 0; display: none; flex-direction: column; }
+        .view-screen.active { display: flex; }
 
-        /* Helpers */
-        .full-editor { grid-column: 1 / 3 !important; }
-        .hidden { display: none !important; }
+        /* Navigation Fix */
+        .tab-nav { 
+            display: flex; 
+            height: 60px; 
+            background: #111113; 
+            border-top: 1px solid #27272a; 
+            padding-bottom: env(safe-area-inset-bottom); /* Fix for iPhone Notch */
+        }
+        .tab-btn { 
+            flex: 1; 
+            color: #71717a; 
+            font-size: 11px; 
+            font-weight: bold; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            transition: 0.2s;
+        }
+        .tab-btn.active { color: white; background: #1c1c1f; }
+
+        /* Desktop Layout Override */
+        @media (min-width: 768px) {
+            .tab-nav { display: none; }
+            .view-content { display: grid; grid-template-columns: 1fr 1fr; }
+            .view-screen { position: relative; display: flex !important; border-right: 1px solid #27272a; }
+        }
+
+        iframe { background: white; width: 100%; height: 100%; border: none; }
     </style>
 </head>
 <body>
 
-    <div class="app-grid">
+    <div class="app-container">
         <header>
-            <div class="flex items-center gap-6">
-                <span class="text-indigo-500 font-black text-xl">POLYGLOT.local</span>
-                <select id="lang" onchange="handleLanguageChange()" class="bg-zinc-800 text-sm px-3 py-1.5 rounded border border-zinc-600 outline-none">
-                    <option value="python">Python 3 (WASM)</option>
+            <div class="flex items-center gap-3">
+                <span class="text-indigo-500 font-black">IDE</span>
+                <select id="lang" onchange="updateLang()" class="bg-zinc-800 text-xs px-2 py-1.5 rounded border border-zinc-700 outline-none text-white">
+                    <option value="python">Python</option>
                     <option value="javascript">JavaScript</option>
-                    <option value="html">HTML5 (Live Preview)</option>
-                    <option value="cpp">C++ (Local Check)</option>
+                    <option value="html">HTML5</option>
+                    <option value="cpp">C++ (Sim)</option>
                 </select>
             </div>
-            <div class="flex items-center gap-4">
-                <div id="vm-status" class="text-[10px] font-bold text-zinc-500 uppercase">
-                    <span class="inline-block w-2 h-2 rounded-full bg-yellow-500 mr-2"></span>Loading Engine...
-                </div>
-                <button onclick="executeCode()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black px-8 py-2 rounded-md transition-all shadow-lg shadow-indigo-500/20">
-                    EXECUTE
-                </button>
-            </div>
+            
+            <button onclick="executeCode()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black px-5 py-2 rounded-md shadow-lg transition active:scale-90">
+                EXECUTE
+            </button>
         </header>
 
-        <div id="editor-container"></div>
+        <main class="view-content">
+            <section id="screen-code" class="view-screen active">
+                <div id="editor-target" class="flex-1"></div>
+            </section>
 
-        <iframe id="preview-panel" class="hidden" title="HTML Preview"></iframe>
+            <section id="screen-result" class="view-screen bg-black">
+                <div id="html-preview-box" class="hidden flex-1">
+                    <iframe id="preview-frame"></iframe>
+                </div>
+                <div id="console-box" class="flex-1 p-4 overflow-auto font-mono text-sm">
+                    <div class="text-[9px] text-zinc-600 font-bold uppercase mb-2">System Output</div>
+                    <pre id="stdout" class="text-emerald-400 whitespace-pre-wrap">Waiting for execution...</pre>
+                    <div id="bug-report" class="mt-4"></div>
+                </div>
+            </section>
+        </main>
 
-        <div class="bottom-section">
-            <div class="console">
-                <h3 class="text-[10px] text-zinc-500 font-bold uppercase mb-2 tracking-widest">Standard Output</h3>
-                <pre id="stdout" class="text-emerald-400 font-mono text-sm whitespace-pre-wrap">Ready for execution...</pre>
-            </div>
-            <div class="inspector">
-                <h3 class="text-[10px] text-zinc-500 font-bold uppercase mb-2 tracking-widest">Bug Scan</h3>
-                <div id="bug-report" class="text-xs text-zinc-400 italic">No errors found.</div>
-            </div>
-        </div>
+        <nav class="tab-nav">
+            <button id="nav-code" onclick="showTab('screen-code')" class="tab-btn active">CODE</button>
+            <button id="nav-result" onclick="showTab('screen-result')" class="tab-btn">RESULT</button>
+        </nav>
     </div>
 
     <script>
         let editor, pyodide;
-        const snippets = {
-            python: "def check_bug():\n    # Intentional division by zero\n    return 10 / 0\n\ntry:\n    check_bug()\nexcept Exception as e:\n    print(f'Error Caught: {e}')",
-            javascript: "const data = { msg: 'Hello' };\nconsole.log(data.msg + ' World');\n// return data.msg;",
-            html: "\n<div style='background: #f0f9ff; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif;'>\n  <h1 style='color: #0369a1;'>HTML Preview Window</h1>\n  <p>Modify code and click Execute!</p>\n</div>",
-            cpp: "#include <iostream>\n\nint main() {\n    std::cout << \"Simulated C++ Run\" << std::endl;\n    return 0;\n}"
+        const codes = {
+            python: "print('Hello from Python WASM!')",
+            javascript: "console.log('JavaScript is running.');\n'Return value: ' + (5+5);",
+            html: "<h1>HTML Preview</h1>\n<p>Edit code and click Execute.</p>",
+            cpp: "#include <iostream>\nint main() { return 0; }"
         };
 
-        // 1. Monaco & Pyodide Init
+        // Initialize Monaco
         require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
         require(['vs/editor/editor.main'], async function () {
-            editor = monaco.editor.create(document.getElementById('editor-container'), {
-                value: snippets.python,
+            editor = monaco.editor.create(document.getElementById('editor-target'), {
+                value: codes.python,
                 language: 'python',
                 theme: 'vs-dark',
                 automaticLayout: true,
-                fontSize: 14,
-                padding: { top: 16 }
+                fontSize: 16,
+                wordWrap: "on",
+                minimap: { enabled: false }
             });
 
             try {
                 pyodide = await loadPyodide();
-                document.getElementById('vm-status').innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-2"></span>Engine Ready';
+                console.log("Python Ready");
             } catch (e) {
-                document.getElementById('vm-status').innerHTML = '<span class="inline-block w-2 h-2 rounded-full bg-red-500 mr-2"></span>Local Load Blocked';
+                document.getElementById('stdout').innerText = "WASM Engine Error: Use a local server.";
             }
         });
 
-        function handleLanguageChange() {
+        function showTab(id) {
+            document.querySelectorAll('.view-screen').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            document.getElementById('nav-' + id.split('-')[1]).classList.add('active');
+        }
+
+        function updateLang() {
             const lang = document.getElementById('lang').value;
-            const preview = document.getElementById('preview-panel');
-            const editorCont = document.getElementById('editor-container');
-
-            if (lang === 'html') {
-                preview.classList.remove('hidden');
-                editorCont.classList.remove('full-editor');
-            } else {
-                preview.classList.add('hidden');
-                editorCont.classList.add('full-editor');
-            }
-
             monaco.editor.setModelLanguage(editor.getModel(), lang === 'cpp' ? 'cpp' : lang);
-            editor.setValue(snippets[lang]);
+            editor.setValue(codes[lang]);
+            
+            const isHTML = lang === 'html';
+            document.getElementById('html-preview-box').classList.toggle('hidden', !isHTML);
+            document.getElementById('console-box').classList.toggle('hidden', isHTML);
         }
 
         async function executeCode() {
@@ -127,40 +155,30 @@
             const stdout = document.getElementById('stdout');
             const bugs = document.getElementById('bug-report');
             
-            stdout.innerText = "Running...\n";
+            stdout.innerText = "Executing...";
             bugs.innerHTML = "";
+
+            // Mobile: Auto-switch to result screen
+            if (window.innerWidth < 768) showTab('screen-result');
 
             try {
                 if (lang === 'python') {
-                    if (!pyodide) throw new Error("WASM not initialized. Run via Local Server.");
                     pyodide.runPython(`import sys, io; sys.stdout = io.StringIO()`);
                     await pyodide.runPythonAsync(code);
-                    stdout.innerText = pyodide.runPython("sys.stdout.getvalue()");
-                } 
-                else if (lang === 'javascript') {
-                    const result = eval(code);
-                    stdout.innerText = result !== undefined ? `Return Value: ${result}` : "Executed (check browser console for logs)";
-                }
-                else if (lang === 'html') {
-                    document.getElementById('preview-panel').srcdoc = code;
-                    stdout.innerText = "HTML Frame Updated.";
-                }
-                else if (lang === 'cpp') {
-                    // Logic check for C++
-                    if(!code.includes('main')) throw new Error("Missing main() function.");
-                    if(!code.includes(';')) throw new Error("Likely missing semicolon (;).");
-                    stdout.innerText = "C++ Sim: Compilation Success.\nOutput: Simulated Result.";
+                    stdout.innerText = pyodide.runPython("sys.stdout.getvalue()") || "Finished.";
+                } else if (lang === 'javascript') {
+                    stdout.innerText = eval(code) || "Script Finished.";
+                } else if (lang === 'html') {
+                    document.getElementById('preview-frame').srcdoc = code;
+                } else if (lang === 'cpp') {
+                    if(!code.includes(';')) throw new Error("Syntax Error: Missing Semicolon");
+                    stdout.innerText = "C++ Sim: Compilation Successful.";
                 }
             } catch (err) {
-                stdout.innerText = `Runtime Error: ${err.message}`;
-                bugs.innerHTML = `<div class="p-3 bg-red-500/10 border border-red-500/30 rounded text-red-400">
-                    <strong>Suggestion:</strong> ${err.message}
-                </div>`;
+                stdout.innerText = "Execution Failed.";
+                bugs.innerHTML = `<div class="p-3 bg-red-900/40 border border-red-500 rounded text-red-200 text-xs">${err.message}</div>`;
             }
         }
-
-        // Default layout state
-        setTimeout(() => { document.getElementById('editor-container').classList.add('full-editor'); }, 500);
     </script>
 </body>
 </html>
