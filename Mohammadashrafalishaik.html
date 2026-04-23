@@ -4619,4 +4619,933 @@ body::before {
 </script>
 
 <!-- PART 4 (Final): Dashboard Logic, Floating Icons, Terminal, Event Bindings -->
-   
+  
+<script>
+(function() {
+    'use strict';
+
+    /* ============================================
+       FLOATING ICONS SYSTEM (Feature E)
+       Module icons that orbit in matrix space
+       ============================================ */
+    
+    var floatingIcons = [];
+    
+    // Icon data: emoji, URL link, color
+    var iconData = [
+        { 
+            emoji: '🎵', 
+            url: 'music.html', 
+            color: '#FFE600'  // Yellow
+        },
+        { 
+            emoji: '📻', 
+            url: 'radio.html', 
+            color: '#FF6B9D'  // Pink
+        },
+        { 
+            emoji: '🎮', 
+            url: 'https://mohammad3230.github.io/Games-More-.../', 
+            color: '#CCFF00'  // Lime
+        },
+        { 
+            emoji: '🔒', 
+            url: 'https://www.iubenda.com/privacy-policy/12072372', 
+            color: '#B983FF'  // Purple
+        }
+    ];
+
+    /**
+     * Show all floating icons in orbital pattern
+     * Icons appear around center of screen
+     */
+    function showFloatingIcons() {
+        var container = document.getElementById('floatingIconsContainer');
+        
+        // Clear existing icons
+        container.innerHTML = '';
+        floatingIcons = [];
+
+        // Create each icon
+        iconData.forEach(function(iconData, index) {
+            var iconElement = document.createElement('a');
+            iconElement.className = 'floating-icon';
+            iconElement.href = iconData.url;
+            iconElement.target = '_blank';
+            iconElement.rel = 'noopener noreferrer';
+            iconElement.textContent = iconData.emoji;
+            iconElement.style.color = iconData.color;
+
+            // Calculate initial position in circle around screen center
+            var angle = (Math.PI * 2 * index) / iconData.length;
+            var radius = 150 + Math.random() * 100; // Random radius variation
+            
+            var centerX = window.innerWidth / 2;
+            var centerY = window.innerHeight / 2;
+            
+            iconElement.style.left = (centerX + Math.cos(angle) * radius - 24) + 'px';
+            iconElement.style.top = (centerY + Math.sin(angle) * radius - 24) + 'px';
+
+            // Store animation properties as dataset
+            iconElement.dataset.angle = angle;
+            iconElement.dataset.radius = radius;
+            iconElement.dataset.speed = 0.001 + Math.random() * 0.002; // Random speed
+            iconElement.dataset.offset = Math.random() * Math.PI * 2;      // Random phase offset
+
+            container.appendChild(iconElement);
+            floatingIcons.push(iconElement);
+
+            // Staggered reveal animation
+            setTimeout(function() {
+                iconElement.classList.add('visible');
+            }, index * 200); // 200ms delay between each icon
+        });
+
+        // Start animation loop
+        animateFloatingIcons();
+    }
+
+    /**
+     * Hide all floating icons
+     */
+    function hideFloatingIcons() {
+        var container = document.getElementById('floatingIconsContainer');
+        container.innerHTML = '';
+        floatingIcons = [];
+    }
+
+    /**
+     * Show a single random floating icon at specific position
+     * Used for click interactions
+     * @param {number} x - X coordinate
+     * @param {number} y - Y coordinate
+     */
+    function showRandomFloatingIcon(x, y) {
+        if (floatingIcons.length === 0) return;
+
+        // Pick random icon from existing ones
+        var randomIndex = Math.floor(Math.random() * floatingIcons.length);
+        var icon = floatingIcons[randomIndex];
+
+        if (icon) {
+            // Move icon to click position
+            icon.style.left = (x - 24) + 'px';
+            icon.style.top = (y - 24) + 'px';
+            icon.classList.add('visible');
+
+            // Auto-hide after 3 seconds
+            setTimeout(function() {
+                icon.classList.remove('visible');
+            }, 3000);
+        }
+    }
+
+    /**
+     * Animate floating icons in orbital pattern
+     * Icons slowly rotate and wobble around screen center
+     */
+    function animateFloatingIcons() {
+        // Only animate if matrix is active and icons exist
+        if (!matrixActive || floatingIcons.length === 0) return;
+
+        var currentTime = Date.now();
+
+        floatingIcons.forEach(function(icon) {
+            // Get stored properties
+            var baseAngle = parseFloat(icon.dataset.angle);
+            var radius = parseFloat(icon.dataset.radius);
+            var speed = parseFloat(icon.dataset.speed);
+            var offset = parseFloat(icon.dataset.offset);
+
+            // Calculate new angle based on time
+            var newAngle = baseAngle + currentTime * speed + offset;
+
+            // Screen center
+            var centerX = window.innerWidth / 2;
+            var centerY = window.innerHeight / 2;
+
+            // Add wobble effect (sinusoidal variation)
+            var wobble = Math.sin(currentTime * 0.002 + offset) * 20;
+
+            // Update position
+            icon.style.left = (centerX + Math.cos(newAngle) * (radius + wobble) - 24) + 'px';
+            icon.style.top = (centerY + Math.sin(newAngle) * (radius + wobble) - 24) + 'px';
+
+            // Subtle rotation based on time
+            icon.style.transform = 'rotate(' + (Math.sin(currentTime * 0.001 + offset) * 15) + 'deg)';
+        });
+
+        // Continue loop only if matrix still active
+        if (matrixActive) {
+            requestAnimationFrame(animateFloatingIcons);
+        }
+    }
+
+    /* ============================================
+       TERMINAL SYSTEM (Feature G)
+       Hacker-style command prompt overlay
+       ============================================ */
+
+    var terminalVisible = false;
+
+    // Available terminal commands and responses
+    var terminalCommands = {
+        'help': 'Available commands: help, status, modules, chaos, matrix, clear, version, exit',
+        
+        'status': 'SYSTEM STATUS: ONLINE\n' +
+                  'UPTIME: 99.9%\n' +
+                  'ENCRYPTION: AES-256\n' +
+                  'MODE: MATRIX ACTIVE\n' +
+                  'DOOR STATE: OPEN',
+        
+        'modules': 'LOADED MODULES:\n' +
+                   '🎵 Music Library [OK]\n' +
+                   '📻 Live Radio [OK]\n' +
+                   '🎮 Gaming Portal [OK]\n' +
+                   '🚄 Railway Dispatch [OK]\n' +
+                   '🔒 Privacy Center [OK]',
+        
+        'chaos': '⚡ CHAOS PROTOCOL INITIATED...\n' +
+                 'ENTROPY LEVEL: MAXIMUM\n' +
+                 'DISORDER: OPTIMAL\n' +
+                 'RESULT: PURE BRUTALISM\n' +
+                 'STATUS: GLORIOUS',
+        
+        'matrix': '🟢 MATRIX MODE: ACTIVE\n' +
+                  'CHARACTER SET: ' + (matrixChars === charSets.matrix ? 'DEFAULT' : matrixChars.toUpperCase()) + '\n' +
+                  'COLOR THEME: ' + (matrixColor.rainbow ? 'RAINBOW' : matrixColor.primary.toUpperCase()) + '\n' +
+                  'SPEED: ' + matrixSpeed + 'ms\n' +
+                  'PARTICLES: RENDERING',
+        
+        'version': 'MY_STUFF MATRIX EDITION v2.0\n' +
+                   'BUILD: 2026.01.15\n' +
+                   'AUTHOR: CHAOS_ENGINEER\n' +
+                   'LICENSE: MIT\n' +
+                   'POWERED BY: CHAOS ENERGY ⚡',
+        
+        'clear': ''  // Special handling
+    };
+
+    /**
+     * Show terminal overlay
+     * Fades in with typing animation
+     */
+    function showTerminal() {
+        var terminal = document.getElementById('terminalOverlay');
+        terminal.classList.add('visible');
+        terminalVisible = true;
+
+        // Add welcome messages
+        addTerminalLine('> Terminal initialized', 'system');
+        addTerminalLine('> Type "help" for commands', 'system');
+
+        // Focus input after animation
+        setTimeout(function() {
+            document.getElementById('terminalInput').focus();
+        }, 100);
+    }
+
+    /**
+     * Hide terminal overlay
+     */
+    function hideTerminal() {
+        var terminal = document.getElementById('terminalOverlay');
+        terminal.classList.remove('visible');
+        terminalVisible = false;
+    }
+
+    /**
+     * Add line to terminal output
+     * @param {string} text - Line text
+     * @param {string} type - CSS class ('system', 'success', 'warning', 'error')
+     */
+    function addTerminalLine(text, type) {
+        var output = document.getElementById('terminalOutput');
+        var line = document.createElement('div');
+        line.className = 'terminal-line ' + (type || '');
+        line.textContent = text;
+        output.appendChild(line);
+
+        // Auto-scroll to bottom
+        output.scrollTop = output.scrollHeight;
+    }
+
+    /**
+     * Process terminal command input
+     * @param {string} cmd - Command string entered by user
+     */
+    function processTerminalCommand(cmd) {
+        var command = cmd.toLowerCase().trim();
+
+        // Echo command
+        addTerminalLine('>> ' + cmd, '');
+
+        // Handle exit/quit
+        if (command === 'exit' || command === 'quit') {
+            addTerminalLine('> Closing terminal...', 'system');
+            setTimeout(hideTerminal, 500);
+            return;
+        }
+
+        // Handle clear
+        if (command === 'clear') {
+            document.getElementById('terminalOutput').innerHTML = '';
+            return;
+        }
+
+        // Look up command in dictionary
+        if (terminalCommands[command]) {
+            addTerminalLine(terminalCommands[command], 'success');
+        } else if (command === '') {
+            // Empty command - do nothing
+        } else {
+            // Unknown command
+            addTerminalLine('Command not found: ' + cmd, 'error');
+            addTerminalLine('Type "help" for available commands', 'warning');
+        }
+    }
+
+    /* ============================================
+       MATRIX CONTROL PANEL (Feature C)
+       Sliders and buttons for real-time adjustment
+       ============================================ */
+
+    /**
+     * Toggle control panel visibility
+     */
+    function toggleControlPanel() {
+        var panel = document.getElementById('matrixControlPanel');
+        panel.classList.toggle('visible');
+    }
+
+    /**
+     * Update matrix settings from control panel values
+     * Called on slider/input change events
+     */
+    function updateMatrixSettings() {
+        // Brightness slider -> opacity
+        var brightnessSlider = document.getElementById('matrixBrightness');
+        if (brightnessSlider) {
+            matrixOpacity = brightnessSlider.value / 100;
+        }
+
+        // Speed slider -> frame interval (inverted: higher value = faster)
+        var speedSlider = document.getElementById('matrixSpeed');
+        if (speedSlider) {
+            // Convert 10-100 range to 110-20ms (inverted)
+            matrixSpeed = 110 - speedSlider.value + 10;
+        }
+    }
+
+    /**
+     * Setup color theme buttons
+     * Adds click handlers to change matrix color scheme
+     */
+    function setupColorButtons() {
+        var buttons = document.querySelectorAll('.matrix-color-btn');
+
+        buttons.forEach(function(button) {
+            button.addEventListener('click', function() {
+                // Remove active class from all buttons
+                buttons.forEach(function(b) {
+                    b.classList.remove('active');
+                });
+
+                // Activate clicked button
+                this.classList.add('active');
+
+                // Get selected color
+                var colorName = this.dataset.color;
+
+                if (colorName === 'rainbow') {
+                    // Rainbow mode
+                    matrixColor = { rainbow: true };
+                } else {
+                    // Solid color mode - extract RGB from computed style
+                    var computedColor = getComputedStyle(this).backgroundColor;
+                    matrixColor = {
+                        primary: computedColor,
+                        secondary: computedColor,
+                        rainbow: false
+                    };
+                }
+            });
+        });
+    }
+
+    /**
+     * Setup character set buttons
+     * Adds click handlers to change falling characters
+     */
+    function setupCharButtons() {
+        var buttons = document.querySelectorAll('.matrix-char-btn');
+
+        buttons.forEach(function(button) {
+            button.addEventListener('click', function() {
+                // Remove active class from all buttons
+                buttons.forEach(function(b) {
+                    b.classList.remove('active');
+                });
+
+                // Activate clicked button
+                this.classList.add('active');
+
+                // Get selected character set name
+                var charSetName = this.dataset.chars;
+
+                // Update global character set
+                if (charSets[charSetName]) {
+                    matrixChars = charSets[charSetName];
+                }
+            });
+        });
+    }
+
+    /* ============================================
+       DASHBOARD INITIALIZATION
+       Main entry point after door opens
+       ============================================ */
+
+    var innerScriptsInited = false;
+
+    /**
+     * Initialize all dashboard scripts and features
+     * Called once when inner content becomes visible
+     */
+    function initInnerScripts() {
+        // Prevent double initialization
+        if (innerScriptsInited) return;
+        innerScriptsInited = true;
+
+        var hudActive = true; // Track HUD visibility state
+
+        /* ----------------------------------------
+           CLOCK FUNCTIONALITY
+           Updates time display every second
+           ---------------------------------------- */
+        function updateClock() {
+            var now = new Date();
+            
+            var timeString = now.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+
+            var clockElement = document.getElementById('clock-display');
+            if (clockElement) {
+                clockElement.textContent = timeString;
+            }
+        }
+
+        // Initial update + start interval
+        updateClock();
+        setInterval(updateClock, 1000);
+
+        /* ----------------------------------------
+           SEARCH FUNCTIONALITY
+           Handles search form submission
+           ---------------------------------------- */
+        function handleSearch(event) {
+            event.preventDefault();
+
+            var input = document.getElementById('search-input');
+            if (!input) return false;
+
+            var rawValue = input.value || '';
+            var query = sanitizeInput(rawValue.trim());
+
+            // Validate query
+            if (!query || query.length === 0) {
+                console.warn('[Search] Empty query blocked');
+                return false;
+            }
+
+            // Check for suspicious patterns
+            var suspiciousPatterns = [
+                /<script\b[^<]*(?:(?!<\/script\b)[^<])*<\/script\b[^>]*>/gi,
+                /javascript:/gi,
+                /data:\s*text\/html/gi,
+                /on\w+\s*=/gi,
+                /expression\s*\(/gi,
+                /url\s*\(/gi,
+                /@import/gi
+            ];
+
+            for (var i = 0; i < suspiciousPatterns.length; i++) {
+                if (suspiciousPatterns[i].test(query)) {
+                    console.warn('[Search] Suspicious pattern blocked');
+                    return false;
+                }
+            }
+
+            // Build search URL
+            var encodedQuery = encodeURIComponent(query);
+            var searchUrl = 'https://www.google.com/search?q=' + encodedQuery;
+
+            // Validate and open
+            if (isSafeUrl(searchUrl)) {
+                window.open(searchUrl, '_blank', 'noopener,noreferrer');
+            } else {
+                console.error('[Search] Invalid URL generated');
+            }
+
+            return false;
+        }
+
+        // Bind search form
+        var searchForm = document.getElementById('search-form');
+        if (searchForm) {
+            searchForm.addEventListener('submit', handleSearch);
+        }
+
+        /* ----------------------------------------
+           LEVER CONTROL HANDLERS
+           Matrix lever and Security/HUD lever
+           ---------------------------------------- */
+
+        /**
+         * Toggle Matrix effect on/off
+         * Activates all Matrix HUD features (A-G)
+         */
+        function toggleMatrix() {
+            matrixActive = !matrixActive;
+
+            var matrixLever = document.getElementById('lever-matrix');
+            var controlPanel = document.getElementById('matrixControlPanel');
+
+            if (matrixActive) {
+                // ACTIVATE MATRIX
+                matrixLever.classList.add('active');
+                controlPanel.classList.add('visible');
+
+                // Show additional features
+                showFloatingIcons();      // Feature E
+                showTerminal();            // Feature G
+
+                // Apply glass mode class to body (for potential CSS effects)
+                document.body.classList.add('matrix-active');
+
+            } else {
+                // DEACTIVATE MATRIX
+                matrixLever.classList.remove('active');
+                controlPanel.classList.remove('visible');
+
+                // Hide features
+                hideFloatingIcons();
+                hideTerminal();
+
+                // Remove glass mode
+                document.body.classList.remove('matrix-active');
+
+                // Clear canvas to solid background
+                matrixCtx.fillStyle = '#000010';
+                matrixCtx.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
+            }
+
+            // Sync control panel sliders
+            updateMatrixSettings();
+        }
+
+        /**
+         * Toggle HUD visibility / Close door
+         * Controls which dashboard elements are shown
+         */
+        function toggleHUDLever() {
+            if (isClosing) return; // Prevent during close sequence
+
+            var securityLever = document.getElementById('lever-security');
+
+            if (hudActive) {
+                // HIDE HUD
+                securityLever.classList.remove('active');
+                securityLever.classList.add('closing-state');
+                hudActive = false;
+
+                // Hide all HUD elements
+                var hudElements = document.querySelectorAll('.hud-element');
+                hudElements.forEach(function(el) {
+                    el.classList.add('hud-hidden');
+                });
+
+                // Trigger door close
+                closeAndReturn();
+
+            } else {
+                // SHOW HUD
+                securityLever.classList.remove('closing-state');
+                securityLever.classList.add('active');
+                hudActive = true;
+
+                // Show all HUD elements
+                var hudElements = document.querySelectorAll('.hud-element');
+                hudElements.forEach(function(el) {
+                    el.classList.remove('hud-hidden');
+                });
+            }
+        }
+
+        /* ----------------------------------------
+           CATEGORIES PANEL NAVIGATION
+           Expandable module menu system
+           ---------------------------------------- */
+
+        var backdrop = document.getElementById('panelBackdrop');
+
+        /**
+         * Check if viewport is mobile size
+         * @returns {boolean}
+         */
+        function isMobile() {
+            return window.innerWidth <= 768;
+        }
+
+        /** Show dark overlay behind panel (mobile only) */
+        function showBackdrop() {
+            if (isMobile()) {
+                backdrop.classList.add('active');
+            }
+        }
+
+        /** Hide overlay */
+        function hideBackdrop() {
+            backdrop.classList.remove('active');
+        }
+
+        /**
+         * Close categories panel
+         * Resets expanded state
+         */
+        function closeCategories() {
+            var panel = document.getElementById('categoriesPanel');
+            panel.classList.remove('expanded');
+            
+            document.getElementById('categoryDropdown').classList.remove('show');
+            document.getElementById('categoryToggleBtn').setAttribute('aria-expanded', 'false');
+            
+            hideBackdrop();
+        }
+
+        /**
+         * Toggle categories panel open/close
+         */
+        function toggleCategoryPanel() {
+            var panel = document.getElementById('categoriesPanel');
+            var isOpen = panel.classList.contains('expanded');
+
+            // Close first if opening on mobile
+            if (!isOpen && isMobile()) {
+                hideBackdrop();
+            }
+
+            // Toggle state
+            panel.classList.toggle('expanded');
+            document.getElementById('categoryDropdown').classList.toggle('show');
+            document.getElementById('categoryToggleBtn').setAttribute(
+                'aria-expanded', 
+                String(!isOpen)
+            );
+
+            // Show/hide backdrop accordingly
+            if (!isOpen) {
+                showBackdrop();
+            } else {
+                hideBackdrop();
+            }
+        }
+
+        /**
+         * Toggle submenu expansion
+         * @param {Event} event - Click event
+         */
+        function toggleSubmenu(event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            var submenuId = event.currentTarget.getAttribute('data-submenu');
+            if (!submenuId) return;
+
+            var submenu = document.getElementById(submenuId);
+            if (submenu) {
+                var isVisible = submenu.style.display === 'none';
+                
+                // Toggle visibility
+                submenu.style.display = isVisible ? 'block' : 'none';
+                
+                // Update ARIA attribute
+                event.currentTarget.setAttribute('aria-expanded', String(isVisible));
+            }
+        }
+
+        /**
+         * Filter category links by search text
+         * Shows/hides items matching filter
+         */
+        function filterCategories() {
+            var filterText = normalizeSearchInput(
+                document.getElementById('categoryFilter').value
+            ).toUpperCase();
+
+            var links = document.getElementById('categoryDropdown').querySelectorAll('a');
+
+            links.forEach(function(link) {
+                var linkText = (link.textContent || link.innerText).toUpperCase();
+                
+                // Show if matches filter, hide otherwise
+                link.style.display = linkText.indexOf(filterText) > -1 ? '' : 'none';
+            });
+        }
+
+        /* ----------------------------------------
+           COOKIE CONSENT BANNER
+           GDPR-compliant opt-in/out
+           ---------------------------------------- */
+
+        /**
+         * Show cookie consent banner if not previously dismissed
+         */
+        function showCookieConsent() {
+            try {
+                if (!localStorage.getItem('cookie_consent')) {
+                    document.getElementById('cookieConsent').style.display = 'block';
+                }
+            } catch (e) {
+                // localStorage unavailable (private browsing, etc.)
+                console.warn('[Cookie] LocalStorage not available');
+            }
+        }
+
+        /** User accepts cookies */
+        function grantConsent() {
+            try {
+                localStorage.setItem('cookie_consent', 'accepted');
+            } catch (e) {}
+
+            document.getElementById('cookieConsent').style.display = 'none';
+
+            // Update Google Analytics consent
+            if (typeof gtag === 'function') {
+                gtag('consent', 'update', {
+                    'analytics_storage': 'granted',
+                    'ad_storage': 'granted',
+                    'ad_user_data': 'granted',
+                    'ad_personalization': 'granted'
+                });
+            }
+        }
+
+        /** User rejects cookies */
+        function denyConsent() {
+            try {
+                localStorage.setItem('cookie_consent', 'denied');
+            } catch (e) {}
+
+            document.getElementById('cookieConsent').style.display = 'none';
+        }
+
+        /* ----------------------------------------
+           ABOUT MODAL DIALOG
+           Information popup
+           ---------------------------------------- */
+
+        var aboutModal = document.getElementById('about-modal');
+        var isModalOpen = false;
+
+        /** Open about modal */
+        function openAboutModal() {
+            if (!aboutModal || isModalOpen) return;
+            
+            isModalOpen = true;
+            aboutModal.classList.add('active');
+            
+            // Prevent body scroll
+            document.body.style.overflow = 'hidden';
+            
+            // Add escape key listener
+            document.addEventListener('keydown', handleModalEscape);
+        }
+
+        /** Close about modal */
+        function closeAboutModal() {
+            if (!aboutModal || !isModalOpen) return;
+            
+            isModalOpen = false;
+            aboutModal.classList.remove('active');
+            
+            // Restore body scroll
+            document.body.style.overflow = '';
+            
+            // Remove escape listener
+            document.removeEventListener('keydown', handleModalEscape);
+        }
+
+        /** Handle Escape key in modal */
+        function handleModalEscape(event) {
+            if (event.key === 'Escape' && isModalOpen) {
+                closeAboutModal();
+            }
+        }
+
+        /* =========================================
+           EVENT BINDINGS - Wire everything up!
+           ========================================= */
+
+        // --- Matrix Lever Events ---
+        var matrixLeverEl = document.getElementById('lever-matrix');
+        matrixLeverEl.addEventListener('click', toggleMatrix);
+        matrixLeverEl.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                toggleMatrix();
+            }
+        });
+
+        // --- Security/HUD Lever Events ---
+        var securityLeverEl = document.getElementById('lever-security');
+        securityLeverEl.addEventListener('click', toggleHUDLever);
+        securityLeverEl.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                toggleHUDLever();
+            }
+        });
+
+        // --- Categories Panel Events ---
+        document.getElementById('categoryToggleBtn').addEventListener('click', toggleCategoryPanel);
+        document.getElementById('categoryFilter').addEventListener('input', filterCategories);
+
+        // Main category links (expand/collapse submenus)
+        var mainCategoryLinks = document.querySelectorAll('.main-link[data-submenu]');
+        mainCategoryLinks.forEach(function(link) {
+            link.addEventListener('click', toggleSubmenu);
+        });
+
+        // Navigation links inside dropdown (close panel on click)
+        var navLinksInsideDropdown = document.querySelectorAll('#categoryDropdown a[href]');
+        navLinksInsideDropdown.forEach(function(link) {
+            // Skip links that are just toggles or submenus
+            if (link.getAttribute('data-submenu') || link.getAttribute('href') === '#') {
+                return;
+            }
+
+            link.addEventListener('click', function() {
+                // Delay close to allow navigation
+                setTimeout(closeCategories, 150);
+            });
+        });
+
+        // Backdrop click closes panel
+        backdrop.addEventListener('click', closeCategories);
+
+        // --- Cookie Consent Events ---
+        document.getElementById('consentAccept').addEventListener('click', grantConsent);
+        document.getElementById('consentReject').addEventListener('click', denyConsent);
+
+        // --- About Modal Events ---
+        var aboutTriggerLink = document.getElementById('about-trigger');
+        if (aboutTriggerLink) {
+            aboutTriggerLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                openAboutModal();
+            });
+        }
+
+        var aboutTriggerModalLink = document.getElementById('about-trigger-modal');
+        if (aboutTriggerModalLink) {
+            aboutTriggerModalLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                openAboutModal();
+            });
+        }
+
+        var aboutCloseButton = document.getElementById('about-close');
+        if (aboutCloseButton) {
+            aboutCloseButton.addEventListener('click', closeAboutModal);
+        }
+
+        // Click outside modal closes it
+        if (aboutModal) {
+            aboutModal.addEventListener('click', function(e) {
+                if (e.target === aboutModal) {
+                    closeAboutModal();
+                }
+            });
+        }
+
+        // --- Terminal Events ---
+        var terminalCloseButton = document.getElementById('terminalClose');
+        terminalCloseButton.addEventListener('click', hideTerminal);
+
+        var terminalInputField = document.getElementById('terminalInput');
+        terminalInputField.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                // Process command on Enter
+                processTerminalCommand(this.value);
+                
+                // Clear input
+                this.value = '';
+            }
+        });
+
+        // --- Matrix Control Panel Events ---
+        setupColorButtons();
+        setupCharButtons();
+
+        // Sliders update settings in real-time
+        document.getElementById('matrixBrightness').addEventListener('input', updateMatrixSettings);
+        document.getElementById('matrixSpeed').addEventListener('input', updateMatrixSettings);
+
+        /* ----------------------------------------
+           SECURITY: URL Validation for All Links
+           Prevents malicious link execution
+           ---------------------------------------- */
+
+        /**
+         * Intercept all anchor clicks in inner content
+         * Validates URLs before allowing navigation
+         */
+        var allAnchors = document.querySelectorAll('#innerContent a[href]');
+        
+        allAnchors.forEach(function(anchor) {
+            anchor.addEventListener('click', function(event) {
+                var href = anchor.getAttribute('href');
+
+                // Allow empty hashes and internal references
+                if (!href || href === '#' || href.startsWith('javascript:')) {
+                    // Block potentially dangerous
+                    if (href && href !== '#' && !href.startsWith('javascript:')) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        console.warn('[Security] Blocked suspicious link:', href);
+                    }
+                    return;
+                }
+
+                // Validate URL safety
+                if (href && !isSafeUrl(href)) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    console.warn('[Security] Blocked unsafe URL:', href);
+                }
+                // Safe URLs proceed normally (open in new tab due to target="_blank")
+            });
+        });
+
+        /* ----------------------------------------
+           INITIALIZE UI COMPONENTS
+           ---------------------------------------- */
+
+        // Show cookie consent if needed
+        showCookieConsent();
+
+        // Log initialization complete
+        console.log('%c✅ MY_STUFF Matrix HUD Initialized', 'color: #00ff00; font-weight: bold;');
+        console.log('%c🎬 All Systems Operational', 'color: #00bfff; font-weight: bold;');
+        console.log('%c⚠️ Interactive Mode: ON', 'color: #ff00ff; font-weight: bold;');
+    }
+
+})();
+</script>
+
+</body>
+</html> 
