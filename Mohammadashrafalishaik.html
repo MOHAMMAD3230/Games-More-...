@@ -3593,3 +3593,1030 @@ body::before {
 </div>
 
 <!-- END OF PART 2 - JavaScript comes in Part 3 -->
+
+<!-- ============================================
+     COMPLETE JAVASCRIPT (Part 3 of 4)
+     ============================================ -->
+<script>
+(function() {
+    'use strict';
+
+    /* ============================================
+       STATE VARIABLES
+       ============================================ */
+    var doorState = 'locked';
+    var isClosing = false;
+    var doorAudioCtx = null;
+
+    /* ============================================
+       DOM ELEMENT REFERENCES
+       ============================================ */
+    var airlock = document.getElementById('airlock');
+    var mainDoor = document.getElementById('mainDoor');
+    var leverWell = document.getElementById('leverWell');
+    var barLight = document.getElementById('barLight');
+    var barText = document.getElementById('barText');
+    var psiFill = document.getElementById('psiFill');
+    var hydFill = document.getElementById('hydFill');
+    var sealFlash = document.getElementById('sealFlash');
+    var steamBox = document.getElementById('steamBox');
+    var sparkBox = document.getElementById('sparkBox');
+    var miniText = document.getElementById('miniText');
+    var ledClosed = document.getElementById('ledClosed');
+    var ledOpen = document.getElementById('ledOpen');
+    var kbHint = document.getElementById('kbHint');
+    var innerContent = document.getElementById('innerContent');
+    var closingOverlay = document.getElementById('closingOverlay');
+    
+    // Status Nodes Array
+    var sNodes = [
+        document.getElementById('sn1'),
+        document.getElementById('sn2'),
+        document.getElementById('sn3'),
+        document.getElementById('sn4')
+    ];
+
+    /* ============================================
+       AUDIO ENGINE (Web Audio API)
+       Generates mechanical door sounds
+       ============================================ */
+    
+    /**
+     * Get or create audio context
+     * @returns {AudioContext|null} Audio context instance
+     */
+    function doorAudio() {
+        if (!doorAudioCtx) {
+            try {
+                doorAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            } catch (e) {
+                console.warn('[Audio] Web Audio API not supported');
+                return null;
+            }
+        }
+        
+        // Resume if suspended (browser autoplay policy)
+        if (doorAudioCtx.state === 'suspended') {
+            doorAudioCtx.resume();
+        }
+        
+        return doorAudioCtx;
+    }
+
+    /**
+     * Generate white noise burst (for steam/hiss sounds)
+     * @param {number} dur - Duration in seconds
+     * @param {number} vol - Volume (0-1)
+     * @param {number} freq - Lowpass filter frequency
+     */
+    function doorNoise(dur, vol, freq) {
+        var ctx = doorAudio();
+        if (!ctx) return;
+
+        var sampleRate = ctx.sampleRate;
+        var bufferSize = Math.floor(sampleRate * dur);
+        var buffer = ctx.createBuffer(1, bufferSize, sampleRate);
+        var data = buffer.getChannelData(0);
+
+        // Fill buffer with random noise
+        for (var i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+
+        // Create source node
+        var source = ctx.createBufferSource();
+        source.buffer = buffer;
+
+        // Create lowpass filter
+        var filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = Math.max(20, freq || 800);
+
+        // Create gain node for volume control
+        var gainNode = ctx.createGain();
+        gainNode.gain.setValueAtTime(Math.max(0.001, vol), ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(
+            0.001, 
+            ctx.currentTime + Math.max(0.01, dur)
+        );
+
+        // Connect nodes: source -> filter -> gain -> destination
+        source.connect(filter);
+        filter.connect(gainNode);
+        gainNode.connect(ctx.destination);
+
+        // Play sound
+        source.start();
+        source.stop(ctx.currentTime + Math.max(0.01, dur));
+    }
+
+    /**
+     * Generate pure tone (for beeps and alerts)
+     * @param {number} freq - Frequency in Hz
+     * @param {number} dur - Duration in seconds
+     * @param {number} vol - Volume (0-1)
+     * @param {string} type - Oscillator type ('sine', 'square', 'sawtooth', etc.)
+     */
+    function doorTone(freq, dur, vol, type) {
+        var ctx = doorAudio();
+        if (!ctx) return;
+
+        var oscillator = ctx.createOscillator();
+        oscillator.type = type || 'sine';
+        oscillator.frequency.value = Math.max(20, freq);
+
+        var gainNode = ctx.createGain();
+        gainNode.gain.setValueAtTime(Math.max(0.001, vol), ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(
+            0.001,
+            ctx.currentTime + Math.max(0.01, dur)
+        );
+
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
+
+        oscillator.start();
+        oscillator.stop(ctx.currentTime + Math.max(0.01, dur));
+    }
+
+    /**
+     * Play sequence of beeps
+     * @param {number} freq - Frequency in Hz
+     * @param {number} count - Number of beeps
+     * @param {number} interval - Interval between beeps in ms
+     */
+    function doorBeep(freq, count, interval) {
+        for (var i = 0; i < count; i++) {
+            (function(index) {
+                setTimeout(function() {
+                    doorTone(freq, 0.1, 0.05, 'sine');
+                }, index * interval);
+            })(i);
+        }
+    }
+
+    /* ============================================
+       PARTICLE SYSTEMS
+       Steam and Spark effects
+       ============================================ */
+
+    /**
+     * Spawn steam particles
+     * Creates rising, expanding vapor effect
+     * @param {number} count - Number of particles to spawn
+     */
+    function spawnSteam(count) {
+        for (var i = 0; i < count; i++) {
+            var particle = document.createElement('div');
+            particle.className = 'steam-p';
+
+            // Random starting position (right side of door)
+            var startX = 85 + Math.random() * 15; // percentage
+            var startY = 30 + Math.random() * 50;
+            
+            // Random movement vector
+            var deltaX = (Math.random() - 0.5) * 50;
+            var deltaY = -(50 + Math.random() * 90); // Move upward
+            
+            // Random size
+            var size = Math.max(1, 4 + Math.random() * 6);
+            
+            // Random duration
+            var duration = Math.max(0.1, 1.5 + Math.random() * 1.5);
+            
+            var startTime = performance.now();
+
+            // Set initial styles
+            particle.style.left = startX + '%';
+            particle.style.top = startY + '%';
+            particle.style.width = size + 'px';
+            particle.style.height = size + 'px';
+
+            steamBox.appendChild(particle);
+
+            // Animate particle
+            (function animate(el, sx, sy, dx, dy, sz, dur, t0) {
+                function frame(now) {
+                    var elapsed = (now - t0) / (dur * 1000);
+                    var progress = Math.min(elapsed, 1);
+                    
+                    // Ease out cubic
+                    var ease = 1 - Math.pow(1 - progress, 2);
+
+                    // Update position
+                    el.style.left = (sx + dx * ease) + '%';
+                    el.style.top = (sy + dy * ease) + '%';
+
+                    // Expand size
+                    var newSize = sz + sz * 2.5 * progress;
+                    el.style.width = newSize + 'px';
+                    el.style.height = newSize + 'px';
+
+                    // Fade in then out
+                    if (progress < 0.1) {
+                        el.style.opacity = progress * 10;
+                    } else {
+                        el.style.opacity = 1 - progress;
+                    }
+
+                    // Continue animation or remove
+                    if (progress < 1) {
+                        requestAnimationFrame(frame);
+                    } else {
+                        el.remove();
+                    }
+                }
+                requestAnimationFrame(frame);
+            })(particle, startX, startY, deltaX, deltaY, size, duration, startTime);
+        }
+    }
+
+    /**
+     * Spawn spark particles
+     * Creates explosive scatter effect
+     * @param {number} count - Number of sparks
+     * @param {number} originX - Origin X position (%)
+     * @param {number} originY - Origin Y position (%)
+     */
+    function spawnSparks(count, originX, originY) {
+        for (var i = 0; i < count; i++) {
+            var spark = document.createElement('div');
+
+            // Random angle for direction
+            var angle = Math.random() * Math.PI * 2;
+            var speed = 40 + Math.random() * 100;
+
+            // Calculate trajectory
+            var deltaX = Math.cos(angle) * speed;
+            var deltaY = Math.sin(angle) * speed - 50; // Bias upward
+
+            // Random properties
+            var duration = Math.max(0.05, 0.2 + Math.random() * 0.5);
+            var colors = ['#fff', '#ffc107', '#ff6600'];
+            var color = colors[Math.floor(Math.random() * colors.length)];
+            var size = Math.max(1, 1 + Math.random() * 2);
+
+            // Set styles
+            spark.style.cssText = 
+                'position:absolute;' +
+                'left:' + originX + '%;' +
+                'top:' + originY + '%;' +
+                'width:' + size + 'px;' +
+                'height:' + size + 'px;' +
+                'background:' + color + ';' +
+                'box-shadow:0 0 4px ' + color + ';' +
+                'border-radius:50%;';
+
+            sparkBox.appendChild(spark);
+
+            // Animate spark
+            (function animate(el, ox, oy, dx, dy, dur) {
+                var t0 = performance.now();
+
+                function frame(now) {
+                    var elapsed = (now - t0) / (dur * 1000);
+                    var progress = Math.min(elapsed, 1);
+                    var ease = 1 - Math.pow(1 - progress, 2);
+
+                    // Update position with gravity effect
+                    el.style.left = (ox + dx * ease) + '%';
+                    el.style.top = (oy + (dy * ease + 60 * ease * ease)) + '%';
+
+                    // Fade out
+                    el.style.opacity = 1 - progress;
+
+                    if (progress < 1) {
+                        requestAnimationFrame(frame);
+                    } else {
+                        el.remove();
+                    }
+                }
+                requestAnimationFrame(frame);
+            })(spark, originX, originY, deltaX, deltaY, duration);
+        }
+    }
+
+    /* ============================================
+       UI HELPER FUNCTIONS
+       Update lever LEDs, status nodes, bar
+       ============================================ */
+
+    /**
+     * Set lever well LED states
+     * @param {string} state - 'locked', 'open', or 'cycling'
+     */
+    function setWellLeds(state) {
+        ledClosed.className = 'well-led top';
+        ledOpen.className = 'well-led bot';
+
+        if (state === 'locked') {
+            ledClosed.classList.add('lit-a'); // Red/amber
+        } else if (state === 'open') {
+            ledOpen.classList.add('lit-g'); // Green
+        } else {
+            // Cycling - both blink cyan
+            ledClosed.classList.add('lit-c');
+            ledOpen.classList.add('lit-c');
+        }
+    }
+
+    /**
+     * Set status node indicators
+     * @param {string} state - 'green', 'amber', or off
+     */
+    function setNodes(state) {
+        sNodes.forEach(function(node) {
+            node.className = 's-node';
+            
+            if (state === 'green') {
+                node.classList.add('green');
+            } else if (state === 'amber') {
+                node.classList.add('amber');
+            }
+        });
+    }
+
+    /**
+     * Update status bar light and text
+     * @param {string} state - CSS class for light
+     * @param {string} text - Status text
+     */
+    function setBar(state, text) {
+        barLight.className = 'bar-light ' + state;
+        barText.textContent = text;
+    }
+
+    /* ============================================
+       SECURITY & VALIDATION UTILITIES
+       ============================================ */
+
+    /**
+     * Sanitize user input to prevent XSS
+     * @param {string} str - Raw input string
+     * @returns {string} Sanitized string
+     */
+    function sanitizeInput(str) {
+        if (typeof str !== 'string') return '';
+
+        var div = document.createElement('div');
+        div.textContent = str;
+        var sanitized = div.innerHTML.replace(/\0/g, '');
+
+        // Truncate to max length
+        if (sanitized.length > 200) {
+            return sanitized.substring(0, 200);
+        }
+
+        return sanitized;
+    }
+
+    /**
+     * Normalize search input (remove special chars)
+     * @param {string} str - Raw input
+     * @returns {string} Normalized string
+     */
+    function normalizeSearchInput(str) {
+        if (typeof str !== 'string') return '';
+
+        return str
+            .replace(/[\x00-\x1F\x7F]/g, '')      // Control characters
+            .replace(/[<>]/g, '')                   // HTML tags
+            .replace(/[^\x20-\x7E]/g, '')           // Non-ASCII
+            .trim()
+            .slice(0, 200);                          // Max length
+    }
+
+    /**
+     * Validate URL for safety
+     * Prevents javascript:, data:, vbscript: protocols
+     * @param {string} url - URL to validate
+     * @returns {boolean} True if safe
+     */
+    function isSafeUrl(url) {
+        if (typeof url !== 'string') return false;
+
+        // Remove whitespace and null bytes
+        var cleaned = url.replace(/[\s\x00-\x1f]/g, '');
+        var lower = cleaned.toLowerCase();
+
+        // Blocked protocols
+        var blocked = ['javascript:', 'data:', 'vbscript:', 'blob:'];
+        for (var i = 0; i < blocked.length; i++) {
+            if (lower.indexOf(blocked[i]) === 0) return false;
+        }
+
+        // Block protocol-relative URLs
+        if (lower.indexOf('//') === 0) return false;
+
+        // Check protocol
+        var colonIndex = lower.indexOf(':');
+        if (colonIndex > -1) {
+            var protocol = lower.substring(0, colonIndex);
+            if (protocol !== 'http' && protocol !== 'https') return false;
+        }
+
+        return true;
+    }
+
+    /* ============================================
+       DOOR STATE MACHINE
+       Controls the complete open/close sequences
+       ============================================ */
+
+    /**
+     * Reveal inner dashboard content
+     * Called after door fully opens
+     */
+    function revealInnerContent() {
+        // Hide door system with fade
+        airlock.classList.add('hidden');
+        kbHint.classList.add('hidden');
+
+        // Show dashboard after delay
+        setTimeout(function() {
+            innerContent.classList.add('visible');
+            initMatrix();      // Initialize Matrix effect
+            initInnerScripts(); // Initialize dashboard scripts
+        }, 500);
+
+        // Remove door from DOM after transition
+        setTimeout(function() {
+            airlock.classList.add('gone');
+        }, 1200);
+    }
+
+    /**
+     * OPEN DOOR SEQUENCE
+     * Full cinematic door opening with audio/visual effects
+     * Duration: ~3.8 seconds total
+     */
+    function openDoor() {
+        // Prevent double-trigger
+        if (doorState !== 'locked') return;
+
+        // Set state
+        doorState = 'cycling-open';
+
+        // Visual: Activate lever and warning lights
+        leverWell.classList.add('open', 'disabled');
+        airlock.classList.add('cycling');
+
+        // Audio: Initial click + hum
+        doorNoise(0.04, 0.18, 2000);
+        doorTone(90, 0.06, 0.08, 'square');
+
+        // Phase 1: Lock disengage (480ms)
+        setTimeout(function() {
+            doorNoise(0.03, 0.15, 3000);
+            doorTone(160, 0.04, 0.07, 'square');
+        }, 480);
+
+        // Phase 2: Depressurization begins (700ms)
+        setTimeout(function() {
+            setWellLeds('cycling');
+            setNodes('amber');
+            setBar('cycling', 'DEPRESSURIZING...');
+            miniText.textContent = 'DEPRESS...';
+            
+            // Visual: Empty PSI gauge
+            psiFill.classList.add('empty');
+            hydFill.style.height = '30%';
+
+            // Audio: Warning beeps + hiss
+            doorBeep(800, 3, 300);
+            doorNoise(0.8, 0.12, 400);
+            doorTone(60, 0.6, 0.06, 'sawtooth');
+            
+            // Secondary tone
+            setTimeout(function() {
+                doorTone(55, 0.4, 0.05, 'sawtooth');
+            }, 200);
+        }, 700);
+
+        // Phase 3: Seal break (1700ms)
+        setTimeout(function() {
+            setBar('cycling', 'SEAL BREAK — STANDBY');
+            miniText.textContent = 'SEAL BRK';
+
+            // Audio: Seal break sounds
+            doorNoise(0.3, 0.22, 2000);
+            doorTone(120, 0.2, 0.1, 'square');
+            
+            setTimeout(function() {
+                doorNoise(0.15, 0.1, 3000);
+            }, 100);
+
+            // Visual: Shake + flash + sparks
+            airlock.classList.add('shaking');
+            sealFlash.classList.add('on');
+            spawnSparks(16, 96, 45);   // Upper sparks
+            spawnSparks(10, 96, 75);   // Lower sparks
+
+            // End shake after 500ms
+            setTimeout(function() {
+                airlock.classList.remove('shaking');
+                sealFlash.classList.remove('on');
+            }, 500);
+        }, 1700);
+
+        // Phase 4: Door opens (2300ms)
+        setTimeout(function() {
+            setBar('cycling', 'DOOR OPENING...');
+            miniText.textContent = 'OPENING..';
+
+            // Audio: Door slide sound
+            doorNoise(1.2, 0.08, 600);
+            doorTone(80, 1.0, 0.04, 'sawtooth');
+
+            // Visual: Steam burst
+            spawnSteam(22);
+
+            // Animate door sliding open
+            mainDoor.style.transition = 'transform 1.4s cubic-bezier(0.25,0.1,0.25,1)';
+            mainDoor.style.transform = 'translateX(100%)';
+
+            // Drain hydraulic fluid
+            hydFill.style.height = '0%';
+
+            // More steam/sparks mid-opening
+            setTimeout(function() {
+                spawnSteam(14);
+                spawnSparks(8, 98, 35);
+            }, 600);
+        }, 2300);
+
+        // Phase 5: Complete - Dashboard revealed (3800ms)
+        setTimeout(function() {
+            // Update final state
+            doorState = 'open';
+            
+            // Deactivate cycling mode
+            airlock.classList.remove('cycling');
+            leverWell.classList.remove('disabled');
+
+            // Update UI indicators
+            setBar('open', 'OPEN — WELCOME TO CHAOS');
+            miniText.textContent = 'ACCESS GRANTED';
+            setWellLeds('open');
+            setNodes('green');
+
+            // Success beep
+            doorBeep(1200, 1, 0);
+
+            // Reveal dashboard
+            revealInnerContent();
+        }, 3800);
+    }
+
+    /**
+     * CLOSE AND RETURN SEQUENCE
+     * Reverse animation to close door and return to lock screen
+     */
+    function closeAndReturn() {
+        // Prevent double-trigger
+        if (isClosing) return;
+        isClosing = true;
+
+        // Hide dashboard
+        innerContent.classList.remove('visible');
+        innerContent.classList.add('closing');
+        closingOverlay.classList.add('active');
+
+        // Deactivate Matrix
+        matrixActive = false;
+        var matrixLever = document.getElementById('lever-matrix');
+        if (matrixLever) matrixLever.classList.remove('active');
+
+        // Reset security lever
+        var securityLever = document.getElementById('lever-security');
+        if (securityLever) securityLever.classList.remove('active', 'closing-state');
+
+        // Hide floating icons
+        hideFloatingIcons();
+
+        // After fade out, show door
+        setTimeout(function() {
+            innerContent.classList.remove('closing');
+            airlock.classList.remove('gone');
+            airlock.classList.remove('hidden');
+
+            // Reset door position (open)
+            mainDoor.style.transition = 'none';
+            mainDoor.style.transform = 'translateX(100%)';
+            psiFill.classList.add('empty');
+            hydFill.style.height = '0%';
+
+            // Set open state visuals
+            setWellLeds('open');
+            setNodes('green');
+            setBar('open', 'OPEN — VACUUM ACTIVE');
+            miniText.textContent = 'UNSEALED';
+
+            // Show lever in open position
+            leverWell.classList.add('open');
+            barLight.style.opacity = '1';
+            kbHint.classList.remove('hidden');
+
+            // Force reflow before starting close animation
+            void airlock.offsetHeight;
+
+            // Start close sequence after brief pause
+            setTimeout(function() {
+                closingOverlay.classList.remove('active');
+                startCloseSequence();
+            }, 300);
+        }, 900);
+    }
+
+    /**
+     * START CLOSE SEQUENCE
+     * Door closes with reverse effects
+     */
+    function startCloseSequence() {
+        // Set state
+        doorState = 'cycling-closed';
+
+        // Visual: Close lever
+        leverWell.classList.remove('open');
+        leverWell.classList.add('disabled');
+        airlock.classList.add('cycling');
+
+        // Audio: Initial engagement
+        doorNoise(0.04, 0.18, 2000);
+        doorTone(90, 0.06, 0.08, 'square');
+
+        // Phase 1: Lock engage (530ms)
+        setTimeout(function() {
+            doorNoise(0.03, 0.15, 3000);
+            doorTone(160, 0.04, 0.07, 'square');
+        }, 530);
+
+        // Phase 2: Door closing (750ms)
+        setTimeout(function() {
+            setWellLeds('cycling');
+            setNodes('amber');
+            setBar('cycling', 'CLOSING...');
+            miniText.textContent = 'CLOSING..';
+
+            // Audio: Warning beeps
+            doorBeep(600, 2, 250);
+
+            // Animate door closing
+            mainDoor.style.transition = 'transform 1.2s cubic-bezier(0.5,0,0.8,0.2)';
+            mainDoor.style.transform = 'translateX(0)';
+
+            // Hydraulic pressure rises
+            hydFill.style.height = '60%';
+        }, 750);
+
+        // Phase 3: Impact/seal (2050ms)
+        setTimeout(function() {
+            // Audio: Impact sound
+            doorNoise(0.2, 0.25, 1500);
+            doorTone(100, 0.15, 0.12, 'square');
+            
+            setTimeout(function() {
+                doorNoise(0.1, 0.15, 2000);
+            }, 80);
+
+            // Visual: Shake + sparks on impact
+            airlock.classList.add('shaking');
+            spawnSparks(12, 96, 30);
+            spawnSparks(8, 96, 80);
+
+            setTimeout(function() {
+                airlock.classList.remove('shaking');
+            }, 500);
+        }, 2050);
+
+        // Phase 4: Repressurization (2500ms)
+        setTimeout(function() {
+            setBar('cycling', 'REPRESSURIZING...');
+            miniText.textContent = 'REPRESS...';
+
+            // Refill PSI gauge
+            psiFill.classList.remove('empty');
+
+            // Audio: Hissing
+            doorNoise(0.6, 0.08, 300);
+            doorTone(70, 0.5, 0.05, 'sawtooth');
+
+            // Fill hydraulic
+            hydFill.style.height = '100%';
+        }, 2500);
+
+        // Phase 5: Complete - Locked (3400ms)
+        setTimeout(function() {
+            // Audio: Success tones
+            doorTone(200, 0.07, 0.09, 'square');
+            setTimeout(function() {
+                doorTone(300, 0.05, 0.07, 'square');
+            }, 60);
+            setTimeout(function() {
+                doorTone(150, 0.09, 0.1, 'square');
+            }, 120);
+
+            // Final state
+            doorState = 'locked';
+            airlock.classList.remove('cycling');
+            leverWell.classList.remove('disabled');
+
+            // Update UI
+            setBar('locked', 'LOCKED — AWAITING AUTHORIZATION');
+            miniText.textContent = 'STANDBY';
+            setWellLeds('locked');
+            setNodes('off');
+
+            // Success beep
+            doorBeep(400, 1, 0);
+
+            // Allow new interactions
+            isClosing = false;
+        }, 3400);
+    }
+
+    /**
+     * Toggle lever handler
+     * Main entry point for user interaction
+     */
+    function toggleLever() {
+        if (isClosing) return;
+        
+        if (doorState === 'locked') {
+            openDoor();
+        }
+    }
+
+    /* ============================================
+       EVENT LISTENERS - Door System
+       ============================================ */
+
+    // Lever click
+    leverWell.addEventListener('click', toggleLever);
+
+    // Keyboard controls
+    document.addEventListener('keydown', function(e) {
+        // Spacebar: Open door
+        if (e.code === 'Space') {
+            e.preventDefault();
+            toggleLever();
+        }
+        
+        // Escape: Close door (if open)
+        if (e.code === 'Escape' && doorState === 'open' && !isClosing) {
+            closeAndReturn();
+        }
+    });
+
+    // Idle blinking effect when locked
+    var idleBlink = true;
+    setInterval(function() {
+        if (doorState === 'locked') {
+            idleBlink = !idleBlink;
+            barLight.style.opacity = idleBlink ? '1' : '0.4';
+        } else {
+            barLight.style.opacity = '1';
+        }
+    }, 2000);
+
+    // Initialize LED state
+    setWellLeds('locked');
+
+    /* ============================================
+       MATRIX RAIN SYSTEM (Initialization)
+       Part 3 ends here - continued in Part 4
+       ============================================ */
+
+    // Matrix state variables (global scope for Part 4)
+    var matrixInited = false;
+    var matrixCanvas = document.getElementById('matrix');
+    var matrixCtx = matrixCanvas.getContext('2d');
+    
+    // Character set for falling code
+    var matrixChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@#$%^&*()+~{}[]<>?';
+    var matrixFontSize = 20;
+    var matrixCols = 0;
+    var matrixDrops = [];
+    var matrixActive = false;
+    
+    // Background color (changes with glass mode)
+    var currentBg = { r: 0, g: 0, b: 16 };
+    
+    // Matrix settings (adjustable via control panel)
+    var matrixSpeed = 50;         // ms between frames
+    var matrixOpacity = 0.8;      // glass transparency
+    var matrixColor = { 
+        primary: '#00bfff',      // default cyan
+        secondary: '#e0f7ff',
+        rainbow: false
+    };
+
+    // Mouse tracking for interaction effects
+    var mouseX = -1;
+    var mouseY = -1;
+
+    // Character sets available
+    var charSets = {
+        matrix: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@#$%^&*()+~{}[]<>?',
+        binary: '01',
+        symbols: '花*#@△■□※○●★☆♠♣♥♦'
+    };
+
+    /**
+     * Resize matrix canvas to fill screen
+     */
+    function resizeMatrix() {
+        matrixCanvas.width = window.innerWidth;
+        matrixCanvas.height = window.innerHeight;
+        
+        // Calculate number of columns based on font size
+        matrixCols = Math.floor(matrixCanvas.width / matrixFontSize);
+        
+        // Initialize drop positions (random Y offset for each column)
+        matrixDrops = new Array(matrixCols);
+        for (var i = 0; i < matrixDrops.length; i++) {
+            matrixDrops[i] = Math.random() * -100; // Start at random negative position
+        }
+    }
+
+    /**
+     * Initialize matrix system
+     * Sets up canvas, starts render loop
+     */
+    function initMatrix() {
+        if (matrixInited) return; // Prevent double-init
+        
+        matrixInited = true;
+        resizeMatrix();
+        
+        // Start render loop
+        setInterval(drawMatrix, matrixSpeed);
+        
+        // Handle resize
+        window.addEventListener('resize', resizeMatrix);
+        
+        // Track mouse for interactive effects
+        window.addEventListener('mousemove', trackMouse);
+        window.addEventListener('click', handleClick);
+    }
+
+    /**
+     * Track mouse position for cursor avoidance effect
+     */
+    function trackMouse(e) {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+    }
+
+    /**
+     * Handle click events for explosion effects
+     */
+    function handleClick(e) {
+        if (!matrixActive) return;
+        
+        // Create click explosion at cursor position
+        createClickExplosion(e.clientX, e.clientY);
+        
+        // Don't process if door not open or closing
+        if (doorState !== 'open' || isClosing) return;
+        
+        // Check if clicked on empty area (not UI elements)
+        var target = e.target;
+        var isOnEmptyArea = target.tagName === 'CANVAS' || 
+                           target.id === 'patternBg' ||
+                           (target.closest('.inner-content') && 
+                            !target.closest('.hud-element'));
+        
+        if (isOnEmptyArea) {
+            // Random chance to spawn floating icon near click
+            if (Math.random() > 0.7) {
+                showRandomFloatingIcon(e.clientX, e.clientY);
+            }
+        }
+    }
+
+    /**
+     * Create click explosion particle effect (Feature D)
+     * @param {number} x - X coordinate
+     * @param {number} y - Y coordinate
+     */
+    function createClickExplosion(x, y) {
+        var container = document.getElementById('floatingIconsContainer');
+        var explosion = document.createElement('div');
+        explosion.className = 'click-explosion';
+        explosion.style.left = x + 'px';
+        explosion.style.top = y + 'px';
+
+        // Particle colors
+        var colors = ['#00bfff', '#00ff00', '#ff00ff', '#ffff00', '#ff6600'];
+
+        // Create 20 particles radiating outward
+        for (var i = 0; i < 20; i++) {
+            var particle = document.createElement('div');
+            particle.className = 'explosion-particle';
+            particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+
+            // Calculate trajectory
+            var angle = (Math.PI * 2 * i) / 20;
+            var distance = 50 + Math.random() * 100;
+            var tx = Math.cos(angle) * distance + 'px';
+            var ty = Math.sin(angle) * distance + 'px';
+
+            particle.style.setProperty('--tx', tx);
+            particle.style.setProperty('--ty', ty);
+
+            explosion.appendChild(particle);
+        }
+
+        container.appendChild(explosion);
+
+        // Remove after animation completes
+        setTimeout(function() {
+            explosion.remove();
+        }, 1000);
+    }
+
+    /**
+     * Main matrix rendering loop
+     * Draws falling characters to canvas
+     */
+    function drawMatrix() {
+        // Feature A: Glass mode background adjustment
+        var bgAlpha = matrixActive ? (1 - matrixOpacity) : 1;
+        
+        // Set background with fade trail effect
+        matrixCtx.fillStyle = 'rgba(' + currentBg.r + ',' + currentBg.g + ',' + currentBg.b + ',' + bgAlpha + ')';
+        matrixCtx.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
+
+        // Set font
+        matrixCtx.font = matrixFontSize + 'px monospace';
+
+        // Only draw if matrix is active
+        if (matrixActive) {
+            for (var i = 0; i < matrixDrops.length; i++) {
+                
+                // Feature D: Mouse avoidance (creates "hole" near cursor)
+                var x = i * matrixFontSize;
+                var y = matrixDrops[i] * matrixFontSize;
+                
+                if (mouseX >= 0) {
+                    var dist = Math.sqrt(
+                        Math.pow(x - mouseX, 2) + 
+                        Math.pow(y - mouseY, 2)
+                    );
+                    
+                    // Skip drawing within 80px radius of cursor
+                    if (dist < 80 && dist > 0) {
+                        continue;
+                    }
+                }
+
+                // Get random character from current set
+                var text = matrixChars.charAt(
+                    Math.floor(Math.random() * matrixChars.length)
+                );
+
+                // Feature C: Color theme selection
+                if (matrixColor.rainbow) {
+                    // Rainbow mode: cycle hue based on time and column
+                    var hue = (Date.now() / 20 + i * 10) % 360;
+                    matrixCtx.fillStyle = 'hsl(' + hue + ', 100%, 60%)';
+                } else {
+                    // Static color: alternate between primary and secondary
+                    matrixCtx.fillStyle = (i % 2 === 0) ? 
+                        matrixColor.primary : 
+                        matrixColor.secondary;
+                }
+
+                // Draw character
+                matrixCtx.fillText(text, i * matrixFontSize, matrixDrops[i] * matrixFontSize);
+
+                // Reset drop to top when it goes off screen (with random chance)
+                if (matrixDrops[i] * matrixFontSize > matrixCanvas.height && Math.random() > 0.975) {
+                    matrixDrops[i] = 0;
+                }
+
+                // Advance drop position
+                matrixDrops[i]++;
+            }
+        }
+    }
+
+    /**
+     * Get current background color based on matrix state
+     * Used for glass mode transparency
+     */
+    function currentBg() {
+        if (matrixActive && matrixOpacity < 0.3) {
+            return { r: 0, g: 0, b: 16 }; // Dark background
+        }
+        return { r: 245, g: 245, b: 245 }; // Light background (brutalist white)
+    }
+
+    // END OF PART 3 - Continued in Part 4...
+    
+})();
+</script>
+
+<!-- PART 4 (Final): Dashboard Logic, Floating Icons, Terminal, Event Bindings -->
+   
