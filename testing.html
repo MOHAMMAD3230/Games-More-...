@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Railway Dispatcher Pro - Extended Terminal v3.3</title>
-    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    <title>Railway Dispatcher Pro - Extended Terminal v4.1</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@500;600;700&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --rail-black: #030504;
@@ -13,296 +13,546 @@
             --sig-amber: #ffae00;
             --lcd-bg: #080c08;
             --lcd-text: #39ff14;
-            --panel-bg: rgba(12, 14, 12, 0.96);
-            --console-face: linear-gradient(165deg, #3d3428 0%, #1a1714 100%);
-            --console-rim: #5c5242;
+            --panel-bg: rgba(12, 14, 12, 0.95);
+            --console-face: linear-gradient(165deg, #4a4030 0%, #2a2520 50%, #1a1714 100%);
+            --console-rim: #6b5d4a;
             --station-yellow: #f1c40f;
             --border-dim: #1a1a1a;
+            --metal-texture: repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(255,255,255,0.02) 2px, rgba(255,255,255,0.02) 4px);
         }
+        
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body { height: 100%; overflow: hidden; }
+        
         body {
-            background: #020202;
+            background: radial-gradient(ellipse at center, #1a1a1a 0%, #0a0a0a 70%, #000000 100%);
             display: flex; justify-content: center; align-items: center;
-            font-family: 'Rajdhani', sans-serif;
+            min-height: 100vh; font-family: 'Rajdhani', sans-serif; overflow-x: hidden;
+            padding: 10px;
         }
+        
         .console-housing {
             background: var(--console-face);
-            width: 100vw; height: 100vh; padding: 14px 18px;
-            border-radius: 10px;
-            box-shadow: 0 30px 80px rgba(0,0,0,0.95), inset 0 1px 0 rgba(255,255,255,0.05);
-            border: 5px solid var(--console-rim);
-            display: grid; grid-template-rows: 36px 1fr 240px; gap: 10px;
+            width: 100%; max-width: 1600px; height: 95vh; padding: 15px;
+            border-radius: 12px;
+            box-shadow: 
+                0 30px 80px rgba(0,0,0,0.95),
+                0 0 0 8px #2a2520,
+                0 0 0 12px #1a1714,
+                inset 0 2px 0 rgba(255,255,255,0.08),
+                inset 0 -2px 0 rgba(0,0,0,0.3);
+            border: 6px solid var(--console-rim);
+            display: grid; grid-template-rows: auto 1fr 220px; gap: 10px;
             position: relative;
+            background-image: var(--metal-texture);
         }
-        .console-housing::before, .console-housing::after {
-            content: ''; position: absolute; width: 14px; height: 14px;
-            background: radial-gradient(circle at 40% 40%, #777, #333);
-            border-radius: 50%; border: 1px solid #222;
+        
+        .console-housing::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.03) 0%, transparent 50%);
+            pointer-events: none; border-radius: 8px;
         }
-        .console-housing::before { top: 10px; left: 10px; }
-        .console-housing::after { bottom: 10px; right: 10px; }
-        .screw-tr, .screw-bl {
-            position: absolute; width: 14px; height: 14px;
-            background: radial-gradient(circle at 40% 40%, #777, #333);
-            border-radius: 50%; border: 1px solid #222;
+        
+        .screw {
+            position: absolute; width: 16px; height: 16px;
+            background: radial-gradient(circle at 35% 35%, #888, #444 60%, #222);
+            border-radius: 50%; 
+            box-shadow: 
+                inset 0 1px 2px rgba(255,255,255,0.3),
+                inset 0 -1px 2px rgba(0,0,0,0.5),
+                0 2px 4px rgba(0,0,0,0.5);
+            border: 1px solid #333;
         }
-        .screw-tr { top: 10px; right: 10px; }
-        .screw-bl { bottom: 10px; left: 10px; }
+        .screw::after {
+            content: ''; position: absolute; top: 50%; left: 50%;
+            width: 8px; height: 2px; background: #333;
+            transform: translate(-50%, -50%) rotate(45deg);
+        }
+        .screw-tl { top: 12px; left: 12px; }
+        .screw-tr { top: 12px; right: 12px; }
+        .screw-bl { bottom: 12px; left: 12px; }
+        .screw-br { bottom: 12px; right: 12px; }
 
+        /* Header Bar */
         .header-bar {
             display: flex; align-items: center; justify-content: space-between;
-            padding: 0 8px; border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding: 8px 20px; height: 36px;
+            background: linear-gradient(180deg, rgba(20,22,18,0.9), rgba(10,12,10,0.95));
+            border-radius: 4px; border: 1px solid #2a2a2a;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
         }
-        .sys-title { font-family: 'Share Tech Mono', monospace; font-size: 13px; color: #8a7e6c; letter-spacing: 3px; }
-        .sys-title span { color: var(--sig-amber); }
-        .header-right { display: flex; align-items: center; gap: 20px; }
-        #clock { color: #8a7e6c; font-family: 'Share Tech Mono'; font-size: 14px; letter-spacing: 2px; }
+        
+        .sys-title {
+            font-family: 'Orbitron', monospace; font-size: 13px;
+            color: #9a8e7c; letter-spacing: 3px; text-transform: uppercase;
+            text-shadow: 0 0 10px rgba(154,142,124,0.3);
+        }
+        .sys-title span { color: var(--sig-amber); font-weight: 700; }
+        
+        .header-right { display: flex; align-items: center; gap: 24px; }
+        
+        .status-indicator {
+            display: flex; align-items: center; gap: 8px;
+            padding: 4px 12px; background: rgba(0,0,0,0.3); border-radius: 3px;
+            border: 1px solid #333;
+        }
         .status-dot {
-            width: 9px; height: 9px; border-radius: 50%; background: var(--sig-green);
-            box-shadow: 0 0 8px var(--sig-green); animation: pulse-dot 2s infinite;
+            width: 10px; height: 10px; border-radius: 50%;
+            background: var(--sig-green);
+            box-shadow: 0 0 10px var(--sig-green), 0 0 20px rgba(57,255,20,0.3);
+            animation: pulse-dot 2s infinite;
         }
-        @keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+        @keyframes pulse-dot { 0%,100% { opacity: 1; box-shadow: 0 0 10px var(--sig-green); } 50% { opacity: 0.5; box-shadow: 0 0 5px var(--sig-green); } }
+        
+        .clock-display {
+            color: #8a7e6c; font-family: 'Share Tech Mono', monospace;
+            font-size: 14px; letter-spacing: 2px;
+            text-shadow: 0 0 8px rgba(138,126,108,0.5);
+        }
 
+        /* Main Display Area */
+        .mimic-container {
+            position: relative; border-radius: 6px; overflow: hidden;
+            background: #000;
+            box-shadow: 
+                inset 0 0 100px rgba(0,0,0,0.9),
+                inset 0 0 30px rgba(0,20,0,0.1),
+                0 4px 20px rgba(0,0,0,0.5);
+            border: 4px solid #151515;
+        }
+        
         .mimic-display {
+            width: 100%; height: 100%;
             background: var(--rail-black);
-            border: 6px solid #0c0c0c;
-            position: relative; border-radius: 4px; overflow: hidden;
-            box-shadow: inset 0 0 80px rgba(0,0,0,0.8);
-        }
-        .mimic-display::after {
-            content: ''; position: absolute; inset: 0; z-index: 200; pointer-events: none;
-            background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px);
-        }
-        .mimic-display::before {
-            content: ''; position: absolute; inset: 0; z-index: 199; pointer-events: none;
-            background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.6) 100%);
-        }
-        .track-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; }
-        .sleeper { stroke: #161614; stroke-width: 1.1; stroke-linecap: butt; }
-        .rail-r { stroke: #4a4a3c; stroke-width: 0.4; fill: none; stroke-linecap: round; }
-        .rail-l { stroke: #4a4a3c; stroke-width: 0.4; fill: none; stroke-linecap: round; }
-        .switch-r { stroke: #4a4a3c; stroke-width: 0.4; fill: none; transition: stroke 0.4s, filter 0.4s; stroke-linecap: round; }
-        .switch-l { stroke: #4a4a3c; stroke-width: 0.4; fill: none; transition: stroke 0.4s, filter 0.4s; stroke-linecap: round; }
-        .switch-r.lit { stroke: var(--sig-green); filter: drop-shadow(0 0 1.5px var(--sig-green)); }
-        .switch-l.lit { stroke: var(--sig-green); filter: drop-shadow(0 0 1.5px var(--sig-green)); }
-        .sig-post { stroke: #2a2a2a; stroke-width: 0.3; stroke-linecap: round; }
-        .sig-base { fill: #1a1a1a; stroke: #333; stroke-width: 0.2; }
-        .sig-hood { fill: #0a0a0a; stroke: #2a2a2a; stroke-width: 0.12; }
-        .sig-lamp { stroke: #111; stroke-width: 0.06; }
-        .sig-glow { opacity: 0; transition: opacity 0.4s; }
-        .sig-glow.on { opacity: 0.65; }
-        .signal-head { cursor: pointer; }
-        .signal-head:hover .sig-hood { stroke: #666; }
-        .plat-edge { stroke: var(--station-yellow); stroke-width: 0.3; fill: none; opacity: 0.35; }
-        .plat-fill { fill: #1a1a10; opacity: 0.25; }
-        .yard-line { stroke: #333; stroke-width: 0.25; stroke-dasharray: 1,0.8; opacity: 0.5; }
-        .station-label { fill: var(--station-yellow); font-family: 'Share Tech Mono'; font-size: 2px; font-weight: bold; letter-spacing: 1.2px; opacity: 0.85; }
-        .station-sublabel { fill: #555; font-family: 'Share Tech Mono'; font-size: 1.3px; letter-spacing: 0.5px; }
-        .km-mark { fill: #444; font-family: 'Share Tech Mono'; font-size: 1.5px; }
-        .km-tick { stroke: #333; stroke-width: 0.25; }
-
-        #train-layer { position: absolute; inset: 0; z-index: 100; pointer-events: none; }
-        .train-consist {
-            position: absolute; pointer-events: auto;
-            display: flex; align-items: flex-end; gap: 3px;
-            transform: translate(-50%, -50%);
-            transition: top 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 100; cursor: pointer;
-        }
-        .train-consist:hover .car-body { filter: brightness(1.2); }
-        .train-consist.blocked { animation: block-flash 0.8s infinite; }
-        @keyframes block-flash { 0%,100% { filter: brightness(1); } 50% { filter: brightness(0.5); } }
-        .train-car { position: relative; display: flex; flex-direction: column; align-items: center; }
-        .car-body {
-            height: 18px; min-width: 44px;
-            border: 1px solid rgba(0,0,0,0.5); border-radius: 3px 3px 1px 1px;
-            display: flex; align-items: center; justify-content: center;
-            font-family: 'Share Tech Mono', monospace; font-size: 9px; color: #eee;
-            text-shadow: 0 1px 3px rgba(0,0,0,0.9);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.15), 0 3px 6px rgba(0,0,0,0.7);
-            position: relative; z-index: 2;
-        }
-        .car-body.freight { border-color: rgba(0,0,0,0.7); }
-        .car-body.passenger::before {
-            content: ''; position: absolute; top: 4px; left: 8px; right: 8px; height: 4px;
-            background: repeating-linear-gradient(90deg, rgba(180,220,240,0.5) 0px, rgba(180,220,240,0.5) 4px, rgba(0,0,0,0.4) 4px, rgba(0,0,0,0.4) 6px);
-            border-radius: 1px;
-        }
-        .car-body.power::after {
-            content: ''; position: absolute; top: 50%; width: 4px; height: 4px;
-            background: #ffeebb; border-radius: 50%; transform: translateY(-50%);
-            box-shadow: 0 0 6px #ffeebb; right: -1px;
-        }
-        .bogie-assembly { display: flex; justify-content: center; width: 100%; height: 7px; position: relative; z-index: 1; }
-        .bogie {
-            width: 55%; height: 6px; background: #111;
-            border: 1px solid #3a3a3a; border-radius: 1px;
-            display: flex; align-items: center; justify-content: space-around; padding: 0 3px;
-        }
-        .axle { width: 8px; height: 3px; background: #5a5a5a; border-radius: 1px; box-shadow: 0 0 3px rgba(255,255,255,0.15); }
-        .coupling { width: 5px; height: 4px; background: #1a1a1a; border: 1px solid #444; border-radius: 1px; margin-bottom: 3px; align-self: center; }
-        .train-consist.selected .car-body {
-            border-color: var(--sig-amber) !important;
-            box-shadow: 0 0 14px rgba(255,174,0,0.45), inset 0 1px 0 rgba(255,255,255,0.15);
-        }
-        .train-consist.blocked .car-body {
-            border-color: var(--sig-red) !important;
-            box-shadow: 0 0 10px rgba(255,7,58,0.4);
-        }
-
-        /* --- MODAL --- */
-        #decision-overlay {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: rgba(6,8,6,0.98); border: 2px solid var(--sig-amber);
-            padding: 28px 32px; z-index: 1000; display: none; text-align: center;
-            box-shadow: 0 0 80px rgba(0,0,0,0.95), 0 0 40px rgba(255,174,0,0.12);
-            color: #fff; border-radius: 6px; width: 420px;
-        }
-        #modal-title { color: var(--sig-amber); font-family: 'Share Tech Mono'; font-size: 16px; margin-bottom: 12px; letter-spacing: 3px; }
-        #modal-text { color: #bbb; font-size: 14px; line-height: 1.6; margin-bottom: 8px; }
-        #modal-sub { color: #555; font-size: 11px; font-family: 'Share Tech Mono'; letter-spacing: 0.5px; }
-        .modal-btns { display: flex; gap: 10px; margin-top: 22px; }
-        .m-btn {
-            flex: 1; padding: 16px 10px; font-family: 'Share Tech Mono'; cursor: pointer;
-            border: none; font-weight: bold; text-transform: uppercase; font-size: 12px;
-            letter-spacing: 1.5px; border-radius: 4px; transition: filter 0.15s, transform 0.1s;
-        }
-        .m-btn:hover { filter: brightness(1.15); }
-        .m-btn:active { filter: brightness(0.7); transform: scale(0.98); }
-        .m-btn.primary { background: var(--sig-green); color: #000; }
-        .m-btn.secondary { background: #222; color: #888; border: 1px solid #444; }
-        .m-btn.link-btn { background: linear-gradient(135deg, #1565c0, #0d47a1); color: #fff; border: 1px solid #1e88e5; }
-        .m-btn.link-btn:hover { filter: brightness(1.3); }
-
-        /* --- CONTROL BAY --- */
-        .control-bay { display: grid; grid-template-columns: 280px 1fr 400px; gap: 12px; }
-        .bay-section {
-            background: var(--panel-bg); border-radius: 4px; padding: 12px 14px;
-            border: 1px solid var(--border-dim); display: flex; flex-direction: column;
-        }
-        .bay-title {
-            font-family: 'Share Tech Mono'; font-size: 10px; color: #555;
-            letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px;
-            padding-bottom: 6px; border-bottom: 1px solid #1a1a1a; flex-shrink: 0;
-        }
-        .selector-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 12px; flex-shrink: 0; }
-        .sel-btn {
-            background: #0a0a0a; border: 2px solid #222; border-radius: 4px;
-            padding: 10px 4px 8px; cursor: pointer; text-align: center;
-            transition: border-color 0.2s, background 0.2s, transform 0.1s, box-shadow 0.2s;
             position: relative; overflow: hidden;
         }
-        .sel-btn:hover { background: #111; border-color: #444; }
-        .sel-btn:active { transform: scale(0.96); }
-        .sel-btn.active { background: #111; }
-        .sel-num { display: block; font-family: 'Share Tech Mono'; font-size: 18px; font-weight: bold; color: #fff; line-height: 1; }
-        .sel-label { display: block; font-family: 'Share Tech Mono'; font-size: 8px; color: #666; margin-top: 3px; letter-spacing: 0.5px; }
-        .sel-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; opacity: 0.5; transition: opacity 0.2s; }
-        .sel-btn.active .sel-bar { opacity: 1; }
-        .sel-btn.active .sel-label { color: #aaa; }
-
-        .lcd {
-            background: var(--lcd-bg); color: var(--lcd-text); padding: 12px 10px;
-            font-family: 'Share Tech Mono'; font-size: 16px; border: 1px solid #1a2a1a;
-            text-align: center; margin-bottom: 10px; border-radius: 3px; min-height: 46px;
-            display: flex; flex-direction: column; justify-content: center;
-            box-shadow: inset 0 0 30px rgba(57,255,20,0.03); flex-shrink: 0;
+        
+        /* CRT Screen Effect */
+        .mimic-display::after {
+            content: ''; position: absolute; inset: 0; z-index: 200;
+            pointer-events: none;
+            background: repeating-linear-gradient(
+                0deg, transparent, transparent 2px,
+                rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px
+            );
+            animation: scanlines 0.1s linear infinite;
         }
-        .lcd .lcd-sub { font-size: 9px; color: #1a5a1a; margin-top: 3px; }
-        .btn-row { display: flex; gap: 8px; margin-bottom: 5px; }
+        @keyframes scanlines { 0% { transform: translateY(0); } 100% { transform: translateY(4px); } }
+        
+        .mimic-display::before {
+            content: ''; position: absolute; inset: 0; z-index: 199;
+            pointer-events: none;
+            background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.6) 100%);
+        }
+        
+        .track-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; }
+        
+        /* Track Elements */
+        .sleeper { stroke: #1a1a18; stroke-width: 1.2; stroke-linecap: butt; }
+        .rail-r { stroke: #5a5a4a; stroke-width: 0.45; fill: none; stroke-linecap: round; filter: drop-shadow(0 0 0.5px rgba(90,90,74,0.5)); }
+        .rail-l { stroke: #5a5a4a; stroke-width: 0.45; fill: none; stroke-linecap: round; filter: drop-shadow(0 0 0.5px rgba(90,90,74,0.5)); }
+        
+        .switch-r { stroke: #5a5a4a; stroke-width: 0.45; fill: none; transition: all 0.4s ease; stroke-linecap: round; }
+        .switch-l { stroke: #5a5a4a; stroke-width: 0.45; fill: none; transition: all 0.4s ease; stroke-linecap: round; }
+        .switch-r.lit { stroke: var(--sig-green); filter: drop-shadow(0 0 3px var(--sig-green)); }
+        .switch-l.lit { stroke: var(--sig-green); filter: drop-shadow(0 0 3px var(--sig-green)); }
+        
+        /* Enhanced Signals */
+        .sig-post { stroke: #3a3a3a; stroke-width: 0.35; stroke-linecap: round; }
+        .sig-base { fill: #1a1a1a; stroke: #444; stroke-width: 0.2; }
+        .sig-hood { fill: #0a0a0a; stroke: #3a3a3a; stroke-width: 0.15; }
+        .sig-lamp { stroke: #111; stroke-width: 0.08; }
+        .sig-glow { opacity: 0; transition: opacity 0.4s; }
+        .sig-glow.on { opacity: 0.8; }
+        .signal-head { cursor: pointer; }
+        .signal-head:hover .sig-hood { stroke: #666; }
+        .signal-head:hover { filter: brightness(1.2); }
+
+        /* Stations */
+        .plat-edge { stroke: var(--station-yellow); stroke-width: 0.35; fill: none; opacity: 0.4; }
+        .plat-fill { fill: #2a2010; opacity: 0.3; }
+        .yard-line { stroke: #444; stroke-width: 0.25; stroke-dasharray: 1,1; opacity: 0.5; }
+        .station-label {
+            fill: var(--station-yellow); font-family: 'Share Tech Mono';
+            font-size: 2.2px; font-weight: bold; letter-spacing: 1.5px; opacity: 0.9;
+            text-shadow: 0 0 4px rgba(241,196,15,0.5);
+        }
+        .station-sublabel {
+            fill: #666; font-family: 'Share Tech Mono';
+            font-size: 1.4px; letter-spacing: 0.8px;
+        }
+        .km-mark { fill: #555; font-family: 'Share Tech Mono'; font-size: 1.6px; }
+        .km-tick { stroke: #444; stroke-width: 0.25; }
+
+        /* Train Layer */
+        #train-layer { position: absolute; inset: 0; z-index: 100; pointer-events: none; }
+        
+        /* Enhanced Trains with Colors */
+        .train {
+            position: absolute; pointer-events: auto;
+            padding: 0 12px; height: 22px; min-width: 75px;
+            font-family: 'Share Tech Mono', monospace; font-size: 9px; font-weight: bold;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 4px;
+            transform: translate(-50%, -50%);
+            text-shadow: 0 1px 3px rgba(0,0,0,0.9), 0 0 10px currentColor;
+            transition: top 0.55s cubic-bezier(0.4, 0, 0.2, 1), left 0.3s linear;
+            cursor: pointer;
+            border: 2px solid rgba(255,255,255,0.2);
+            box-shadow: 
+                0 4px 12px rgba(0,0,0,0.8),
+                inset 0 2px 0 rgba(255,255,255,0.15),
+                inset 0 -2px 0 rgba(0,0,0,0.3),
+                0 0 20px currentColor;
+            letter-spacing: 1px;
+        }
+        
+        .train::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+            background: linear-gradient(90deg, transparent 10%, rgba(255,255,255,0.2) 50%, transparent 90%);
+            border-radius: 4px 4px 0 0;
+        }
+        
+        .train::after {
+            content: ''; position: absolute; bottom: -3px; left: 50%; transform: translateX(-50%);
+            width: 60%; height: 3px; background: currentColor;
+            border-radius: 50%; opacity: 0.6; filter: blur(2px);
+        }
+        
+        /* Individual Train Colors */
+        .train.exp-101 {
+            background: linear-gradient(180deg, #e74c3c 0%, #c0392b 40%, #96281b 100%);
+            color: #ffcccc; border-color: #e74c3c;
+        }
+        .train.fr-204 {
+            background: linear-gradient(180deg, #3498db 0%, #2980b9 40%, #1f618d 100%);
+            color: #cce5ff; border-color: #3498db;
+        }
+        .train.yd-307 {
+            background: linear-gradient(180deg, #2ecc71 0%, #27ae60 40%, #1e8449 100%);
+            color: #ccffdd; border-color: #2ecc71;
+        }
+        .train.ic-442 {
+            background: linear-gradient(180deg, #f39c12 0%, #e67e22 40%, #ca6f1e 100%);
+            color: #fff5e6; border-color: #f39c12;
+        }
+        .train.lx-558 {
+            background: linear-gradient(180deg, #9b59b6 0%, #8e44ad 40%, #7d3c98 100%);
+            color: #e8daef; border-color: #9b59b6;
+        }
+        
+        .train.selected { 
+            border-width: 3px; 
+            box-shadow: 
+                0 0 25px var(--sig-amber),
+                0 0 40px currentColor,
+                0 4px 12px rgba(0,0,0,0.8);
+            animation: train-selected 1.5s ease-in-out infinite;
+        }
+        @keyframes train-selected {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.05); }
+        }
+        
+        .train.blocked { 
+            animation: block-flash 0.8s infinite;
+            box-shadow: 
+                0 0 15px var(--sig-red),
+                0 4px 12px rgba(0,0,0,0.8);
+        }
+        @keyframes block-flash { 
+            0%, 100% { opacity: 1; filter: brightness(1); } 
+            50% { opacity: 0.7; filter: brightness(0.7); } 
+        }
+
+        /* Decision Modal */
+        #decision-overlay {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: linear-gradient(180deg, rgba(15,20,15,0.98), rgba(5,8,5,0.99));
+            border: 3px solid var(--sig-amber);
+            padding: 30px 35px; z-index: 2000; display: none; text-align: center;
+            box-shadow: 
+                0 0 80px rgba(0,0,0,0.95),
+                0 0 40px rgba(255,174,0,0.2),
+                inset 0 0 30px rgba(255,174,0,0.05);
+            color: #fff; border-radius: 8px; width: 450px;
+            backdrop-filter: blur(10px);
+        }
+        
+        #decision-overlay.show { display: block; animation: modalIn 0.3s ease-out; }
+        @keyframes modalIn {
+            from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+            to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+        
+        #modal-title {
+            color: var(--sig-amber); font-family: 'Orbitron', monospace;
+            font-size: 16px; margin-bottom: 12px; letter-spacing: 3px;
+            text-transform: uppercase; text-shadow: 0 0 15px rgba(255,174,0,0.5);
+        }
+        #modal-text { color: #ddd; font-size: 15px; line-height: 1.6; margin-bottom: 8px; font-weight: 500; }
+        #modal-sub { color: #777; font-size: 11px; font-family: 'Share Tech Mono'; margin-bottom: 20px; }
+        
+        .modal-btns { display: flex; flex-direction: column; gap: 10px; }
+        
+        .m-btn {
+            padding: 16px 20px; font-family: 'Share Tech Mono'; cursor: pointer;
+            border: none; font-weight: bold; text-transform: uppercase; font-size: 13px;
+            letter-spacing: 2px; border-radius: 5px; transition: all 0.2s;
+            position: relative; overflow: hidden;
+        }
+        .m-btn::before {
+            content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+        .m-btn:hover::before { left: 100%; }
+        .m-btn:active { transform: scale(0.97); }
+        
+        .m-btn.primary {
+            background: linear-gradient(180deg, var(--sig-green), #28a428);
+            color: #000; box-shadow: 0 4px 15px rgba(57,255,20,0.3);
+        }
+        .m-btn.primary:hover { box-shadow: 0 6px 25px rgba(57,255,20,0.5); }
+        
+        .m-btn.secondary {
+            background: linear-gradient(180deg, #333, #222);
+            color: #aaa; border: 2px solid #555;
+        }
+        .m-btn.secondary:hover { border-color: #888; color: #fff; }
+        
+        .m-btn.link-btn {
+            background: linear-gradient(180deg, #0066cc, #004499);
+            color: #fff; box-shadow: 0 4px 15px rgba(0,102,204,0.3);
+            display: none; /* Hidden by default, shown only for yard */
+        }
+        .m-btn.link-btn.visible {
+            display: block;
+        }
+        .m-btn.link-btn:hover { box-shadow: 0 6px 25px rgba(0,102,204,0.5); }
+
+        /* Control Bay */
+        .control-bay { 
+            display: grid; grid-template-columns: 260px 1fr 420px; gap: 10px;
+        }
+        
+        .bay-section {
+            background: linear-gradient(180deg, rgba(15,17,14,0.95), rgba(8,10,8,0.98));
+            border-radius: 6px; padding: 12px 14px;
+            border: 2px solid #252525;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
+        }
+        
+        .bay-title {
+            font-family: 'Orbitron', monospace; font-size: 10px;
+            color: #666; letter-spacing: 2px; text-transform: uppercase;
+            margin-bottom: 10px; padding-bottom: 6px;
+            border-bottom: 1px solid #2a2a2a;
+        }
+        
+        .lcd {
+            background: var(--lcd-bg); color: var(--lcd-text);
+            padding: 14px; font-family: 'Share Tech Mono', monospace;
+            font-size: 17px; border: 2px solid #1a2a1a; text-align: center;
+            margin-bottom: 10px; border-radius: 4px; min-height: 50px;
+            display: flex; flex-direction: column; justify-content: center;
+            box-shadow: 
+                inset 0 0 30px rgba(57,255,20,0.05),
+                0 0 20px rgba(57,255,20,0.1);
+            text-shadow: 0 0 10px rgba(57,255,20,0.5);
+        }
+        .lcd .lcd-sub { font-size: 10px; color: #1a5a1a; margin-top: 4px; }
+        
+        .btn-row { display: flex; gap: 8px; margin-bottom: 6px; }
+        
         .btn-d {
             border: none; cursor: pointer; color: #fff; font-family: 'Share Tech Mono';
-            padding: 12px 0; border-radius: 3px; text-transform: uppercase; font-size: 12px;
-            letter-spacing: 2px; flex: 1; transition: filter 0.1s, transform 0.08s;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+            padding: 12px 0; border-radius: 4px; text-transform: uppercase;
+            font-size: 12px; letter-spacing: 1.5px; flex: 1;
+            transition: all 0.15s; position: relative; overflow: hidden;
+            font-weight: bold;
         }
-        .btn-d:hover { filter: brightness(1.15); }
-        .btn-d:active { filter: brightness(0.6); transform: scale(0.97); }
-        .btn-fwd { background: linear-gradient(180deg, #2e7d32, #1b5e20); }
-        .btn-bwd { background: linear-gradient(180deg, #1565c0, #0d47a1); }
-        .btn-stop { background: linear-gradient(180deg, #c62828, #8e0000); width: 100%; }
+        .btn-d::after {
+            content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+            background: rgba(255,255,255,0.3);
+        }
+        .btn-d:active { transform: translateY(2px); }
+        
+        .btn-fwd {
+            background: linear-gradient(180deg, #2e7d32, #1b5e20);
+            box-shadow: 0 4px 10px rgba(46,125,50,0.3);
+        }
+        .btn-fwd:hover { box-shadow: 0 6px 15px rgba(46,125,50,0.5); }
+        
+        .btn-bwd {
+            background: linear-gradient(180deg, #1565c0, #0d47a1);
+            box-shadow: 0 4px 10px rgba(21,101,192,0.3);
+        }
+        .btn-bwd:hover { box-shadow: 0 6px 15px rgba(21,101,192,0.5); }
+        
+        .btn-stop {
+            background: linear-gradient(180deg, #c62828, #8e0000);
+            width: 100%; box-shadow: 0 4px 10px rgba(198,40,40,0.3);
+        }
+        .btn-stop:hover { box-shadow: 0 6px 15px rgba(198,40,40,0.5); }
+        
         .btn-e-stop {
-            background: linear-gradient(180deg, #ff1744, #b71c1c); width: 100%; margin-top: 8px;
-            font-size: 13px; padding: 14px 0; letter-spacing: 3px;
+            background: linear-gradient(180deg, #ff1744, #b71c1c);
+            width: 100%; margin-top: 8px; font-size: 13px;
+            padding: 14px 0; letter-spacing: 3px;
+            box-shadow: 0 4px 15px rgba(255,23,68,0.4);
+            animation: e-stop-pulse 2s infinite;
         }
+        @keyframes e-stop-pulse {
+            0%, 100% { box-shadow: 0 4px 15px rgba(255,23,68,0.4); }
+            50% { box-shadow: 0 4px 25px rgba(255,23,68,0.7); }
+        }
+        .btn-e-stop:hover { box-shadow: 0 6px 25px rgba(255,23,68,0.8); }
 
-        #log { font-size: 11px; color: #39ff14; font-family: 'Share Tech Mono'; overflow-y: auto; padding-right: 6px; line-height: 1.7; flex: 1; }
-        #log::-webkit-scrollbar { width: 4px; }
-        #log::-webkit-scrollbar-track { background: transparent; }
-        #log::-webkit-scrollbar-thumb { background: #1a2a1a; border-radius: 3px; }
+        /* Event Log */
+        #log {
+            font-size: 10px; color: var(--sig-green);
+            font-family: 'Share Tech Mono', monospace;
+            overflow-y: auto; padding-right: 8px;
+            line-height: 1.7; max-height: 160px;
+        }
+        #log::-webkit-scrollbar { width: 5px; }
+        #log::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); border-radius: 3px; }
+        #log::-webkit-scrollbar-thumb { background: #1a3a1a; border-radius: 3px; }
         .log-warn { color: var(--sig-amber); }
-        .log-err { color: var(--sig-red); }
+        .log-err { color: var(--sig-red); font-weight: bold; }
         .log-dim { color: #1a5a1a; }
+        .log-info { color: #4a9eff; }
+        .log-yard { color: #ff69b4; font-weight: bold; } /* Special color for yard events */
 
-        .sig-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; overflow-y: auto; flex: 1; }
-        .sig-grid::-webkit-scrollbar { width: 4px; }
-        .sig-grid::-webkit-scrollbar-thumb { background: #1a2a1a; border-radius: 3px; }
-        .sig-toggle {
-            background: #050505; border: 1px solid #1a1a1a; padding: 8px 4px;
-            cursor: pointer; text-align: center; border-radius: 3px; transition: border-color 0.3s, background 0.2s;
+        /* Signal Panel */
+        .sig-grid {
+            display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;
+            overflow-y: auto; max-height: 155px;
         }
-        .sig-toggle:hover { background: #0c0c0c; border-color: #333; }
-        .sig-name { display: block; color: #555; font-family: 'Share Tech Mono'; font-size: 9px; font-weight: bold; margin-top: 5px; letter-spacing: 0.5px; }
-        .sig-dot { width: 8px; height: 8px; border-radius: 50%; margin: 0 auto; }
+        .sig-grid::-webkit-scrollbar { width: 5px; }
+        .sig-grid::-webkit-scrollbar-thumb { background: #1a2a1a; border-radius: 3px; }
+        
+        .sig-toggle {
+            background: linear-gradient(180deg, #0a0a0a, #050505);
+            border: 2px solid #1a1a1a; padding: 8px 4px;
+            cursor: pointer; text-align: center; border-radius: 4px;
+            transition: all 0.3s; position: relative; overflow: hidden;
+        }
+        .sig-toggle:hover {
+            background: linear-gradient(180deg, #151515, #0a0a0a);
+            border-color: #333; transform: translateY(-2px);
+        }
+        .sig-toggle:active { transform: translateY(0); }
+        .sig-name {
+            display: block; color: #666; font-family: 'Share Tech Mono';
+            font-size: 9px; font-weight: bold; margin-top: 5px; letter-spacing: 0.5px;
+        }
+        .sig-dot {
+            width: 10px; height: 10px; border-radius: 50%; margin: 0 auto;
+            transition: all 0.3s; box-shadow: 0 0 8px currentColor;
+        }
 
+        /* Yard indicator highlight */
+        .sig-toggle.yard-signal {
+            border-color: #ff69b4;
+            background: linear-gradient(180deg, #1a0a15, #0a0510);
+        }
+        .sig-toggle.yard-signal:hover {
+            border-color: #ff1493;
+            box-shadow: 0 0 10px rgba(255,105,180,0.3);
+        }
+
+        /* Responsive */
+        @media (max-width: 1400px) {
+            .control-bay { grid-template-columns: 240px 1fr 380px; }
+        }
+        
         @media (prefers-reduced-motion: reduce) {
-            .train-consist, .sig-glow, .switch-r, .switch-l, .m-btn, .btn-d, .sig-toggle, .sel-btn { transition: none; }
-            .status-dot, .train-consist.blocked { animation: none; }
+            .train, .status-dot, .btn-e-stop, .train.blocked, .train.selected,
+            .sig-glow, .switch-r, .switch-l { animation: none; transition: none; }
         }
     </style>
 </head>
 <body>
 
 <div class="console-housing">
-    <div class="screw-tr"></div>
-    <div class="screw-bl"></div>
+    <div class="screw screw-tl"></div>
+    <div class="screw screw-tr"></div>
+    <div class="screw screw-bl"></div>
+    <div class="screw screw-br"></div>
+    
+    <!-- Decision Modal -->
     <div id="decision-overlay">
         <h3 id="modal-title">JUNCTION CONTROL</h3>
         <p id="modal-text">UNIT APPROACHING JUNCTION</p>
         <p id="modal-sub">AWAITING DISPATCHER INPUT</p>
-        <div class="modal-btns" id="modal-btns"></div>
-    </div>
-    <div class="header-bar">
-        <div class="sys-title">RAILWAY DISPATCHER PRO <span>v3.3 EXTENDED TERMINAL</span></div>
-        <div class="header-right">
-            <div class="status-dot"></div>
-            <span id="clock">00:00:00</span>
+        <div class="modal-btns" id="modal-buttons">
+            <button id="btn-primary" class="m-btn primary">DIVERT</button>
+            <button id="btn-link" class="m-btn link-btn">🔗 OPEN YARD ACCESS PORTAL</button>
+            <button id="btn-secondary" class="m-btn secondary">STRAIGHT</button>
         </div>
     </div>
-    <div class="mimic-display" id="mimic"><div id="train-layer"></div></div>
+    
+    <!-- Header -->
+    <div class="header-bar">
+        <div class="sys-title">RAILWAY DISPATCHER PRO <span>v4.1 YARD EDITION</span></div>
+        <div class="header-right">
+            <div class="status-indicator">
+                <div class="status-dot"></div>
+                <span style="color:#6a7a6a; font-size:11px; font-family:'Share Tech Mono';">SYSTEM ONLINE</span>
+            </div>
+            <div class="clock-display" id="clock">00:00:00</div>
+        </div>
+    </div>
+    
+    <!-- Main Display -->
+    <div class="mimic-container">
+        <div class="mimic-display" id="mimic">
+            <div id="train-layer"></div>
+        </div>
+    </div>
+    
+    <!-- Control Bay -->
     <div class="control-bay">
+        <!-- Dispatch Control Panel -->
         <div class="bay-section">
-            <div class="bay-title">Unit Selector</div>
-            <div class="selector-grid" id="selector-grid"></div>
-            <div class="bay-title" style="margin-top:2px">Dispatch Control</div>
+            <div class="bay-title">⚡ Dispatch Control</div>
             <div class="lcd" id="lcd">
                 <span id="lcd-main">NO SELECTION</span>
-                <span class="lcd-sub" id="lcd-sub">PRESS A UNIT BUTTON</span>
+                <span class="lcd-sub" id="lcd-sub">CLICK A UNIT ON THE TRACK</span>
             </div>
             <div class="btn-row">
-                <button class="btn-d btn-fwd" onclick="drive('fwd')">FWD &#9654;</button>
-                <button class="btn-d btn-bwd" onclick="drive('bwd')">REV &#9664;</button>
+                <button class="btn-d btn-fwd" onclick="drive('fwd')">▶ FORWARD</button>
+                <button class="btn-d btn-bwd" onclick="drive('bwd')">◀ REVERSE</button>
             </div>
-            <button class="btn-d btn-stop" onclick="drive('stop')">HALT</button>
-            <button class="btn-d btn-e-stop" onclick="emergencyStop()">EMERGENCY STOP</button>
+            <button class="btn-d btn-stop" onclick="drive('stop')">⬛ HALT ALL UNITS</button>
+            <button class="btn-d btn-e-stop" onclick="emergencyStop()">🛑 EMERGENCY STOP</button>
         </div>
+        
+        <!-- Event Log -->
         <div class="bay-section">
-            <div class="bay-title">Event Log</div>
+            <div class="bay-title">📋 Event Log</div>
             <div id="log"></div>
         </div>
+        
+        <!-- Signal Panel -->
         <div class="bay-section">
-            <div class="bay-title">Signal Panel &mdash; Click to Cycle</div>
+            <div class="bay-title">🚦 Signal Panel — Click to Cycle Aspect</div>
             <div class="sig-grid" id="sig-grid"></div>
         </div>
     </div>
 </div>
 
 <script>
-const TY = { main: 15, up: 28, term: 42, low: 56, yard: 70 };
-const GAUGE = 0.7;
+/* ============================================
+   CONFIGURATION & STATE
+   ============================================ */
+const TY = { main: 15, up: 30, term: 45, low: 58, yard: 75 };
+const GAUGE = 0.85;
 
+// Signal configurations
 const signals = { 'S1':0,'S2':0,'S3':0,'S4':0,'S5':0,'S6':0,'S7':0,'S8':0,'T-IN':0,'T-OUT':0 };
+
 const signalCoords = {
     'S1':   { x:12, y:TY.main, targetY:TY.up,   label:'JCT-1',    type:'normal' },
     'S2':   { x:88, y:TY.up,   targetY:TY.main,  label:'JCT-2',    type:'normal' },
@@ -312,255 +562,257 @@ const signalCoords = {
     'T-OUT':{ x:72, y:TY.low,  targetY:TY.term,  label:'TERM-EXT', type:'terminal' },
     'S5':   { x:72, y:TY.up,   targetY:TY.low,   label:'JCT-5',    type:'normal' },
     'S6':   { x:28, y:TY.low,  targetY:TY.up,    label:'JCT-6',    type:'normal' },
-    'S7':   { x:50, y:TY.low,  targetY:TY.yard,  label:'YARD-IN',  type:'normal' },
-    'S8':   { x:50, y:TY.yard, targetY:TY.low,   label:'YARD-OUT', type:'normal' }
+    'S7':   { x:50, y:TY.low,  targetY:TY.yard,  label:'YARD-IN',  type:'yard', link:'https://www.google.com/search?q=maintenance+yard+railway+access' }, // YARD ENTRY
+    'S8':   { x:50, y:TY.yard, targetY:TY.low,   label:'YARD-OUT', type:'yard', link:'https://www.google.com/search?q=maintenance+yard+railway+exit' } // YARD EXIT
 };
 
+// 5 Colored Trains with unique properties
 const trainData = {
-    101: {
-        id: 101, label: 'EXP-101', x: 5, y: TY.main,
-        state: 'stop', speed: 0.16, dir: 1, hasPassed: {}, isWaiting: false,
-        link: 'https://www.google.com',
-        color: '#2a7ab5', colorLight: '#4a9ad5', colorDark: '#1a5a85',
-        consist: [{ w: 70, type: 'power', text: 'EXP-101' },{ w: 56, type: 'passenger', text: '' },{ w: 56, type: 'passenger', text: '' }]
-    },
-    204: {
-        id: 204, label: 'FR-204', x: 95, y: TY.up,
-        state: 'stop', speed: 0.12, dir: -1, hasPassed: {}, isWaiting: false,
-        color: '#a0622a', colorLight: '#c0824a', colorDark: '#70421a',
-        consist: [{ w: 56, type: 'power', text: 'FR-204' },{ w: 76, type: 'freight', text: 'CONT' },{ w: 76, type: 'freight', text: 'CONT' },{ w: 76, type: 'freight', text: 'CONT' }]
-    },
-    307: {
-        id: 307, label: 'YD-307', x: 48, y: TY.yard,
-        state: 'stop', speed: 0.10, dir: 1, hasPassed: {}, isWaiting: false,
-        color: '#2a8a3a', colorLight: '#4aaa5a', colorDark: '#1a6a2a',
-        consist: [{ w: 56, type: 'power', text: 'YD-307' },{ w: 50, type: 'freight', text: '' }]
-    },
-    415: {
-        id: 415, label: 'RG-415', x: 25, y: TY.low,
-        state: 'stop', speed: 0.13, dir: 1, hasPassed: {}, isWaiting: false,
-        color: '#a83a3a', colorLight: '#c85a5a', colorDark: '#882a2a',
-        consist: [{ w: 60, type: 'power', text: 'RG-415' },{ w: 50, type: 'passenger', text: '' },{ w: 50, type: 'passenger', text: '' }]
-    },
-    522: {
-        id: 522, label: 'HL-522', x: 70, y: TY.main,
-        state: 'stop', speed: 0.18, dir: -1, hasPassed: {}, isWaiting: false,
-        color: '#9a8a2a', colorLight: '#baaa4a', colorDark: '#7a6a1a',
-        consist: [{ w: 80, type: 'power', text: 'HL-522' },{ w: 80, type: 'passenger', text: '1ST' },{ w: 66, type: 'passenger', text: 'STD' },{ w: 66, type: 'passenger', text: 'STD' }]
-    }
+    101: { id:101, label:'EXP-101', cssClass:'exp-101', x:5,  y:TY.main, state:'stop', speed:0.14, dir:1,  hasPassed:{}, isWaiting:false, color:'#e74c3c' },
+    204: { id:204, label:'FR-204',  cssClass:'fr-204',  x:92, y:TY.up,   state:'stop', speed:0.12, dir:-1, hasPassed:{}, isWaiting:false, color:'#3498db' },
+    307: { id:307, label:'YD-307',  cssClass:'yd-307',  x:48, y:TY.yard, state:'stop', speed:0.10, dir:1,  hasPassed:{}, isWaiting:false, color:'#2ecc71' },
+    442: { id:442, label:'IC-442',  cssClass:'ic-442',  x:75, y:TY.main, state:'stop', speed:0.13, dir:-1, hasPassed:{}, isWaiting:false, color:'#f39c12' },
+    558: { id:558, label:'LX-558',  cssClass:'lx-558',  x:25, y:TY.low,  state:'stop', speed:0.11, dir:1,  hasPassed:{}, isWaiting:false, color:'#9b59b6' }
 };
 
 const stations = [
-    { name: 'WESTFIELD JCT', x: 5, y: TY.main },
-    { name: 'OAKLEIGH', x: 20, y: TY.main },
-    { name: 'RIVERSIDE', x: 50, y: TY.main },
-    { name: 'EASTPORT', x: 80, y: TY.main },
-    { name: 'MILLBROOK', x: 50, y: TY.up },
-    { name: 'CENTRAL TERMINAL', x: 50, y: TY.low, isTerminal: true },
-    { name: 'MAINT. YARD', x: 50, y: TY.yard, isYard: true }
+    { name:'WESTFIELD JCT',    x:5,  y:TY.main },
+    { name:'OAKLEIGH',         x:20, y:TY.main },
+    { name:'RIVERSIDE',        x:50, y:TY.main },
+    { name:'EASTPORT',         x:82, y:TY.main },
+    { name:'MILLBROOK',        x:50, y:TY.up },
+    { name:'CENTRAL TERMINAL', x:50, y:TY.low, isTerminal:true },
+    { name:'MAINTENANCE YARD', x:50, y:TY.yard, isYard:true }
 ];
 
 let activeTr = null, pendingDecision = null, logLines = [];
 
-/* --- UTILITY --- */
-function darken(hex, pct) {
-    let r = parseInt(hex.slice(1,3), 16), g = parseInt(hex.slice(3,5), 16), b = parseInt(hex.slice(5,7), 16);
-    r = Math.max(0, Math.round(r * (1 - pct/100)));
-    g = Math.max(0, Math.round(g * (1 - pct/100)));
-    b = Math.max(0, Math.round(b * (1 - pct/100)));
-    return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
-}
-
-/* --- MODAL MANAGEMENT --- */
-function forceCloseModal() {
-    document.getElementById('decision-overlay').style.display = 'none';
-    if (pendingDecision) {
-        const t = trainData[pendingDecision.tID];
-        if (t) {
-            t.isWaiting = false;
-            t.hasPassed[pendingDecision.sID] = true; // Prevent re-trigger at same signal
-        }
-        pendingDecision = null;
-    }
-}
-
-/* --- SVG --- */
+/* ============================================
+   SVG HELPERS
+   ============================================ */
 function el(tag, attrs, parent) {
     const n = document.createElementNS("http://www.w3.org/2000/svg", tag);
-    for (const [k, v] of Object.entries(attrs || {})) n.setAttribute(k, v);
+    for (const [k,v] of Object.entries(attrs||{})) n.setAttribute(k, v);
     if (parent) parent.appendChild(n);
     return n;
 }
-function buildStraightTrack(svg, y, x1, x2, gap) {
+
+/* ============================================
+   TRACK BUILDER
+   ============================================ */
+function buildStraightTrack(svg, y, x1, x2, sleeperGap) {
     const g = el('g', {}, svg);
-    for (let x = x1; x <= x2; x += gap) el('line', { x1:x, y1:y-GAUGE-0.45, x2:x, y2:y+GAUGE+0.45, class:'sleeper' }, g);
+    // Sleepers (ties)
+    for (let x = x1; x <= x2; x += sleeperGap) {
+        el('line', { x1:x, y1:y-GAUGE-0.5, x2:x, y2:y+GAUGE+0.5, class:'sleeper' }, g);
+    }
+    // Double rails with metallic effect
     el('line', { x1:x1, y1:y-GAUGE, x2:x2, y2:y-GAUGE, class:'rail-r' }, g);
     el('line', { x1:x1, y1:y+GAUGE, x2:x2, y2:y+GAUGE, class:'rail-l' }, g);
+    // Ballast effect
+    el('line', { x1:x1, y1:y, x2:x2, y2:y, stroke:'#111', 'stroke-width':'1.5', opacity:'0.3' }, g);
+    return g;
 }
+
 function buildSwitchTrack(svg, sID) {
-    const s = signalCoords[sID], sx=s.x, sy=s.y, ty=s.targetY, span=6, ex=sx+span;
+    const s = signalCoords[sID];
+    const sx = s.x, sy = s.y, ty = s.targetY;
+    const span = 7;
+    const ex = sx + span * (sx < 50 ? 1 : -1);
+    
     const g = el('g', {}, svg);
-    for (let x=sx-3; x<=sx+1.5; x+=1.2) el('line', { x1:x, y1:sy-GAUGE-0.4, x2:x, y2:sy+GAUGE+0.4, class:'sleeper' }, g);
-    for (let t=0.15; t<=0.85; t+=0.18) {
-        const cx=sx+t*span, cy=sy+t*(ty-sy), a=Math.atan2(ty-sy,span);
-        const px=Math.sin(a)*(GAUGE+0.4), py=Math.cos(a)*(GAUGE+0.4);
+    
+    // Sleepers along straight portion
+    for (let x = sx - 4; x <= sx + 2; x += 1.3) {
+        el('line', { x1:x, y1:sy-GAUGE-0.4, x2:x, y2:sy+GAUGE+0.4, class:'sleeper' }, g);
+    }
+    
+    // Diagonal sleepers through curve
+    for (let t = 0.15; t <= 0.85; t += 0.16) {
+        const cx = sx + t * (ex - sx);
+        const cy = sy + t * (ty - sy);
+        const angle = Math.atan2(ty - sy, ex - sx);
+        const px = Math.sin(angle) * (GAUGE + 0.4);
+        const py = Math.cos(angle) * (GAUGE + 0.4);
         el('line', { x1:cx-px, y1:cy-py, x2:cx+px, y2:cy+py, class:'sleeper' }, g);
     }
-    for (let x=ex+1; x<=ex+3; x+=1.2) el('line', { x1:x, y1:ty-GAUGE-0.4, x2:x, y2:ty+GAUGE+0.4, class:'sleeper' }, g);
-    el('path', { d:`M ${sx} ${sy-GAUGE} C ${sx+span*0.5} ${sy-GAUGE}, ${sx+span*0.5} ${ty-GAUGE}, ${ex} ${ty-GAUGE}`, class:'switch-r', id:`sw-r-${sID}` }, g);
-    el('path', { d:`M ${sx} ${sy+GAUGE} C ${sx+span*0.5} ${sy+GAUGE}, ${sx+span*0.5} ${ty+GAUGE}, ${ex} ${ty+GAUGE}`, class:'switch-l', id:`sw-l-${sID}` }, g);
+    
+    // Sleepers after curve
+    for (let t = 0; t <= 4; t += 1.3) {
+        const ax = ex + t * (sx < 50 ? 1 : -1);
+        el('line', { x1:ax, y1:ty-GAUGE-0.4, x2:ax, y2:ty+GAUGE+0.4, class:'sleeper' }, g);
+    }
+    
+    // Smooth curved rail paths
+    const dR = `M ${sx} ${sy-GAUGE} C ${(sx+ex)/2} ${sy-GAUGE}, ${(sx+ex)/2} ${ty-GAUGE}, ${ex} ${ty-GAUGE}`;
+    const dL = `M ${sx} ${sy+GAUGE} C ${(sx+ex)/2} ${sy+GAUGE}, ${(sx+ex)/2} ${ty+GAUGE}, ${ex} ${ty+GAUGE}`;
+    el('path', { d:dR, class:'switch-r', id:`sw-r-${sID}` }, g);
+    el('path', { d:dL, class:'switch-l', id:`sw-l-${sID}` }, g);
+    
+    return g;
 }
+
 function buildSignal(svg, sID) {
-    const s=signalCoords[sID], px=s.x, py=s.y, postTop=py-6.5;
+    const s = signalCoords[sID];
     const g = el('g', { class:'signal-head' }, svg);
     g.addEventListener('click', () => cycleSignal(sID));
-    el('line', { x1:px, y1:py+1.8, x2:px, y2:postTop, class:'sig-post' }, g);
-    el('rect', { x:px-0.9, y:py+0.9, width:1.8, height:0.8, class:'sig-base', rx:0.1 }, g);
-    el('rect', { x:px-1, y:postTop, width:2, height:5.6, class:'sig-base', rx:0.2 }, g);
-    ['#ff073a','#ffae00','#39ff14'].forEach((c, i) => {
-        const cy = postTop+1.1+(i*1.6);
-        el('path', { d:`M ${px-1.2} ${cy-0.2} L ${px-1} ${cy-0.6} L ${px+1} ${cy-0.6} L ${px+1.2} ${cy-0.2} Z`, class:'sig-hood' }, g);
-        el('circle', { cx:px, cy:cy+0.2, r:0.5, class:'sig-lamp' }, g);
-        el('circle', { cx:px, cy:cy+0.2, r:0.4, fill:c, opacity:0.08, id:`lamp-${sID}-${i}` }, g);
-        el('circle', { cx:px, cy:cy+0.2, r:1.4, fill:c, class:'sig-glow', id:`glow-${sID}-${i}` }, g);
-    });
+    
+    const px = s.x, py = s.y;
+    const postTop = py - 8;
+    
+    // Signal post
+    el('line', { x1:px, y1:py+2, x2:px, y2:postTop, class:'sig-post' }, g);
+    
+    // Base plate
+    el('rect', { x:px-1, y:py+1, width:2, height:1, class:'sig-base', rx:0.15 }, g);
+    
+    // Main housing
+    el('rect', { x:px-1.1, y:postTop, width:2.2, height:6.5, class:'sig-base', rx:0.25 }, g);
+    
+    // Three aspect lamps
+    const colors = ['#ff073a', '#ffae00', '#39ff14'];
+    for (let i = 0; i < 3; i++) {
+        const cy = postTop + 1.3 + (i * 1.8);
+        // Hood
+        el('path', { 
+            d:`M ${px-1.3} ${cy-0.3} L ${px-1.1} ${cy-0.6} L ${px+1.1} ${cy-0.6} L ${px+1.3} ${cy-0.3} Z`, 
+            class:'sig-hood' 
+        }, g);
+        // Lamp
+        el('circle', { cx:px, cy:cy+0.2, r:0.55, class:'sig-lamp' }, g);
+        // Color fill
+        el('circle', { cx:px, cy:cy+0.2, r:0.45, fill:colors[i], opacity:0.08, id:`lamp-${sID}-${i}` }, g);
+        // Glow
+        el('circle', { cx:px, cy:cy+0.2, r:1.5, fill:colors[i], class:'sig-glow', id:`glow-${sID}-${i}` }, g);
+    }
 }
+
 function buildSVG() {
     const mimic = document.getElementById('mimic');
     const svg = el('svg', { class:'track-svg', viewBox:'0 0 100 100', preserveAspectRatio:'none' });
     mimic.prepend(svg);
-    el('defs', {}, svg);
-    buildStraightTrack(svg, TY.main, 0, 100, 1.0);
-    buildStraightTrack(svg, TY.up, 0, 100, 1.0);
-    buildStraightTrack(svg, TY.low, 0, 100, 1.0);
-    buildStraightTrack(svg, TY.yard, 38, 62, 0.8);
+    
+    const defs = el('defs', {}, svg);
+    
+    // Build straight tracks
+    buildStraightTrack(svg, TY.main, 0, 100, 1.1);
+    buildStraightTrack(svg, TY.up, 0, 100, 1.1);
+    buildStraightTrack(svg, TY.low, 0, 100, 1.1);
+    buildStraightTrack(svg, TY.yard, 36, 64, 0.9);
+    
+    // Build switch tracks
     Object.keys(signalCoords).forEach(sID => buildSwitchTrack(svg, sID));
+    
+    // Station details
     stations.forEach(st => {
         const anchor = st.x < 20 ? 'start' : st.x > 80 ? 'end' : 'middle';
-        const ly = st.y - GAUGE - 2;
+        const ly = st.y - GAUGE - 2.2;
+        
         if (st.isTerminal) {
-            el('rect', { x:30, y:TY.low+GAUGE+0.6, width:40, height:2.8, class:'plat-fill', rx:0.3 }, svg);
-            el('line', { x1:30, y1:TY.low+GAUGE+0.6, x2:70, y2:TY.low+GAUGE+0.6, class:'plat-edge' }, svg);
-            el('line', { x1:30, y1:TY.low+GAUGE+3.4, x2:70, y2:TY.low+GAUGE+3.4, class:'plat-edge' }, svg);
-            for (let px=32; px<70; px+=3) el('line', { x1:px, y1:TY.low+GAUGE+0.7, x2:px, y2:TY.low+GAUGE+3.2, stroke:'#222', 'stroke-width':'0.12' }, svg);
+            // Platform structure
+            el('rect', { x:28, y:TY.low+GAUGE+0.6, width:44, height:3, class:'plat-fill', rx:0.4 }, svg);
+            el('line', { x1:28, y1:TY.low+GAUGE+0.6, x2:72, y2:TY.low+GAUGE+0.6, class:'plat-edge' }, svg);
+            el('line', { x1:28, y1:TY.low+GAUGE+3.6, x2:72, y2:TY.low+GAUGE+3.6, class:'plat-edge' }, svg);
+            // Platform markings
+            for (let px = 30; px < 72; px += 3.5) {
+                el('line', { x1:px, y1:TY.low+GAUGE+0.8, x2:px, y2:TY.low+GAUGE+3.4, stroke:'#333', 'stroke-width':'0.12' }, svg);
+            }
             const sub = el('text', { x:50, y:TY.low+GAUGE+5.5, class:'station-sublabel', 'text-anchor':'middle' }, svg);
             sub.textContent = 'PLATFORM 1-2';
         }
+        
         if (st.isYard) {
-            el('line', { x1:40, y1:TY.yard+GAUGE+0.5, x2:60, y2:TY.yard+GAUGE+0.5, class:'yard-line' }, svg);
-            [40,60].forEach(bx => { el('line', { x1:bx, y1:TY.yard-GAUGE-1, x2:bx, y2:TY.yard+GAUGE+1, stroke:'#444', 'stroke-width':'0.35' }, svg); });
+            el('line', { x1:38, y1:TY.yard+GAUGE+0.5, x2:62, y2:TY.yard+GAUGE+0.5, class:'yard-line' }, svg);
+            // Buffer stops
+            [38, 62].forEach(bx => {
+                el('line', { x1:bx, y1:TY.yard-GAUGE-1, x2:bx, y2:TY.yard+GAUGE+1, stroke:'#555', 'stroke-width':'0.4' }, svg);
+                el('line', { x1:bx+(bx<50?-0.6:0.6), y1:TY.yard-GAUGE-0.8, x2:bx+(bx<50?-0.6:0.6), y2:TY.yard+GAUGE+0.8, stroke:'#555', 'stroke-width':'0.25' }, svg);
+            });
+            
+            // Special yard highlighting
+            el('rect', { x:36, y:TY.yard-3, width:28, height:6, fill:'none', stroke:'#ff69b4', 'stroke-width':'0.15', opacity:'0.3', rx:1 }, svg);
         }
+        
+        // Station label
         const label = el('text', { x:st.x, y:ly, class:'station-label', 'text-anchor':anchor }, svg);
         label.textContent = st.name;
-        el('circle', { cx:st.x, cy:st.y-GAUGE-0.9, r:0.4, fill:'var(--station-yellow)', opacity:0.4 }, svg);
+        
+        // Marker dot
+        el('circle', { cx:st.x, cy:st.y-GAUGE-1, r:0.45, fill:'var(--station-yellow)', opacity:0.5 }, svg);
     });
-    for (let km=10; km<=90; km+=20) {
+    
+    // KM markers
+    for (let km = 10; km <= 90; km += 20) {
         el('line', { x1:km, y1:TY.main-GAUGE-1, x2:km, y2:TY.main+GAUGE+1, class:'km-tick' }, svg);
-        const t = el('text', { x:km, y:TY.main+GAUGE+2.5, class:'km-mark', 'text-anchor':'middle' }, svg);
+        const t = el('text', { x:km, y:TY.main+GAUGE+2.8, class:'km-mark', 'text-anchor':'middle' }, svg);
         t.textContent = `${km}km`;
     }
+    
+    // Build signals
     Object.keys(signalCoords).forEach(sID => buildSignal(svg, sID));
 }
 
-/* --- TRAIN DOM --- */
-function buildTrainDOM(t) {
-    const wrapper = document.createElement('div');
-    wrapper.id = `tr-${t.id}`;
-    wrapper.className = 'train-consist';
-    wrapper.onclick = (e) => { e.stopPropagation(); selectTrain(t.id); };
-    t.consist.forEach((car, idx) => {
-        if (idx > 0) { const c = document.createElement('div'); c.className = 'coupling'; wrapper.appendChild(c); }
-        const carEl = document.createElement('div'); carEl.className = 'train-car';
-        const body = document.createElement('div');
-        body.className = `car-body ${car.type}`;
-        body.style.width = car.w + 'px';
-        if (car.type === 'freight') body.style.background = `linear-gradient(180deg, ${t.colorDark} 0%, ${darken(t.colorDark, 20)} 20%, ${darken(t.colorDark, 35)} 80%, ${darken(t.colorDark, 50)} 100%)`;
-        else if (car.type === 'power') body.style.background = `linear-gradient(180deg, ${t.colorLight} 0%, ${t.color} 20%, ${t.colorDark} 80%, ${darken(t.colorDark, 20)} 100%)`;
-        else body.style.background = `linear-gradient(180deg, ${t.color} 0%, ${t.colorDark} 20%, ${darken(t.colorDark, 15)} 80%, ${darken(t.colorDark, 30)} 100%)`;
-        body.style.borderColor = darken(t.colorDark, 30);
-        body.innerText = car.text;
-        carEl.appendChild(body);
-        const bogies = document.createElement('div'); bogies.className = 'bogie-assembly';
-        const b = document.createElement('div'); b.className = 'bogie'; b.innerHTML = '<div class="axle"></div><div class="axle"></div>';
-        bogies.appendChild(b); carEl.appendChild(bogies);
-        wrapper.appendChild(carEl);
-    });
-    return wrapper;
-}
-
-/* --- SELECTOR --- */
-function buildSelector() {
-    const grid = document.getElementById('selector-grid'); grid.innerHTML = '';
-    Object.keys(trainData).forEach((id, idx) => {
-        const t = trainData[id], btn = document.createElement('button');
-        btn.className = 'sel-btn'; btn.id = `sel-${id}`; btn.onclick = () => selectTrain(id);
-        btn.innerHTML = `<span class="sel-num" style="color:${t.colorLight}">${idx + 1}</span><span class="sel-label">${t.label}</span><div class="sel-bar" style="background:${t.color}"></div>`;
-        grid.appendChild(btn);
-    });
-}
-function updateSelector() {
-    Object.keys(trainData).forEach(id => {
-        const btn = document.getElementById(`sel-${id}`); if (!btn) return;
-        const t = trainData[id];
-        if (activeTr === id) { btn.classList.add('active'); btn.style.borderColor = t.color; btn.style.boxShadow = `0 0 12px ${t.color}40, inset 0 0 20px ${t.color}15`; }
-        else { btn.classList.remove('active'); btn.style.borderColor = '#222'; btn.style.boxShadow = 'none'; }
-    });
-}
-
-/* --- SIGNALS --- */
+/* ============================================
+   SIGNAL LOGIC
+   ============================================ */
 const aspectNames = ['STOP','CAUTION','CLEAR'];
 const aspectColors = ['var(--sig-red)','var(--sig-amber)','var(--sig-green)'];
+
 function cycleSignal(id) {
-    signals[id] = (signals[id]+1)%3;
+    signals[id] = (signals[id] + 1) % 3;
     updateSignalUI();
-    addLog(`SIG ${id} → ${aspectNames[signals[id]]}`, signals[id]===0?'err':signals[id]===1?'warn':'');
+    const type = signals[id]===0?'err':signals[id]===1?'warn':'';
+    addLog(`SIG ${id} → ${aspectNames[signals[id]]}`, type);
 }
+
 function updateSignalUI() {
-    const grid = document.getElementById('sig-grid'); grid.innerHTML = '';
+    const grid = document.getElementById('sig-grid');
+    grid.innerHTML = '';
+    
     Object.keys(signals).forEach(id => {
-        const a=signals[id], c=aspectColors[a], tile = document.createElement('div');
-        tile.className = 'sig-toggle'; tile.style.borderBottom = `3px solid ${c}`;
+        const a = signals[id];
+        const c = aspectColors[a];
+        const s = signalCoords[id];
+        const isYardSignal = s.type === 'yard';
+        
+        const tile = document.createElement('div');
+        tile.className = `sig-toggle${isYardSignal ? ' yard-signal' : ''}`;
+        tile.style.borderBottom = `3px solid ${c}`;
         tile.onclick = () => cycleSignal(id);
-        tile.innerHTML = `<div class="sig-dot" style="background:${c};box-shadow:0 0 6px ${c}"></div><span class="sig-name">${id}</span>`;
+        tile.innerHTML = `<div class="sig-dot" style="background:${c};color:${c}"></div><span class="sig-name">${id}</span>`;
         grid.appendChild(tile);
-        for (let i=0;i<3;i++) {
-            const lamp=document.getElementById(`lamp-${id}-${i}`), glow=document.getElementById(`glow-${id}-${i}`);
-            if(lamp) lamp.setAttribute('opacity', a===i?'1':'0.08');
-            if(glow) glow.classList.toggle('on', a===i);
+        
+        // Update SVG lamps
+        for (let i = 0; i < 3; i++) {
+            const lamp = document.getElementById(`lamp-${id}-${i}`);
+            const glow = document.getElementById(`glow-${id}-${i}`);
+            if (lamp) lamp.setAttribute('opacity', a === i ? '1' : '0.08');
+            if (glow) glow.classList.toggle('on', a === i);
         }
-        const rR=document.getElementById(`sw-r-${id}`), rL=document.getElementById(`sw-l-${id}`);
-        if(rR) rR.classList.toggle('lit', a>0); if(rL) rL.classList.toggle('lit', a>0);
+        
+        // Update switch rails
+        const rR = document.getElementById(`sw-r-${id}`);
+        const rL = document.getElementById(`sw-l-${id}`);
+        if (rR) rR.classList.toggle('lit', a > 0);
+        if (rL) rL.classList.toggle('lit', a > 0);
     });
 }
 
-/* --- CONTROL (FIXED) --- */
+/* ============================================
+   TRAIN CONTROL
+   ============================================ */
 function drive(mode) {
-    if (!activeTr) { addLog('NO UNIT SELECTED','warn'); return; }
+    if (!activeTr) { addLog('NO UNIT SELECTED', 'warn'); return; }
     const t = trainData[activeTr];
-    
-    // CRITICAL FIX: If a popup is open for THIS train and we command HALT or movement, close it cleanly
-    if (pendingDecision && pendingDecision.tID === activeTr) {
-        forceCloseModal();
-        addLog(`${t.label} JUNCTION OVERRIDDEN`, 'warn');
-    }
-
     t.state = mode;
-    const stateName = mode==='fwd'?'FORWARD':mode==='bwd'?'REVERSE':'HALTED';
-    addLog(`${t.label} → ${stateName}`, mode==='stop'?'warn':'');
+    const sn = mode==='fwd'?'FORWARD':mode==='bwd'?'REVERSE':'HALTED';
+    addLog(`${t.label} → ${sn}`, mode==='stop'?'warn':'');
     updateLCD();
 }
 
 function emergencyStop() {
-    // CRITICAL FIX: Kill ALL popups and reset ALL wait states instantly
-    forceCloseModal();
-    
-    Object.values(trainData).forEach(t => {
-        t.state = 'stop';
-        t.isWaiting = false;
-        t._blk = null;
-    });
-    
-    addLog('*** EMERGENCY STOP ALL UNITS ***','err');
+    Object.values(trainData).forEach(t => t.state = 'stop');
+    addLog('*** EMERGENCY STOP ALL UNITS ***', 'err');
     updateLCD();
 }
 
@@ -568,153 +820,288 @@ function selectTrain(id) {
     activeTr = id;
     addLog(`SELECTED: ${trainData[id].label}`, 'dim');
     updateLCD();
-    updateSelector();
 }
 
 function updateLCD() {
-    const main=document.getElementById('lcd-main'), sub=document.getElementById('lcd-sub');
-    if (!activeTr) { main.textContent='NO SELECTION'; sub.textContent='PRESS A UNIT BUTTON'; return; }
-    const t=trainData[activeTr];
-    main.innerHTML = `<span style="color:${t.colorLight}">${t.label}</span> — ${t.state==='stop'?'HALTED':t.state==='fwd'?'FORWARD':'REVERSE'}`;
-    sub.textContent=`POS: ${t.x.toFixed(1)}km | TRACK: ${getTrackName(t.y)} | CARS: ${t.consist.length}`;
-}
-function getTrackName(y) {
-    if(Math.abs(y-TY.main)<2) return 'MAIN'; if(Math.abs(y-TY.up)<2) return 'UPPER';
-    if(Math.abs(y-TY.term)<2) return 'APPROACH'; if(Math.abs(y-TY.low)<2) return 'TERMINAL';
-    if(Math.abs(y-TY.yard)<2) return 'YARD'; return 'TRANSIT';
+    const main = document.getElementById('lcd-main');
+    const sub = document.getElementById('lcd-sub');
+    if (!activeTr) { 
+        main.textContent='NO SELECTION'; 
+        sub.textContent='CLICK A UNIT ON THE TRACK'; 
+        return; 
+    }
+    const t = trainData[activeTr];
+    const sm = { stop:'HALTED', fwd:'FORWARD', bwd:'REVERSE' };
+    main.textContent = `${t.label} — ${sm[t.state]}`;
+    sub.textContent = `POS: ${t.x.toFixed(1)}km | TRACK: ${getTrackName(t.y)} | SPD: ${t.speed.toFixed(2)}`;
 }
 
-/* --- MODAL LOGIC --- */
+function getTrackName(y) {
+    if (Math.abs(y-TY.main)<2) return 'MAIN LINE';
+    if (Math.abs(y-TY.up)<2) return 'UPPER LINE';
+    if (Math.abs(y-TY.term)<2) return 'APPROACH';
+    if (Math.abs(y-TY.low)<2) return 'TERMINAL';
+    if (Math.abs(y-TY.yard)<2) return '⚙️ MAINTENANCE YARD';
+    return 'TRANSIT';
+}
+
+/* ============================================
+   DECISION MODAL - YARD-SPECIFIC LINK LOGIC
+   ============================================ */
 function handleDecision(divert) {
     if (!pendingDecision) return;
     const { tID, sID } = pendingDecision;
-    const t=trainData[tID], s=signalCoords[sID];
+    const t = trainData[tID];
+    const s = signalCoords[sID];
+    const isYardEntry = s.type === 'yard';
     
-    // Mark as passed BEFORE moving so it can't re-trigger
-    t.hasPassed[sID] = true;
-    t.isWaiting = false;
-    pendingDecision = null;
-
-    if (s.type==='terminal') {
-        if(divert) { t.y=s.targetY; addLog(`${t.label} DOCKED AT CENTRAL TERMINAL`); }
-        else addLog(`${t.label} BYPASSED TERMINAL`);
+    if (isYardEntry) {
+        if (divert) { 
+            t.y = s.targetY; 
+            addLog(`${t.label} ENTERED MAINTENANCE YARD 🔧`, 'yard'); 
+        } else { 
+            addLog(`${t.label} BYPASSED MAINTENANCE YARD`, 'info'); 
+        }
+    } else if (s.type === 'terminal') {
+        if (divert) { 
+            t.y = s.targetY; 
+            addLog(`${t.label} DOCKED AT CENTRAL TERMINAL`, 'info'); 
+        } else { 
+            addLog(`${t.label} BYPASSED TERMINAL`, 'info'); 
+        }
     } else {
-        if(divert) { t.y=s.targetY; addLog(`${t.label} DIVERTED VIA ${sID} → ${getTrackName(s.targetY)}`); }
-        else addLog(`${t.label} STRAIGHT AT ${sID}`);
+        if (divert) { 
+            t.y = s.targetY; 
+            addLog(`${t.label} DIVERTED VIA ${sID} → ${getTrackName(s.targetY)}`, 'info'); 
+        } else { 
+            addLog(`${t.label} STRAIGHT AT ${sID}`); 
+        }
     }
     
-    if(divert && signals[sID]>0) signals[sID]=0;
+    t.isWaiting = false;
+    t.hasPassed[sID] = true;
+    if (divert && signals[sID] > 0) signals[sID] = 0;
     
-    document.getElementById('decision-overlay').style.display='none';
-    updateSignalUI(); updateLCD();
+    hideModal();
+    pendingDecision = null;
+    updateSignalUI();
+    updateLCD();
 }
 
-function openTrainLink() {
+function openYardLink() {
     if (!pendingDecision) return;
-    const t = trainData[pendingDecision.tID];
-    if (t.link) { window.open(t.link, '_blank'); addLog(`${t.label} EXTERNAL LINK OPENED`,'warn'); }
+    const { sID } = pendingDecision;
+    const s = signalCoords[sID];
+    
+    // ONLY open link if it's a yard signal
+    if (s.type === 'yard' && s.link) {
+        window.open(s.link, '_blank');
+        addLog(`🔗 OPENED YARD ACCESS PORTAL: ${s.label}`, 'yard');
+    }
+}
+
+function hideModal() {
+    const o = document.getElementById('decision-overlay');
+    o.classList.remove('show');
+    setTimeout(() => { o.style.display = 'none'; }, 300);
 }
 
 function showModal(tID, sID) {
-    const s=signalCoords[sID], t=trainData[tID];
-    document.getElementById('modal-title').textContent = s.type==='terminal'?'TERMINAL OPERATIONS':`JUNCTION ${s.label}`;
-    if (s.type==='terminal') {
-        document.getElementById('modal-text').textContent=`${t.label} REQUESTING DOCK AT CENTRAL`;
-        document.getElementById('modal-sub').textContent='CONFIRM DOCKING OR BYPASS TO CONTINUE';
+    const s = signalCoords[sID];
+    const t = trainData[tID];
+    const o = document.getElementById('decision-overlay');
+    const isYardEntry = s.type === 'yard';
+    const linkBtn = document.getElementById('btn-link');
+    
+    // Update title based on location
+    if (isYardEntry) {
+        document.getElementById('modal-title').textContent = '⚙️ MAINTENANCE YARD ACCESS';
+        document.getElementById('modal-title').style.color = '#ff69b4';
+        document.getElementById('modal-text').innerHTML = `<strong style="color:${t.color}">${t.label}</strong> REQUESTING ENTRY TO<br><strong>MAINTENANCE YARD</strong>`;
+        document.getElementById('modal-sub').textContent = 'AUTHORIZATION REQUIRED FOR YARD ACCESS';
+        document.getElementById('btn-primary').textContent = '✓ GRANT YARD ACCESS';
+        document.getElementById('btn-secondary').textContent = '✗ DENY ACCESS';
+        
+        // SHOW the link button for yard
+        linkBtn.classList.add('visible');
+        linkBtn.textContent = '🔗 OPEN YARD ACCESS PORTAL';
+        
+    } else if (s.type==='terminal') {
+        document.getElementById('modal-title').textContent = 'TERMINAL OPERATIONS';
+        document.getElementById('modal-title').style.color = 'var(--sig-amber)';
+        document.getElementById('modal-text').textContent = `${t.label} REQUESTING DOCK AT CENTRAL TERMINAL`;
+        document.getElementById('modal-sub').textContent = 'CONFIRM DOCKING OR BYPASS TO CONTINUE';
+        document.getElementById('btn-primary').textContent = '✓ DOCK';
+        document.getElementById('btn-secondary').textContent = '✗ BYPASS';
+        
+        // HIDE the link button for non-yard
+        linkBtn.classList.remove('visible');
+        
     } else {
-        document.getElementById('modal-text').textContent=`${t.label} APPROACHING ${s.label}`;
-        document.getElementById('modal-sub').textContent=`DIVERT TO ${getTrackName(s.targetY)} OR STAY ON ${getTrackName(s.y)}`;
+        document.getElementById('modal-title').textContent = `JUNCTION ${s.label}`;
+        document.getElementById('modal-title').style.color = 'var(--sig-amber)';
+        document.getElementById('modal-text').innerHTML = `<strong style="color:${t.color}">${t.label}</strong> APPROACHING <strong>${s.label}</strong>`;
+        document.getElementById('modal-sub').textContent = `DIVERT TO ${getTrackName(s.targetY)} OR STAY ON ${getTrackName(t.y)}`;
+        document.getElementById('btn-primary').textContent = '↘ DIVERT';
+        document.getElementById('btn-secondary').textContent = '→ STRAIGHT';
+        
+        // HIDE the link button for non-yard
+        linkBtn.classList.remove('visible');
     }
-    const btnContainer = document.getElementById('modal-btns'); btnContainer.innerHTML = '';
-    const bp = document.createElement('button'); bp.className='m-btn primary'; bp.textContent=s.type==='terminal'?'DOCK':'DIVERT'; bp.onclick=()=>handleDecision(true); btnContainer.appendChild(bp);
-    const bs = document.createElement('button'); bs.className='m-btn secondary'; bs.textContent=s.type==='terminal'?'BYPASS':'STRAIGHT'; bs.onclick=()=>handleDecision(false); btnContainer.appendChild(bs);
-    if (t.link) { const bl = document.createElement('button'); bl.className='m-btn link-btn'; bl.innerHTML='&#8599; OPEN TAB'; bl.onclick=()=>openTrainLink(); btnContainer.appendChild(bl); }
-    document.getElementById('decision-overlay').style.display='block';
+    
+    o.style.display = 'block';
+    requestAnimationFrame(() => o.classList.add('show'));
+    
+    // Special log message for yard
+    if (isYardEntry) {
+        addLog(`⚠️ ${t.label} AWAITING YARD AUTHORIZATION AT ${sID}`, 'yard');
+    }
 }
 
-/* --- LOG --- */
+/* ============================================
+   EVENT LOG
+   ============================================ */
 function addLog(msg, type='') {
-    const now=new Date().toTimeString().split(' ')[0];
-    logLines.unshift({ time:now, msg:(type==='err'?'!! ':type==='warn'?'** ':'>> ')+msg, type });
-    if(logLines.length>50) logLines.pop();
-    document.getElementById('log').innerHTML=logLines.map(l=>`<div class="${l.type?'log-'+l.type:''}"><span style="color:#333">[${l.time}]</span> ${l.msg}</div>`).join('');
+    const now = new Date().toTimeString().split(' ')[0];
+    const pfx = type==='err'?'!! ':type==='warn'?'** ':type==='yard'?'🔧 ':type==='info'?'ℹ ':'>> ';
+    logLines.unshift({ time:now, msg:pfx+msg, type });
+    if (logLines.length > 100) logLines.pop();
+    document.getElementById('log').innerHTML = logLines.map(l =>
+        `<div class="${l.type?'log-'+l.type:''}" style="animation: fadeIn 0.3s"><span style="color:#333">[${l.time}]</span> ${l.msg}</div>`
+    ).join('');
 }
 
-/* --- GAME LOOP (FIXED STATE MACHINE) --- */
+/* ============================================
+   GAME LOOP
+   ============================================ */
 function gameLoop() {
     Object.keys(trainData).forEach(id => {
-        const t=trainData[id];
-        let dom=document.getElementById(`tr-${id}`);
-        if(!dom) { dom=buildTrainDOM(t); document.getElementById('train-layer').appendChild(dom); }
-
-        // Only process movement if NOT stopped AND NOT waiting for a popup
-        if(t.state !== 'stop' && !t.isWaiting) {
-            t.dir = t.state==='fwd' ? 1 : -1;
+        const t = trainData[id];
+        let dom = document.getElementById(`tr-${id}`);
+        if (!dom) {
+            dom = document.createElement('div');
+            dom.id = `tr-${id}`; 
+            dom.className = `train ${t.cssClass}`; 
+            dom.innerText = t.label;
+            dom.onclick = () => selectTrain(id);
+            document.getElementById('train-layer').appendChild(dom);
+        }
+        
+        if (t.state !== 'stop' && !t.isWaiting) {
+            t.dir = t.state === 'fwd' ? 1 : -1;
             let blocked = false;
-
+            
+            // Check proximity to signals/junctions
             Object.keys(signalCoords).forEach(sID => {
                 const s = signalCoords[sID];
-                // Only check signals on our current track level
-                if(Math.abs(t.y - s.y) > 2) return;
-                // Already handled this signal? Skip.
-                if(t.hasPassed[sID]) return;
-
-                const dist = (s.x - t.x) * t.dir;
-
-                if(dist > 0 && dist < 4) {
-                    if(signals[sID] === 0 && dist < 3.5) {
-                        blocked = true;
-                    }
-                    // Only trigger popup if signal is clear/yellow AND we are close enough AND no popup is already open
-                    if(signals[sID] > 0 && dist < 1.2 && !pendingDecision) {
+                if (Math.abs(t.y - s.y) > 2 || t.hasPassed[sID]) return;
+                const d = (s.x - t.x) * t.dir;
+                
+                if (d > 0 && d < 4.5) {
+                    if (signals[sID] === 0 && d < 3.8) blocked = true;
+                    
+                    // Trigger decision when close enough
+                    if (signals[sID] > 0 && d < 1.5 && !t.isWaiting) {
                         t.isWaiting = true;
-                        pendingDecision = { tID: id, sID: sID };
+                        pendingDecision = { tID: id, sID };
                         showModal(id, sID);
+                        
+                        // Special logging for yard approach
+                        if (s.type === 'yard') {
+                            addLog(`${t.label} APPROACHING MAINTENANCE YARD - AUTH REQUIRED`, 'yard');
+                        } else {
+                            addLog(`${t.label} AWAITING DECISION AT ${sID}`, 'warn');
+                        }
                     }
                 }
             });
-
-            if(!blocked) {
+            
+            if (!blocked) {
                 t.x += t.speed * t.dir;
                 dom.classList.remove('blocked');
                 t._blk = null;
             } else {
                 dom.classList.add('blocked');
-                if(!t._blk) {
-                    for(const sID of Object.keys(signalCoords)) {
-                        const s=signalCoords[sID];
-                        if(Math.abs(t.y-s.y)<2 && !t.hasPassed[sID] && (s.x-t.x)*t.dir>0 && (s.x-t.x)*t.dir<4 && signals[sID]===0) {
-                            addLog(`${t.label} BLOCKED AT ${sID} [RED]`,'warn');
-                            t._blk=sID; break;
+                if (!t._blk) {
+                    for (const sID of Object.keys(signalCoords)) {
+                        const s = signalCoords[sID];
+                        if (Math.abs(t.y-s.y)<2 && !t.hasPassed[sID] && (s.x-t.x)*t.dir>0 && (s.x-t.x)*t.dir<4.5 && signals[sID]===0) {
+                            addLog(`${t.label} BLOCKED AT ${sID} [RED SIGNAL]`, 'warn');
+                            t._blk = sID; break;
                         }
                     }
                 }
             }
-            if(t._blk) { const bs=signalCoords[t._blk]; if((bs.x-t.x)*t.dir<0||t.hasPassed[t._blk]) t._blk=null; }
+            
+            // Clear block status when past signal
+            if (t._blk) { 
+                const bs=signalCoords[t._blk]; 
+                if((bs.x-t.x)*t.dir<0||t.hasPassed[t._blk]) t._blk=null; 
+            }
         }
-
-        if(t.x > 108) { t.x=-8; t.hasPassed={}; t._blk=null; addLog(`${t.label} WRAP EAST→WEST`,'dim'); }
-        if(t.x < -8) { t.x=108; t.hasPassed={}; t._blk=null; addLog(`${t.label} WRAP WEST→EAST`,'dim'); }
-
-        dom.style.left=t.x+'%'; dom.style.top=t.y+'%';
-        dom.classList.toggle('selected', activeTr===id);
+        
+        // Wrap around screen edges
+        if (t.x > 106) { t.x=-6; t.hasPassed={}; addLog(`${t.label} WRAP EAST→WEST`, 'dim'); }
+        if (t.x < -6) { t.x=106; t.hasPassed={}; addLog(`${t.label} WRAP WEST→EAST`, 'dim'); }
+        
+        // Update DOM position
+        dom.style.left = t.x + '%';
+        dom.style.top = t.y + '%';
+        dom.classList.toggle('selected', activeTr === id);
     });
-    if(activeTr && Math.random()<0.08) updateLCD();
+    
+    // Periodic LCD refresh
+    if (activeTr && Math.random() < 0.06) updateLCD();
+    
     requestAnimationFrame(gameLoop);
 }
 
-/* --- BOOT --- */
+/* ============================================
+   INITIALIZATION
+   ============================================ */
 function init() {
-    buildSVG(); buildSelector(); updateSignalUI(); updateLCD();
-    addLog('SYSTEM BOOT COMPLETE','dim');
-    addLog('INTERLOCKING: ONLINE','dim');
-    addLog('TRACK CIRCUITS: NOMINAL','dim');
-    addLog('5 UNITS DETECTED ON NETWORK','dim');
-    addLog('EXP-101 LINK PROTOCOL: ACTIVE','dim');
-    addLog('USE NUMERICAL SELECTOR BELOW','dim');
-    setInterval(() => { document.getElementById('clock').innerText=new Date().toTimeString().split(' ')[0]; }, 1000);
+    buildSVG();
+    updateSignalUI();
+    updateLCD();
+    
+    // System boot messages
+    addLog('═══════════════════════════════════', 'dim');
+    addLog('  RAILWAY DISPATCHER PRO v4.1', 'dim');
+    addLog('  ⚙️ YARD ACCESS EDITION', 'dim');
+    addLog('═══════════════════════════════════', 'dim');
+    addLog('INTERLOCKING SYSTEM: ONLINE', 'dim');
+    addLog('TRACK CIRCUITS: NOMINAL', 'dim');
+    addLog('SIGNAL NETWORK: CONNECTED', 'dim');
+    addLog('TRAIN COMMUNICATION: ACTIVE', 'dim');
+    addLog('MAINTENANCE YARD: SECURED 🔒', 'yard');
+    addLog(`DETECTED ${Object.keys(trainData).length} ACTIVE UNITS`, 'dim');
+    addLog('═══════════════════════════════════', 'dim');
+    addLog('AWAITING DISPATCHER INPUT...', 'dim');
+    
+    // Clock update
+    setInterval(() => { 
+        document.getElementById('clock').innerText = new Date().toTimeString().split(' ')[0]; 
+    }, 1000);
+    
+    // Start game loop
     requestAnimationFrame(gameLoop);
+    
+    // Add CSS animation for log entries
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+    `;
+    document.head.appendChild(style);
 }
+
+// Button event listeners
+document.getElementById('btn-primary').onclick = () => handleDecision(true);
+document.getElementById('btn-secondary').onclick = () => handleDecision(false);
+document.getElementById('btn-link').onclick = openYardLink;
+
 window.onload = init;
 </script>
 </body>
