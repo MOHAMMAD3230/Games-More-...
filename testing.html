@@ -3,23 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>High-Visibility Interlocking</title>
+    <title>Interlocking Simulator - Express Network</title>
     <style>
         :root {
             --accent: #3b82f6; --danger: #ef4444; --go: #22c55e; --caution: #f59e0b;
             --bg: #0a0a0a; --panel: rgba(20, 20, 20, 0.95);
         }
-        body { margin: 0; background: var(--bg); color: #eee; font-family: 'Consolas', monospace; overflow: hidden; }
+        body { margin: 0; background: var(--bg); color: #eee; font-family: 'Consolas', monospace; overflow: hidden; transition: background 0.5s ease; }
+        body.night { --bg: #030303; --panel: rgba(10, 10, 10, 0.98); }
+        
         canvas { display: block; width: 100vw; height: 100vh; }
 
         .control-tower {
             position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%);
             background: var(--panel); padding: 15px 25px; border: 1px solid #444; 
-            z-index: 100; min-width: 700px; box-shadow: 0 -10px 30px rgba(0,0,0,0.9);
-            border-radius: 12px; display: flex; gap: 40px; align-items: center;
+            z-index: 100; min-width: 850px; box-shadow: 0 -10px 30px rgba(0,0,0,0.9);
+            border-radius: 12px; display: flex; gap: 25px; align-items: center;
         }
 
-        .lever-section { display: flex; gap: 20px; border-right: 1px solid #333; padding-right: 30px; }
+        .lever-section { display: flex; gap: 20px; border-right: 1px solid #333; padding-right: 25px; }
         
         .signal-btn {
             background: #111; border: 1px solid #444; color: #555; padding: 8px 12px;
@@ -27,24 +29,43 @@
             border-radius: 6px; min-width: 95px;
         }
         .signal-btn.active-red { border-color: var(--danger); color: var(--danger); }
+        .signal-btn.active-orange { border-color: var(--caution); color: var(--caution); box-shadow: 0 0 8px rgba(245, 158, 11, 0.3); }
         .signal-btn.active-green { border-color: var(--go); color: var(--go); box-shadow: 0 0 10px rgba(34, 197, 94, 0.4); }
 
         .platform-btn {
             background: #222; border: 1px solid #444; color: white;
             padding: 8px 12px; cursor: pointer; font-size: 11px; font-weight: bold; border-radius: 6px;
+            transition: all 0.2s ease;
         }
+        .platform-btn:hover { background: #333; border-color: #888; }
+        .platform-btn:disabled { background: #111; color: #444; cursor: not-allowed; border-color: #222; }
+        .express-btn { background: #7c2d12; border-color: #ea580c; color: #fb923c; }
+        .express-btn:hover { background: #9a3412; }
         
         .label { font-size: 9px; color: #888; text-transform: uppercase; margin-bottom: 5px; display: block; letter-spacing: 1px;}
         #status-display { 
             position: absolute; top: -30px; left: 0; width: 100%; text-align: center;
             font-size: 13px; color: #f59e0b; font-weight: bold; text-shadow: 1px 1px 4px #000;
         }
+
+        .door-popup {
+            position: absolute; top: 30px; right: 30px;
+            background: var(--panel); padding: 20px; border: 1px solid var(--caution); 
+            border-radius: 12px; z-index: 100; text-align: center;
+            box-shadow: 0 0 25px rgba(245, 158, 11, 0.2); display: none;
+        }
+        .door-popup h3 { margin: 0 0 15px 0; font-size: 16px; color: var(--caution); letter-spacing: 1px; }
+        .door-popup .door-indicator { display: flex; gap: 10px; margin-bottom: 15px; justify-content: center;}
+        .door-popup .door-light { width: 12px; height: 12px; border-radius: 50%; background: #333; border: 1px solid #555; transition: all 0.3s; }
+        .door-popup .door-light.active-red { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
+        .door-popup .door-light.active-green { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+        #door-btn { width: 100%; font-size: 13px; padding: 10px; }
     </style>
 </head>
 <body>
 
 <div class="control-tower">
-    <div id="status-display">SIGNAL OPTICS ENHANCED - ULTRA VISIBILITY</div>
+    <div id="status-display">INTERLOCKING NETWORK - READY</div>
 
     <div class="lever-section">
         <div>
@@ -63,18 +84,37 @@
         </div>
     </div>
 
-    <div style="display: flex; gap: 15px;">
+    <div style="display: flex; gap: 15px; border-right: 1px solid #333; padding-right: 25px;">
         <div>
-            <span class="label">SPAWN LEFT</span>
-            <button class="platform-btn" onclick="spawnTrain(0, 'R')">PLAT A</button>
-            <button class="platform-btn" onclick="spawnTrain(1, 'R')">PLAT B</button>
+            <span class="label">LOCAL SPAWN</span>
+            <button id="spawn-l-r-a" class="platform-btn" onclick="spawnTrain('A', 'R')">UP PLAT A</button>
+            <button id="spawn-r-l-b" class="platform-btn" onclick="spawnTrain('B', 'L')">DN PLAT B</button>
         </div>
         <div>
-            <span class="label" style="color: #f59e0b;">SPAWN RIGHT</span>
-            <button class="platform-btn" onclick="spawnTrain(0, 'L')">PLAT A</button>
-            <button class="platform-btn" onclick="spawnTrain(1, 'L')">PLAT B</button>
+            <span class="label">EXPRESS SPAWN</span>
+            <button id="spawn-l-r-c" class="platform-btn express-btn" onclick="spawnTrain('C', 'R')">EXP UP C</button>
+            <button id="spawn-r-l-d" class="platform-btn express-btn" onclick="spawnTrain('D', 'L')">EXP DN D</button>
         </div>
     </div>
+
+    <div style="display: flex; gap: 10px;">
+        <div>
+            <span class="label">SYSTEMS</span>
+            <button id="night-toggle" class="platform-btn" onclick="toggleNight()" style="color: #a78bfa;">NIGHT: OFF</button>
+            <button id="auto-toggle" class="platform-btn" onclick="toggleAuto()" style="color: #22c55e;">AUTO: OFF</button>
+        </div>
+    </div>
+</div>
+
+<div id="door-popup" class="door-popup">
+    <h3 id="station-name-display">STATION OPS</h3>
+    <div class="door-indicator">
+        <div id="dl-1" class="door-light"></div>
+        <div id="dl-2" class="door-light"></div>
+        <div id="dl-3" class="door-light"></div>
+        <div id="dl-4" class="door-light"></div>
+    </div>
+    <button id="door-btn" class="platform-btn" onclick="toggleDoors()">OPEN DOORS</button>
 </div>
 
 <canvas id="railCanvas"></canvas>
@@ -83,121 +123,284 @@
 const canvas = document.getElementById('railCanvas');
 const ctx = canvas.getContext('2d');
 
-let jncInX, pltStartX, pltEndX, jncOutX, midY, trackY;
+// Layout Variables
+let midY, trackYMain, trackYLocalA, trackYLocalB, trackYExpC, trackYExpD;
+let crossingX, crossingWidth;
+let jncInX, pltStartX_A, pltEndX_A, jncMidX, pltStartX_C, pltEndX_C, jncOutX;
+
+// State
 let activeTrain = null;
 let sigs = { upHome: 'red', upExit: 'red', dnHome: 'red', dnExit: 'red' };
+let globalTime = 0;
+let isNight = false;
+let autoSpawn = false;
+
+// Crossing State
+let crossingState = 'OPEN'; 
+let crossingAngle = 0; 
+let crossingFlash = false;
+let bellLastTolled = 0;
+
+// Road Vehicles
+let roadVehicles = [];
+let nextVehicleSpawn = 100;
+
+// --- ADVANCED AUDIO ENGINE ---
+const AudioEngine = {
+    ctx: null, motor: null, gain: null,
+    init() {
+        if (this.ctx) return;
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this.gain = this.ctx.createGain(); this.gain.connect(this.ctx.destination); this.gain.gain.value = 0.05; 
+    },
+    startMotor() {
+        if (!this.ctx) this.init(); if (this.motor) return;
+        this.motor = this.ctx.createOscillator(); this.motor.type = 'sawtooth'; this.motor.frequency.value = 55;
+        const filter = this.ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 300;
+        this.motor.connect(filter); filter.connect(this.gain); this.motor.start();
+    },
+    stopMotor() { if (this.motor) { this.motor.stop(); this.motor = null; } },
+    playClack() {
+        if (!this.ctx) return;
+        const noise = this.ctx.createBufferSource();
+        const buffer = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.06, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0); for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+        noise.buffer = buffer; const filter = this.ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 600;
+        noise.connect(filter); filter.connect(this.gain); noise.start();
+    },
+    playBell() {
+        if (!this.ctx) return; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+        osc.connect(gain); gain.connect(this.ctx.destination); osc.type = 'square';
+        osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(400, this.ctx.currentTime + 0.2);
+        gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+        osc.start(); osc.stop(this.ctx.currentTime + 0.2);
+    },
+    playDoorSound() {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+        osc.connect(gain); gain.connect(this.ctx.destination); osc.type = 'sine';
+        osc.frequency.value = 1200; gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.4);
+        osc.start(); osc.stop(this.ctx.currentTime + 0.4);
+    }
+};
 
 function init() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    midY = canvas.height * 0.45; 
-    trackY = [midY - 100, midY + 100];
-    jncInX = canvas.width * 0.12;
-    pltStartX = canvas.width * 0.25;
-    pltEndX = canvas.width * 0.75;
-    jncOutX = canvas.width * 0.88;
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    midY = canvas.height * 0.5;
+    
+    trackYMain = midY;
+    trackYLocalA = midY - 70; trackYLocalB = midY + 70;
+    trackYExpC = midY - 140; trackYExpD = midY + 140;
+    
+    crossingX = canvas.width * 0.08; crossingWidth = 40;
+    jncInX = canvas.width * 0.18; 
+    pltStartX_A = canvas.width * 0.26; pltEndX_A = canvas.width * 0.44;
+    jncMidX = canvas.width * 0.54;
+    pltStartX_C = canvas.width * 0.62; pltEndX_C = canvas.width * 0.82;
+    jncOutX = canvas.width * 0.90;
 }
 
 function toggleSig(id) {
+    AudioEngine.init();
+    if (activeTrain) {
+        const isR = activeTrain.dir === 'R';
+        if (isR && (id === 'dnHome' || id === 'dnExit')) return;
+        if (!isR && (id === 'upHome' || id === 'upExit')) return;
+    }
     sigs[id] = (sigs[id] === 'red') ? 'green' : 'red';
     updateUI();
 }
 
+function toggleNight() {
+    AudioEngine.init(); isNight = !isNight; document.body.classList.toggle('night', isNight);
+    const btn = document.getElementById('night-toggle'); btn.innerText = `NIGHT: ${isNight ? 'ON' : 'OFF'}`; btn.style.background = isNight ? '#4c1d95' : '#222';
+}
+
+function toggleAuto() {
+    AudioEngine.init(); autoSpawn = !autoSpawn;
+    const btn = document.getElementById('auto-toggle'); btn.innerText = `AUTO: ${autoSpawn ? 'ON' : 'OFF'}`; btn.style.borderColor = autoSpawn ? '#22c55e' : '#444';
+}
+
+function toggleDoors() {
+    if (!activeTrain) return; AudioEngine.playDoorSound();
+    if (activeTrain.state === 'STOPPED') {
+        activeTrain.state = 'DOORS_OPEN'; activeTrain.doorsOpen = true;
+        document.getElementById('door-btn').innerText = 'CLOSE DOORS'; updateDoorLights(true);
+    } else if (activeTrain.state === 'DOORS_OPEN') {
+        activeTrain.state = 'WAITING_EXIT'; activeTrain.doorsOpen = false;
+        document.getElementById('door-btn').innerText = 'OPEN DOORS'; updateDoorLights(false);
+    }
+}
+
+function updateDoorLights(isOpen) {
+    for(let i=1; i<=4; i++) document.getElementById(`dl-${i}`).className = `door-light ${isOpen ? 'active-green' : 'active-red'}`;
+}
+
 function updateUI() {
     Object.keys(sigs).forEach(id => {
-        const btn = document.getElementById(`btn-${id}`);
-        const state = sigs[id];
-        btn.className = `signal-btn ${state === 'green' ? 'active-green' : 'active-red'}`;
-        btn.innerHTML = `${id.toUpperCase().replace('UP', 'UP ').replace('DN', 'DN ')}<br>[${state.toUpperCase()}]`;
+        const btn = document.getElementById(`btn-${id}`); const state = sigs[id];
+        btn.className = `signal-btn active-${state}`;
+        let name = id.replace('up', 'UP ').replace('dn', 'DN ').replace('Home', 'HOME').replace('Exit', 'START');
+        let status = state === 'red' ? 'STOP' : (state === 'green' ? 'CLEAR' : 'CAUTION');
+        btn.innerHTML = `${name}<br>[${status}]`;
     });
+    const dis = activeTrain !== null;
+    document.getElementById('spawn-l-r-a').disabled = dis; document.getElementById('spawn-r-l-b').disabled = dis;
+    document.getElementById('spawn-l-r-c').disabled = dis; document.getElementById('spawn-r-l-d').disabled = dis;
 }
 
 class Train {
     constructor(plt, dir) {
-        this.plt = plt;
-        this.dir = dir;
-        this.targetY = trackY[plt];
-        this.x = (dir === 'R') ? -400 : canvas.width + 400;
-        this.speed = 0;
-        this.state = 'APPROACH';
-        this.timer = 0;
+        this.plt = plt; this.dir = dir; this.isExpress = (plt === 'C' || plt === 'D');
+        this.targetY = this.isExpress ? (plt === 'C' ? trackYExpC : trackYExpD) : (plt === 'A' ? trackYLocalA : trackYLocalB);
+        this.x = (dir === 'R') ? -600 : canvas.width + 600;
+        this.speed = 0; this.maxSpeed = this.isExpress ? 9 : 6; this.state = 'APPROACH'; this.timer = 0;
+        this.hasPassedCrossing = false; this.doorsOpen = false;
+        AudioEngine.startMotor();
     }
 
     update() {
         const isR = this.dir === 'R';
         const display = document.getElementById('status-display');
         
-        if (isR) {
-            if (this.x > jncInX && sigs.upHome !== 'red') sigs.upHome = 'red';
-            if (this.x > pltEndX && sigs.upExit !== 'red') sigs.upExit = 'red';
+        let prevX = isR ? this.x - this.speed : this.x + this.speed; 
+        if ((isR && prevX < jncInX && this.x >= jncInX) || (!isR && prevX > jncOutX && this.x <= jncOutX)) { AudioEngine.playClack(); setTimeout(() => AudioEngine.playClack(), 160); }
+        if ((isR && prevX < jncMidX && this.x >= jncMidX) || (!isR && prevX > jncMidX && this.x <= jncMidX)) { AudioEngine.playClack(); setTimeout(() => AudioEngine.playClack(), 160); }
+
+        if (!this.hasPassedCrossing) {
+            let distToCrossing = isR ? (crossingX - this.x) : (this.x - (crossingX + crossingWidth));
+            if (distToCrossing < 500 && distToCrossing > -50) { if (crossingState === 'OPEN') crossingState = 'CLOSING'; }
+            if ((isR && this.x > crossingX + crossingWidth + 50) || (!isR && this.x < crossingX - 50)) this.hasPassedCrossing = true;
         } else {
-            if (this.x < jncOutX && sigs.dnHome !== 'red') sigs.dnHome = 'red';
-            if (this.x < pltStartX && sigs.dnExit !== 'red') sigs.dnExit = 'red';
+            if (crossingState === 'CLOSED' || crossingState === 'CLOSING') {
+                let distPastCrossing = isR ? (this.x - (crossingX + crossingWidth + 100)) : ((crossingX - 100) - this.x);
+                if (distPastCrossing > 400) crossingState = 'OPENING';
+            }
         }
-        updateUI();
+
+        // Auto-drop signals
+        if (isR) {
+            if (this.x > jncInX && sigs.upHome !== 'red' && this.state !== 'TO_PLATFORM') sigs.upHome = 'red';
+            if (this.x > this.getStationEnd() && sigs.upExit !== 'red') sigs.upExit = 'red';
+        } else {
+            if (this.x < jncOutX && sigs.dnHome !== 'red' && this.state !== 'TO_PLATFORM') sigs.dnHome = 'red';
+            if (this.x < this.getStationStart() && sigs.dnExit !== 'red') sigs.dnExit = 'red';
+        }
+
+        let homeX = isR ? jncInX - 80 : jncOutX + 80;
+        let stopX = isR ? this.getStationEnd() - 60 : this.getStationStart() + 60;
+        let startSpeedUpX = isR ? this.getStationStart() - 150 : this.getStationStart() + 150;
 
         switch(this.state) {
             case 'APPROACH':
-                let homePos = isR ? jncInX - 80 : jncOutX + 80;
-                let homeDist = isR ? homePos - this.x : this.x - homePos;
-                if (homeDist > 5) { this.speed = isR ? 5 : -5; } 
+                let distToCrossingUI = isR ? (crossingX - this.x) : (this.x - (crossingX + crossingWidth));
+                let baseText = (distToCrossingUI > 0 && distToCrossingUI < 400) ? "APPROACHING LEVEL CROSSING" : "APPROACHING HOME SIGNAL";
+                display.innerText = this.isExpress ? "EXPRESS - " + baseText : baseText;
+                
+                let distToHome = isR ? homeX - this.x : this.x - homeX;
+                if (distToHome > 150) { this.speed += 0.2; if (this.speed > this.maxSpeed) this.speed = this.maxSpeed; } 
+                else if (distToHome > 5) { this.speed = Math.max(1.5, this.speed * 0.95); } 
                 else { this.speed = 0; this.state = 'AT_HOME'; }
                 break;
+
             case 'AT_HOME':
-                display.innerText = "STANDING AT HOME SIGNAL";
-                if (isR ? sigs.upHome === 'green' : sigs.dnHome === 'green') this.state = 'TO_PLATFORM';
+                display.innerText = this.isExpress ? "EXPRESS - STANDING AT HOME" : "STANDING AT HOME SIGNAL";
+                if (isR ? sigs.upHome === 'green' : sigs.dnHome === 'green') {
+                    this.state = this.isExpress ? 'PASS_THROUGH' : 'TO_PLATFORM';
+                }
                 break;
-            case 'TO_PLATFORM':
+
+            case 'PASS_THROUGH':
+                display.innerText = "EXPRESS - RUNNING THROUGH";
                 if (isR) sigs.upHome = 'orange'; else sigs.dnHome = 'orange';
-                let stopPos = isR ? pltEndX - 50 : pltStartX + 50;
-                let pltDist = isR ? stopPos - this.x : this.x - stopPos;
-                if (pltDist > 5) { this.speed = isR ? 4 : -4; } 
+                this.speed += 0.3; if (this.speed > this.maxSpeed) this.speed = this.maxSpeed;
+                break;
+
+            case 'TO_PLATFORM':
+                display.innerText = this.isExpress ? "EXPRESS - ERROR" : "CAUTION - ENTERING PLATFORM";
+                if (isR) sigs.upHome = 'orange'; else sigs.dnHome = 'orange';
+                let distToPlatform = isR ? stopX - this.x : this.x - stopX;
+                if (distToPlatform > 200) { this.speed += 0.15; if (this.speed > this.maxSpeed - 1) this.speed = this.maxSpeed - 1; } 
+                else if (distToPlatform > 10) { this.speed = Math.max(0.5, this.speed * 0.93); } 
                 else { this.speed = 0; this.state = 'STOPPED'; this.timer = 0; if (isR) sigs.upHome = 'red'; else sigs.dnHome = 'red'; }
                 break;
+
             case 'STOPPED':
-                display.innerText = "STATION BOARDING...";
-                if (++this.timer > 150) this.state = 'WAITING_EXIT';
+                display.innerText = "STATION STOP - OPERATE DOORS";
+                document.getElementById('door-popup').style.display = 'block';
+                document.getElementById('station-name-display').innerText = this.isExpress ? "EXPRESS TERMINUS" : "LOCAL STATION";
+                updateDoorLights(false);
                 break;
+
+            case 'DOORS_OPEN':
+                display.innerText = "BOARDING IN PROGRESS..."; break;
+
             case 'WAITING_EXIT':
-                display.innerText = "WAITING FOR EXIT SIGNAL";
+                document.getElementById('door-popup').style.display = 'none';
+                display.innerText = "READY TO DEPART - AWAITING EXIT";
                 if (isR ? sigs.upExit === 'green' : sigs.dnExit === 'green') this.state = 'TO_EXIT';
                 break;
+
             case 'TO_EXIT':
+                display.innerText = "CLEAR - DEPARTING PLATFORM";
                 if (isR) sigs.upExit = 'orange'; else sigs.dnExit = 'orange';
-                this.speed = isR ? 6 : -6;
+                this.speed += 0.3; if (this.speed > this.maxSpeed + 2) this.speed = this.maxSpeed + 2;
                 break;
         }
-        this.x += this.speed;
+        this.x += isR ? this.speed : -this.speed;
+        updateUI();
     }
+
+    getStationStart() { return this.isExpress ? pltStartX_C : pltStartX_A; }
+    getStationEnd() { return this.isExpress ? pltEndX_C : pltEndX_A; }
 
     draw() {
         const isR = this.dir === 'R';
+        const carLength = 70, carGap = 5;
+        const totalLength = 5 * carLength + 4 * carGap;
+        let headX = isR ? this.x - totalLength : this.x;
+
         for (let i = 0; i < 5; i++) {
-            let carX = isR ? this.x - (i * 68) : this.x + (i * 68);
-            let curY = this.getY(carX);
-            ctx.save();
-            ctx.translate(carX, curY);
-            ctx.rotate(this.dir === 'L' ? Math.PI : 0);
-            ctx.fillStyle = this.dir === 'R' ? "#eee" : "#f59e0b";
-            if (i === 0) {
-                ctx.beginPath(); ctx.roundRect(-65, -12, 65, 24, [2, 10, 10, 2]); ctx.fill();
-                ctx.fillStyle = "#111"; ctx.fillRect(-15, -8, 10, 16);
-            } else {
-                ctx.fillRect(-65, -12, 65, 24);
-                ctx.fillStyle = "rgba(0,0,0,0.2)"; ctx.fillRect(-45, -6, 12, 12); ctx.fillRect(-22, -6, 12, 12);
+            let carStartX = headX + (i * (carLength + carGap));
+            let carMidX = carStartX + carLength / 2;
+            let curY = this.getY(carMidX);
+            let nextY = this.getY(carMidX + 10);
+            let angle = Math.atan2(nextY - curY, 10) * (isR ? 1 : -1);
+
+            ctx.save(); ctx.translate(carMidX, curY); ctx.rotate(angle);
+            drawBogie(-22, 7, 3.5); drawBogie(22, 7, 3.5);
+
+            if (i === 0) { // Locomotive
+                ctx.fillStyle = this.isExpress ? "#ef4444" : (this.dir === 'R' ? "#d4d4d4" : "#d97706");
+                ctx.beginPath(); ctx.roundRect(-carLength/2, -18, carLength, 26, isR ? [15, 3, 3, 15] : [3, 15, 15, 3]); ctx.fill();
+                ctx.fillStyle = "rgba(0,0,0,0.2)"; ctx.fillRect(-carLength/2, 2, carLength, 4);
+                ctx.fillStyle = isNight ? "rgba(255,255,150,0.8)" : "#111"; ctx.fillRect(isR ? 15 : -25, -14, 10, 10);
+                if (isNight) { ctx.save(); ctx.globalAlpha = 0.5; ctx.shadowBlur = 50; ctx.shadowColor = "#fff"; ctx.fillStyle = "#fff"; ctx.fillRect(isR ? carLength/2 : -carLength/2, -15, 5, 25); ctx.restore(); }
+            } else { // Coaches
+                ctx.fillStyle = this.isExpress ? "#dc2626" : (this.dir === 'R' ? "#e5e5e5" : "#ea580c");
+                ctx.beginPath(); ctx.roundRect(-carLength/2, -18, carLength, 26, 3); ctx.fill();
+                ctx.fillStyle = "rgba(0,0,0,0.2)"; ctx.fillRect(-carLength/2, 2, carLength, 4);
+                ctx.fillStyle = isNight ? "rgba(255,255,150,0.6)" : "rgba(150,200,255,0.4)"; 
+                ctx.fillRect(-25, -14, 12, 10); ctx.fillRect(5, -14, 12, 10);
+                if (this.doorsOpen) { ctx.fillStyle = "#000"; ctx.fillRect(-4, -16, 2, 22); ctx.fillRect(2, -16, 2, 22); } 
+                else { ctx.fillStyle = "rgba(0,0,0,0.4)"; ctx.fillRect(-3, -16, 6, 22); }
             }
             ctx.restore();
         }
     }
 
     getY(xPos) {
-        if (xPos < jncInX || xPos > jncOutX) return midY;
-        if (xPos >= pltStartX && xPos <= pltEndX) return this.targetY;
+        if (xPos <= jncInX || xPos >= jncOutX) return trackYMain;
+        if (xPos >= this.getStationStart() && xPos <= this.getStationEnd()) return this.targetY;
+        
         let start, end, yStart, yEnd;
-        if (xPos >= jncInX && xPos < pltStartX) {
-            start = jncInX; end = pltStartX; yStart = midY; yEnd = this.targetY;
+        if (xPos >= jncInX && xPos < this.getStationStart()) {
+            start = jncInX; end = this.getStationStart(); yStart = trackYMain; yEnd = this.targetY;
         } else {
-            start = pltEndX; end = jncOutX; yStart = this.targetY; yEnd = midY;
+            start = this.getStationEnd(); end = jncOutX; yStart = this.targetY; yEnd = trackYMain;
         }
         let t = (xPos - start) / (end - start);
         let ease = t * t * (3 - 2 * t);
@@ -205,99 +408,184 @@ class Train {
     }
 }
 
+function drawBogie(x, y, r) {
+    ctx.fillStyle = "#1a1a1a"; ctx.fillRect(x - 9, y - r - 1, 18, 4);
+    ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(x - 5, y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + 5, y, r, 0, Math.PI * 2); ctx.fill();
+}
+
+class RoadVehicle {
+    constructor(dir) {
+        this.dir = dir; this.y = dir === 1 ? -60 : canvas.height + 60;
+        this.x = dir === 1 ? crossingX + 10 : crossingX + 30; this.speed = 2.5;
+        this.isTruck = Math.random() > 0.6;
+        this.color = this.isTruck ? `hsl(${Math.random()*360}, 40%, 30%)` : `hsl(${Math.random()*360}, 70%, 50%)`;
+        this.w = this.isTruck ? 18 : 14; this.h = this.isTruck ? 40 : 24;
+    }
+    update() {
+        let stopY = this.dir === 1 ? trackYMain - 125 : trackYMain + 125;
+        let distToStop = this.dir === 1 ? stopY - this.y : this.y - stopY;
+        let shouldStop = (crossingState !== 'OPEN' && distToStop > 0 && distToStop < 150);
+        let isBlocked = roadVehicles.some(v => v !== this && v.dir === this.dir && Math.abs(v.y - this.y) < (this.h + 20) && ((this.dir === 1 && v.y > this.y) || (this.dir === -1 && v.y < this.y)));
+        if (shouldStop || isBlocked) this.speed = Math.max(0, this.speed - 0.2); else this.speed = Math.min(3, this.speed + 0.1);
+        this.y += this.speed * this.dir;
+    }
+    draw() {
+        ctx.save(); ctx.translate(this.x, this.y); ctx.fillStyle = this.color;
+        ctx.beginPath(); ctx.roundRect(-this.w/2, -this.h/2, this.w, this.h, 3); ctx.fill();
+        ctx.fillStyle = "rgba(0,0,0,0.3)"; if (this.isTruck) ctx.fillRect(-this.w/2, -this.h/2, this.w, this.h * 0.3); else ctx.fillRect(-this.w/2, -this.h/4, this.w, this.h * 0.4);
+        ctx.fillStyle = isNight ? "#fff" : "#ffeedd"; let hl = isNight ? 15 : 0;
+        if (this.dir === 1) { ctx.fillRect(-this.w/2 + 1, this.h/2 - 2, 3, 2); ctx.fillRect(this.w/2 - 4, this.h/2 - 2, 3, 2); if(isNight){ctx.save();ctx.globalAlpha=0.4;ctx.shadowBlur=hl;ctx.shadowColor="#fff";ctx.fillRect(-this.w/2 + 1, this.h/2 - 2, 3, 2);ctx.restore();} } 
+        else { ctx.fillRect(-this.w/2 + 1, -this.h/2, 3, 2); ctx.fillRect(this.w/2 - 4, -this.h/2, 3, 2); if(isNight){ctx.save();ctx.globalAlpha=0.4;ctx.shadowBlur=hl;ctx.shadowColor="#fff";ctx.fillRect(-this.w/2 + 1, -this.h/2, 3, 2);ctx.restore();} }
+        ctx.restore();
+    }
+}
+
 function spawnTrain(plt, dir) {
-    if (activeTrain) return;
-    activeTrain = new Train(plt, dir);
+    AudioEngine.init(); if (activeTrain) return;
+    sigs = { upHome: 'red', upExit: 'red', dnHome: 'red', dnExit: 'red' };
+    activeTrain = new Train(plt, dir); updateUI();
+}
+
+function updateCrossing() {
+    if (crossingState === 'CLOSING') { crossingAngle += 2; if (crossingAngle >= 90) { crossingAngle = 90; crossingState = 'CLOSED'; } } 
+    else if (crossingState === 'OPENING') { crossingAngle -= 2; if (crossingAngle <= 0) { crossingAngle = 0; crossingState = 'OPEN'; } }
+    if (crossingState !== 'OPEN') { crossingFlash = Math.floor(globalTime / 15) % 2 === 0; if (globalTime - bellLastTolled > 60) { bellLastTolled = globalTime; AudioEngine.playBell(); } } 
+    else { crossingFlash = false; }
+}
+
+function updateRoadVehicles() {
+    if (globalTime > nextVehicleSpawn) { roadVehicles.push(new RoadVehicle(Math.random() > 0.5 ? 1 : -1)); nextVehicleSpawn = globalTime + 100 + Math.random() * 200; }
+    roadVehicles = roadVehicles.filter(v => { v.update(); return v.y > -100 && v.y < canvas.height + 100; });
 }
 
 function drawWorld() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = "#333"; ctx.lineWidth = 2;
+    ctx.clearRect(0, 0, canvas.width, canvas.height); globalTime++;
 
-    drawTrack(0, midY, jncInX, midY); 
-    drawTrack(jncOutX, midY, canvas.width, midY);
+    ctx.fillStyle = isNight ? "#0d0d0d" : "#1a1a1a"; ctx.fillRect(0, midY - 170, canvas.width, 340);
+    ctx.fillStyle = isNight ? "#0a0a0a" : "#222"; ctx.fillRect(crossingX, 0, crossingWidth, canvas.height);
+    ctx.setLineDash([10, 15]); ctx.strokeStyle = isNight ? "#1a1a1a" : "#555"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(crossingX + crossingWidth/2, 0); ctx.lineTo(crossingX + crossingWidth/2, canvas.height); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = isNight ? "#666" : "#fff"; ctx.fillRect(crossingX, midY - 125, crossingWidth/2 - 2, 3); ctx.fillRect(crossingX + crossingWidth/2 + 2, midY + 122, crossingWidth/2 - 2, 3); 
+
+    // Draw Tracks
+    drawTrackSection(0, midY, jncInX, midY); drawTrackSection(jncOutX, midY, canvas.width, midY);
     
-    trackY.forEach((y, i) => {
-        ctx.beginPath(); ctx.moveTo(jncInX, midY);
-        ctx.bezierCurveTo(jncInX+80, midY, pltStartX-80, y, pltStartX, y); ctx.stroke();
-        drawTrack(pltStartX, y, pltEndX, y);
-        ctx.beginPath(); ctx.moveTo(pltEndX, y);
-        ctx.bezierCurveTo(pltEndX+80, y, jncOutX-80, midY, jncOutX, midY); ctx.stroke();
-        
-        ctx.fillStyle = "#151515";
-        let pY = (y < midY) ? y-55 : y+25;
-        ctx.fillRect(pltStartX, pY, pltEndX-pltStartX, 30);
+    const stations = [
+        { y: trackYLocalA, start: pltStartX_A, end: pltEndX_A, name: "LOCAL A", color: "#3b82f6", edgeOff: -50 },
+        { y: trackYLocalB, start: pltStartX_A, end: pltEndX_A, name: "LOCAL B", color: "#ef4444", edgeOff: 20 },
+        { y: trackYExpC, start: pltStartX_C, end: pltEndX_C, name: "EXPRESS C", color: "#f59e0b", edgeOff: -50 },
+        { y: trackYExpD, start: pltStartX_C, end: pltEndX_C, name: "EXPRESS D", color: "#22c55e", edgeOff: 20 }
+    ];
 
-        let isOcc = activeTrain && activeTrain.plt === i;
-        drawSig(pltEndX + 40, y - 40, (isOcc && activeTrain.dir === 'R') ? sigs.upExit : 'red', 'R');
-        drawSig(pltStartX - 40, y + 40, (isOcc && activeTrain.dir === 'L') ? sigs.dnExit : 'red', 'L');
+    stations.forEach(st => {
+        ctx.beginPath(); ctx.moveTo(jncInX, midY); ctx.bezierCurveTo(jncInX+80, midY, st.start-80, st.y, st.start, st.y); ctx.stroke();
+        drawTrackSection(st.start, st.y, st.end, st.y);
+        ctx.beginPath(); ctx.moveTo(st.end, st.y); ctx.bezierCurveTo(st.end+80, st.y, jncOutX-80, midY, jncOutX, midY); ctx.stroke();
+        
+        ctx.fillStyle = isNight ? "#050505" : "#111"; ctx.fillRect(st.start, st.y + st.edgeOff, st.end - st.start, 30);
+        ctx.fillStyle = st.color; ctx.fillRect(st.start, st.y + (st.edgeOff > 0 ? st.edgeOff + 30 : st.edgeOff - 3), st.end - st.start, 3);
+        ctx.fillStyle = isNight ? "#aaa" : "#fff"; ctx.font = "bold 14px Consolas"; ctx.textAlign = "center";
+        ctx.fillText(st.name, (st.start + st.end)/2, st.y + st.edgeOff + 20);
     });
 
-    drawSig(jncInX - 70, midY - 40, (activeTrain && activeTrain.dir === 'R') ? sigs.upHome : 'red', 'R');
-    drawSig(jncOutX + 70, midY + 40, (activeTrain && activeTrain.dir === 'L') ? sigs.dnHome : 'red', 'L');
+    roadVehicles.forEach(v => v.draw());
+    drawCrossing();
+
+    // Signals Logic
+    let upHomeState = (activeTrain && activeTrain.dir === 'R') ? sigs.upHome : 'red';
+    drawSig(jncInX - 70, midY - 45, upHomeState, 'R');
+
+    let upExitState = 'red';
+    if (activeTrain && activeTrain.dir === 'R') {
+        if (activeTrain.plt === 'A') upExitState = sigs.upExit;
+        else if (activeTrain.plt === 'C') upExitState = sigs.upExit;
+    }
+    drawSig(pltEndX_A + 40, trackYLocalA - 45, (activeTrain && activeTrain.dir === 'R' && activeTrain.plt === 'A') ? sigs.upExit : 'red', 'R');
+    drawSig(pltEndX_C + 40, trackYExpC - 45, (activeTrain && activeTrain.dir === 'R' && activeTrain.plt === 'C') ? sigs.upExit : 'red', 'R');
+
+    let dnHomeState = (activeTrain && activeTrain.dir === 'L') ? sigs.dnHome : 'red';
+    drawSig(jncOutX + 70, midY + 45, dnHomeState, 'L');
+
+    drawSig(pltStartX_A - 40, trackYLocalB + 45, (activeTrain && activeTrain.dir === 'L' && activeTrain.plt === 'B') ? sigs.dnExit : 'red', 'L');
+    drawSig(pltStartX_C - 40, trackYExpD + 45, (activeTrain && activeTrain.dir === 'L' && activeTrain.plt === 'D') ? sigs.dnExit : 'red', 'L');
 }
 
-function drawTrack(x1, y1, x2, y2) {
-    ctx.beginPath(); ctx.moveTo(x1, y1-8); ctx.lineTo(x2, y2-8); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(x1, y1+8); ctx.lineTo(x2, y2+8); ctx.stroke();
+function drawCrossing() {
+    let cxLeft = crossingX - 15, cxRight = crossingX + crossingWidth + 15;
+    let postTopY = midY - 120, postBotY = midY + 120;
+    ctx.fillStyle = isNight ? "#111" : "#333";
+    ctx.fillRect(cxLeft, postTopY - 20, 10, 140); ctx.fillRect(cxRight, postTopY - 20, 10, 140); 
+    ctx.fillRect(cxLeft, postBotY - 120, 10, 140); ctx.fillRect(cxRight, postBotY - 120, 10, 140);
+    drawCrossingLight(cxLeft + 5, postTopY - 15, crossingFlash ? '#ff0000' : '#330000');
+    drawCrossingLight(cxRight + 5, postTopY - 15, !crossingFlash ? '#ff0000' : '#330000');
+    drawCrossingLight(cxLeft + 5, postBotY + 15, crossingFlash ? '#ff0000' : '#330000');
+    drawCrossingLight(cxRight + 5, postBotY + 15, !crossingFlash ? '#ff0000' : '#330000');
+    drawGate(cxLeft + 10, postTopY + 120, 'TL'); drawGate(cxRight, postTopY + 120, 'TR');      
+    drawGate(cxLeft + 10, postBotY - 120, 'BL'); drawGate(cxRight, postBotY - 120, 'BR');      
+}
+
+function drawCrossingLight(x, y, col) {
+    ctx.save(); ctx.shadowBlur = col.startsWith('#f') ? (isNight ? 45 : 25) : 0; ctx.shadowColor = col; ctx.fillStyle = col;
+    ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill();
+    if (col.startsWith('#f')) { ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI * 2); ctx.fill(); } ctx.restore();
+}
+
+function drawGate(px, py, type) {
+    ctx.save(); ctx.translate(px, py); let angle;
+    if (type === 'TL') angle = -90 + crossingAngle; else if (type === 'TR') angle = -90 - crossingAngle;  
+    else if (type === 'BL') angle = 90 - crossingAngle; else if (type === 'BR') angle = 90 + crossingAngle;   
+    ctx.rotate(angle * Math.PI / 180); ctx.fillStyle = "#ef4444"; ctx.fillRect(0, -2, 70, 4);
+    ctx.fillStyle = "#fff"; for(let i = 10; i < 70; i += 20) ctx.fillRect(i, -2, 10, 4); ctx.restore();
+}
+
+function drawTrackSection(x1, y1, x2, y2) {
+    ctx.fillStyle = isNight ? "#0f0f0f" : "#2a2a2a"; let dist = Math.sqrt((x2-x1)**2 + (y2-y1)**2); let steps = Math.floor(dist / 25);
+    for(let i = 0; i <= steps; i++) { let t = i / steps; ctx.fillRect(x1 + (x2-x1)*t - 12, y1 + (y2-y1)*t - 10, 24, 20); }
+    ctx.strokeStyle = isNight ? "#1a1a1a" : "#444"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x1, y1-8); ctx.lineTo(x2, y2-8); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x1, y1+8); ctx.lineTo(x2, y2+8); ctx.stroke();
+    ctx.strokeStyle = isNight ? "#222" : "#666"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x1, y1-9); ctx.lineTo(x2, y2-9); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x1, y1+7); ctx.lineTo(x2, y2+7); ctx.stroke();
 }
 
 function drawSig(x, y, col, dir) {
-    // ENLARGED SIGNAL BODY
-    ctx.fillStyle = "#555"; ctx.fillRect(x-1.5, dir === 'R' ? y : y-45, 3, 45); // Support Post
-    ctx.fillStyle = "#000"; ctx.beginPath(); 
-    ctx.roundRect(x-12, dir === 'R' ? y : y-38, 24, 38, 5); ctx.fill(); // Housing
-    
-    let startY = dir === 'R' ? y + 8 : y - 30;
-    
-    const aspects = [
-        { key: 'red', color: '#ff1100', off: '#300', y: startY },
-        { key: 'orange', color: '#ffaa00', off: '#320', y: startY + 11 },
-        { key: 'green', color: '#00ff44', off: '#030', y: startY + 22 }
-    ];
-
+    ctx.fillStyle = "#444"; ctx.fillRect(x-2, dir === 'R' ? y : y-55, 4, 55);
+    ctx.fillStyle = "#050505"; ctx.beginPath(); ctx.roundRect(x-14, dir === 'R' ? y : y-42, 28, 42, 4); ctx.fill();
+    ctx.strokeStyle = isNight ? "#111" : "#333"; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(x-14, dir === 'R' ? y : y-42, 28, 42, 4); ctx.stroke();
+    ctx.fillStyle = "#222";
+    if (dir === 'R') { ctx.beginPath(); ctx.moveTo(x-16, y); ctx.lineTo(x+16, y); ctx.lineTo(x+10, y-6); ctx.lineTo(x-10, y-6); ctx.fill(); } 
+    else { ctx.beginPath(); ctx.moveTo(x-16, y-42); ctx.lineTo(x+16, y-42); ctx.lineTo(x+10, y-36); ctx.lineTo(x-10, y-36); ctx.fill(); }
+    let startY = dir === 'R' ? y + 9 : y - 33;
+    const aspects = [ { key: 'red', color: '#ff1100', off: '#1a0000', y: startY }, { key: 'orange', color: '#ffaa00', off: '#1a1000', y: startY + 12 }, { key: 'green', color: '#00ff44', off: '#001a00', y: startY + 24 } ];
     aspects.forEach(a => {
-        const isActive = (col === a.key);
-        
-        ctx.save();
-        if (isActive) {
-            // OUTER GLOW (Bloom)
-            ctx.shadowBlur = 25;
-            ctx.shadowColor = a.color;
-            ctx.fillStyle = a.color;
-        } else {
-            ctx.fillStyle = a.off;
-        }
-        
-        // MAIN LENS (Enlarged)
-        ctx.beginPath();
-        ctx.arc(x, a.y, 4.5, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // WHITE CORE (For ultra visibility)
-        if (isActive) {
-            ctx.shadowBlur = 0;
-            ctx.fillStyle = "#fff";
-            ctx.beginPath();
-            ctx.arc(x, a.y, 1.5, 0, Math.PI * 2);
-            ctx.fill();
-        }
+        const isActive = (col === a.key); ctx.save();
+        if (isActive) { ctx.shadowBlur = isNight ? 55 : 30; ctx.shadowColor = a.color; ctx.fillStyle = a.color; } else { ctx.shadowBlur = 0; ctx.fillStyle = a.off; }
+        ctx.beginPath(); ctx.arc(x, a.y, 5.5, 0, Math.PI * 2); ctx.fill();
+        if (isActive) { ctx.shadowBlur = 0; ctx.fillStyle = a.color + "88"; ctx.beginPath(); ctx.arc(x, a.y, 3, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(x, a.y, 1.5, 0, Math.PI * 2); ctx.fill(); }
         ctx.restore();
     });
 }
 
 function animate() {
-    drawWorld();
+    drawWorld(); updateCrossing(); updateRoadVehicles();
     if (activeTrain) {
-        activeTrain.update();
-        activeTrain.draw();
-        if (activeTrain.x < -800 || activeTrain.x > canvas.width + 800) activeTrain = null;
+        activeTrain.update(); activeTrain.draw();
+        if (activeTrain.x < -900 || activeTrain.x > canvas.width + 900) {
+            activeTrain = null; sigs = { upHome: 'red', upExit: 'red', dnHome: 'red', dnExit: 'red' }; crossingState = 'OPENING'; AudioEngine.stopMotor();
+            document.getElementById('door-popup').style.display = 'none';
+            document.getElementById('status-display').innerText = "INTERLOCKING NETWORK - READY"; updateUI();
+        }
     }
     requestAnimationFrame(animate);
 }
 
-window.addEventListener('resize', init);
-init(); animate();
+setInterval(() => {
+    if (autoSpawn && !activeTrain) {
+        const plts = ['A', 'B', 'C', 'D']; const plt = plts[Math.floor(Math.random() * plts.length)];
+        const dir = (plt === 'A' || plt === 'C') ? 'R' : 'L'; spawnTrain(plt, dir);
+        setTimeout(() => { if (dir === 'R') { sigs.upHome = 'green'; sigs.upExit = 'green'; } else { sigs.dnHome = 'green'; sigs.dnExit = 'green'; } updateUI(); }, 1500);
+    }
+}, 5000);
+
+window.addEventListener('resize', init); init(); animate();
 </script>
 </body>
 </html>
