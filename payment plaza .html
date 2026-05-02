@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NHAI - Mechanical Toll Dashboard</title>
+    <title>NHAI - Distance Based Toll Terminal</title>
     <style>
         :root { 
             --neon: #00d9ff; --error: #ff4757; --success: #2ed573; 
-            --gold: #ffa502; --frame-bg: #3a3a3a; --body-bg: #121212;
+            --gold: #ffa502; --frame-bg: #2c2c2c; --body-bg: #0f0f0f;
             --screen-bg: #000b1a;
         }
 
@@ -17,72 +17,74 @@
             font-family: 'Courier New', monospace; color: white; overflow: hidden;
         }
 
-        /* Heavy Industrial Casing */
         .console-unit { 
-            background: var(--frame-bg); padding: 25px; border-radius: 15px; 
-            border: 12px solid #222; box-shadow: 0 30px 60px #000;
-            display: flex; flex-direction: column; gap: 20px; width: 1100px;
+            background: var(--frame-bg); padding: 18px; border-radius: 12px; 
+            border: 10px solid #1a1a1a; box-shadow: 0 20px 50px #000;
+            display: flex; flex-direction: column; gap: 15px; width: 900px; 
         }
 
-        .header-bar { display: flex; justify-content: space-between; border-bottom: 2px solid #555; padding-bottom: 10px; }
+        .header-bar { 
+            display: flex; justify-content: space-between; 
+            border-bottom: 2px solid #444; padding-bottom: 8px; font-size: 13px;
+        }
 
-        /* Main Workspace: Left to Right */
-        .workspace { display: flex; gap: 25px; align-items: stretch; }
+        .workspace { display: flex; gap: 15px; align-items: stretch; }
 
-        /* Detection & Destination Column */
-        .sidebar { display: flex; flex-direction: column; gap: 15px; width: 250px; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px; border: 1px solid #555;}
+        /* Sidebar: City & Distance */
+        .sidebar { 
+            display: flex; flex-direction: column; gap: 8px; width: 220px; 
+            background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; border: 1px solid #444;
+        }
 
-        /* Center Main Display */
-        .display-unit { flex-grow: 1; display: flex; flex-direction: column; align-items: center; gap: 15px; }
+        .display-unit { flex-grow: 1; display: flex; flex-direction: column; align-items: center; gap: 12px; }
 
-        /* UI Elements */
         #screen { 
-            width: 100%; height: 220px; background: var(--screen-bg); 
-            border: 6px solid #1a1a1a; border-radius: 8px; padding: 20px; 
+            width: 100%; height: 180px; background: var(--screen-bg); 
+            border: 4px solid #111; border-radius: 6px; padding: 15px; 
             box-sizing: border-box; color: var(--neon); position: relative;
-            box-shadow: inset 0 0 30px #000; overflow: hidden;
+            box-shadow: inset 0 0 20px #000; overflow: hidden;
         }
 
-        #scr-body { font-size: 20px; text-align: center; margin-top: 30px; line-height: 1.5; }
-        .sensor-tag { position: absolute; top: 10px; left: 15px; font-size: 10px; color: var(--gold); }
-        #clock { position: absolute; top: 10px; right: 15px; font-size: 12px; }
+        #scr-body { font-size: 15px; text-align: center; margin-top: 20px; line-height: 1.4; }
+        .sensor-tag { position: absolute; top: 8px; left: 10px; font-size: 9px; color: var(--gold); }
+        #clock { position: absolute; top: 8px; right: 10px; font-size: 11px; }
 
-        /* Keypad Styling */
-        .keypad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .keypad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
         .num-key { 
-            width: 55px; height: 45px; background: #ddd; border: none; 
-            font-weight: bold; font-size: 18px; border-radius: 4px; 
-            cursor: pointer; box-shadow: 0 4px 0 #888; color: #222;
+            width: 50px; height: 40px; background: #ccc; border: none; 
+            font-weight: bold; font-size: 16px; border-radius: 3px; 
+            cursor: pointer; box-shadow: 0 3px 0 #777; color: #222;
         }
-        .num-key:active { transform: translateY(2px); box-shadow: 0 1px 0 #888; }
+        .num-key:active { transform: translateY(2px); box-shadow: 0 1px 0 #777; }
 
-        /* Industrial Buttons */
         .mech-btn { 
-            width: 100%; padding: 12px; background: linear-gradient(145deg, #eee, #999); 
-            border: 3px solid #444; border-radius: 6px; cursor: pointer; 
-            font-weight: bold; color: #222; box-shadow: 0 4px 0 #111;
-            text-transform: uppercase; font-size: 11px;
+            width: 100%; padding: 8px; background: linear-gradient(145deg, #eee, #999); 
+            border: 2px solid #333; border-radius: 4px; cursor: pointer; 
+            font-weight: bold; color: #222; box-shadow: 0 3px 0 #111;
+            text-transform: uppercase; font-size: 9px; text-align: left;
         }
         .mech-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #111; }
+        .mech-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        
         .mech-btn.blue { background: linear-gradient(145deg, #3498db, #2980b9); color: white; }
-        .mech-btn.gold { background: linear-gradient(145deg, #f1c40f, #f39c12); }
-        .mech-btn.red { background: linear-gradient(145deg, #e74c3c, #c0392b); color: white; }
-        .mech-btn.green { background: linear-gradient(145deg, #27ae60, #1e8449); color: white; }
+        .mech-btn.gold { background: linear-gradient(145deg, #f1c40f, #f39c12); text-align: center; }
+        .mech-btn.red { background: linear-gradient(145deg, #e74c3c, #c0392b); color: white; text-align: center; }
+        .mech-btn.purple { background: linear-gradient(145deg, #a55eea, #8854d0); color: white; }
 
-        /* Right Side: Payment & Printing */
-        .payment-bank { width: 280px; display: flex; flex-direction: column; gap: 10px; }
-        .user-card { background: #222; padding: 8px; border: 1px solid #444; border-radius: 6px; font-size: 11px; display: flex; align-items: center; gap: 10px; }
-
-        .printer-slot { height: 100px; background: #0a0a0a; border: 3px solid #222; position: relative; overflow: hidden; margin-top: auto; }
-        .receipt { 
-            width: 90%; background: #fff; color: #000; position: absolute; 
-            top: -150%; left: 5%; padding: 10px; font-size: 10px; 
-            text-align: center; transition: 1.5s cubic-bezier(0.1, 0.7, 1.0, 0.1); 
+        .payment-bank { width: 220px; display: flex; flex-direction: column; gap: 8px; }
+        .user-card { 
+            background: #1a1a1a; padding: 8px; border: 1px solid #333; 
+            border-radius: 5px; font-size: 10px; display: flex; align-items: center; gap: 8px; 
         }
-        .print-active { top: 5px; }
 
-        /* Scanning Animation */
-        .scan-line { width: 100%; height: 2px; background: var(--neon); position: absolute; top: 0; left: 0; opacity: 0.3; animation: scan 2s infinite linear; display: none;}
+        .printer-slot { height: 70px; background: #050505; border: 2px solid #222; position: relative; overflow: hidden; margin-top: auto; }
+        .receipt { 
+            width: 85%; background: #fff; color: #000; position: absolute; 
+            top: -180%; left: 7.5%; padding: 8px; font-size: 9px; text-align: center; 
+        }
+        .print-active { top: 5px; transition: 1.2s ease-in-out; }
+
+        .scan-line { width: 100%; height: 1px; background: var(--neon); position: absolute; top: 0; left: 0; opacity: 0.5; animation: scan 1.5s infinite linear; display: none;}
         @keyframes scan { 0% { top: 0; } 100% { top: 100%; } }
     </style>
 </head>
@@ -90,68 +92,70 @@
 
 <div class="console-unit">
     <div class="header-bar">
-        <span style="color: var(--gold); font-weight: bold;">NHAI TOLL TERMINAL | HD-2026</span>
-        <span id="system-status" style="color: var(--success);">[ STATUS: ONLINE ]</span>
+        <span style="color: var(--gold); font-weight: bold;">NHAI DISTANCE CALCULATOR | v3.0</span>
+        <span id="clock">00:00:00</span>
     </div>
 
     <div class="workspace">
-        <!-- Step 1: Detection -->
         <div class="sidebar">
-            <div style="font-size: 10px; margin-bottom: 10px; color: #aaa;">SENSOR PANEL</div>
+            <div style="font-size: 9px; color: #888;">SELECT DESTINATION</div>
+            <!-- City Buttons with KM and dynamic fare logic -->
+            <button class="mech-btn blue" onclick="setCity('MUMBAI', 150)" id="city-1" disabled>MUMBAI (150km)</button>
+            <button class="mech-btn blue" onclick="setCity('PUNE', 220)" id="city-2" disabled>PUNE (220km)</button>
+            <button class="mech-btn blue" onclick="setCity('NASHIK', 180)" id="city-3" disabled>NASHIK (180km)</button>
+            <button class="mech-btn blue" onclick="setCity('SURAT', 280)" id="city-4" disabled>SURAT (280km)</button>
+            <button class="mech-btn blue" onclick="setCity('LOCAL', 10)" id="city-5" disabled>LOCAL (10km)</button>
+            
+            <hr style="width: 100%; border: 0; border-top: 1px solid #444;">
             <button class="mech-btn gold" onclick="detectVehicle()">Detect Vehicle</button>
-            <div id="detection-info" style="font-size: 11px; margin: 10px 0; color: var(--gold); min-height: 30px;">Awaiting Entry...</div>
-            
-            <hr style="width: 100%; border: 0; border-top: 1px solid #555;">
-            
-            <div style="font-size: 10px; margin-bottom: 10px; color: #aaa;">DESTINATION</div>
-            <button class="mech-btn blue" id="btn-city-a" onclick="cSet('CITY A', 15)" disabled>CITY A (+$15)</button>
-            <button class="mech-btn blue" id="btn-city-b" onclick="cSet('CITY B', 30)" disabled>CITY B (+$30)</button>
-            <button class="mech-btn blue" id="btn-local" onclick="cSet('LOCAL', 0)" disabled>LOCAL PASS</button>
+            <button class="mech-btn red" style="margin-top: auto;" onclick="reset()">Reset Console</button>
         </div>
 
-        <!-- Step 2: Display & Input -->
         <div class="display-unit">
             <div id="screen">
-                <div class="sensor-tag">LIDAR: ACTIVE</div>
-                <div id="clock">00:00:00</div>
+                <div class="sensor-tag" id="scr-tag">BASE TOLL: $100</div>
                 <div class="scan-line" id="scanner"></div>
-                <div id="scr-body">WELCOME<br>VEHICLE DETECTION REQUIRED</div>
+                <div id="scr-body">TOLL SYSTEM READY<br>SCAN VEHICLE TO BEGIN</div>
             </div>
 
             <div class="keypad-grid">
-                <button class="num-key" onclick="kp('1')">1</button><button class="num-key" onclick="kp('2')">2</button><button class="num-key" onclick="kp('3')">3</button>
-                <button class="num-key" onclick="kp('4')">4</button><button class="num-key" onclick="kp('5')">5</button><button class="num-key" onclick="kp('6')">6</button>
-                <button class="num-key" onclick="kp('7')">7</button><button class="num-key" onclick="kp('8')">8</button><button class="num-key" onclick="kp('9')">9</button>
-                <button class="num-key" style="background:#ff4757" onclick="kc()">C</button><button class="num-key" onclick="kp('0')">0</button>
-                <button class="num-key" style="background:var(--success)" onclick="confirmPayment()">✓</button>
+                <button class="num-key" onclick="kp('1')">1</button>
+                <button class="num-key" onclick="kp('2')">2</button>
+                <button class="num-key" onclick="kp('3')">3</button>
+                <button class="num-key" onclick="kp('4')">4</button>
+                <button class="num-key" onclick="kp('5')">5</button>
+                <button class="num-key" onclick="kp('6')">6</button>
+                <button class="num-key" onclick="kp('7')">7</button>
+                <button class="num-key" onclick="kp('8')">8</button>
+                <button class="num-key" onclick="kp('9')">9</button>
+                <button class="num-key" style="background:#ff4757" onclick="kc()">C</button>
+                <button class="num-key" onclick="kp('0')">0</button>
+                <button class="num-key" style="background:var(--success)" onclick="confirmAction()">✓</button>
             </div>
         </div>
 
-        <!-- Step 3: Payment & Print -->
         <div class="payment-bank">
-            <div style="font-size: 10px; color: #aaa;">PAYMENT INTERFACE</div>
-            <button class="mech-btn" id="btn-cash" onclick="initCashMode()" disabled>Cash Payment</button>
-            
-            <div class="user-card">
-                <button class="mech-btn" style="width: 50px;" onclick="uSel(0)">RFID</button>
-                <div>USER: 01<br><span id="u0" style="color: var(--success);">$50.00</span></div>
+            <div style="font-size: 9px; color: #888;">PAYMENT INTERFACE</div>
+            <div class="user-card" id="card-0">
+                <button class="mech-btn purple" style="width: 45px; padding: 5px;" onclick="initRecharge(0)">RECH</button>
+                <button class="mech-btn" style="width: 40px; padding: 5px;" onclick="uSel(0)">PAY</button>
+                <div>U:01 <span id="u0" style="color:var(--success)">$50</span></div>
             </div>
-            
-            <div class="user-card">
-                <button class="mech-btn" style="width: 50px;" onclick="uSel(1)">RFID</button>
-                <div>USER: 02<br><span id="u1" style="color: var(--success);">$150.00</span></div>
+            <div class="user-card" id="card-1">
+                <button class="mech-btn purple" style="width: 45px; padding: 5px;" onclick="initRecharge(1)">RECH</button>
+                <button class="mech-btn" style="width: 40px; padding: 5px;" onclick="uSel(1)">PAY</button>
+                <div>U:02 <span id="u1" style="color:var(--success)">$150</span></div>
             </div>
 
-            <button class="mech-btn red" onclick="reset()">Reset Console</button>
+            <button class="mech-btn" id="btn-cash" onclick="initCashMode()" disabled>Cash Pay</button>
 
             <div class="printer-slot">
                 <div id="paper" class="receipt">
-                    <b style="font-size: 12px;">NHAI RECEIPT</b><br>
-                    <small id="rcp-date"></small>
+                    <b id="rcp-head">TOLL RECEIPT</b><br>
+                    <small id="rcp-date" style="font-size: 7px;"></small>
                     <hr>
-                    <div id="rcp-v" style="text-align: left;"></div>
-                    <div id="rcp-c" style="text-align: left;"></div>
-                    <div id="rcp-a" style="font-weight: bold; margin-top: 5px;"></div>
+                    <div id="rcp-v" style="font-size: 8px;"></div>
+                    <div id="rcp-a" style="font-weight:bold; margin-top: 3px;"></div>
                 </div>
             </div>
         </div>
@@ -159,119 +163,107 @@
 </div>
 
 <script>
-    let mode = 'IDLE', vType = '', bPrice = 0, city = '', cPrice = 0, uIdx = null, cashBuffer = '';
-    const users = [ {bal: 50, loc: false}, {bal: 150, loc: true} ];
+    let mode = 'IDLE', vType = '', baseToll = 100, city = '', dist = 0, totalDue = 0, uIdx = null, inputBuffer = '';
+    const users = [ {bal: 200}, {bal: 500} ];
+    const ratePerKm = 0.5; // $0.50 per KM
 
     function updateClock() {
-        const now = new Date();
-        document.getElementById('clock').innerText = now.toLocaleTimeString('en-GB');
+        document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB');
     }
     setInterval(updateClock, 1000);
 
-    // Auto Detection Simulation
     function detectVehicle() {
         if(mode !== 'IDLE') return;
-        
         document.getElementById('scanner').style.display = 'block';
-        updateScr("SENSORS ACTIVE...<br>ANALYZING MASS & HEIGHT");
+        updateScr("SCANNING AXLES & CLASS...");
         
         setTimeout(() => {
             document.getElementById('scanner').style.display = 'none';
-            const vehicles = [
-                {t: 'CAR', p: 10, msg: "CLASS 1: LIGHT VEHICLE"},
-                {t: 'VAN', p: 20, msg: "CLASS 2: MEDIUM VAN"},
-                {t: 'TRUCK', p: 40, msg: "CLASS 3: HEAVY TRUCK"}
-            ];
-            const res = vehicles[Math.floor(Math.random() * vehicles.length)];
-            vType = res.t;
-            bPrice = res.p;
-            mode = 'CITY';
-            
-            document.getElementById('detection-info').innerText = res.msg;
-            updateScr(`${vType} DETECTED<br>PLEASE SELECT DESTINATION`);
-            
-            // Enable Destination Buttons
-            document.getElementById('btn-city-a').disabled = false;
-            document.getElementById('btn-city-b').disabled = false;
-            document.getElementById('btn-local').disabled = false;
-        }, 1500);
+            vType = 'LVM_CLASS_1';
+            mode = 'SELECT_CITY';
+            updateScr(`VEHICLE: ${vType}<br>BASE TOLL: $${baseToll}<br>SELECT DESTINATION`);
+            // Enable City Buttons
+            for(let i=1; i<=5; i++) document.getElementById('city-'+i).disabled = false;
+        }, 1200);
     }
 
-    function cSet(c, p) {
-        if(mode === 'CITY') {
-            city = c;
-            cPrice = p;
-            mode = 'SELECT_PAY';
-            let total = bPrice + cPrice;
-            updateScr(`TOTAL TOLL: $${total}<br>INSERT CARD OR SELECT CASH`);
-            document.getElementById('btn-cash').disabled = false;
+    function setCity(name, kms) {
+        city = name;
+        dist = kms;
+        let distFare = kms * ratePerKm;
+        totalDue = baseToll + distFare;
+        mode = 'PAYMENT_SEL';
+        
+        updateScr(`DEST: ${city} (${kms}km)<br>DIST FARE: $${distFare}<br><span style="color:var(--gold)">TOTAL DUE: $${totalDue}</span>`);
+        document.getElementById('btn-cash').disabled = false;
+    }
+
+    function initRecharge(idx) {
+        mode = 'RECHARGE'; uIdx = idx; inputBuffer = '';
+        updateScr(`RECHARGE CARD 0${idx+1}<br>ENTER AMOUNT & PRESS ✓`);
+    }
+
+    function uSel(idx) {
+        if(mode === 'PAYMENT_SEL') {
+            uIdx = idx; mode = 'PAY_RFID';
+            updateScr(`RFID 0${idx+1}<br>BAL: $${users[idx].bal}<br>DEDUCT $${totalDue}? PRESS ✓`);
         }
     }
 
     function initCashMode() {
-        if(mode === 'SELECT_PAY') {
-            mode = 'PAY_CASH';
-            updateScr(`DUE: $${bPrice + cPrice}<br>ENTER CASH TENDERED`);
-        }
-    }
-
-    function uSel(idx) {
-        if(mode === 'SELECT_PAY' || mode === 'PAY_CARD') {
-            uIdx = idx;
-            mode = 'PAY_CARD';
-            updateScr(`RFID CARD ${idx+1} READ<br>BAL: $${users[idx].bal}<br>PRESS ✓ TO DEDUCT`);
+        if(mode === 'PAYMENT_SEL') {
+            mode = 'PAY_CASH'; inputBuffer = '';
+            updateScr(`TOTAL: $${totalDue}<br>INPUT CASH TENDERED:`);
         }
     }
 
     function kp(n) { 
-        if(mode !== 'PAY_CASH') return;
-        cashBuffer += n; 
-        updateScr(`TENDERED: <span style="color:var(--gold); font-size:30px;">$${cashBuffer}</span>`); 
+        if(!['RECHARGE', 'PAY_CASH'].includes(mode)) return;
+        inputBuffer += n;
+        updateScr(`${mode}:<br><span style="color:var(--gold); font-size: 24px;">$${inputBuffer}</span>`);
     }
     
-    function kc() { cashBuffer = ''; updateScr("CLEARED"); }
+    function kc() { inputBuffer = ''; updateScr("CLEARED"); }
 
-    function confirmPayment() {
-        let total = bPrice + cPrice;
-        if(mode === 'PAY_CASH') {
-            if(parseInt(cashBuffer) >= total) finalize(total, "CASH");
-            else updateScr(`INSUFFICIENT CASH<br>REMAINING: $${total - parseInt(cashBuffer || 0)}`);
+    function confirmAction() {
+        if (mode === 'RECHARGE' && inputBuffer) {
+            users[uIdx].bal += parseInt(inputBuffer);
+            finalize("TOP-UP SUCCESS", `+$${inputBuffer}`);
+        } 
+        else if (mode === 'PAY_CASH' && parseInt(inputBuffer) >= totalDue) {
+            let change = parseInt(inputBuffer) - totalDue;
+            finalize("PAID CASH", `$${totalDue} (CHG: $${change})`);
         }
-        else if(mode === 'PAY_CARD' && uIdx !== null) {
-            if(users[uIdx].bal >= total) {
-                users[uIdx].bal -= total;
-                syncUI();
-                finalize(total, "RFID");
-            } else updateScr("INSUFFICIENT BALANCE<br>ON CARD");
+        else if (mode === 'PAY_RFID' && users[uIdx].bal >= totalDue) {
+            users[uIdx].bal -= totalDue;
+            finalize("RFID SUCCESS", `$${totalDue}`);
+        } else if (mode === 'PAY_RFID') {
+            updateScr("<span style='color:var(--error)'>LOW BALANCE</span><br>RECHARGE REQUIRED");
         }
     }
 
-    function finalize(amt, method) {
-        updateScr(`<span style="color:var(--success)">TRANSACTION SUCCESS</span><br>METHOD: ${method}`);
-        
-        // Receipt Printing
+    function finalize(head, amt) {
+        syncUI();
+        updateScr(`<span style="color:var(--success)">TRANSACTION OK</span><br>${head}`);
+        document.getElementById('rcp-head').innerText = head;
         document.getElementById('rcp-date').innerText = new Date().toLocaleString();
-        document.getElementById('rcp-v').innerText = `CLASS: ${vType}`;
-        document.getElementById('rcp-c').innerText = `DEST:  ${city}`;
-        document.getElementById('rcp-a').innerText = `TOTAL: $${amt}.00`;
-        
+        document.getElementById('rcp-v').innerText = city ? `${vType} to ${city}` : "RECHARGE";
+        document.getElementById('rcp-a').innerText = "AMT: " + amt;
         document.getElementById('paper').classList.add('print-active');
-        
         setTimeout(() => {
             document.getElementById('paper').classList.remove('print-active');
             reset();
-        }, 4000);
+        }, 3000);
     }
 
     function updateScr(txt) { document.getElementById('scr-body').innerHTML = txt; }
-    function syncUI() { users.forEach((u, i) => document.getElementById('u'+i).innerText = "$"+u.bal.toFixed(2)); }
+    function syncUI() { users.forEach((u, i) => document.getElementById('u'+i).innerText = "$"+u.bal); }
+    
     function reset() {
-        mode = 'IDLE'; vType = ''; bPrice = 0; city = ''; cPrice = 0; uIdx = null; cashBuffer = '';
-        document.getElementById('detection-info').innerText = "Awaiting Entry...";
-        updateScr("READY<br>VEHICLE DETECTION REQUIRED");
-        
-        // Disable buttons
-        ['btn-city-a', 'btn-city-b', 'btn-local', 'btn-cash'].forEach(id => document.getElementById(id).disabled = true);
+        mode = 'IDLE'; vType = ''; city = ''; totalDue = 0; inputBuffer = '';
+        updateScr("TOLL SYSTEM READY<br>SCAN VEHICLE TO BEGIN");
+        for(let i=1; i<=5; i++) document.getElementById('city-'+i).disabled = true;
+        document.getElementById('btn-cash').disabled = true;
     }
 </script>
 
