@@ -3,279 +3,614 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NHAI Integrated Terminal v2.2 - Expiry Validation</title>
+    <title>NHAI - Signal Based Control</title>
     <style>
         :root { 
             --neon: #00d9ff; --error: #ff4757; --success: #2ed573; 
-            --gold: #ffa502; --frame-bg: #333; --road-bg: #1a1a1a;
+            --gold: #ffa502; --frame-bg: #2c2c2c; --body-bg: #0a0a0a;
             --screen-bg: #000b1a;
         }
 
+        * { box-sizing: border-box; }
+
         body { 
-            background: #0f0f0f; display: flex; justify-content: center; 
-            align-items: center; height: 100vh; margin: 0; 
-            font-family: 'Segoe UI', sans-serif; color: white; overflow: hidden;
+            background: var(--body-bg); display: flex; justify-content: center; 
+            align-items: center; min-height: 100vh; margin: 0; padding: 15px;
+            font-family: 'Courier New', monospace; color: white; 
         }
 
         .main-container { 
-            background: var(--frame-bg); padding: 25px; border-radius: 12px; 
-            border: 4px solid #444; width: 900px; position: relative;
+            background: var(--frame-bg); padding: 15px; border-radius: 12px; 
+            border: 6px solid #1a1a1a; box-shadow: 0 10px 30px #000;
+            display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 960px;
         }
 
+        .header-bar { 
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 2px solid #444; padding-bottom: 8px; font-size: 12px; flex-wrap: wrap; gap: 10px;
+        }
+        .header-stats { display: flex; gap: 20px; font-weight: bold; }
+        .stat-lvl { color: var(--neon); }
+        .stat-prog { color: var(--success); }
+        .stat-fail { color: var(--error); }
+
+        /* --- SIMULATOR SECTION --- */
         #road-canvas {
-            width: 100%; height: 160px; background: var(--road-bg);
-            border-top: 4px solid #555; border-bottom: 4px solid #555;
-            position: relative; overflow: hidden; margin-bottom: 20px;
-            display: flex; align-items: center;
+            width: 100%; height: 160px; background: #1a1a1a;
+            border-top: 3px solid #555; border-bottom: 3px solid #555;
+            position: relative; overflow: hidden; display: flex; align-items: center;
         }
 
-        .lane-marking { position: absolute; width: 100%; height: 2px; border-top: 2px dashed #444; top: 50%; }
-        .booth { position: absolute; top: 0; width: 60px; height: 35px; background: #444; border: 2px solid #666; font-size: 10px; text-align: center; line-height: 35px; color: #aaa; }
-        .inspection-booth { left: 220px; border-color: var(--neon); color: var(--neon); }
-        .payment-booth { left: 470px; border-color: var(--gold); color: var(--gold); }
+        .lane-marking {
+            position: absolute; width: 100%; height: 2px; 
+            border-top: 2px dashed #444; top: 50%;
+        }
+
+        .booth {
+            position: absolute; top: 0; width: 70px; height: 32px;
+            background: #444; border: 2px solid #666; font-size: 9px;
+            text-align: center; line-height: 32px; color: #aaa; z-index: 2;
+        }
+        .inspection-booth { left: 20%; border-color: var(--neon); color: var(--neon); }
+        .payment-booth { left: 55%; border-color: var(--gold); color: var(--gold); }
 
         .signal-post {
-            position: absolute; left: 580px; top: 30px; width: 12px; height: 100px;
+            position: absolute; right: 18%; top: 15px; width: 12px; height: 90px;
             background: #222; border-radius: 6px; display: flex; flex-direction: column;
-            align-items: center; justify-content: space-around; padding: 5px 0; border: 2px solid #444;
+            align-items: center; justify-content: space-around; padding: 5px 0;
+            border: 2px solid #444; z-index: 2;
         }
-        .light { width: 15px; height: 15px; border-radius: 50%; background: #333; transition: 0.3s; }
-        .light.red.active { background: #ff0000; box-shadow: 0 0 15px #ff0000; }
-        .light.green.active { background: #00ff00; box-shadow: 0 0 15px #00ff00; }
+        .light {
+            width: 14px; height: 14px; border-radius: 50%; background: #333;
+            transition: 0.3s;
+        }
+        .light.red { background: #500; }
+        .light.red.active { background: #ff0000; box-shadow: 0 0 12px #ff0000; }
+        .light.green { background: #050; }
+        .light.green.active { background: #00ff00; box-shadow: 0 0 12px #00ff00; }
 
+        /* Vehicles */
         .car-sim { 
-            width: 75px; height: 42px; background: #3498db; border-radius: 4px; 
-            position: absolute; left: -100px; z-index: 10;
+            width: 65px; height: 34px; background: #3498db; border-radius: 4px; 
+            position: absolute; top: 55%; left: -100px; z-index: 10;
             transition: all 1.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .car-sim::after { content: ''; position: absolute; right: 8px; top: 5px; width: 15px; height: 32px; background: #99f1ff; border-radius: 2px; }
-        .violator { background: #ff4757 !important; border: 2px solid yellow; }
+        .car-sim::after { content: ''; position: absolute; right: 6px; top: 5px; width: 14px; height: 24px; background: #99f1ff; border-radius: 2px; }
 
-        .move-inspect { left: 210px !important; }
-        .move-pay { left: 460px !important; }
+        .police-car { 
+            width: 70px; height: 36px; background: #111; border: 4px solid #fff; border-radius: 4px; 
+            position: absolute; top: 15%; left: -120px; z-index: 9;
+            transition: all 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .police-car::before { content: ''; position: absolute; left: 5px; top: 5px; width: 10px; height: 10px; background: var(--error); border-radius: 50%; animation: flash 0.4s infinite; }
+        .police-car::after { content: ''; position: absolute; right: 5px; top: 5px; width: 10px; height: 10px; background: var(--neon); border-radius: 50%; animation: flash 0.4s infinite 0.2s; }
+        
+        @keyframes flash { 0%, 100% { opacity: 1; } 50% { opacity: 0.1; } }
+
+        /* Movement Classes */
+        .move-inspect { left: 18% !important; }
+        .move-pay { left: 53% !important; }
         .move-exit { left: 110% !important; transition: 2s ease-in !important; }
         .move-uturn { transform: scaleX(-1); left: -150px !important; transition: 2s ease-in-out !important; }
-        .speed-away { left: 120% !important; transition: 0.8s ease-in !important; }
+        .move-arrest { top: 25% !important; left: 55% !important; width: 55px !important; height: 30px !important; transition: 1.5s ease-in !important; opacity: 0.7; transform: scaleX(1) !important; }
+        .police-arrive { left: 60% !important; }
+        .police-leave { left: 110% !important; transition: 2s ease-in 1.2s !important; }
 
-        .dashboard { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
-        .panel { background: #222; padding: 15px; border-radius: 8px; border: 1px solid #444; position: relative; }
-        .data-screen { background: #000; padding: 10px; font-family: monospace; border: 1px solid #333; margin: 10px 0; min-height: 40px; font-size: 11px;}
-        .btn { width: 100%; padding: 12px; margin-top: 8px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: white; text-transform: uppercase; }
-        .btn:disabled { opacity: 0.2; filter: grayscale(1); }
-
-        #fare-modal {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); display: none; justify-content: center; align-items: center; z-index: 100;
+        /* --- DASHBOARD SECTIONS --- */
+        .dash-row {
+            display: grid; grid-template-columns: 1fr 1.6fr; gap: 15px;
+            position: relative; min-height: 280px;
         }
 
-        .console-unit { background: #3a3a3a; padding: 20px; border-radius: 15px; border: 8px solid #222; display: flex; flex-direction: column; gap: 15px; width: 950px; font-family: 'Courier New', monospace; }
-        .workspace { display: flex; gap: 20px; }
-        .sidebar { width: 200px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px;}
+        /* Inspector Panel */
+        .panel-inspector { 
+            display: flex; flex-direction: column; gap: 10px; 
+            background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; border: 1px solid #444;
+        }
+        .data-screen { background: #000; padding: 10px; font-family: monospace; border: 1px solid #333; margin: 5px 0; font-size: 12px;}
         
-        #screen { width: 100%; height: 220px; background: var(--screen-bg); border-radius: 8px; padding: 15px; color: var(--neon); position: relative; box-shadow: inset 0 0 20px #000; overflow: hidden; box-sizing: border-box;}
-        #clock { position: absolute; top: 10px; right: 15px; font-size: 12px; color: var(--gold); }
+        .btn {
+            width: 100%; padding: 10px; border: none; border-radius: 4px;
+            cursor: pointer; font-weight: bold; color: white; text-transform: uppercase;
+            font-family: inherit; font-size: 12px;
+        }
+        .btn:disabled { opacity: 0.3; filter: grayscale(1); cursor: not-allowed; }
 
-        .keypad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
-        .num-key { width: 55px; height: 45px; background: #ddd; border: none; font-weight: bold; border-radius: 4px; cursor: pointer; color: #222; box-shadow: 0 3px 0 #888;}
-        .num-key:active { transform: translateY(2px); box-shadow: none; }
+        .scan-line { width: 100%; height: 1px; background: var(--neon); position: absolute; top: 0; left: 0; opacity: 0.5; animation: scan 1.5s infinite linear; display: none;}
+        @keyframes scan { 0% { top: 0; } 100% { top: 100%; } }
+
+        /* Toll Terminal */
+        .toll-terminal { 
+            background: #222; padding: 12px; border-radius: 8px; border: 1px solid #444;
+            display: none; opacity: 0; transition: opacity 0.5s;
+        }
+        .toll-active { display: block; opacity: 1; }
+
+        .workspace { display: flex; gap: 10px; height: 100%; }
         
-        .mech-btn { width: 100%; padding: 10px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 10px; text-transform: uppercase;}
+        .sidebar-toll { display: flex; flex-direction: column; gap: 5px; width: 35%; }
+        .mech-btn { 
+            width: 100%; padding: 6px; background: linear-gradient(145deg, #eee, #999); 
+            border: 2px solid #333; border-radius: 4px; cursor: pointer; 
+            font-weight: bold; color: #222; box-shadow: 0 2px 0 #111;
+            text-transform: uppercase; font-size: 8px; text-align: left; font-family: inherit;
+        }
+        .mech-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #111; }
         .mech-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-        .mech-btn.gold { background: var(--gold); margin-bottom: 2px; }
-        .mech-btn.blue { background: #3498db; color: white; }
-        .mech-btn.red { background: var(--error); color: white; }
+        .mech-btn.blue { background: linear-gradient(145deg, #3498db, #2980b9); color: white; }
+        .mech-btn.gold { background: linear-gradient(145deg, #f1c40f, #f39c12); text-align: center; }
+        .mech-btn.red { background: linear-gradient(145deg, #e74c3c, #c0392b); color: white; text-align: center; }
+        .mech-btn.purple { background: linear-gradient(145deg, #a55eea, #8854d0); color: white; }
 
-        .payment-bank { width: 250px; }
-        .user-card { background: #222; padding: 8px; border: 1px solid #444; border-radius: 6px; font-size: 10px; display: flex; align-items: center; gap: 5px; margin-bottom: 5px;}
-        .topup-btn { background: var(--gold); border: none; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-weight: bold; }
+        .display-unit { flex-grow: 1; display: flex; flex-direction: column; gap: 8px; }
+        #screen { 
+            width: 100%; flex-grow: 1; background: var(--screen-bg); 
+            border: 3px solid #111; border-radius: 6px; padding: 12px; 
+            box-sizing: border-box; color: var(--neon); position: relative;
+            box-shadow: inset 0 0 15px #000; overflow: hidden; font-size: 12px; min-height: 110px;
+        }
+        #scr-body { text-align: center; margin-top: 15px; line-height: 1.4; }
+        .sensor-tag { position: absolute; top: 6px; left: 8px; font-size: 8px; color: var(--gold); }
 
-        .receipt { width: 180px; background: #fff; color: #000; position: absolute; top: -200%; left: 50%; transform: translateX(-50%); padding: 10px; font-size: 9px; text-align: center; transition: 1s; z-index: 10; border: 1px solid #ccc;}
-        .print-active { top: 10px; }
-        .city-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 10px; }
-        
-        .live-dot { height: 8px; width: 8px; background-color: #ff0000; border-radius: 50%; display: inline-block; animation: blink 1s infinite; margin-right: 5px;}
-        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 1; } }
+        .keypad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+        .num-key { 
+            width: 100%; height: 30px; background: #ccc; border: none; 
+            font-weight: bold; font-size: 12px; border-radius: 3px; 
+            cursor: pointer; box-shadow: 0 2px 0 #777; color: #222;
+        }
+        .num-key:active { transform: translateY(2px); box-shadow: 0 1px 0 #777; }
+
+        .payment-bank { width: 35%; display: flex; flex-direction: column; gap: 6px; }
+        .user-card { 
+            background: #1a1a1a; padding: 5px; border: 1px solid #333; 
+            border-radius: 5px; font-size: 9px; display: flex; align-items: center; gap: 4px; 
+        }
+
+        .printer-slot { height: 45px; background: #050505; border: 2px solid #222; position: relative; overflow: hidden; margin-top: auto; }
+        .receipt { 
+            width: 85%; background: #fff; color: #000; position: absolute; 
+            top: -180%; left: 7.5%; padding: 5px; font-size: 6px; text-align: center; 
+        }
+        .print-active { top: 5px; transition: 1.2s ease-in-out; }
+
+        /* Pass Signal Button */
+        #btn-gate {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 180px; height: 50px; background: linear-gradient(145deg, #2ed573, #05c46b);
+            border: 4px solid #fff; border-radius: 8px; color: white; font-weight: bold;
+            font-size: 13px; cursor: pointer; display: none; z-index: 20;
+            box-shadow: 0 0 20px rgba(46, 213, 115, 0.5);
+            animation: pulse 1.5s infinite; font-family: inherit;
+        }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(46, 213, 115, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(46, 213, 115, 0); } 100% { box-shadow: 0 0 0 0 rgba(46, 213, 115, 0); } }
+
+        .footer-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            border-top: 2px solid #444; padding-top: 10px;
+        }
+
+        /* Level Up / Game Over Overlay */
+        #overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 50; display: none;
+            flex-direction: column; justify-content: center; align-items: center;
+            text-align: center; gap: 15px; border-radius: 12px;
+        }
+        #overlay h1 { margin: 0; font-size: 28px; }
+        #overlay p { margin: 0; color: #ccc; font-size: 14px; }
+        #overlay button { padding: 10px 20px; font-weight: bold; font-size: 14px; cursor: pointer; font-family: inherit; border-radius: 5px; border: none; }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 800px) {
+            .dash-row { grid-template-columns: 1fr; }
+            .toll-active { display: flex; flex-direction: column; }
+            .workspace { flex-direction: column; gap: 8px; }
+            .sidebar-toll, .payment-bank { width: 100%; flex-direction: row; flex-wrap: wrap; }
+            .sidebar-toll button { flex-grow: 1; }
+            .payment-bank { order: -1; }
+            .user-card { flex-grow: 1; }
+            #road-canvas { height: 130px; }
+            .booth { font-size: 8px; width: 50px; height: 28px; line-height: 28px; }
+            #overlay h1 { font-size: 22px; }
+        }
     </style>
 </head>
 <body>
 
-<div class="main-container">
-    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-        <span><span class="live-dot"></span><span style="color: var(--neon)">NHAI COMMAND CENTER v2.2</span></span>
-        <span id="main-date" style="color: var(--gold)">DATE: --/--/----</span>
+<div class="main-container" style="position: relative;">
+    <div class="header-bar">
+        <span style="color: var(--gold); font-weight: bold;">NHAI TERMINAL</span>
+        <div class="header-stats">
+            <span class="stat-lvl" id="ui-level">LVL: 1</span>
+            <span class="stat-prog" id="ui-green">🟢 0</span>
+            <span class="stat-fail" id="ui-red">🔴 0</span>
+        </div>
+        <span id="clock" style="color: #aaa; font-size: 11px;">01-JAN-2026 00:00:00</span>
     </div>
 
+    <!-- Road Animation -->
     <div id="road-canvas">
         <div class="booth inspection-booth">INSPECT</div>
         <div class="booth payment-booth">PLAZA</div>
         <div class="lane-marking"></div>
-        <div id="gate-bar" style="position:absolute; left: 570px; top:40px; width: 5px; height: 80px; background: #ff4757; transform-origin: top; transition: 0.5s; z-index: 20; border: 1px solid white;"></div>
+        
         <div class="signal-post">
             <div id="light-red" class="light red active"></div>
             <div id="light-green" class="light green"></div>
         </div>
+
         <div id="car" class="car-sim"></div>
+        <div id="police" class="police-car"></div>
     </div>
 
-    <div class="dashboard">
-        <div class="panel">
-            <small>1. TRAFFIC CTRL</small>
-            <button id="btn-next" class="btn" style="background:#4a69bd" onclick="triggerTraffic()">Dispatch Vehicle</button>
-            <button class="btn" style="background:#555; font-size: 10px;" onclick="showSummary()">End Shift / Report</button>
-            <p id="log" style="font-size: 11px; color: #888; margin-top: 5px;">Ready.</p>
-        </div>
-
-        <div class="panel">
-            <small style="color: var(--neon)">2. OFFICER CHECK</small>
-            <div class="data-screen">
+    <!-- Dashboard -->
+    <div class="dash-row">
+        
+        <!-- Left: Traffic & Inspection -->
+        <div class="panel-inspector">
+            <small style="color: #888; font-weight: bold;">TRAFFIC MANAGER</small>
+            <button id="btn-next" class="btn" style="background:#4a69bd" onclick="triggerTraffic()">Send Next Vehicle</button>
+            
+            <div class="data-screen" style="margin-top: 10px;">
                 PLATE: <span id="ui-plate">----</span><br>
-                LIC EXPIRY: <span id="ui-expiry">--/--/----</span><br>
-                STATUS: <span id="ui-status" style="color:white">CLEAN</span>
+                EXPIRY: <span id="ui-lic">----</span>
             </div>
+
             <div style="display: flex; gap: 5px;">
-                <button id="btn-ok" class="btn" style="background:var(--success)" onclick="officerReview(true)" disabled>OK</button>
-                <button id="btn-no" class="btn" style="background:var(--error)" onclick="officerReview(false)" disabled>REJ</button>
+                <button id="btn-ok" class="btn" style="background:var(--success)" onclick="officerReview(true)" disabled>APPROVE</button>
+                <button id="btn-no" class="btn" style="background:var(--error)" onclick="officerReview(false)" disabled>REJECT</button>
             </div>
+
+            <p id="log" style="font-size: 11px; color: #888; margin-top: auto; text-align:center;">Awaiting orders.</p>
         </div>
 
-        <div class="panel">
-            <small style="color: var(--gold)">3. GATE SIG</small>
-            <div id="payment-status" class="data-screen" style="text-align: center; color: var(--error);">
-                PENDING
-            </div>
-            <button id="btn-signal-green" class="btn" style="background:var(--success)" onclick="openGate()" disabled>RAISE BARRIER</button>
-        </div>
-    </div>
-</div>
+        <!-- Right: Toll Terminal (Hidden initially) -->
+        <div id="toll-ui" class="toll-terminal">
+            <div class="workspace">
+                <div class="sidebar-toll">
+                    <button class="mech-btn blue" onclick="setCity('MUMBAI', 150)" id="city-1" disabled>MUM (150km)</button>
+                    <button class="mech-btn blue" onclick="setCity('PUNE', 220)" id="city-2" disabled>PUN (220km)</button>
+                    <button class="mech-btn blue" onclick="setCity('NASHIK', 180)" id="city-3" disabled>NAS (180km)</button>
+                    <button class="mech-btn blue" onclick="setCity('SURAT', 280)" id="city-4" disabled>SUR (280km)</button>
+                    <button class="mech-btn blue" onclick="setCity('LOCAL', 10)" id="city-5" disabled>LCL (10km)</button>
+                </div>
 
-<div id="fare-modal">
-    <div class="console-unit">
-        <div class="workspace">
-            <div class="sidebar">
-                <button class="mech-btn gold" onclick="detectVehicle()">Detect Vehicle</button>
-                <div id="detection-info" style="font-size: 10px; color: var(--gold);">Awaiting...</div>
-                <button class="mech-btn blue" onclick="startFareInput()">Manual Fare</button>
-                <button class="mech-btn red" style="margin-top: auto;" onclick="resetConsole()">Reset Terminal</button>
-            </div>
-
-            <div style="flex-grow:1; display:flex; flex-direction:column; align-items:center; gap:10px;">
-                <div id="screen">
-                    <div id="clock">00:00:00</div>
-                    <div id="paper" class="receipt">
-                        <b>NHAI RECEIPT</b><br><small id="rcp-date"></small><hr>
-                        <div id="rcp-v" style="text-align:left"></div>
-                        <div id="rcp-a" style="font-weight:bold; margin-top:5px;"></div>
+                <div class="display-unit">
+                    <div id="screen">
+                        <div class="sensor-tag" id="scr-tag">BASE: $100</div>
+                        <div class="scan-line" id="scanner"></div>
+                        <div id="scr-body">VEHICLE DETECTED<br>SELECT DESTINATION</div>
                     </div>
-                    <div id="scr-body" style="text-align:center; margin-top:30px;">NHAI SMART TOLL v2.2<br>AWAITING VEHICLE...</div>
-                </div>
-                <div class="keypad-grid">
-                    <button class="num-key" onclick="kp('1')">1</button><button class="num-key" onclick="kp('2')">2</button><button class="num-key" onclick="kp('3')">3</button>
-                    <button class="num-key" onclick="kp('4')">4</button><button class="num-key" onclick="kp('5')">5</button><button class="num-key" onclick="kp('6')">6</button>
-                    <button class="num-key" onclick="kp('7')">7</button><button class="num-key" onclick="kp('8')">8</button><button class="num-key" onclick="kp('9')">9</button>
-                    <button class="num-key" style="background:var(--error)" onclick="kc()">C</button>
-                    <button class="num-key" onclick="kp('0')">0</button>
-                    <button class="num-key" style="background:var(--success)" onclick="confirmAction()">✓</button>
-                </div>
-            </div>
 
-            <div class="payment-bank">
-                <button class="mech-btn" id="btn-cash" onclick="initCashMode()" style="background: #eee;" disabled>Pay Cash</button>
-                <div class="user-card">
-                    <button class="mech-btn" style="width:40px; margin:0; background: #555; color: white;" id="rfid-0" onclick="uSel(0)" disabled>RF</button>
-                    <div style="flex-grow:1">U01: <span id="u0" style="color: var(--success)">$50</span></div>
-                    <button class="topup-btn" onclick="initTopUp(0)">+</button>
+                    <div class="keypad-grid">
+                        <button class="num-key" onclick="kp('1')">1</button>
+                        <button class="num-key" onclick="kp('2')">2</button>
+                        <button class="num-key" onclick="kp('3')">3</button>
+                        <button class="num-key" onclick="kp('4')">4</button>
+                        <button class="num-key" onclick="kp('5')">5</button>
+                        <button class="num-key" onclick="kp('6')">6</button>
+                        <button class="num-key" onclick="kp('7')">7</button>
+                        <button class="num-key" onclick="kp('8')">8</button>
+                        <button class="num-key" onclick="kp('9')">9</button>
+                        <button class="num-key" style="background:#ff4757" onclick="kc()">C</button>
+                        <button class="num-key" onclick="kp('0')">0</button>
+                        <button class="num-key" style="background:var(--success)" onclick="confirmAction()">✓</button>
+                    </div>
                 </div>
-                <div class="user-card">
-                    <button class="mech-btn" style="width:40px; margin:0; background: #555; color: white;" id="rfid-1" onclick="uSel(1)" disabled>RF</button>
-                    <div style="flex-grow:1">U02: <span id="u1" style="color: var(--success)">$150</span></div>
-                    <button class="topup-btn" onclick="initTopUp(1)">+</button>
+
+                <div class="payment-bank">
+                    <div class="user-card">
+                        <button class="mech-btn purple" style="width: 35px; padding: 3px;" onclick="initRecharge(0)">RC</button>
+                        <button class="mech-btn" style="width: 30px; padding: 3px;" onclick="uSel(0)">PAY</button>
+                        <div>U1 <span id="u0" style="color:var(--success)">$200</span></div>
+                    </div>
+                    <div class="user-card">
+                        <button class="mech-btn purple" style="width: 35px; padding: 3px;" onclick="initRecharge(1)">RC</button>
+                        <button class="mech-btn" style="width: 30px; padding: 3px;" onclick="uSel(1)">PAY</button>
+                        <div>U2 <span id="u1" style="color:var(--success)">$500</span></div>
+                    </div>
+
+                    <button class="mech-btn gold" id="btn-cash" onclick="initCashMode()" disabled>CASH</button>
+
+                    <div class="printer-slot">
+                        <div id="paper" class="receipt">
+                            <b id="rcp-head">TOLL RECEIPT</b><br>
+                            <small id="rcp-date"></small>
+                            <hr>
+                            <div id="rcp-v"></div>
+                            <div id="rcp-a" style="font-weight:bold; margin-top: 2px;"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
+
+        <!-- Signal Pass Button (Hidden initially) -->
+        <button id="btn-gate" onclick="openGate()">SIGNAL GREEN & PASS</button>
+
+    </div>
+
+    <div class="footer-bar">
+        <button class="btn" style="background:var(--neon); width: auto; padding: 8px 20px; color:#000;" onclick="saveGame()">SAVE GAME</button>
+        <div style="font-size: 9px; color: #666;">Auto-saves on Level Up</div>
+    </div>
+
+    <!-- Overlay for Level Up / Game Over -->
+    <div id="overlay">
+        <h1 id="ov-title">LEVEL UP!</h1>
+        <p id="ov-text">You are doing great work officer.</p>
+        <button id="ov-btn" onclick="dismissOverlay()" style="background: var(--neon); color: black;">CONTINUE</button>
     </div>
 </div>
 
 <script>
-    const SYSTEM_DATE_STR = "2026-05-02"; // ISO for logic
-    const DISPLAY_DATE = "02-MAY-2026";
-    let BASE_TOLL = 20; 
-    let shiftTotal = 0, vehiclesCount = 0, violatorsCount = 0;
-    
-    document.getElementById('main-date').innerText = "DATE: " + DISPLAY_DATE;
+    /* --- SOUND ENGINE (Web Audio API) --- */
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let activeSounds = [];
 
-    let simState = 'IDLE', currentCar = null;
-    let fareMode = 'IDLE', vType = '', manualFare = 0, uIdx = null, cashTendered = '', topUpAmt = '', currentCity = '';
-    const users = [ {bal: 50}, {bal: 150} ];
-    const CITY_FARES = { 'MUMBAI': 50, 'DELHI': 45, 'CHENNAI': 35, 'BANGALORE': 60 };
-
-    setInterval(() => {
-        const now = new Date();
-        document.getElementById('clock').innerText = now.toLocaleTimeString('en-GB');
-        
-        const hr = now.getHours();
-        const isPeak = (hr >= 8 && hr <= 10) || (hr >= 17 && hr <= 19);
-        BASE_TOLL = isPeak ? 40 : 20;
-    }, 1000);
-
-    // --- LICENSE VALIDATION LOGIC ---
-    function checkLicenseExpiry(expiryDateStr) {
-        const expiry = new Date(expiryDateStr);
-        const systemToday = new Date(SYSTEM_DATE_STR);
-        return expiry < systemToday;
+    function stopActiveSounds() {
+        activeSounds.forEach(s => {
+            try { s.stop(); } catch(e) {}
+        });
+        activeSounds = [];
     }
 
+    function playTone(freq, type, duration, vol=0.1) {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + duration);
+        return osc;
+    }
+
+    function playNoise(duration, vol=0.05) {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        const bufferSize = audioCtx.sampleRate * duration;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = buffer;
+        const gain = audioCtx.createGain();
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(400, audioCtx.currentTime); // Muffled engine sound
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(audioCtx.destination);
+        noise.start(); noise.stop(audioCtx.currentTime + duration);
+        return noise;
+    }
+
+    function sndCarApproach() {
+        stopActiveSounds();
+        const n = playNoise(1.5, 0.08);
+        const t = playTone(80, 'sawtooth', 1.5, 0.03);
+        activeSounds.push(n, t);
+    }
+
+    function sndApprove() { playTone(900, 'sine', 0.1); setTimeout(()=>playTone(1200, 'sine', 0.2), 100); }
+    function sndReject() { playTone(300, 'square', 0.3, 0.05); }
+
+    function sndSiren() {
+        stopActiveSounds();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+        // Rise and fall siren effect
+        osc.frequency.linearRampToValueAtTime(900, audioCtx.currentTime + 0.5);
+        osc.frequency.linearRampToValueAtTime(600, audioCtx.currentTime + 1.0);
+        osc.frequency.linearRampToValueAtTime(900, audioCtx.currentTime + 1.5);
+        osc.frequency.linearRampToValueAtTime(600, audioCtx.currentTime + 2.0);
+        
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 2.5);
+        
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + 2.5);
+        activeSounds.push(osc);
+    }
+
+    function sndGateOpen() {
+        // Mechanical rise and clank
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+        osc.frequency.linearRampToValueAtTime(400, audioCtx.currentTime + 0.4);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+        
+        // Clank
+        setTimeout(() => playTone(100, 'square', 0.1, 0.2), 400);
+        // Green light chime
+        setTimeout(() => { playTone(800, 'sine', 0.1, 0.1); setTimeout(()=>playTone(1200, 'sine', 0.2, 0.1), 100); }, 500);
+    }
+
+    function sndLevelUp() { [600,800,1000,1200].forEach((f,i) => setTimeout(()=>playTone(f,'sine',0.3,0.08), i*100)); }
+    function sndGameOver() { [400,300,200].forEach((f,i) => setTimeout(()=>playTone(f,'square',0.4,0.06), i*200)); }
+    function sndClick() { playTone(1000, 'sine', 0.05, 0.05); }
+    function sndPrint() { playTone(200, 'square', 0.8, 0.02); }
+
+
+    /* --- GAME CONFIG & STATE --- */
+    const LEVELS = [
+        { target: 3, maxFails: 3 }, // Level 1
+        { target: 5, maxFails: 3 }, // Level 2
+        { target: 7, maxFails: 2 }, // Level 3
+        { target: 10, maxFails: 2 }, // Level 4
+        { target: 15, maxFails: 1 }  // Level 5+ (Hardcore)
+    ];
+    const SYSTEM_DATE = new Date("2026-05-02");
+
+    let gameData = {
+        level: 1,
+        greenScore: 0,
+        redScore: 0,
+        users: [ {bal: 200}, {bal: 500} ]
+    };
+
+    let trafficState = 'IDLE';
+    let currentCar = null;
+    let isPaused = false;
+
+    /* Toll Vars */
+    let mode = 'IDLE', vType = '', baseToll = 100, city = '', dist = 0, totalDue = 0, uIdx = null, inputBuffer = '';
+    const ratePerKm = 0.5;
+
+    /* --- INIT & SAVE/LOAD --- */
+    function loadGame() {
+        const saved = localStorage.getItem('nhai_sim_v3');
+        if (saved) {
+            try { gameData = JSON.parse(saved); } catch(e) { localStorage.removeItem('nhai_sim_v3'); }
+        }
+        syncUI();
+        updateClock();
+        setInterval(updateClock, 1000);
+    }
+
+    function saveGame() {
+        localStorage.setItem('nhai_sim_v3', JSON.stringify(gameData));
+        document.getElementById('log').innerText = "GAME SAVED SUCCESSFULLY!";
+        document.getElementById('log').style.color = "var(--neon)";
+        setTimeout(() => { 
+            if(trafficState === 'IDLE' && !isPaused) {
+                document.getElementById('log').innerText = "Awaiting orders."; 
+                document.getElementById('log').style.color = "#888";
+            }
+        }, 2000);
+    }
+
+    function updateClock() {
+        const now = new Date();
+        const d = String(now.getDate()).padStart(2, '0');
+        const m = String(now.getMonth()+1).padStart(2, '0');
+        const y = now.getFullYear();
+        const t = now.toLocaleTimeString('en-GB');
+        document.getElementById('clock').innerText = `${d}-${m}-${y} ${t}`;
+    }
+
+    function getLevelConfig() {
+        return gameData.level <= LEVELS.length ? LEVELS[gameData.level-1] : LEVELS[LEVELS.length-1];
+    }
+
+    function syncUI() {
+        document.getElementById('u0').innerText = "$" + gameData.users[0].bal;
+        document.getElementById('u1').innerText = "$" + gameData.users[1].bal;
+        
+        document.getElementById('ui-level').innerText = "LVL: " + gameData.level;
+        const lvlConfig = getLevelConfig();
+        document.getElementById('ui-green').innerText = "🟢 " + gameData.greenScore + "/" + lvlConfig.target;
+        document.getElementById('ui-red').innerText = "🔴 " + gameData.redScore + "/" + lvlConfig.maxFails;
+    }
+
+    function showOverlay(title, text, btnText, color) {
+        isPaused = true;
+        document.getElementById('ov-title').innerText = title;
+        document.getElementById('ov-title').style.color = color;
+        document.getElementById('ov-text').innerText = text;
+        document.getElementById('ov-btn').innerText = btnText;
+        document.getElementById('ov-btn').style.background = color;
+        document.getElementById('overlay').style.display = "flex";
+    }
+
+    function dismissOverlay() {
+        document.getElementById('overlay').style.display = "none";
+        isPaused = false;
+        resetTraffic();
+    }
+
+    function checkLevelProgress() {
+        const lvlConfig = getLevelConfig();
+        
+        if (gameData.redScore >= lvlConfig.maxFails) {
+            sndGameOver();
+            showOverlay("GAME OVER!", `Too many mistakes. Restarting Level ${gameData.level}.`, "TRY AGAIN", "var(--error)");
+            gameData.greenScore = 0;
+            gameData.redScore = 0;
+            syncUI();
+            saveGame();
+            return true; 
+        }
+
+        if (gameData.greenScore >= lvlConfig.target) {
+            sndLevelUp();
+            gameData.level++;
+            gameData.greenScore = 0;
+            gameData.redScore = 0;
+            saveGame();
+            
+            const newTarget = getLevelConfig().target;
+            showOverlay("LEVEL UP!", `Welcome to Level ${gameData.level}. Clear ${newTarget} vehicles correctly!`, "CONTINUE", "var(--neon)");
+            syncUI();
+            return true;
+        }
+        syncUI();
+        return false; 
+    }
+
+    /* --- TRAFFIC & INSPECTION LOGIC --- */
     function triggerTraffic() {
-        if (simState !== 'IDLE') return;
-        simState = 'INSPECT';
-        
-        // Random Expiry Generator (20% chance of being expired)
-        const randomYear = Math.random() < 0.2 ? 2025 : 2027;
-        const randomMonth = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0');
-        const expiryDate = `${randomYear}-${randomMonth}-15`;
+        if (trafficState !== 'IDLE' || isPaused) return;
 
-        const isFlagged = Math.random() < 0.10; // Criminal flag
-        const isExpired = checkLicenseExpiry(expiryDate);
+        sndCarApproach(); // Engine sound
 
-        currentCar = { 
-            plate: "IND-" + (Math.floor(Math.random()*89)+10) + "-TX-" + (Math.floor(Math.random()*8999)+1000), 
-            flagged: isFlagged,
-            expiry: expiryDate,
-            expired: isExpired
+        const expiredChance = 0.25 + (gameData.level * 0.05); 
+        const isExpiring = Math.random() < expiredChance;
+        const year = isExpiring ? 2024 + Math.floor(Math.random()*2) : 2027 + Math.floor(Math.random()*3);
+        const month = String(Math.floor(Math.random()*12)+1).padStart(2, '0');
+        const day = String(Math.floor(Math.random()*28)+1).padStart(2, '0');
+
+        currentCar = {
+            plate: "IND-" + (Math.floor(Math.random()*89)+10) + "-TX-" + (Math.floor(Math.random()*8999)+1000),
+            expiry: `${year}-${month}-${day}`,
+            isValid: (new Date(`${year}-${month}-${day}`) > SYSTEM_DATE)
         };
-        
-        document.getElementById('gate-bar').style.transform = 'rotate(0deg)';
+
         document.getElementById('light-red').classList.add('active');
         document.getElementById('light-green').classList.remove('active');
-        document.getElementById('btn-signal-green').disabled = true;
-        document.getElementById('payment-status').innerText = "PENDING";
+
+        document.getElementById('ui-plate').innerText = "----";
+        document.getElementById('ui-lic').innerText = "----";
+        document.getElementById('log').innerText = "Vehicle approaching.";
+        document.getElementById('log').style.color = "#aaa";
         
         const carEl = document.getElementById('car');
         carEl.style.transition = 'none';
-        
-        // Visual indicator: Red if either flagged or expired
-        carEl.className = 'car-sim' + (isFlagged || isExpired ? ' violator' : ''); 
+        carEl.className = 'car-sim'; 
         carEl.style.left = '-100px';
+        carEl.style.top = '55%';
+        carEl.style.opacity = '1';
+        carEl.style.transform = 'scaleX(1)';
+
+        const policeEl = document.getElementById('police');
+        policeEl.style.transition = 'none';
+        policeEl.className = 'police-car';
+        policeEl.style.left = '-150px';
 
         setTimeout(() => {
+            trafficState = 'INSPECT';
             carEl.style.transition = 'all 1.2s ease-out';
             carEl.classList.add('move-inspect');
+            
             setTimeout(() => {
                 document.getElementById('ui-plate').innerText = currentCar.plate;
-                document.getElementById('ui-expiry').innerText = currentCar.expiry;
-                
-                // Set Alert Status
-                const statusEl = document.getElementById('ui-status');
-                if(currentCar.flagged) {
-                    statusEl.innerText = "!! CRIMINAL ALERT !!";
-                    statusEl.style.color = "var(--error)";
-                } else if(currentCar.expired) {
-                    statusEl.innerText = "!! EXPIRED LICENSE !!";
-                    statusEl.style.color = "var(--gold)";
-                } else {
-                    statusEl.innerText = "CLEAN";
-                    statusEl.style.color = "var(--success)";
-                }
-
+                document.getElementById('ui-lic').innerText = currentCar.expiry;
                 document.getElementById('btn-ok').disabled = false;
                 document.getElementById('btn-no').disabled = false;
                 document.getElementById('btn-next').disabled = true;
@@ -284,190 +619,172 @@
     }
 
     function officerReview(approved) {
+        if(trafficState !== 'INSPECT') return;
         document.getElementById('btn-ok').disabled = true;
         document.getElementById('btn-no').disabled = true;
+        stopActiveSounds(); // Stop engine noise
+
         if (approved) {
-            document.getElementById('car').classList.add('move-pay');
-            setTimeout(() => {
-                document.getElementById('fare-modal').style.display = 'flex';
-                resetConsole();
-            }, 1300);
+            if (!currentCar.isValid) {
+                sndReject();
+                document.getElementById('log').innerText = "🔴 MISS! EXPIRED LICENSE APPROVED!";
+                document.getElementById('log').style.color = "var(--error)";
+                gameData.redScore++; 
+                if(checkLevelProgress()) return; 
+                
+                document.getElementById('car').classList.add('move-pay');
+                trafficState = 'PAYMENT';
+                setTimeout(() => initTollSystem(), 1300);
+
+            } else {
+                sndApprove();
+                document.getElementById('log').innerText = "🟢 CLEAR! Proceeding to toll.";
+                document.getElementById('log').style.color = "var(--success)";
+                
+                document.getElementById('car').classList.add('move-pay');
+                trafficState = 'PAYMENT';
+                setTimeout(() => initTollSystem(), 1300);
+            }
+
         } else {
-            document.getElementById('car').classList.add('move-uturn');
-            document.getElementById('log').innerText = "Access Denied: Vehicle Turned Away";
-            setTimeout(fullReset, 2500);
+            if (currentCar.isValid) {
+                sndReject();
+                document.getElementById('log').innerText = "🔴 MISS! VALID DRIVER REJECTED!";
+                document.getElementById('log').style.color = "var(--error)";
+                gameData.redScore++; 
+                if(checkLevelProgress()) return; 
+                
+                document.getElementById('car').classList.add('move-uturn');
+                setTimeout(resetTraffic, 2500);
+            } else {
+                sndSiren(); // Start police siren
+                document.getElementById('log').innerText = "🟢 CAUGHT! Police arriving!";
+                document.getElementById('log').style.color = "var(--gold)";
+                trafficState = 'ARREST'; 
+                
+                const carEl = document.getElementById('car');
+                const policeEl = document.getElementById('police');
+                
+                setTimeout(() => {
+                    carEl.classList.add('move-arrest');
+                    policeEl.style.transition = 'all 1.5s ease-out';
+                    policeEl.classList.add('police-arrive');
+                }, 500);
+
+                setTimeout(() => {
+                    carEl.style.transition = 'all 2s ease-in';
+                    carEl.style.left = '110%';
+                    policeEl.classList.add('police-leave');
+                    stopActiveSounds(); // Stop siren as they leave
+                }, 2500);
+
+                gameData.greenScore++; 
+                if(checkLevelProgress()) return; 
+                
+                setTimeout(resetTraffic, 4500);
+            }
         }
+    }
+
+    /* --- TOLL DASHBOARD LOGIC --- */
+    function initTollSystem() {
+        mode = 'IDLE'; vType = 'LVM_CLASS_1'; city = ''; dist = 0; totalDue = 0; inputBuffer = '';
+        const tollUI = document.getElementById('toll-ui');
+        tollUI.classList.add('toll-active');
+        
+        document.getElementById('scanner').style.display = 'block';
+        updateScr("SCANNING AXLES...");
+        
+        setTimeout(() => {
+            document.getElementById('scanner').style.display = 'none';
+            mode = 'SELECT_CITY';
+            updateScr(`VEHICLE: ${vType}<br>BASE: $${baseToll}<br>SELECT DESTINATION`);
+            for(let i=1; i<=5; i++) document.getElementById('city-'+i).disabled = false;
+        }, 1200);
+    }
+
+    function setCity(name, kms) {
+        sndClick();
+        city = name; dist = kms;
+        let distFare = kms * ratePerKm;
+        totalDue = baseToll + distFare;
+        mode = 'PAYMENT_SEL';
+        updateScr(`DEST: ${city} (${kms}km)<br>DIST: $${distFare.toFixed(2)}<br><span style="color:var(--gold)">DUE: $${totalDue.toFixed(2)}</span>`);
+        document.getElementById('btn-cash').disabled = false;
+    }
+
+    function initRecharge(idx) { sndClick(); mode = 'RECHARGE'; uIdx = idx; inputBuffer = ''; updateScr(`RECHARGE CARD 0${idx+1}<br>ENTER AMT & PRESS ✓`); }
+
+    function uSel(idx) {
+        sndClick();
+        if(mode === 'PAYMENT_SEL') {
+            uIdx = idx; mode = 'PAY_RFID';
+            updateScr(`RFID 0${idx+1}<br>BAL: $${gameData.users[idx].bal}<br>DEDUCT $${totalDue.toFixed(2)}? ✓`);
+        }
+    }
+
+    function initCashMode() { sndClick(); if(mode === 'PAYMENT_SEL') { mode = 'PAY_CASH'; inputBuffer = ''; updateScr(`TOTAL: $${totalDue.toFixed(2)}<br>INPUT CASH:`); } }
+
+    function kp(n) { sndClick(); if(!['RECHARGE', 'PAY_CASH'].includes(mode)) return; inputBuffer += n; updateScr(`${mode}:<br><span style="color:var(--gold); font-size: 20px;">$${inputBuffer}</span>`); }
+    function kc() { sndClick(); inputBuffer = ''; updateScr("CLEARED"); }
+
+    function confirmAction() {
+        sndClick();
+        if (mode === 'RECHARGE' && inputBuffer) { gameData.users[uIdx].bal += parseInt(inputBuffer); finalize("TOP-UP SUCCESS", `+$${inputBuffer}`); }
+        else if (mode === 'PAY_CASH' && parseInt(inputBuffer) >= totalDue) { let change = parseInt(inputBuffer) - totalDue; finalize("PAID CASH", `$${totalDue} (CHG: $${change})`); }
+        else if (mode === 'PAY_RFID' && gameData.users[uIdx].bal >= totalDue) { gameData.users[uIdx].bal -= totalDue; finalize("RFID SUCCESS", `$${totalDue}`); }
+        else if (mode === 'PAY_RFID') { updateScr("<span style='color:var(--error)'>LOW BALANCE</span><br>RECHARGE REQUIRED"); }
+        else if (mode === 'PAY_CASH') { updateScr("<span style='color:var(--error)'>INSUFFICIENT CASH</span>"); }
+    }
+
+    function finalize(head, amt) {
+        sndPrint(); syncUI();
+        updateScr(`<span style="color:var(--success)">TRANSACTION OK</span><br>${head}`);
+        document.getElementById('rcp-head').innerText = head;
+        document.getElementById('rcp-date').innerText = new Date().toLocaleString();
+        document.getElementById('rcp-v').innerText = city ? `${vType} to ${city}` : "RECHARGE";
+        document.getElementById('rcp-a').innerText = "AMT: " + amt;
+        document.getElementById('paper').classList.add('print-active');
+        setTimeout(() => { document.getElementById('paper').classList.remove('print-active'); hideTollAndShowGate(); }, 3000);
+    }
+
+    function hideTollAndShowGate() {
+        document.getElementById('toll-ui').classList.remove('toll-active');
+        document.getElementById('light-red').classList.remove('active');
+        document.getElementById('light-green').classList.add('active');
+        document.getElementById('log').innerText = "Payment Done. Pass the vehicle.";
+        document.getElementById('log').style.color = "var(--success)";
+        document.getElementById('btn-gate').style.display = 'block';
     }
 
     function openGate() {
-        if((currentCar.flagged || currentCar.expired) && document.getElementById('payment-status').innerText === "PENDING") {
-            document.getElementById('log').innerText = "ALERT: UNAUTHORIZED BREACH!";
-            violatorsCount++;
+        sndGateOpen();
+        document.getElementById('btn-gate').style.display = 'none';
+        if(currentCar && currentCar.isValid && trafficState === 'PAYMENT') {
+            gameData.greenScore++;
+            checkLevelProgress();
         }
-
-        document.getElementById('btn-signal-green').disabled = true;
-        document.getElementById('gate-bar').style.transform = 'rotate(-90deg)';
-        document.getElementById('light-red').classList.remove('active');
-        document.getElementById('light-green').classList.add('active');
-        
-        setTimeout(() => {
-            const carEl = document.getElementById('car');
-            if(currentCar.flagged || currentCar.expired) {
-                carEl.classList.add('speed-away');
-            } else {
-                carEl.classList.add('move-exit');
-            }
-            vehiclesCount++;
-            setTimeout(fullReset, 2200);
-        }, 500);
+        document.getElementById('car').classList.add('move-exit');
+        setTimeout(resetTraffic, 2000);
     }
 
-    function fullReset() {
-        simState = 'IDLE';
+    /* --- UTILITY --- */
+    function updateScr(txt) { document.getElementById('scr-body').innerHTML = txt; }
+
+    function resetTraffic() {
+        trafficState = 'IDLE';
+        document.getElementById('light-red').classList.add('active');
+        document.getElementById('light-green').classList.remove('active');
         document.getElementById('btn-next').disabled = false;
-        document.getElementById('ui-plate').innerText = "----";
-        document.getElementById('ui-expiry').innerText = "--/--/----";
-        document.getElementById('ui-status').innerText = "----";
-        document.getElementById('ui-status').style.color = "white";
-        document.getElementById('log').innerText = "System Ready.";
-    }
-
-    function resetConsole() {
-        fareMode = 'IDLE'; vType = ''; manualFare = 0; cashTendered = ''; topUpAmt = ''; currentCity = '';
-        document.getElementById('detection-info').innerText = "Awaiting...";
-        updateFareScr("NHAI SMART TOLL v2.2<br>DETECT VEHICLE TO CONTINUE");
+        if (!isPaused) { document.getElementById('log').innerText = "Awaiting orders."; document.getElementById('log').style.color = "#888"; }
+        mode = 'IDLE'; inputBuffer = '';
+        document.querySelectorAll('.sidebar-toll button').forEach(btn => btn.disabled = true);
         document.getElementById('btn-cash').disabled = true;
-        document.getElementById('rfid-0').disabled = true;
-        document.getElementById('rfid-1').disabled = true;
+        document.getElementById('toll-ui').classList.remove('toll-active');
+        document.getElementById('btn-gate').style.display = 'none';
     }
 
-    function detectVehicle() {
-        updateFareScr("SCANNING...");
-        setTimeout(() => {
-            vType = ['CAR', 'VAN', 'TRUCK'][Math.floor(Math.random()*3)];
-            document.getElementById('detection-info').innerText = `DETECTED: ${vType}`;
-            
-            let html = `VEHICLE: ${vType}<br>OFFICER: SELECT DESTINATION<div class="city-grid">`;
-            for(let city in CITY_FARES) html += `<button class="mech-btn gold" onclick="applyDestination('${city}')">${city}</button>`;
-            updateFareScr(html + `</div>`);
-        }, 800);
-    }
-
-    function applyDestination(city) {
-        currentCity = city;
-        const destFare = CITY_FARES[city];
-        manualFare = BASE_TOLL + destFare; 
-        fareMode = 'SELECT_PAY';
-        
-        updateFareScr(`
-            <div style="text-align:left; font-size:11px; margin: 0 auto; width: 200px;">
-                DESTINATION: ${city}<br>
-                BASE (PEAK ADJ): $${BASE_TOLL}<br>
-                DEST. FEE: $${destFare}
-            </div>
-            <hr style="border:0; border-top:1px solid #333; width:80%">
-            TOTAL: <span style="font-size:24px; color:var(--gold)">$${manualFare}</span><br>
-            CHOOSE PAYMENT METHOD
-        `);
-        enablePaymentButtons();
-    }
-
-    function startFareInput() {
-        fareMode = 'INPUT_FARE';
-        manualFare = "";
-        updateFareScr("MANUAL OVERRIDE:<br>ENTER AMOUNT THEN PRESS ✓");
-    }
-
-    function initTopUp(idx) {
-        fareMode = 'TOP_UP';
-        uIdx = idx;
-        topUpAmt = '';
-        updateFareScr(`TOP-UP USER 0${idx+1}<br>ENTER AMOUNT THEN PRESS ✓<br><span style="color:var(--success)">$0</span>`);
-    }
-
-    function initCashMode() {
-        fareMode = 'PAY_CASH';
-        cashTendered = "";
-        updateFareScr(`TOTAL DUE: $${manualFare}<br>ENTER CASH TENDERED THEN ✓`);
-    }
-
-    function enablePaymentButtons() {
-        document.getElementById('btn-cash').disabled = false;
-        document.getElementById('rfid-0').disabled = false;
-        document.getElementById('rfid-1').disabled = false;
-    }
-
-    function kp(n) {
-        if(fareMode === 'INPUT_FARE') {
-            manualFare = (manualFare === "0") ? n : manualFare + n;
-            updateFareScr(`MANUAL FARE:<br><span style="font-size:32px; color:var(--gold)">$${manualFare}</span>`);
-        } else if (fareMode === 'PAY_CASH') {
-            cashTendered += n;
-            updateFareScr(`DUE: $${manualFare}<br>TENDERED: <span style="font-size:32px; color:var(--gold)">$${cashTendered}</span>`);
-        } else if (fareMode === 'TOP_UP') {
-            topUpAmt += n;
-            updateFareScr(`TOP-UP USER 0${uIdx+1}<br>AMOUNT: <span style="font-size:32px; color:var(--success)">$${topUpAmt}</span>`);
-        }
-    }
-
-    function kc() {
-        manualFare = ""; cashTendered = ""; topUpAmt = "";
-        updateFareScr("CLEARED");
-    }
-
-    function confirmAction() {
-        if(fareMode === 'INPUT_FARE') {
-            if(!manualFare) return;
-            manualFare = parseInt(manualFare);
-            fareMode = 'SELECT_PAY';
-            updateFareScr(`MANUAL FARE: $${manualFare}<br>SELECT PAYMENT METHOD`);
-            enablePaymentButtons();
-        } 
-        else if (fareMode === 'PAY_CASH') {
-            let paid = parseInt(cashTendered || 0);
-            if(paid >= manualFare) {
-                updateFareScr(`<span style="color:var(--success)">PAID CASH. CHANGE: $${paid - manualFare}</span>`);
-                finalizePayment();
-            } else updateFareScr(`<span style="color:var(--error)">SHORTAGE: $${manualFare - paid}</span>`);
-        }
-        else if (fareMode === 'TOP_UP') {
-            if(!topUpAmt) return;
-            users[uIdx].bal += parseInt(topUpAmt);
-            document.getElementById('u'+uIdx).innerText = "$"+users[uIdx].bal;
-            updateFareScr(`<span style="color:var(--success)">TOP-UP SUCCESSFUL!</span>`);
-            setTimeout(resetConsole, 1500);
-        }
-    }
-
-    function uSel(idx) {
-        if(users[idx].bal >= manualFare) {
-            users[idx].bal -= manualFare;
-            document.getElementById('u'+idx).innerText = "$"+users[idx].bal;
-            updateFareScr(`<span style="color:var(--success)">RFID AUTHORIZED</span>`);
-            finalizePayment();
-        } else updateFareScr("<span style='color:var(--error)'>INSUFFICIENT FUNDS</span>");
-    }
-
-    function finalizePayment() {
-        shiftTotal += manualFare;
-        document.getElementById('rcp-date').innerText = new Date().toLocaleString();
-        document.getElementById('rcp-v').innerText = `TYPE: ${vType || "MANUAL"} | DEST: ${currentCity || "NA"}`;
-        document.getElementById('rcp-a').innerText = "PAID: $" + manualFare;
-        document.getElementById('paper').classList.add('print-active');
-        document.getElementById('payment-status').innerText = "PAID: $" + manualFare;
-        document.getElementById('payment-status').style.color = "var(--success)";
-        setTimeout(() => {
-            document.getElementById('fare-modal').style.display = 'none';
-            document.getElementById('btn-signal-green').disabled = false;
-            document.getElementById('paper').classList.remove('print-active');
-        }, 2000);
-    }
-
-    function showSummary() {
-        alert(`--- NHAI SHIFT REPORT ---\nTotal Vehicles: ${vehiclesCount}\nTotal Revenue: $${shiftTotal}\nViolations (Breaches): ${violatorsCount}`);
-    }
-
-    function updateFareScr(t) { document.getElementById('scr-body').innerHTML = t; }
+    window.onload = loadGame;
 </script>
 
 </body>
