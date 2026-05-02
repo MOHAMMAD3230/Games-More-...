@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NHAI Toll - Signal Based Control</title>
+    <style>
+        :root { 
+            --neon: #00d9ff; --error: #ff4757; --success: #2ed573; 
+            --gold: #ffa502; --frame-bg: #333; --road-bg: #1a1a1a;
+        }
+
+        body { 
+            background: #0f0f0f; display: flex; justify-content: center; 
+            align-items: center; height: 100vh; margin: 0; 
+            font-family: 'Segoe UI', sans-serif; color: white; 
+        }
+        
+        .main-container { 
+            background: var(--frame-bg); padding: 25px; border-radius: 12px; 
+            border: 4px solid #444; width: 900px;
+        }
+
+        #road-canvas {
+            width: 100%; height: 160px; background: var(--road-bg);
+            border-top: 4px solid #555; border-bottom: 4px solid #555;
+            position: relative; overflow: hidden; margin-bottom: 20px;
+            display: flex; align-items: center;
+        }
+
+        .lane-marking {
+            position: absolute; width: 100%; height: 2px; 
+            border-top: 2px dashed #444; top: 50%;
+        }
+
+        /* Booths */
+        .booth {
+            position: absolute; top: 0; width: 60px; height: 35px;
+            background: #444; border: 2px solid #666; font-size: 10px;
+            text-align: center; line-height: 35px; color: #aaa;
+        }
+        .inspection-booth { left: 220px; border-color: var(--neon); color: var(--neon); }
+        .payment-booth { left: 470px; border-color: var(--gold); color: var(--gold); }
+
+        /* Traffic Signal */
+        .signal-post {
+            position: absolute; left: 580px; top: 30px; width: 12px; height: 100px;
+            background: #222; border-radius: 6px; display: flex; flex-direction: column;
+            align-items: center; justify-content: space-around; padding: 5px 0;
+            border: 2px solid #444;
+        }
+        .light {
+            width: 15px; height: 15px; border-radius: 50%; background: #333;
+            transition: 0.3s;
+        }
+        .light.red { background: #500; }
+        .light.red.active { background: #ff0000; box-shadow: 0 0 15px #ff0000; }
+        .light.green { background: #050; }
+        .light.green.active { background: #00ff00; box-shadow: 0 0 15px #00ff00; }
+
+        /* Vehicle */
+        .car-sim { 
+            width: 75px; height: 42px; background: #3498db; border-radius: 4px; 
+            position: absolute; left: -100px; z-index: 10;
+            transition: all 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .car-sim::after { content: ''; position: absolute; right: 8px; top: 5px; width: 15px; height: 32px; background: #99f1ff; border-radius: 2px; }
+
+        /* Movement Classes */
+        .move-inspect { left: 210px !important; }
+        .move-pay { left: 460px !important; }
+        .move-exit { left: 110% !important; transition: 2s ease-in !important; }
+        .move-uturn { transform: scaleX(-1); left: -150px !important; transition: 2s ease-in-out !important; }
+
+        /* UI Panels */
+        .dashboard { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+        .panel { background: #222; padding: 15px; border-radius: 8px; border: 1px solid #444; }
+        .data-screen { background: #000; padding: 10px; font-family: monospace; border: 1px solid #333; margin: 10px 0; }
+        
+        .btn {
+            width: 100%; padding: 12px; margin-top: 8px; border: none; border-radius: 4px;
+            cursor: pointer; font-weight: bold; color: white; text-transform: uppercase;
+        }
+        .btn:disabled { opacity: 0.2; filter: grayscale(1); }
+    </style>
+</head>
+<body>
+
+<div class="main-container">
+    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+        <span style="color: var(--neon)">● NHAI SIGNAL CONTROL TERMINAL</span>
+        <span style="color: var(--gold)">DATE: 02-MAY-2026</span>
+    </div>
+
+    <div id="road-canvas">
+        <div class="booth inspection-booth">INSPECT</div>
+        <div class="booth payment-booth">PLAZA</div>
+        <div class="lane-marking"></div>
+        
+        <div class="signal-post">
+            <div id="light-red" class="light red active"></div>
+            <div id="light-green" class="light green"></div>
+        </div>
+        
+        <div id="car" class="car-sim"></div>
+    </div>
+
+    <div class="dashboard">
+        <!-- STAGE 1 -->
+        <div class="panel">
+            <small style="color: #888">TRAFFIC MANAGER</small>
+            <button id="btn-next" class="btn" style="background:#4a69bd" onclick="triggerTraffic()">Send Next Vehicle</button>
+            <p id="log" style="font-size: 11px; color: #888; margin-top: 10px;">System operational.</p>
+        </div>
+
+        <!-- STAGE 2 -->
+        <div class="panel">
+            <small style="color: var(--neon)">OFFICER INSPECTION</small>
+            <div class="data-screen">
+                PLATE: <span id="ui-plate">----</span><br>
+                EXPIRY: <span id="ui-lic">----</span>
+            </div>
+            <div style="display: flex; gap: 5px;">
+                <button id="btn-ok" class="btn" style="background:var(--success)" onclick="officerReview(true)" disabled>APPROVE</button>
+                <button id="btn-no" class="btn" style="background:var(--error)" onclick="officerReview(false)" disabled>REJECT</button>
+            </div>
+        </div>
+
+        <!-- STAGE 3 -->
+        <div class="panel">
+            <small style="color: var(--gold)">TOLL PAYMENT</small>
+            <div class="data-screen" style="text-align: center; font-size: 1.2em;">
+                TOLL: <span id="ui-fee">$0.00</span>
+            </div>
+            <button id="btn-pay" class="btn" style="background:#f39c12" onclick="collectToll()" disabled>Collect & Signal Green</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const SYSTEM_DATE = new Date("2026-05-02");
+    let state = 'IDLE';
+    let currentCar = null;
+
+    function triggerTraffic() {
+        if (state !== 'IDLE') return;
+
+        // Random Car Data
+        const isExpiring = Math.random() < 0.4;
+        const year = isExpiring ? 2024 + Math.floor(Math.random()*2) : 2027 + Math.floor(Math.random()*3);
+        const month = String(Math.floor(Math.random()*12)+1).padStart(2, '0');
+        const day = String(Math.floor(Math.random()*28)+1).padStart(2, '0');
+
+        currentCar = {
+            plate: "IND-" + (Math.floor(Math.random()*89)+10) + "-TX-" + (Math.floor(Math.random()*8999)+1000),
+            expiry: `${year}-${month}-${day}`,
+            isValid: (new Date(`${year}-${month}-${day}`) > SYSTEM_DATE)
+        };
+
+        // Reset Lights
+        document.getElementById('light-red').classList.add('active');
+        document.getElementById('light-green').classList.remove('active');
+
+        // Reset UI
+        document.getElementById('ui-plate').innerText = "----";
+        document.getElementById('ui-lic').innerText = "----";
+        document.getElementById('ui-fee').innerText = "$0.00";
+        document.getElementById('log').innerText = "Vehicle at inspection point.";
+        
+        const carEl = document.getElementById('car');
+        carEl.style.transition = 'none';
+        carEl.className = 'car-sim'; 
+        carEl.style.left = '-100px';
+        carEl.style.transform = 'scaleX(1)';
+
+        setTimeout(() => {
+            state = 'INSPECT';
+            carEl.style.transition = 'all 1.2s ease-out';
+            carEl.classList.add('move-inspect');
+            
+            setTimeout(() => {
+                document.getElementById('ui-plate').innerText = currentCar.plate;
+                document.getElementById('ui-lic').innerText = currentCar.expiry;
+                document.getElementById('btn-ok').disabled = false;
+                document.getElementById('btn-no').disabled = false;
+                document.getElementById('btn-next').disabled = true;
+            }, 1200);
+        }, 50);
+    }
+
+    function officerReview(approved) {
+        document.getElementById('btn-ok').disabled = true;
+        document.getElementById('btn-no').disabled = true;
+
+        if (approved) {
+            if (!currentCar.isValid) {
+                document.getElementById('log').innerText = "WARNING: EXPIRED LICENSE APPROVED!";
+                document.getElementById('log').style.color = "var(--error)";
+            } else {
+                document.getElementById('log').innerText = "License Clear. Move to payment.";
+                document.getElementById('log').style.color = "var(--success)";
+            }
+
+            document.getElementById('car').classList.add('move-pay');
+            state = 'PAYMENT';
+            
+            setTimeout(() => {
+                document.getElementById('ui-fee').innerText = "$50.00";
+                document.getElementById('btn-pay').disabled = false;
+            }, 1300);
+
+        } else {
+            document.getElementById('log').innerText = currentCar.isValid ? "Mistake: You rejected a valid driver." : "Correct: Expired driver stopped.";
+            document.getElementById('car').classList.add('move-uturn');
+            setTimeout(resetSystem, 2500);
+        }
+    }
+
+    function collectToll() {
+        document.getElementById('btn-pay').disabled = true;
+        document.getElementById('log').innerText = "Payment Received. Signal Green.";
+        
+        // Change Signal to Green
+        document.getElementById('light-red').classList.remove('active');
+        document.getElementById('light-green').classList.add('active');
+        
+        setTimeout(() => {
+            document.getElementById('car').classList.add('move-exit');
+            setTimeout(resetSystem, 2000);
+        }, 800);
+    }
+
+    function resetSystem() {
+        state = 'IDLE';
+        document.getElementById('light-red').classList.add('active');
+        document.getElementById('light-green').classList.remove('active');
+        document.getElementById('btn-next').disabled = false;
+        document.getElementById('ui-fee').innerText = "$0.00";
+        document.getElementById('log').style.color = "#888";
+    }
+</script>
+
+</body>
+</html>
