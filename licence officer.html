@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NHAI MASTER v14.0 - PLATE APPROVAL</title>
+    <style>
+        :root { 
+            --neon: #00d9ff; --error: #ff4757; --success: #2ed573; 
+            --gold: #ffa502; --frame-bg: #222; --body-bg: #050505;
+            --screen-bg: #000b1a; --bribe: #ff9ff3; --hotlist: #eb4d4b;
+        }
+
+        * { box-sizing: border-box; font-family: 'Courier New', monospace; }
+        body { background: var(--body-bg); color: white; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 10px; overflow: hidden; }
+
+        .console-unit { 
+            background: var(--frame-bg); padding: 15px; border-radius: 12px; 
+            border: 10px solid #111; box-shadow: 0 0 80px #000; width: 100%; max-width: 1300px;
+            display: flex; flex-direction: column; gap: 12px; position: relative;
+        }
+
+        /* Plate Feed Visual */
+        #plate-zoom {
+            position: absolute; right: 20px; top: 80px; width: 240px; background: #000;
+            border: 4px solid #444; padding: 10px; z-index: 60; display: none; text-align: center;
+        }
+        .plate-visual {
+            background: #eee; color: #111; font-size: 24px; font-weight: bold; 
+            padding: 10px; border-radius: 4px; border: 2px solid #333; letter-spacing: 2px;
+            text-shadow: 1px 1px 0px rgba(0,0,0,0.2);
+        }
+
+        .hotlist-ui {
+            background: rgba(235, 77, 75, 0.1); border: 1px solid var(--hotlist);
+            padding: 5px; margin-top: 5px; font-size: 9px; color: var(--hotlist);
+        }
+
+        #road-canvas { width: 100%; height: 240px; background: #111; border: 3px solid #333; position: relative; overflow: hidden; }
+        
+        .gate-post { position: absolute; right: 15%; bottom: 10%; width: 14px; height: 100px; background: #333; }
+        .gate-arm { position: absolute; right: 15%; bottom: 100px; width: 120px; height: 12px; background: repeating-linear-gradient(90deg, #fff, #fff 12px, #f00 12px, #f00 24px); transform-origin: right center; transition: 0.8s; z-index: 6; }
+        .gate-open { transform: rotate(-95deg); }
+
+        .dash-grid { display: grid; grid-template-columns: 280px 1fr 280px; gap: 15px; }
+        .terminal-screen { background: var(--screen-bg); border: 4px solid #000; height: 190px; color: var(--neon); font-size: 13px; position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+
+        .btn { width: 100%; padding: 12px 5px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 10px; text-transform: uppercase; color: white; background: #333; box-shadow: 0 4px 0 #000; margin-bottom: 6px; }
+        .btn:active { transform: translateY(2px); }
+        .btn-blue { background: #3b4f91; }
+        .btn-gold { background: var(--gold); color: #000; }
+        .btn-red { background: var(--error); }
+        .btn-bribe { background: var(--bribe); color: #000; }
+
+        .v-body { position: absolute; bottom: 20%; left: -250px; z-index: 10; transition: all 1.8s ease; }
+        .v-car { width: 70px; height: 35px; background: #2980b9; border-radius: 4px; }
+        .v-truck { width: 130px; height: 55px; background: #555; border-radius: 4px; }
+        
+        .move-inspect { left: 10% !important; }
+        .move-pay { left: 65% !important; }
+        .move-exit { left: 130% !important; transition: 3s ease-in !important; }
+    </style>
+</head>
+<body>
+
+<div id="plate-zoom">
+    <div style="font-size:9px; color:var(--neon); margin-bottom:5px; text-align:left;">LIVE OPTICAL FEED</div>
+    <div id="plate-display" class="plate-visual">ABC-123</div>
+    <div id="plate-warning" style="font-size:8px; color:var(--hotlist); margin-top:5px; display:none;">HOTLIST MATCH DETECTED!</div>
+</div>
+
+<div class="console-unit">
+    <div class="header-bar">
+        <span class="stat-box">OFFICER: <b>ASHRAF ALI</b></span>
+        <span class="stat-box">BOUNTY: $<b id="ui-bounty">0</b></span>
+        <span class="stat-box">REV: $<b id="ui-rev">0</b></span>
+        <div class="hotlist-ui">HOTLIST: <span id="hotlist-plates">KL-08, MH-12, DL-01</span></div>
+    </div>
+
+    <div id="road-canvas">
+        <div id="gate-arm" class="gate-arm"></div>
+        <div id="v-element" class="v-body"></div>
+    </div>
+
+    <div class="dash-grid">
+        <div class="panel">
+            <button class="btn btn-blue" id="btn-disp" onclick="dispatch()">DISPATCH UNIT</button>
+            
+            <div id="act-plate" style="display:none;">
+                <button class="btn btn-success" style="background:var(--success)" onclick="approvePlate()">APPROVE PLATE</button>
+                <button class="btn btn-red" onclick="flagPlate()">FLAG & REPORT</button>
+                <button class="btn btn-bribe" id="btn-plate-bribe" style="display:none;" onclick="plateBribe()">PLATE OVERRIDE ($400)</button>
+            </div>
+
+            <div id="act-toll" style="display:none;">
+                <button class="btn btn-gold" onclick="collectToll()">COLLECT TOLL</button>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="terminal-screen" id="terminal-box">
+                <div id="main-scr">NHAI MASTER v14.0<br>LICENSE APPROVAL READY</div>
+            </div>
+            <button class="btn btn-green" id="btn-gate" style="display:none; margin-top:10px;" onclick="openGate()">RELEASE VEHICLE</button>
+        </div>
+
+        <div class="panel">
+            <div style="font-size:10px; color:#888;">SYSTEM OCR READOUT</div>
+            <div id="info-scr" style="background:#000; padding:10px; font-size:14px; color:var(--neon); border:1px solid #333; min-height:80px; text-align:center;">
+                ----
+            </div>
+            <div style="margin-top:10px; font-size:9px; color:#888;">
+                RULE: Approve only if Visual matches OCR exactly. Flag Hotlist for Bonus.
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let state = {
+        rev: 0, bounty: 0, hotlist: ["KL-08", "MH-12", "DL-01"]
+    };
+    let cur = null;
+
+    function dispatch() {
+        document.getElementById('btn-disp').disabled = true;
+        const types = [{n:'Private', c:'v-car'}, {n:'Truck', c:'v-truck'}];
+        const t = types[Math.floor(Math.random()*types.length)];
+        
+        // Randomly generate a plate and a potential OCR mismatch
+        const prefix = state.hotlist[Math.floor(Math.random() * state.hotlist.length)];
+        const isHot = Math.random() > 0.7;
+        const visualPlate = isHot ? prefix + "-" + Math.floor(1000 + Math.random() * 8999) : "GJ-05-" + Math.floor(1000 + Math.random() * 8999);
+        
+        // OCR glitch: 8 becomes B
+        const hasGlitch = Math.random() > 0.5;
+        let ocrRead = visualPlate;
+        if(hasGlitch) ocrRead = ocrRead.replace(/8/g, "B").replace(/0/g, "O");
+
+        cur = {
+            ...t,
+            visual: visualPlate,
+            ocr: ocrRead,
+            isHot: isHot,
+            hasGlitch: hasGlitch && ocrRead !== visualPlate,
+            bribeOffered: Math.random() > 0.8 && hasGlitch
+        };
+
+        const el = document.getElementById('v-element');
+        el.className = `v-body ${cur.c} move-inspect`;
+        updateMainScr("UNIT AT SENSOR");
+        
+        setTimeout(() => {
+            document.getElementById('plate-zoom').style.display = 'block';
+            document.getElementById('plate-display').innerText = cur.visual;
+            document.getElementById('info-scr').innerText = cur.ocr;
+            document.getElementById('act-plate').style.display = 'block';
+            
+            if(cur.bribeOffered) document.getElementById('btn-plate-bribe').style.display = 'block';
+            if(cur.isHot) document.getElementById('plate-warning').style.display = 'block';
+        }, 1200);
+    }
+
+    function approvePlate() {
+        if(cur.hasGlitch) {
+            alert("COMPLIANCE ERROR: OCR MISMATCH!\nFine: $200");
+            state.rev -= 200;
+        } else if(cur.isHot) {
+            alert("SECURITY ERROR: Hotlist Vehicle Cleared!\nFine: $500");
+            state.rev -= 500;
+        } else {
+            updateMainScr("<span style='color:var(--success)'>PLATE APPROVED</span>");
+        }
+        proceedToToll();
+    }
+
+    function flagPlate() {
+        if(cur.isHot) {
+            state.bounty += 1000;
+            updateMainScr("<span style='color:var(--success)'>BOUNTY CLAIMED: $1000</span>");
+        } else if(!cur.hasGlitch) {
+            alert("ERRONEOUS FLAG: Vehicle was clean.\nFine: $100");
+            state.rev -= 100;
+        } else {
+            updateMainScr("<span style='color:var(--neon)'>REPORT FILED: Plate Mismatch</span>");
+        }
+        proceedToToll();
+    }
+
+    function plateBribe() {
+        state.rev += 400;
+        updateMainScr("<span style='color:var(--bribe)'>OVERRIDE SUCCESSFUL</span>");
+        proceedToToll();
+    }
+
+    function proceedToToll() {
+        updateUI();
+        document.getElementById('act-plate').style.display = 'none';
+        document.getElementById('plate-zoom').style.display = 'none';
+        document.getElementById('plate-warning').style.display = 'none';
+        document.getElementById('btn-plate-bribe').style.display = 'none';
+        document.getElementById('v-element').classList.add('move-pay');
+        document.getElementById('act-toll').style.display = 'block';
+    }
+
+    function collectToll() {
+        const cost = cur.n === 'Private' ? 100 : 300;
+        state.rev += cost;
+        updateUI();
+        updateMainScr(`PAID: $${cost}`);
+        document.getElementById('act-toll').style.display = 'none';
+        document.getElementById('btn-gate').style.display = 'block';
+    }
+
+    function openGate() {
+        document.getElementById('btn-gate').style.display = 'none';
+        document.getElementById('gate-arm').classList.add('gate-open');
+        document.getElementById('v-element').classList.add('move-exit');
+        setTimeout(reset, 2500);
+    }
+
+    function updateUI() {
+        document.getElementById('ui-rev').innerText = state.rev;
+        document.getElementById('ui-bounty').innerText = state.bounty;
+    }
+
+    function updateMainScr(t) { document.getElementById('main-scr').innerHTML = t; }
+
+    function reset() {
+        document.getElementById('gate-arm').classList.remove('gate-open');
+        document.getElementById('v-element').className = 'v-body';
+        document.getElementById('btn-disp').disabled = false;
+        document.getElementById('info-scr').innerText = "----";
+        updateMainScr("PLATE APPROVAL READY");
+    }
+</script>
+</body>
+</html>
