@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+  <link rel="icon" href="https://mohammad3230.github.io/PROJECT/favicon.png" type="image/png" sizes="32x32" />
+        <script async src="https://www.googletagmanager.com/gtag/js?id=GT-NC6T5LRJ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'GT-NC6T5LRJ');
+  </script> 
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ENFORCEMENT_TERMINAL_v23.2_OFFICIAL</title>
+    <style>
+        :root {
+            --bg: #0a0a0c;
+            --panel: #1a1a1f;
+            --accent: #00f2ff;
+            --success: #00ff9d;
+            --danger: #ff0044;
+            --warning: #ffcc00;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: #eee;
+            font-family: 'Courier New', monospace;
+            margin: 0;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .stats-bar {
+            background: #000;
+            display: flex;
+            justify-content: space-around;
+            padding: 12px;
+            border-bottom: 3px solid var(--accent);
+            font-weight: bold;
+            color: var(--accent);
+            font-size: 0.8rem;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            grid-template-rows: 320px 1fr;
+            gap: 15px;
+            padding: 15px;
+            height: calc(100vh - 60px);
+        }
+
+        .view-panel { 
+            background: #050505; 
+            border: 4px solid #222; 
+            position: relative; 
+            overflow: hidden; 
+            min-height: 200px;
+        }
+
+        .road { 
+            width: 100%; 
+            height: 80px; 
+            background: #111; 
+            position: absolute; 
+            bottom: 40px; 
+            border-top: 2px solid #333; 
+        }
+
+        .vehicle { 
+            width: 150px; 
+            height: 65px; 
+            background: #3d3d3d; 
+            position: absolute; 
+            bottom: 50px; 
+            left: -250px; 
+            transition: left 1.2s ease-in-out; 
+            border: 2px solid #555; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        /* FLOATING WINDOW STYLES */
+        #docOverlay {
+            position: absolute; 
+            top: 100px; 
+            left: 40px; 
+            width: 340px;
+            max-width: 90vw;
+            background: #e0e0e0; 
+            padding: 20px; 
+            color: #111;
+            border: 3px solid var(--accent); 
+            z-index: 1000;
+            display: none; 
+            cursor: move; 
+            box-shadow: 0 10px 50px rgba(0,0,0,0.9);
+            user-select: none;
+            touch-action: none;
+        }
+
+        .doc-header { 
+            background: #222; 
+            color: #fff; 
+            padding: 6px; 
+            margin: -20px -20px 15px -20px; 
+            font-size: 0.6rem; 
+            text-align: center; 
+            font-weight: bold; 
+        }
+
+        .photo-area { 
+            width: 90px; 
+            height: 110px; 
+            border: 2px solid #111; 
+            background: #ccc; 
+            font-size: 3.5rem; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            margin-bottom: 15px; 
+        }
+
+        .verification-unit { 
+            grid-column: 1 / -1; 
+            display: flex; 
+            gap: 15px; 
+            background: #000; 
+            padding: 15px; 
+            border: 1px solid #333; 
+            flex-wrap: wrap;
+        }
+
+        .input-group { flex: 1; min-width: 150px; }
+        .input-group label { display: block; font-size: 0.6rem; color: var(--accent); margin-bottom: 5px; }
+        .input-group input { 
+            width: 100%; 
+            background: #111; 
+            border: 1px solid #444; 
+            color: var(--success); 
+            padding: 10px; 
+            box-sizing: border-box;
+            font-size: 1.2rem; 
+            font-family: monospace; 
+            outline: none; 
+        }
+
+        .control-panel { 
+            background: var(--panel); 
+            border: 2px solid #333; 
+            padding: 20px; 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 12px; 
+            overflow-y: auto;
+        }
+
+        .mech-btn { 
+            background: linear-gradient(180deg, #444 0%, #222 100%); 
+            border: 2px solid #000; 
+            color: #fff; 
+            padding: 15px; 
+            cursor: pointer; 
+            text-transform: uppercase; 
+            font-size: 0.7rem; 
+            font-weight: bold; 
+            box-shadow: 0 4px #000; 
+            transition: all 0.1s; 
+        }
+        .mech-btn:active { transform: translateY(2px); box-shadow: 0 1px #000; }
+        .mech-btn:disabled { opacity: 0.2; cursor: not-allowed; transform: none; }
+
+        .sidebar { 
+            grid-row: 1/3; 
+            display: flex; 
+            flex-direction: column; 
+            background: #111; 
+            padding: 15px; 
+            border-left: 2px solid #333; 
+            overflow: hidden;
+        }
+
+        .log-box { 
+            flex: 1; 
+            background: #000; 
+            border: 1px solid #222; 
+            padding: 10px; 
+            font-size: 0.7rem; 
+            color: #0f0; 
+            overflow-y: auto; 
+            border-radius: 4px; 
+            min-height: 0;
+        }
+        
+        .wanted-list { 
+            background: #2a0a0a; 
+            border: 2px solid var(--danger); 
+            padding: 12px; 
+            margin-top: 15px; 
+            font-size: 0.75rem; 
+            color: var(--danger); 
+            flex-shrink: 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .wanted-plate-item {
+            padding: 4px 0;
+            border-bottom: 1px dashed rgba(255, 0, 68, 0.3);
+        }
+
+        .stamp { 
+            position: absolute; 
+            bottom: 40px; 
+            right: 10px; 
+            width: 160px; 
+            height: 70px; 
+            border: 5px solid; 
+            display: none; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 1.3rem; 
+            font-weight: 900; 
+            transform: rotate(-12deg); 
+            pointer-events: none; 
+        }
+
+        /* RESPONSIVE DESIGN */
+        @media (max-width: 1024px) {
+            .dashboard {
+                grid-template-columns: 1fr 300px;
+            }
+        }
+
+        @media (max-width: 800px) {
+            body { overflow: auto; height: auto; }
+            .dashboard {
+                grid-template-columns: 1fr;
+                grid-template-rows: 250px auto auto;
+                height: auto;
+                padding-bottom: 50px;
+            }
+            .sidebar { 
+                grid-row: auto; 
+                border-left: none; 
+                border-top: 2px solid #333; 
+                max-height: 300px;
+            }
+            .view-panel { min-height: 250px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="stats-bar">
+    <div>TOLL_REVENUE: $<span id="salVal">0</span></div>
+    <div>VALIDS: <span id="valCount" style="color:var(--success)">0</span></div>
+    <div>MISSES: <span id="missCount" style="color:var(--danger)">0</span></div>
+    <div>RANK_PTS: <span id="ptsVal" style="color:var(--warning)">0</span>/10</div>
+    <div>STATION_LVL: <span id="lvlVal">1</span></div>
+</div>
+
+<div class="dashboard">
+    <div class="view-panel">
+        <div style="padding:10px; color:var(--danger); font-size: 0.6rem; letter-spacing: 1px;">● LIVE_GATE_FEED // UNIT_01</div>
+        <div class="road"></div>
+        <div id="vSprite" class="vehicle"></div>
+    </div>
+
+    <div class="sidebar">
+        <div id="log" class="log-box"></div>
+        <div class="wanted-list">
+            <strong style="text-decoration: underline;">[!] APB: WANTED_LIST</strong><br><br>
+            <div id="wantedPlateBox">SCANNING NETWORK...</div>
+        </div>
+    </div>
+
+    <div class="control-panel">
+        <div class="verification-unit">
+            <div class="input-group">
+                <label>Manual Plate Input</label>
+                <input type="text" id="plateIn" placeholder="Type Plate...">
+            </div>
+            <div class="input-group">
+                <label>Manual License Input</label>
+                <input type="text" id="licenseIn" placeholder="Type ID...">
+            </div>
+        </div>
+
+        <button class="mech-btn" id="btnNext" onclick="spawnVehicle()" style="grid-column: 1/-1;">NEXT VEHICLE</button>
+        <button class="mech-btn" id="btnScan" onclick="runSystemScan()" disabled>RUN DATABASE SCAN</button>
+        <button class="mech-btn" id="btnDocs" onclick="toggleDocs()" disabled>INSPECT DOCUMENTS</button>
+        <button class="mech-btn" id="btnArrest" onclick="triggerArrest()" disabled style="color:var(--danger)">ARREST / DETAIN</button>
+        <button class="mech-btn" id="btnRelease" onclick="triggerRelease()" disabled style="color:var(--success)">RELEASE GATE</button>
+        <button class="mech-btn" id="btnPay" onclick="issuePaidID()" disabled style="grid-column: 1/-1; color:var(--accent)">ISSUE NEW ID ($150 FEE)</button>
+    </div>
+</div>
+
+<!-- FLOATING DOC WINDOW -->
+<div id="docOverlay">
+    <div class="doc-header">OFFICIAL_ID_CREDENTIALS (DRAG_WINDOW)</div>
+    <div id="dPhoto" class="photo-area"></div>
+    <div style="font-size: 0.85rem; line-height: 1.6; position: relative;">
+        NAME: <span id="dName">---</span><br>
+        SEX: <span id="dSex">---</span><br>
+        ID NO: <span id="dID">---</span><br>
+        EXPIRY: <span id="dExp" style="font-weight:bold">---</span><br>
+        <div id="stampBox" class="stamp"></div>
+    </div>
+    <div style="margin-top: 20px; display: flex; gap: 10px;">
+        <button class="mech-btn" onclick="stampDoc(true)" style="background:var(--success); color:#000; flex:1; padding:10px;">APPROVE</button>
+        <button class="mech-btn" onclick="stampDoc(false)" style="background:var(--danger); flex:1; padding:10px;">DENY</button>
+    </div>
+</div>
+
+<script>
+    // State Variables
+    let car = null;
+    let revenue = 0;
+    let valids = 0;
+    let missed = 0;
+    let level = 1;
+    let rankPoints = 0; // +2 for valid, -3 for miss. 10 pts to level up.
+    let wantedPlates = [];
+    let isResetting = false;
+
+    // Load Data from Local Storage
+    function loadData() {
+        const savedData = localStorage.getItem('enforcementTerminalV23');
+        if (savedData) {
+            try {
+                const data = JSON.parse(savedData);
+                revenue = data.revenue || 0;
+                valids = data.valids || 0;
+                missed = data.missed || 0;
+                level = data.level || 1;
+                rankPoints = data.rankPoints || 0;
+            } catch (e) {
+                console.error("Corrupted save data, resetting.");
+            }
+        }
+        updateStatusUI();
+        addLog("System initialized. Data loaded from cache.", "var(--accent)");
+    }
+
+    // Save Data to Local Storage
+    function saveData() {
+        localStorage.setItem('enforcementTerminalV23', JSON.stringify({
+            revenue, valids, missed, level, rankPoints
+        }));
+    }
+
+    function addLog(msg, color) {
+        const log = document.getElementById('log');
+        const entry = document.createElement('div');
+        entry.style.color = color || "#0f0";
+        entry.style.marginBottom = "5px";
+        entry.innerText = `> ${msg}`;
+        log.prepend(entry);
+    }
+
+    function refreshAPBList() {
+        const prefixes = ["PX", "NX", "TX", "DV", "CR", "XR", "ZK", "AV", "BN"];
+        wantedPlates = [];
+        const count = 3 + Math.floor(Math.random() * 3); // 3 to 5 plates
+        
+        for(let i = 0; i < count; i++) {
+            const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+            const num = Math.floor(1000 + Math.random() * 9000);
+            wantedPlates.push(`${prefix}-${num}`);
+        }
+
+        const box = document.getElementById('wantedPlateBox');
+        box.innerHTML = '';
+        wantedPlates.forEach(plate => {
+            const div = document.createElement('div');
+            div.className = 'wanted-plate-item';
+            div.innerText = plate;
+            box.appendChild(div);
+        });
+    }
+
+    function spawnVehicle() {
+        if(car || isResetting) return;
+        
+        // Refresh Wanted List occasionally
+        if(Math.random() < 0.4 || wantedPlates.length === 0) {
+            refreshAPBList();
+        }
+
+        const prefixes = ["PX", "NX", "TX", "DV", "CR", "XR", "ZK", "AV", "BN"];
+        const isCriminal = Math.random() < 0.5;
+        
+        let plate = prefixes[Math.floor(Math.random() * prefixes.length)] + "-" + Math.floor(1000 + Math.random() * 9000);
+        let isWanted = false;
+
+        // 30% chance the incoming car is on the APB list
+        if(Math.random() < 0.3 && wantedPlates.length > 0) {
+            plate = wantedPlates[Math.floor(Math.random() * wantedPlates.length)];
+            isWanted = true;
+        }
+
+        car = {
+            plate: plate,
+            id: (isCriminal && Math.random() < 0.3) ? "MISSING" : "DL-" + Math.floor(1000 + Math.random() * 9000),
+            hasMissingID: (isCriminal && Math.random() < 0.3),
+            expired: isCriminal && Math.random() < 0.5,
+            isWanted: isWanted,
+            expiry: (isCriminal && Math.random() < 0.5) ? "2023" : "2034",
+            photo: Math.random() > 0.5 ? "👨" : "👩",
+            sex: Math.random() > 0.5 ? "MALE" : "FEMALE"
+        };
+
+        const sprite = document.getElementById('vSprite');
+        sprite.style.transition = "none";
+        sprite.style.left = "-250px";
+        void sprite.offsetWidth; // Force reflow
+        
+        sprite.style.transition = "left 1.2s ease-in-out";
+        sprite.style.left = "35%";
+        sprite.innerText = car.plate;
+        
+        document.getElementById('btnNext').disabled = true;
+        document.getElementById('btnScan').disabled = false;
+        document.getElementById('btnDocs').disabled = false;
+        addLog(`Incoming: ${car.plate}. Inspection required.`);
+    }
+
+    function toggleDocs() {
+        const doc = document.getElementById('docOverlay');
+        if(doc.style.display === "block") {
+            doc.style.display = "none";
+        } else {
+            if(!car) return;
+            document.getElementById('dID').innerText = car.id;
+            document.getElementById('dExp').innerText = car.expiry;
+            document.getElementById('dName').innerText = "SUBJECT_" + car.plate;
+            document.getElementById('dSex').innerText = car.sex;
+            document.getElementById('dPhoto').innerText = car.photo;
+            doc.style.display = "block";
+            addLog(`Strings visible. Copy to verification unit.`, "var(--accent)");
+        }
+    }
+
+    function runSystemScan() {
+        if(!car) return;
+        const pIn = (document.getElementById('plateIn').value || "").toUpperCase().trim();
+        const lIn = (document.getElementById('licenseIn').value || "").toUpperCase().trim();
+        
+        document.getElementById('btnScan').disabled = true;
+        addLog("Querying Intelligence Network...");
+
+        setTimeout(() => {
+            document.getElementById('btnScan').disabled = false; 
+
+            if (pIn !== car.plate || lIn !== car.id) {
+                addLog("SCAN ERROR: INPUT DATA DISCREPANCY.", "var(--warning)");
+                return;
+            }
+
+            let alertFlags = [];
+            if (car.isWanted) alertFlags.push("WANTED FUGITIVE");
+            if (car.expired) alertFlags.push("EXPIRED CREDENTIALS");
+            if (car.hasMissingID) alertFlags.push("NO RECORD FOUND");
+
+            if (alertFlags.length > 0) {
+                addLog(`CRIMINAL ALERT: ${alertFlags.join(" & ")} DETECTED.`, "var(--danger)");
+                document.getElementById('btnArrest').disabled = false;
+                // Can only buy new ID if NOT a wanted fugitive
+                if (!car.isWanted) {
+                    document.getElementById('btnPay').disabled = false;
+                }
+            } else {
+                addLog("SCAN SUCCESS: CITIZEN STATUS CLEAR.", "var(--success)");
+            }
+        }, 600);
+    }
+
+    function issuePaidID() {
+        if(!car || car.isWanted) return; // Cannot bribe way out of APB
+        
+        revenue += 150;
+        const newID = "DL-NEW-" + Math.floor(1000 + Math.random() * 9000);
+        car.id = newID;
+        car.hasMissingID = false;
+        car.expired = false;
+        car.expiry = "2036";
+        
+        document.getElementById('licenseIn').value = newID;
+        document.getElementById('dID').innerText = newID;
+        document.getElementById('dExp').innerText = "2036";
+        
+        addLog(`ID RE-ISSUED: ${newID}. Infractions cleared.`, "var(--success)");
+        document.getElementById('btnPay').disabled = true;
+        document.getElementById('btnArrest').disabled = true; // No longer arrestable for expired/missing
+        
+        saveData();
+        updateStatusUI();
+    }
+
+    function stampDoc(app) {
+        if(!car) return;
+        const s = document.getElementById('stampBox');
+        s.innerText = app ? "APPROVED" : "DENIED";
+        s.style.color = app ? "var(--success)" : "var(--danger)";
+        s.style.borderColor = app ? "var(--success)" : "var(--danger)";
+        s.style.display = "flex";
+        
+        if (app) {
+            addLog("MANUAL APPROVAL ISSUED.", "var(--success)");
+            document.getElementById('btnRelease').disabled = false;
+            document.getElementById('btnArrest').disabled = true;
+        } else {
+            addLog("ENTRY DENIED BY OFFICER.", "var(--danger)");
+            document.getElementById('btnArrest').disabled = false;
+            document.getElementById('btnRelease').disabled = true;
+            if (!car.isWanted) {
+                document.getElementById('btnPay').disabled = false;
+            }
+        }
+    }
+
+    function triggerRelease() {
+        if(!car) return;
+        const isGuilty = car.isWanted || car.hasMissingID || car.expired;
+        
+        if (isGuilty) {
+            missed++;
+            rankPoints -= 3;
+            addLog("SECURITY FAILURE: Invalid subject cleared gate. [-3 Rank Points]", "var(--danger)");
+        } else {
+            valids++;
+            revenue += 50;
+            rankPoints += 2;
+            addLog("VALID RELEASE: Citizen cleared. +$50 [+2 Rank Points]", "var(--success)");
+        }
+        updateLevel();
+        updateStatusUI();
+        resetStage();
+    }
+
+    function triggerArrest() {
+        if(!car) return;
+        const isGuilty = car.isWanted || car.hasMissingID || car.expired;
+        
+        if (isGuilty) {
+            valids++;
+            revenue += 200;
+            rankPoints += 2;
+            addLog("VALID ARREST: Criminal detained. +$200 Bounty [+2 Rank Points]", "var(--success)");
+        } else {
+            missed++;
+            rankPoints -= 3;
+            addLog("SECURITY BREACH: Wrongful arrest of innocent citizen. [-3 Rank Points]", "var(--danger)");
+        }
+        updateLevel();
+        updateStatusUI();
+        resetStage();
+    }
+
+    function updateLevel() {
+        // Floor rank points at 0 so you can't go infinitely negative
+        rankPoints = Math.max(0, rankPoints);
+        
+        // Level up every 10 points
+        const newLevel = Math.floor(rankPoints / 10) + 1;
+        
+        if (newLevel > level) {
+            addLog(`★★★ PROMOTION: STATION RANK INCREASED TO LVL ${newLevel}! ★★★`, "var(--warning)");
+        } else if (newLevel < level) {
+            addLog(`DEMOTION: STATION RANK DECREASED TO LVL ${newLevel}.`, "var(--danger)");
+        }
+        level = newLevel;
+    }
+
+    function updateStatusUI() {
+        document.getElementById('valCount').innerText = valids;
+        document.getElementById('missCount').innerText = missed;
+        document.getElementById('salVal').innerText = revenue;
+        document.getElementById('lvlVal').innerText = level;
+        
+        // Display progress towards next level (out of 10)
+        const progress = rankPoints % 10;
+        document.getElementById('ptsVal').innerText = progress;
+        
+        saveData();
+    }
+
+    function resetStage() {
+        const sprite = document.getElementById('vSprite');
+        sprite.style.left = "120%";
+        isResetting = true;
+
+        car = null;
+        document.getElementById('plateIn').value = "";
+        document.getElementById('licenseIn').value = "";
+        document.getElementById('docOverlay').style.display = "none";
+        document.getElementById('stampBox').style.display = "none";
+        
+        document.getElementById('btnNext').disabled = true;
+        document.getElementById('btnScan').disabled = true;
+        document.getElementById('btnDocs').disabled = true;
+        document.getElementById('btnArrest').disabled = true;
+        document.getElementById('btnRelease').disabled = true;
+        document.getElementById('btnPay').disabled = true;
+
+        setTimeout(() => {
+            sprite.style.transition = "none";
+            sprite.style.left = "-250px";
+            isResetting = false;
+            document.getElementById('btnNext').disabled = false;
+        }, 1300);
+    }
+
+    // DRAGGABLE WINDOW LOGIC (Mouse & Touch)
+    const docWin = document.getElementById("docOverlay");
+    let isDragging = false;
+    let startX = 0, startY = 0, translateX = 0, translateY = 0;
+
+    function dragStart(e) {
+        if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
+        isDragging = true;
+        
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        
+        startX = clientX - translateX;
+        startY = clientY - translateY;
+    }
+
+    function dragMove(e) {
+        if (!isDragging) return;
+        e.preventDefault(); // Prevent screen scrolling on touch
+        
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        
+        translateX = clientX - startX;
+        translateY = clientY - startY;
+        
+        docWin.style.left = `${translateX}px`;
+        docWin.style.top = `${translateY}px`;
+    }
+
+    function dragEnd() {
+        isDragging = false;
+    }
+
+    docWin.addEventListener('mousedown', dragStart);
+    document.addEventListener('mousemove', dragMove);
+    document.addEventListener('mouseup', dragEnd);
+    
+    docWin.addEventListener('touchstart', dragStart, { passive: false });
+    document.addEventListener('touchmove', dragMove, { passive: false });
+    document.addEventListener('touchend', dragEnd);
+
+    // Initialize System
+    loadData();
+    refreshAPBList();
+</script>
+</body>
+</html>
