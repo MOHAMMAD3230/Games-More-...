@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NHAI - Admin & Finance Terminal</title>
+    <style>
+        :root {
+            --bg: #0a0508; --panel: #101018; --accent: #00f2ff; --success: #2ed573;
+            --danger: #ff0044; --warning: #ffa502; --border: #2a1a2a; --locked: #333;
+        }
+
+        body {
+            background-color: var(--bg); color: #ccc; font-family: 'Courier New', monospace;
+            margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        .top-bar {
+            background: #000; padding: 15px 20px; border-bottom: 2px solid var(--success);
+            display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+        }
+
+        .top-bar h1 { margin: 0; font-size: 1rem; color: var(--success); letter-spacing: 1px; text-shadow: 0 0 10px rgba(46,213,115,0.5); }
+        .top-bar .time { color: var(--warning); font-size: 0.9rem; }
+
+        .main-layout {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 20px;
+            flex-grow: 1; min-height: 0; overflow: hidden;
+        }
+
+        .panel {
+            background: var(--panel); border: 1px solid var(--border); border-radius: 4px;
+            padding: 20px; display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        .panel-title {
+            color: var(--success); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;
+            margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; flex-shrink: 0;
+        }
+
+        .stat-row {
+            display: flex; gap: 15px; margin-bottom: 20px; flex-shrink: 0;
+        }
+
+        .stat-box {
+            flex: 1; background: #000; border: 1px solid var(--border); padding: 15px; border-radius: 4px; text-align: center;
+        }
+        .stat-num { font-size: 2rem; font-weight: 900; margin-bottom: 5px; }
+        .stat-label { font-size: 0.75rem; color: #888; text-transform: uppercase; }
+
+        .upgrade-list { flex-grow: 1; overflow-y: auto; padding-right: 5px; }
+        .upgrade-item {
+            background: #000; border: 1px solid var(--border); padding: 12px; margin-bottom: 10px;
+            border-radius: 4px; display: flex; justify-content: space-between; align-items: center; gap: 12px;
+        }
+        .upgrade-item.locked { border-color: #333; opacity: 0.5; }
+
+        .mech-btn {
+            padding: 10px 12px; border: 2px solid #000; cursor: pointer; font-weight: bold;
+            text-transform: uppercase; font-size: 0.7rem; box-shadow: 0 3px 0 #000;
+            transition: all 0.1s; font-family: monospace; border-radius: 4px; flex-shrink: 0;
+        }
+        .mech-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #000; }
+        .mech-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .btn-buy { background: linear-gradient(145deg, #2ed573, #1e9e55); color: #fff; }
+        .btn-loan { background: linear-gradient(145deg, #ffa502, #cc8400); color: #fff; width: 100%; margin-top: 15px; flex-shrink: 0; }
+        .btn-reset { background: #333; color: #fff; width: 100%; margin-top: 8px; flex-shrink: 0; }
+
+        .upgrade-list::-webkit-scrollbar { width: 6px; }
+        .upgrade-list::-webkit-scrollbar-track { background: #000; border: 1px solid var(--border); }
+        .upgrade-list::-webkit-scrollbar-thumb { background: var(--success); border: 1px solid #000; }
+
+        @media (max-width: 1024px) {
+            .main-layout { grid-template-columns: 1fr; overflow-y: auto; }
+        }
+        @media (max-width: 600px) {
+            .top-bar h1 { font-size: 0.7rem; }
+            .main-layout { padding: 10px; gap: 15px; }
+            .stat-row { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <h1>▸ NHAI_ADMIN // FINANCE_TERMINAL_v9.0</h1>
+    <div class="time" id="clock">00:00:00</div>
+</div>
+
+<div class="main-layout">
+    <!-- Left Side: Upgrades & Bounties -->
+    <div class="panel">
+        <div class="panel-title">■ Network Upgrades</div>
+        
+        <div class="stat-row">
+            <div class="stat-box">
+                <div class="stat-num" style="color:var(--success);" id="stat-balance">$0</div>
+                <div class="stat-label">Available Balance</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-num" style="color:var(--warning);" id="stat-level">1</div>
+                <div class="stat-label">Admin Level</div>
+            </div>
+        </div>
+
+        <div style="color: #555; font-size: 0.75rem; margin-bottom: 10px;">
+            Permanent Buffs (Applies to all Dashboards)
+        </div>
+        <div class="upgrade-list" id="upgrade-list"></div>
+
+        <button class="mech-btn btn-loan" id="btn-loan" onclick="takeLoan()">REQUEST FEDERAL LOAN (+$500, 10% INTEREST)</button>
+        <button class="mech-btn btn-reset" onclick="cashOut()">END OF DAY CASH OUT (Reset Rev to 0)</button>
+    </div>
+
+    <!-- Right Side: Active Bounties & Ledger -->
+    <div class="panel">
+        <div class="panel-title">■ Bounty & Ledger System</div>
+        
+        <div style="color: #555; font-size: 0.75rem; margin-bottom: 10px; border-bottom: 1px dashed var(--border); padding-bottom: 8px;">
+            Place bounties on Wanted plates. If arrested in D1, you receive the reward!
+        </div>
+
+        <div style="display:flex; gap:8px; margin-bottom:15px; flex-shrink:0;">
+            <input type="text" id="bounty-plate" placeholder="WANTED PLATE" style="flex:1; background:#000; border:1px solid var(--border); color:var(--danger); padding:8px; font-family:monospace; font-size:0.9rem; outline:none;">
+            <button class="mech-btn btn-buy" onclick="placeBounty()">PLACE BOUNTY ($200)</button>
+        </div>
+
+        <div style="color: #555; font-size: 0.75rem; margin-bottom: 10px;">
+            Active Bounties
+        </div>
+        <div class="upgrade-list" id="bounty-list" style="max-height: 200px; margin-bottom:20px;">
+            <div style="color:#444; text-align:center; padding:10px; font-size:0.8rem;">NO ACTIVE BOUNTIES</div>
+        </div>
+
+        <div style="color: #555; font-size: 0.75rem; margin-bottom: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
+            Recent Ledger
+        </div>
+        <div class="upgrade-list" id="ledger-list">
+            <div style="color:#444; text-align:center; padding:10px; font-size:0.8rem;">AWAITING ACTIONS</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let sharedData = { 
+        revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, 
+        history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null,
+        activeInmates: [], releasedInmates: [], ledgerCashouts: [],
+        adminLevel: 1, activeBounties: [], upgrades: {}
+    };
+
+    const upgradeDefs = {
+        tollAI: { name: "Toll AI v2", desc: "Increase Base Toll (D2) by $50", baseCost: 500, maxLvl: 5, reqLvl: 1, icon: "fa-robot" },
+        interrogation: { name: "Interrogation", desc: "Arrest Bounty (D1) +$50", baseCost: 800, maxLvl: 5, reqLvl: 2, icon: "fa-comments-dollar" },
+        autoScan: { name: "Auto-Scan Cache", desc: "Base Rev per Release (D1) +$25", baseCost: 1000, maxLvl: 5, reqLvl: 3, icon: "fa-bolt" },
+        prisonLabor: { name: "Prison Labor", desc: "Passive +$10/sec Income", baseCost: 1500, maxLvl: 3, reqLvl: 4, icon: "fa-hammer" }
+    };
+
+    function updateClock() { document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB'); }
+    setInterval(updateClock, 1000);
+
+    function loadData() {
+        const saved = localStorage.getItem('enforcementTerminalV23');
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                sharedData = parsed;
+                if(!sharedData.registry) sharedData.registry = {};
+                if(!sharedData.forgedAliases) sharedData.forgedAliases = {};
+                if(sharedData.nextSpawnOverride === undefined) sharedData.nextSpawnOverride = null;
+                if(!sharedData.activeInmates) sharedData.activeInmates = [];
+                if(!sharedData.releasedInmates) sharedData.releasedInmates = [];
+                if(!sharedData.ledgerCashouts) sharedData.ledgerCashouts = [];
+                if(!sharedData.adminLevel) sharedData.adminLevel = 1;
+                if(!sharedData.activeBounties) sharedData.activeBounties = [];
+                if(!sharedData.upgrades) sharedData.upgrades = {};
+            } catch(e) {}
+        }
+        renderDashboard();
+    }
+
+    function saveData() {
+        localStorage.setItem('enforcementTerminalV23', JSON.stringify(sharedData));
+    }
+
+    function buyUpgrade(id) {
+        const def = upgradeDefs[id];
+        if(!def) return;
+        
+        let currentLvl = sharedData.upgrades[id] || 0;
+        if(currentLvl >= def.maxLvl) return;
+        
+        let cost = def.baseCost + (currentLvl * def.baseCost);
+        if((sharedData.revenue || 0) < cost) return;
+
+        sharedData.revenue -= cost;
+        sharedData.upgrades[id] = currentLvl + 1;
+        sharedData.adminLevel = Math.max(sharedData.adminLevel, def.reqLvl); // Level up admin
+        
+        saveData();
+        loadData();
+    }
+
+    function placeBounty() {
+        const plate = document.getElementById('bounty-plate').value.toUpperCase().trim();
+        if(!plate) return;
+        if((sharedData.revenue || 0) < 200) return;
+        
+        sharedData.revenue -= 200;
+        sharedData.activeBounties.push({ plate: plate, reward: 400, placed: new Date().toLocaleString() });
+        document.getElementById('bounty-plate').value = '';
+        saveData();
+        loadData();
+    }
+
+    function takeLoan() {
+        sharedData.revenue = (sharedData.revenue || 0) + 500;
+        saveData();
+        loadData();
+    }
+
+    function cashOut() {
+        if(sharedData.revenue === 0) return;
+        const currentRev = sharedData.revenue;
+        sharedData.ledgerCashouts.push({ date: new Date().toLocaleString(), totalCashOut: currentRev });
+        sharedData.revenue = 0;
+        saveData();
+        loadData();
+    }
+
+    // Passive Income Engine (Prison Labor Upgrade)
+    setInterval(() => {
+        const laborLvl = sharedData.upgrades.prisonLabor || 0;
+        if(laborLvl > 0) {
+            sharedData.revenue = (sharedData.revenue || 0) + (laborLvl * 10);
+            saveData();
+            // Quick UI update without full re-render to save performance
+            document.getElementById('stat-balance').innerText = `$${sharedData.revenue}`;
+        }
+    }, 10000); // 10 sec interval
+
+    function renderDashboard() {
+        document.getElementById('stat-balance').innerText = `$${sharedData.revenue || 0}`;
+        document.getElementById('stat-level').innerText = sharedData.adminLevel || 1;
+
+        // Render Upgrades
+        const upgradeContainer = document.getElementById('upgrade-list');
+        upgradeContainer.innerHTML = '';
+        Object.keys(upgradeDefs).forEach(id => {
+            const def = upgradeDefs[id];
+            const currentLvl = sharedData.upgrades[id] || 0;
+            const cost = def.baseCost + (currentLvl * def.baseCost);
+            const isMaxed = currentLvl >= def.maxLvl;
+            const canAfford = (sharedData.revenue || 0) >= cost;
+            const locked = (sharedData.adminLevel || 1) < def.reqLvl;
+
+            const item = document.createElement('div');
+            item.className = 'upgrade-item' + (locked ? ' locked' : '');
+            item.innerHTML = `
+                <div style="flex:1;">
+                    <div style="font-weight:bold; margin-bottom:4px;"><i class="fas ${def.icon}" style="margin-right:6px;"></i>${def.name} <span style="color:#555; font-size:0.7rem;">[LVL ${currentLvl}/${def.maxLvl}]</span></div>
+                    <div style="font-size:0.7rem; color:#888;">${def.desc}</div>
