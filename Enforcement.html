@@ -280,8 +280,7 @@
               isPatrolDispatch = true;
               addLog(`⚠ PRIORITY OVERRIDE: Incoming Patrol Dispatch.`, "var(--danger)");
           }
-          // Clear the override after grabbing it
-          sharedData.nextSpawnOverride = null;
+          sharedData.nextSpawnOverride = null; // Clear override once grabbed
           saveData();
       }
 
@@ -430,7 +429,24 @@
       let logPlate = car.realWantedPlate ? `${car.plate} (Real: ${car.realWantedPlate})` : car.plate;
       history.push({ plate: logPlate, id: car.id, action: "ARRESTED", timestamp: new Date().toLocaleTimeString() });
       
+      // NEW: Clear the warrant from the database so Dashboard 7 updates!
+      clearWarrantOnArrest(car.plate);
+      if (car.realWantedPlate) clearWarrantOnArrest(car.realWantedPlate); // Clear the real plate too if forged
+      
       updateLevel(); updateStatusUI(); resetStage();
+  }
+
+  // NEW FUNCTION: Removes WANTED status and Forged Aliases upon arrest
+  function clearWarrantOnArrest(plate) {
+      if (sharedData.registry[plate]) {
+          // Remove from registry entirely (they are in jail, not driving)
+          delete sharedData.registry[plate];
+      }
+      if (sharedData.forgedAliases && sharedData.forgedAliases[plate]) {
+          // Remove the forged alias link
+          delete sharedData.forgedAliases[plate];
+      }
+      saveData(); // Push changes to network so Dashboard 4 & 7 see it immediately
   }
 
   function updateLevel() {
