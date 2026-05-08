@@ -169,7 +169,6 @@
       SEX: <span id="dSex">---</span><br>
       ID NO: <span id="dID">---</span><br>
       EXPIRY: <span id="dExp" style="font-weight:bold">---</span><br>
-      <!-- FORGERY REVEAL AREA -->
       <div id="forgeryBox" class="forgery-warning">⚠ FORGERY DETECTED: REAL PLATE IS <span id="dRealPlate">---</span></div>
       <div id="stampBox" class="stamp"></div>
   </div>
@@ -211,7 +210,7 @@
 
   let car=null, revenue=0, valids=0, missed=0, level=1, rankPoints=0, wantedPlates=[], isResetting=false, isScanning=false;
   let history = []; 
-  let sharedData = { revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, history: [], registry: {}, forgedAliases: {} };
+  let sharedData = { revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null };
 
   function loadData() {
       const savedData = localStorage.getItem('enforcementTerminalV23');
@@ -223,6 +222,7 @@
               sharedData = data; 
               if(!sharedData.registry) sharedData.registry = {};
               if(!sharedData.forgedAliases) sharedData.forgedAliases = {};
+              if(sharedData.nextSpawnOverride === undefined) sharedData.nextSpawnOverride = null;
           } catch (e) { console.error("Corrupted save data, resetting."); }
       }
       updateStatusUI();
@@ -230,7 +230,7 @@
   }
 
   function saveData() {
-      const finalData = { revenue, valids, missed, level, rankPoints, history, registry: sharedData.registry, forgedAliases: sharedData.forgedAliases };
+      const finalData = { revenue, valids, missed, level, rankPoints, history, registry: sharedData.registry, forgedAliases: sharedData.forgedAliases, nextSpawnOverride: sharedData.nextSpawnOverride };
       localStorage.setItem('enforcementTerminalV23', JSON.stringify(finalData));
   }
 
@@ -239,7 +239,7 @@
       if (savedData) {
           try {
               const data = JSON.parse(savedData);
-              if(data.revenue !== revenue || data.valids !== valids || JSON.stringify(data.registry) !== JSON.stringify(sharedData.registry) || JSON.stringify(data.forgedAliases) !== JSON.stringify(sharedData.forgedAliases)) {
+              if(data.revenue !== revenue || data.valids !== valids || JSON.stringify(data.registry) !== JSON.stringify(sharedData.registry) || data.nextSpawnOverride !== sharedData.nextSpawnOverride) {
                   revenue = data.revenue; valids = data.valids; missed = data.missed;
                   level = data.level; rankPoints = data.rankPoints; history = data.history || [];
                   sharedData = data;
@@ -268,18 +268,31 @@
       if(car || isResetting) return; playSound('engine');
       if(Math.random() < 0.4 || wantedPlates.length === 0) refreshAPBList();
       
-      // Check for custom vehicles from Registry OR Syndicate Forge
       let customSpawn = null;
       let isForgedAlias = false;
+      let isPatrolDispatch = false;
 
-      if (sharedData.registry && Object.keys(sharedData.registry).length > 0) {
+      // PRIORITY 1: Check for NHAI Toll Patrol Dispatch
+      if (sharedData.nextSpawnOverride) {
+          customSpawn = sharedData.registry[sharedData.nextSpawnOverride];
+          if(customSpawn) {
+              customSpawn.plate = sharedData.nextSpawnOverride;
+              isPatrolDispatch = true;
+              addLog(`⚠ PRIORITY OVERRIDE: Incoming Patrol Dispatch.`, "var(--danger)");
+          }
+          // Clear the override after grabbing it
+          sharedData.nextSpawnOverride = null;
+          saveData();
+      }
+
+      // PRIORITY 2: Check standard registry & Syndicate Forge
+      if (!isPatrolDispatch && sharedData.registry && Object.keys(sharedData.registry).length > 0) {
           if (Math.random() < 0.4) { 
               const regPlates = Object.keys(sharedData.registry);
               const randomPlate = regPlates[Math.floor(Math.random() * regPlates.length)];
               customSpawn = sharedData.registry[randomPlate];
               customSpawn.plate = randomPlate; 
               
-              // CHECK IF IT'S A FORGERY
               if(sharedData.forgedAliases && sharedData.forgedAliases[randomPlate]) {
                   isForgedAlias = true;
                   customSpawn.realWantedPlate = sharedData.forgedAliases[randomPlate].realPlate;
@@ -295,12 +308,14 @@
           id = customSpawn.id;
           isWanted = customSpawn.status === 'WANTED';
           isCriminal = isWanted;
-          hasMissingID = false;
+          hasMissingID = id === "MISSING";
           isForged = false; 
           realWantedPlate = customSpawn.realWantedPlate || null;
           
           if(isForgedAlias) {
               addLog(`DATABASE REGISTRY: Forged Alias detected in stream.`, "var(--danger)");
+          } else if (isPatrolDispatch) {
+              addLog(`DATABASE REGISTRY: Rogue vehicle held by patrol.`, "var(--warning)");
           } else {
               addLog(`DATABASE REGISTRY: Custom vehicle detected.`, "var(--warning)");
           }
@@ -341,7 +356,6 @@
           document.getElementById('dName').innerText="SUBJECT_"+car.plate; document.getElementById('dSex').innerText=car.sex;
           document.getElementById('dPhoto').innerText=car.photo; 
           
-          // FORGERY REVEAL LOGIC
           const forgeryBox = document.getElementById('forgeryBox');
           if(car.realWantedPlate) {
               forgeryBox.style.display = "block";
@@ -365,7 +379,6 @@
       setTimeout(() => {
           isScanning = false; document.getElementById('btnScan').disabled = false; 
           
-          // FORGERY CHECK: If they typed the REAL wanted plate instead of the fake one!
           if(car.realWantedPlate && pIn === car.realWantedPlate) {
               addLog("CRIMINAL ALERT: WANTED FUGITIVE PLATE DETECTED UNDER FORGED ALIAS!", "var(--danger)");
               document.getElementById('vSprite').classList.add('criminal-alert'); 
@@ -414,7 +427,6 @@
       if (isGuilty) { valids++; revenue+=200; rankPoints+=2; addLog("VALID ARREST: Criminal detained. +$200 Bounty [+2 Rank Points]", "var(--success)"); }
       else { missed++; rankPoints-=3; addLog("SECURITY BREACH: Wrongful arrest of innocent citizen. [-3 Rank Points]", "var(--danger)"); }
       
-      // Log the real plate if it was a forgery
       let logPlate = car.realWantedPlate ? `${car.plate} (Real: ${car.realWantedPlate})` : car.plate;
       history.push({ plate: logPlate, id: car.id, action: "ARRESTED", timestamp: new Date().toLocaleTimeString() });
       
