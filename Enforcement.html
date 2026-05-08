@@ -105,6 +105,7 @@
           display: none; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 900; 
           transform: rotate(-12deg); pointer-events: none; 
       }
+      .forgery-warning { color: var(--danger); font-size: 0.6rem; font-weight: bold; margin-top: 5px; display: none; }
       @media (max-width: 1024px) { .dashboard { grid-template-columns: 1fr 300px; } }
       @media (max-width: 800px) {
           body { overflow: auto; height: auto; }
@@ -168,6 +169,8 @@
       SEX: <span id="dSex">---</span><br>
       ID NO: <span id="dID">---</span><br>
       EXPIRY: <span id="dExp" style="font-weight:bold">---</span><br>
+      <!-- FORGERY REVEAL AREA -->
+      <div id="forgeryBox" class="forgery-warning">⚠ FORGERY DETECTED: REAL PLATE IS <span id="dRealPlate">---</span></div>
       <div id="stampBox" class="stamp"></div>
   </div>
   <div style="margin-top: 20px; display: flex; gap: 10px;">
@@ -208,7 +211,7 @@
 
   let car=null, revenue=0, valids=0, missed=0, level=1, rankPoints=0, wantedPlates=[], isResetting=false, isScanning=false;
   let history = []; 
-  let sharedData = { revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, history: [], registry: {} };
+  let sharedData = { revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, history: [], registry: {}, forgedAliases: {} };
 
   function loadData() {
       const savedData = localStorage.getItem('enforcementTerminalV23');
@@ -217,7 +220,9 @@
               const data = JSON.parse(savedData);
               revenue = data.revenue || 0; valids = data.valids || 0; missed = data.missed || 0;
               level = data.level || 1; rankPoints = data.rankPoints || 0; history = data.history || [];
-              sharedData = data; // Keep full reference for registry checks
+              sharedData = data; 
+              if(!sharedData.registry) sharedData.registry = {};
+              if(!sharedData.forgedAliases) sharedData.forgedAliases = {};
           } catch (e) { console.error("Corrupted save data, resetting."); }
       }
       updateStatusUI();
@@ -225,17 +230,16 @@
   }
 
   function saveData() {
-      const finalData = { revenue, valids, missed, level, rankPoints, history, registry: sharedData.registry || {} };
+      const finalData = { revenue, valids, missed, level, rankPoints, history, registry: sharedData.registry, forgedAliases: sharedData.forgedAliases };
       localStorage.setItem('enforcementTerminalV23', JSON.stringify(finalData));
   }
 
-  // Live sync with other Dashboards
   setInterval(() => {
       const savedData = localStorage.getItem('enforcementTerminalV23');
       if (savedData) {
           try {
               const data = JSON.parse(savedData);
-              if(data.revenue !== revenue || data.valids !== valids || JSON.stringify(data.registry) !== JSON.stringify(sharedData.registry)) {
+              if(data.revenue !== revenue || data.valids !== valids || JSON.stringify(data.registry) !== JSON.stringify(sharedData.registry) || JSON.stringify(data.forgedAliases) !== JSON.stringify(sharedData.forgedAliases)) {
                   revenue = data.revenue; valids = data.valids; missed = data.missed;
                   level = data.level; rankPoints = data.rankPoints; history = data.history || [];
                   sharedData = data;
@@ -264,34 +268,47 @@
       if(car || isResetting) return; playSound('engine');
       if(Math.random() < 0.4 || wantedPlates.length === 0) refreshAPBList();
       
-      // --- NEW: Check if a custom vehicle from Dashboard 4 should spawn ---
+      // Check for custom vehicles from Registry OR Syndicate Forge
       let customSpawn = null;
+      let isForgedAlias = false;
+
       if (sharedData.registry && Object.keys(sharedData.registry).length > 0) {
-          if (Math.random() < 0.4) { // 40% chance to spawn a registered vehicle
+          if (Math.random() < 0.4) { 
               const regPlates = Object.keys(sharedData.registry);
               const randomPlate = regPlates[Math.floor(Math.random() * regPlates.length)];
               customSpawn = sharedData.registry[randomPlate];
-              customSpawn.plate = randomPlate; // attach plate to the object
+              customSpawn.plate = randomPlate; 
+              
+              // CHECK IF IT'S A FORGERY
+              if(sharedData.forgedAliases && sharedData.forgedAliases[randomPlate]) {
+                  isForgedAlias = true;
+                  customSpawn.realWantedPlate = sharedData.forgedAliases[randomPlate].realPlate;
+              }
           }
       }
 
       const prefixes = ["PX","NX","TX","DV","CR","XR","ZK","AV","BN"]; 
-      let isCriminal, plate, isWanted, sex, photo, isForged, expiry, id, hasMissingID;
+      let isCriminal, plate, isWanted, sex, photo, isForged, expiry, id, hasMissingID, realWantedPlate;
 
       if (customSpawn) {
-          // Spawn the Custom Car from Dashboard 4
           plate = customSpawn.plate;
           id = customSpawn.id;
           isWanted = customSpawn.status === 'WANTED';
           isCriminal = isWanted;
           hasMissingID = false;
-          isForged = false;
+          isForged = false; 
+          realWantedPlate = customSpawn.realWantedPlate || null;
+          
+          if(isForgedAlias) {
+              addLog(`DATABASE REGISTRY: Forged Alias detected in stream.`, "var(--danger)");
+          } else {
+              addLog(`DATABASE REGISTRY: Custom vehicle detected.`, "var(--warning)");
+          }
+
           sex = Math.random() > 0.5 ? "MALE" : "FEMALE";
           photo = sex === "MALE" ? "👨" : "👩";
           expiry = isCriminal ? "2023" : "2034";
-          addLog(`DATABASE REGISTRY: Custom vehicle detected.`, "var(--warning)");
       } else {
-          // Original Random Generation Logic
           isCriminal = Math.random() < 0.5;
           plate = prefixes[Math.floor(Math.random()*prefixes.length)] + "-" + Math.floor(1000+Math.random()*9000); 
           isWanted = false;
@@ -301,11 +318,13 @@
           id = (isCriminal && Math.random() < 0.3) ? "MISSING" : "DL-" + Math.floor(1000+Math.random()*9000);
           hasMissingID = (isCriminal && Math.random() < 0.3);
           expiry = (isCriminal && Math.random() < 0.5) ? "2023" : "2034";
+          realWantedPlate = null;
       }
 
       car = {
           plate: plate, id: id, hasMissingID: hasMissingID, expired: isCriminal && Math.random() < 0.5, 
-          isWanted: isWanted, isForged: isForged, expiry: expiry, photo: photo, sex: sex
+          isWanted: isWanted, isForged: isForged, expiry: expiry, photo: photo, sex: sex, 
+          realWantedPlate: realWantedPlate
       };
 
       const sprite = document.getElementById('vSprite'); sprite.className='vehicle'; sprite.style.transition="none"; sprite.style.left="-250px"; void sprite.offsetWidth; 
@@ -320,7 +339,18 @@
           if(!car) return;
           document.getElementById('dID').innerText=car.id; document.getElementById('dExp').innerText=car.expiry;
           document.getElementById('dName').innerText="SUBJECT_"+car.plate; document.getElementById('dSex').innerText=car.sex;
-          document.getElementById('dPhoto').innerText=car.photo; doc.style.display="block";
+          document.getElementById('dPhoto').innerText=car.photo; 
+          
+          // FORGERY REVEAL LOGIC
+          const forgeryBox = document.getElementById('forgeryBox');
+          if(car.realWantedPlate) {
+              forgeryBox.style.display = "block";
+              document.getElementById('dRealPlate').innerText = car.realWantedPlate;
+          } else {
+              forgeryBox.style.display = "none";
+          }
+
+          doc.style.display="block";
           addLog(`Credentials visible. Copy to verification unit.`, "var(--accent)");
       }
   }
@@ -334,6 +364,15 @@
       addLog("Querying Intelligence Network...");
       setTimeout(() => {
           isScanning = false; document.getElementById('btnScan').disabled = false; 
+          
+          // FORGERY CHECK: If they typed the REAL wanted plate instead of the fake one!
+          if(car.realWantedPlate && pIn === car.realWantedPlate) {
+              addLog("CRIMINAL ALERT: WANTED FUGITIVE PLATE DETECTED UNDER FORGED ALIAS!", "var(--danger)");
+              document.getElementById('vSprite').classList.add('criminal-alert'); 
+              document.getElementById('btnArrest').disabled=false; playSirenSound();
+              return;
+          }
+
           if (pIn !== car.plate || lIn !== car.id) { addLog("SCAN ERROR: INPUT DATA DISCREPANCY.", "var(--warning)"); playSound('error'); return; }
           let alertFlags = [];
           if (car.isWanted) alertFlags.push("WANTED FUGITIVE"); if (car.expired) alertFlags.push("EXPIRED CREDENTIALS");
@@ -347,7 +386,7 @@
   }
 
   function issuePaidID() {
-      if(!car || car.isWanted || car.isForged) return; revenue += 150; const newID = "DL-NEW-" + Math.floor(1000+Math.random()*9000);
+      if(!car || car.isWanted || car.isForged || car.realWantedPlate) return; revenue += 150; const newID = "DL-NEW-" + Math.floor(1000+Math.random()*9000);
       car.id=newID; car.hasMissingID=false; car.expired=false; car.expiry="2036";
       document.getElementById('licenseIn').value=newID; document.getElementById('dID').innerText=newID; document.getElementById('dExp').innerText="2036";
       addLog(`ID RE-ISSUED: ${newID}. Infractions cleared.`, "var(--success)");
@@ -359,11 +398,11 @@
       if(!car) return; const s = document.getElementById('stampBox'); s.innerText=app?"APPROVED":"DENIED"; s.style.color=app?"var(--success)":"var(--danger)";
       s.style.borderColor=app?"var(--success)":"var(--danger)"; s.style.display="flex";
       if (app) { addLog("MANUAL APPROVAL ISSUED.", "var(--success)"); document.getElementById('btnRelease').disabled=false; document.getElementById('btnArrest').disabled=true; playSound('stamp'); }
-      else { addLog("ENTRY DENIED BY OFFICER.", "var(--danger)"); document.getElementById('btnArrest').disabled=false; document.getElementById('btnRelease').disabled=true; playSound('buzzer'); if (!car.isWanted && !car.isForged) { document.getElementById('btnPay').disabled=false; } }
+      else { addLog("ENTRY DENIED BY OFFICER.", "var(--danger)"); document.getElementById('btnArrest').disabled=false; document.getElementById('btnRelease').disabled=true; playSound('buzzer'); if (!car.isWanted && !car.isForged && !car.realWantedPlate) { document.getElementById('btnPay').disabled=false; } }
   }
 
   function triggerRelease() {
-      if(!car) return; const isGuilty = car.isWanted || car.hasMissingID || car.expired || car.isForged; playSound('gate'); stopSirenSound();
+      if(!car) return; const isGuilty = car.isWanted || car.hasMissingID || car.expired || car.isForged || car.realWantedPlate; playSound('gate'); stopSirenSound();
       if (isGuilty) { missed++; rankPoints-=3; addLog("SECURITY FAILURE: Invalid subject cleared gate. [-3 Rank Points]", "var(--danger)"); }
       else { valids++; revenue+=50; rankPoints+=2; addLog("VALID RELEASE: Citizen cleared. +$50 [+2 Rank Points]", "var(--success)"); }
       history.push({ plate: car.plate, id: car.id, action: "RELEASED", timestamp: new Date().toLocaleTimeString() });
@@ -371,10 +410,14 @@
   }
 
   function triggerArrest() {
-      if(!car) return; const isGuilty = car.isWanted || car.hasMissingID || car.expired || car.isForged; playSound('arrest'); stopSirenSound();
+      if(!car) return; const isGuilty = car.isWanted || car.hasMissingID || car.expired || car.isForged || car.realWantedPlate; playSound('arrest'); stopSirenSound();
       if (isGuilty) { valids++; revenue+=200; rankPoints+=2; addLog("VALID ARREST: Criminal detained. +$200 Bounty [+2 Rank Points]", "var(--success)"); }
       else { missed++; rankPoints-=3; addLog("SECURITY BREACH: Wrongful arrest of innocent citizen. [-3 Rank Points]", "var(--danger)"); }
-      history.push({ plate: car.plate, id: car.id, action: "ARRESTED", timestamp: new Date().toLocaleTimeString() });
+      
+      // Log the real plate if it was a forgery
+      let logPlate = car.realWantedPlate ? `${car.plate} (Real: ${car.realWantedPlate})` : car.plate;
+      history.push({ plate: logPlate, id: car.id, action: "ARRESTED", timestamp: new Date().toLocaleTimeString() });
+      
       updateLevel(); updateStatusUI(); resetStage();
   }
 
@@ -393,7 +436,7 @@
 
   function resetStage() {
       const sprite = document.getElementById('vSprite'); sprite.style.left="120%"; sprite.classList.remove('criminal-alert'); isResetting=true; car=null;
-      document.getElementById('plateIn').value=""; document.getElementById('licenseIn').value=""; document.getElementById('docOverlay').style.display="none"; document.getElementById('stampBox').style.display="none";
+      document.getElementById('plateIn').value=""; document.getElementById('licenseIn').value=""; document.getElementById('docOverlay').style.display="none"; document.getElementById('stampBox').style.display="none"; document.getElementById('forgeryBox').style.display="none";
       document.getElementById('btnNext').disabled=true; document.getElementById('btnScan').disabled=true; document.getElementById('btnDocs').disabled=true;
       document.getElementById('btnArrest').disabled=true; document.getElementById('btnRelease').disabled=true; document.getElementById('btnPay').disabled=true;
       setTimeout(() => { sprite.style.transition="none"; sprite.style.left="-250px"; isResetting=false; document.getElementById('btnNext').disabled=false; }, 1300);
