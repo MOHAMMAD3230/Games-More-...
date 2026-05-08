@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NHAI - Dispatch & Pursuit Terminal</title>
+    <style>
+        :root {
+            --bg: #050508; --panel: #101018; --accent: #ff0044; --success: #2ed573;
+            --danger: #ff4757; --warning: #ffa502; --border: #2a1a2a;
+        }
+
+        body {
+            background-color: var(--bg); color: #ccc; font-family: 'Courier New', monospace;
+            margin: 0; height: 100vh; display: flex; flex-direction: column; 
+            /* Allow scrolling on mobile if content stacks too high */
+            overflow: hidden; 
+        }
+
+        .top-bar {
+            background: #000; padding: 15px 20px; border-bottom: 2px solid var(--accent);
+            display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+        }
+
+        .top-bar h1 { margin: 0; font-size: 1rem; color: var(--accent); letter-spacing: 1px; text-shadow: 0 0 10px rgba(255,0,68,0.5); }
+        .top-bar .time { color: var(--warning); font-size: 0.9rem; }
+
+        .main-layout {
+            display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px; padding: 20px;
+            flex-grow: 1; min-height: 0; overflow: hidden;
+        }
+
+        .panel {
+            background: var(--panel); border: 1px solid var(--border); border-radius: 4px;
+            padding: 20px; display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        .panel-title {
+            color: var(--accent); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;
+            margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; flex-shrink: 0;
+            position: relative;
+        }
+
+        .dispatch-box {
+            background: #000; border: 2px solid var(--border); padding: 20px; border-radius: 4px;
+            text-align: center; margin-bottom: 20px; flex-shrink: 0;
+        }
+        .status-text { font-size: 1.5rem; font-weight: bold; margin-bottom: 10px; }
+        .status-idle { color: #555; }
+        .status-rogue { color: var(--warning); animation: pulseRogue 1.5s infinite; }
+        .status-pursuit { color: var(--danger); animation: pulsePursuit 0.5s infinite; }
+
+        @keyframes pulseRogue { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+        @keyframes pulsePursuit { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+
+        .mech-btn {
+            width: 100%; padding: 15px; border: 2px solid #000; cursor: pointer; font-weight: bold;
+            text-transform: uppercase; font-size: 0.9rem; box-shadow: 0 4px 0 #000;
+            transition: all 0.1s; font-family: monospace; margin-bottom: 10px; box-sizing: border-box;
+        }
+        .mech-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #000; }
+        .mech-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; }
+        .btn-dispatch { background: linear-gradient(145deg, #ff0044, #99002a); color: #fff; }
+        .btn-intercept { background: linear-gradient(145deg, #ff4757, #c0392b); color: #fff; }
+        .btn-clear { background: #333; color: #fff; }
+
+        .wanted-list { flex-grow: 1; overflow-y: auto; margin-top: 10px; padding-right: 5px; }
+        .wanted-item {
+            background: #000; border: 1px solid var(--border); padding: 12px; margin-bottom: 8px;
+            display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem;
+            gap: 10px;
+        }
+        .plate-tag { color: var(--warning); font-weight: bold; font-size: 1.1rem; }
+        .source-tag { color: #555; font-size: 0.7rem; margin-top: 4px; }
+
+        .wanted-list::-webkit-scrollbar { width: 6px; }
+        .wanted-list::-webkit-scrollbar-track { background: #000; border: 1px solid var(--border); }
+        .wanted-list::-webkit-scrollbar-thumb { background: var(--accent); border: 1px solid #000; }
+
+        .scanner-fx { width: 100%; height: 2px; background: var(--accent); position: absolute; top: 0; left: 0; opacity: 0.5; animation: scanDown 2s infinite linear; display: none; }
+        @keyframes scanDown { 0% { top: 0; } 100% { top: 100%; } }
+
+        /* --- RESPONSIVE DESIGN --- */
+
+        /* Tablets & Small Laptops */
+        @media (max-width: 1024px) {
+            body { overflow: auto; } /* Allow natural scrolling when stacked */
+            
+            .main-layout {
+                grid-template-columns: 1fr; /* Stack panels vertically */
+                overflow-y: auto; 
+                height: auto;
+                min-height: calc(100vh - 60px);
+            }
+
+            .panel {
+                min-height: 300px; /* Give panels some breathing room */
+            }
+
+            .wanted-list {
+                max-height: 40vh; /* Constrain the list height so it doesn't push everything off screen */
+            }
+        }
+
+        /* Mobile Phones */
+        @media (max-width: 600px) {
+            .top-bar { padding: 10px 15px; }
+            .top-bar h1 { font-size: 0.7rem; letter-spacing: 0.5px; }
+            
+            .main-layout { padding: 10px; gap: 15px; }
+            .panel { padding: 15px; }
+
+            .status-text { font-size: 1.2rem; }
+            .mech-btn { padding: 12px; font-size: 0.8rem; }
+            
+            .wanted-item {
+                flex-direction: column; /* Stack plate info and button vertically */
+                align-items: flex-start;
+                gap: 8px;
+            }
+            .wanted-item .mech-btn { width: 100%; } /* Make intercept button full width */
+            .plate-tag { font-size: 0.9rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <h1>▸ NHAI_DISPATCH // PURSUIT_TERMINAL_v7.0</h1>
+    <div class="time" id="clock">00:00:00</div>
+</div>
+
+<div class="main-layout">
+    <!-- Left Side: Rogue Dispatch -->
+    <div class="panel">
+        <div class="panel-title">■ Rogue Vehicle Dispatch</div>
+        
+        <div class="dispatch-box" id="rogue-box">
+            <div style="font-size:0.8rem; color:#555; margin-bottom:5px;">NETWORK STATUS</div>
+            <div class="status-text status-idle" id="rogue-status">NO ROGUES DETECTED</div>
+            <div style="font-size:0.8rem; color:#888;" id="rogue-details">All toll traffic is registered.</div>
+        </div>
+
+        <div style="color: #555; font-size: 0.75rem; margin-bottom: 15px; border-left: 3px solid var(--accent); padding-left: 10px;">
+            If an UNKNOWN vehicle bypasses the toll, dispatch a patrol to intercept and route them to Enforcement Gate 1 for mandatory ID issuance.
+        </div>
+
+        <button class="mech-btn btn-dispatch" id="btn-dispatch" onclick="dispatchRoguePatrol()" disabled>DISPATCH ROGUE PATROL</button>
+        <button class="mech-btn btn-clear" onclick="clearRogueStatus()">CLEAR ALERT</button>
+    </div>
+
+    <!-- Right Side: Active APB / Wanted Intercepts -->
+    <div class="panel">
+        <div class="panel-title">■ Active APB / Network Intercepts <div class="scanner-fx" id="scanner"></div></div>
+        
+        <div style="color: #555; font-size: 0.75rem; margin-bottom: 10px; flex-shrink: 0;">
+            Target wanted vehicles from the Registry. Intercepting forces them to spawn at Enforcement Gate 1 immediately.
+        </div>
+
+        <div class="wanted-list" id="apb-list">
+            <div style="color:#555; text-align:center; padding:20px;">NO ACTIVE WARRANTS</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let sharedData = { 
+        revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, 
+        history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null 
+    };
+
+    let isRogueDetected = false;
+
+    function updateClock() { document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB'); }
+    setInterval(updateClock, 1000);
+
+    function loadData() {
+        const saved = localStorage.getItem('enforcementTerminalV23');
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                sharedData = parsed;
+                if(!sharedData.registry) sharedData.registry = {};
+                if(!sharedData.forgedAliases) sharedData.forgedAliases = {};
+                if(sharedData.nextSpawnOverride === undefined) sharedData.nextSpawnOverride = null;
+            } catch(e) {}
+        }
+        checkRogueStatus();
+        renderAPBList();
+    }
+
+    function saveData() {
+        localStorage.setItem('enforcementTerminalV23', JSON.stringify(sharedData));
+    }
+
+    function checkRogueStatus() {
+        const lastAction = sharedData.history.length > 0 ? sharedData.history[sharedData.history.length - 1] : null;
+        
+        if (lastAction && lastAction.plate === "UNKNOWN" && lastAction.action === "TOLL PAID") {
+            isRogueDetected = true;
+            document.getElementById('rogue-status').innerText = "⚠ ROGUE VEHICLE DETECTED";
+            document.getElementById('rogue-status').className = "status-text status-rogue";
+            document.getElementById('rogue-details').innerText = "Unregistered vehicle bypassed NHAI Toll. Dispatch patrol immediately.";
+            document.getElementById('btn-dispatch').disabled = false;
+        } else {
+            if(sharedData.nextSpawnOverride && sharedData.nextSpawnOverride.startsWith("HOLD-")) {
+                isRogueDetected = true;
+                document.getElementById('rogue-status').innerText = "⚠ PATROL EN ROUTE";
+                document.getElementById('rogue-status').className = "status-text status-pursuit";
+                document.getElementById('rogue-details').innerText = `Target held as ${sharedData.nextSpawnOverride}. Awaiting Enforcement scan.`;
+                document.getElementById('btn-dispatch').disabled = true;
+            } else if (!isRogueDetected) {
+                clearRogueStatus();
+            }
+        }
+    }
+
+    function dispatchRoguePatrol() {
+        if(!isRogueDetected) return;
+
+        let holdPlate = "HOLD-" + Math.floor(1000+Math.random()*9000);
+
+        sharedData.registry[holdPlate] = {
+            id: "MISSING",
+            vClass: "ROGUE_CLASS",
+            status: "WANTED",
+            registeredBy: "PATROL_DISPATCH"
+        };
+
+        sharedData.nextSpawnOverride = holdPlate;
+
+        sharedData.history.push({
+            plate: holdPlate,
+            id: "PATROL",
+            action: "PATROL DISPATCHED",
+            timestamp: new Date().toLocaleTimeString()
+        });
+
+        saveData();
+        checkRogueStatus(); 
+        renderAPBList();
+    }
+
+    function clearRogueStatus() {
+        isRogueDetected = false;
+        document.getElementById('rogue-status').innerText = "NO ROGUES DETECTED";
+        document.getElementById('rogue-status').className = "status-text status-idle";
+        document.getElementById('rogue-details').innerText = "All toll traffic is registered.";
+        document.getElementById('btn-dispatch').disabled = true;
+    }
+
+    function interceptWanted(plate) {
+        sharedData.nextSpawnOverride = plate;
+        
+        sharedData.history.push({
+            plate: plate,
+            id: "INTERCEPT",
+            action: "INTERCEPT ORDERED",
+            timestamp: new Date().toLocaleTimeString()
+        });
+
+        saveData();
+        renderAPBList();
+        
+        document.getElementById('scanner').style.display = 'block';
+        setTimeout(() => { document.getElementById('scanner').style.display = 'none'; }, 2000);
+    }
+
+    function renderAPBList() {
+        const listContainer = document.getElementById('apb-list');
+        listContainer.innerHTML = '';
+
+        const registry = sharedData.registry || {};
+        const aliases = sharedData.forgedAliases || {};
+        let hasWanted = false;
+
+        Object.keys(aliases).forEach(fakePlate => {
+            hasWanted = true;
+            const record = aliases[fakePlate];
+            const item = document.createElement('div');
+            item.className = 'wanted-item';
+            item.innerHTML = `
+                <div>
+                    <div class="plate-tag">${fakePlate} (FORGED)</div>
+                    <div class="source-tag">Real Plate: ${record.realPlate}</div>
+                </div>
+                <button class="mech-btn btn-intercept" style="width:auto; padding:8px 15px; margin:0; flex-shrink:0;" onclick="interceptWanted('${fakePlate}')">INTERCEPT</button>
+            `;
+            listContainer.appendChild(item);
+        });
+
+        Object.keys(registry).forEach(plate => {
+            if (registry[plate].status === 'WANTED' && !aliases[plate]) { 
+                hasWanted = true;
+                const record = registry[plate];
+                const item = document.createElement('div');
+                item.className = 'wanted-item';
+                item.innerHTML = `
+                    <div>
+                        <div class="plate-tag">${plate}</div>
+                        <div class="source-tag">Source: ${record.registeredBy || "DB_TERMINAL"}</div>
+                    </div>
+                    <button class="mech-btn btn-intercept" style="width:auto; padding:8px 15px; margin:0; flex-shrink:0;" onclick="interceptWanted('${plate}')">INTERCEPT</button>
+                `;
+                listContainer.appendChild(item);
+            }
+        });
+
+        if (!hasWanted) {
+            listContainer.innerHTML = '<div style="color:#555; text-align:center; padding:20px;">NO ACTIVE WARRANTS</div>';
+        }
+    }
+
+    // Initial load and live sync
+    loadData();
+    setInterval(loadData, 2000);
+</script>
+</body>
+</html>
