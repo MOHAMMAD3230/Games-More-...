@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NHAI - Licensing Authority Terminal</title>
+    <style>
+        :root {
+            --bg: #080810; --panel: #10101a; --accent: #00d9ff; --success: #2ed573;
+            --danger: #ff4757; --warning: #ffa502; --border: #2a2a3a; --paper: #f0f0e8;
+        }
+
+        body {
+            background-color: var(--bg); color: #ccc; font-family: 'Courier New', monospace;
+            margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        .top-bar {
+            background: #000; padding: 12px 30px; border-bottom: 2px solid var(--success);
+            display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+        }
+
+        .top-bar h1 { margin: 0; font-size: 1.1rem; color: var(--success); letter-spacing: 2px; }
+        .top-bar .time { color: var(--accent); font-size: 0.9rem; }
+
+        .main-layout {
+            display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px; padding: 20px;
+            flex-grow: 1; min-height: 0; overflow: hidden;
+        }
+
+        /* Left Side: Call Next Applicant */
+        .call-panel { 
+            display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            border-right: 1px solid var(--border); padding-right: 20px; gap: 30px;
+        }
+        .terminal-art {
+            font-size: 0.8rem; color: #555; text-align: center; line-height: 1.5;
+        }
+
+        .btn-next-mega {
+            background: linear-gradient(145deg, #00d9ff, #009aa8); color: #000; border: none;
+            padding: 40px; font-weight: 900; text-transform: uppercase; font-size: 1.5rem;
+            cursor: pointer; box-shadow: 0 8px 0 #005f6b, 0 15px 30px rgba(0,0,0,0.5);
+            transition: all 0.1s; font-family: monospace; width: 100%; border-radius: 4px;
+        }
+        .btn-next-mega:active { transform: translateY(6px); box-shadow: 0 2px 0 #005f6b; }
+
+        /* Application Detail Panel */
+        .detail-panel { display: flex; flex-direction: column; gap: 15px; min-height: 0; overflow: hidden; }
+        
+        .form-container {
+            position: relative; flex-grow: 1; border: 1px solid var(--border); background: #050508;
+            overflow: hidden; 
+        }
+
+        .application-form {
+            background: var(--paper); color: #111; padding: 20px 30px; font-size: 0.9rem;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; box-sizing: border-box;
+            opacity: 0; pointer-events: none; transform: translateY(30px);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+            display: flex; flex-direction: column; justify-content: space-around;
+        }
+        .application-form.active { opacity: 1; pointer-events: auto; transform: translateY(0); }
+        
+        .application-form.archive-left {
+            opacity: 0; pointer-events: none; transform: translateX(-150%) rotate(-10deg);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        .application-form.archive-right {
+            opacity: 0; pointer-events: none; transform: translateX(150%) rotate(10deg);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        .form-header { border-bottom: 2px solid #111; padding-bottom: 8px; text-align: center; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; font-size: 1rem; }
+        .form-row { display: flex; justify-content: space-between; margin-bottom: 5px; border-bottom: 1px dashed #aaa; padding-bottom: 5px; }
+        .form-label { font-weight: bold; }
+        
+        .score-box { 
+            padding: 10px; border: 3px solid #111; text-align: center; 
+            font-size: 2rem; font-weight: 900; background: #e0e0d8; 
+        }
+        .score-pass { color: var(--success); border-color: var(--success); }
+        .score-fail { color: var(--danger); border-color: var(--danger); }
+
+        .bg-check { 
+            padding: 8px; background: #111; color: #fff; font-size: 0.8rem; 
+            text-align: center; border: 1px solid #333;
+        }
+        .bg-clean { color: var(--success); border-color: var(--success); background: #0a1a0a; }
+        .bg-flag { color: var(--danger); border-color: var(--danger); background: #1a0a0a; animation: pulse 1s infinite; }
+
+        .stamp-overlay {
+            position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg);
+            font-size: 4rem; font-weight: 900; border: 8px solid; padding: 10px 30px;
+            opacity: 0; z-index: 5; pointer-events: none; transition: opacity 0.2s;
+        }
+        .stamp-approved { color: var(--success); border-color: var(--success); }
+        .stamp-rejected { color: var(--danger); border-color: var(--danger); }
+
+        .action-panel {
+            display: flex; gap: 15px; flex-shrink: 0; padding-top: 5px; border-top: 1px solid var(--border);
+        }
+
+        .mech-btn {
+            padding: 12px; border: 2px solid #000; cursor: pointer; font-weight: bold;
+            text-transform: uppercase; font-size: 0.9rem; box-shadow: 0 3px 0 #000;
+            transition: all 0.1s; font-family: monospace; background: #333; color: #fff; flex: 1;
+        }
+        .mech-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #000; }
+        .btn-approve { background: var(--success); color: #000; box-shadow: 0 3px 0 #1e9e55; }
+        .btn-reject { background: var(--danger); color: #fff; box-shadow: 0 3px 0 #cc2233; }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .application-form { padding: 15px 20px; font-size: 0.85rem; }
+            .form-header { font-size: 0.9rem; }
+            .score-box { font-size: 1.8rem; padding: 8px; }
+            .stamp-overlay { font-size: 3rem; }
+        }
+
+        @media (max-width: 1024px) {
+            .main-layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr; overflow-y: auto; }
+            .call-panel { border-right: none; border-bottom: 1px solid var(--border); padding-right: 0; padding-bottom: 20px; }
+            .btn-next-mega { padding: 20px; font-size: 1.2rem; }
+            .detail-panel { min-height: 500px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <h1>▸ NHAI_LICENSING_AUTH // REVIEW_TERMINAL_v5.0</h1>
+    <div class="time" id="clock">00:00:00</div>
+</div>
+
+<div class="main-layout">
+    <!-- Left Side: Call Next Applicant -->
+    <div class="call-panel">
+        <div class="terminal-art">
+            ► SYSTEM READY<br>
+            ► AWAITING OFFICER INPUT<br>
+            ► DATABASE SYNC: ACTIVE
+        </div>
+        <button class="btn-next-mega" onclick="callNextApplicant()">CALL NEXT APPLICANT</button>
+        <div style="font-size: 0.7rem; color: #555;">Press button to pull next random application</div>
+    </div>
+
+    <!-- Right Side: Application Review -->
+    <div class="detail-panel">
+        <div class="panel-title" style="color: var(--accent); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 5px;">■ Document Review</div>
+        
+        <div class="form-container">
+            <div class="application-form" id="app-form">
+                <div id="stamp-box" class="stamp-overlay"></div>
+                <div class="form-header">Official Application For Vehicle Registration</div>
+                
+                <!-- Ordered exactly as requested -->
+                <div class="form-row"><span class="form-label">APPLICANT NAME:</span> <span id="f-name">---</span></div>
+                <div class="form-row"><span class="form-label">VEHICLE CLASS:</span> <span id="f-class">---</span></div>
+                <div class="form-row"><span class="form-label">REQUESTED PLATE:</span> <span id="f-plate" style="color:var(--danger); font-weight:bold;">---</span></div>
+                
+                <div style="margin-top:5px; font-weight:bold; text-decoration:underline;">TEST RESULTS:</div>
+                <div class="score-box" id="f-score">-- / 100</div>
+                <div style="text-align:center; font-size:0.8rem; margin-top:2px;" id="f-score-status">AWAITING SCORE</div>
+
+                <div class="bg-check" id="f-bgcheck">BACKGROUND CHECK: PENDING</div>
+            </div>
+        </div>
+
+        <div class="action-panel">
+            <button class="mech-btn btn-approve" id="btn-approve" onclick="processApplication(true)" disabled>APPROVE REGISTRY</button>
+            <button class="mech-btn btn-reject" id="btn-reject" onclick="processApplication(false)" disabled>REJECT APPLICATION</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let sharedData = { revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, history: [], registry: {} };
+    let currentApplicant = null;
+    let currentApplicantStatus = null; 
+
+    const firstNames = ["JOHN", "MARIA", "ALEX", "SANJI", "LEILA", "OMAR", "CHEN", "RYUK", "PRIYA", "JINX"];
+    const lastNames = ["WICK", "SOTO", "CHEN", "CARTER", "VALENCIA", "NAKAMURA", "PETROV", "SINGH", "MERCER", "DIAZ"];
+    const prefixes = ["PX","NX","TX","DV","CR","XR","ZK","AV","BN"];
+
+    function updateClock() { document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB'); }
+    setInterval(updateClock, 1000);
+
+    function loadData() {
+        const saved = localStorage.getItem('enforcementTerminalV23');
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                sharedData = parsed;
+                if(!sharedData.registry) sharedData.registry = {};
+            } catch(e) {}
+        }
+    }
+
+    function saveData() {
+        localStorage.setItem('enforcementTerminalV23', JSON.stringify(sharedData));
+    }
+
+    function generateRandomApplicant() {
+        const fName = firstNames[Math.floor(Math.random()*firstNames.length)];
+        const lName = lastNames[Math.floor(Math.random()*lastNames.length)];
+        const plate = prefixes[Math.floor(Math.random()*prefixes.length)] + "-" + Math.floor(1000+Math.random()*9000);
+        const classes = ["LVM_CLASS_1", "HVM_CLASS_2", "GOV_CLASS_0"];
+        const vClass = classes[Math.floor(Math.random()*classes.length)];
+        const score = Math.floor(Math.random() * 101); 
+        const isFlagged = Math.random() < 0.2; 
+
+        return {
+            name: `${fName} ${lName}`,
+            plate: plate,
+            vClass: vClass,
+            score: score,
+            isFlagged: isFlagged
+        };
+    }
+
+    function loadIntoForm(applicant) {
+        currentApplicant = applicant;
+        currentApplicantStatus = null;
+
+        const form = document.getElementById('app-form');
+        form.className = 'application-form active'; 
+        
+        // CLEAR THE STAMP IMMEDIATELY for the new applicant
+        document.getElementById('stamp-box').className = 'stamp-overlay';
+        document.getElementById('stamp-box').style.opacity = '0';
+
+        document.getElementById('f-name').innerText = currentApplicant.name;
+        document.getElementById('f-class').innerText = currentApplicant.vClass;
+        document.getElementById('f-plate').innerText = currentApplicant.plate;
+        
+        const scoreBox = document.getElementById('f-score');
+        const scoreStatus = document.getElementById('f-score-status');
+        scoreBox.innerText = `${currentApplicant.score} / 100`;
+        
+        if (currentApplicant.score >= 70) {
+            scoreBox.className = 'score-box score-pass';
+            scoreStatus.innerText = "STATUS: PASSED";
+            scoreStatus.style.color = "var(--success)";
+        } else {
+            scoreBox.className = 'score-box score-fail';
+            scoreStatus.innerText = "STATUS: FAILED (Below 70)";
+            scoreStatus.style.color = "var(--danger)";
+        }
+
+        const bgBox = document.getElementById('f-bgcheck');
+        if (currentApplicant.isFlagged) {
+            bgBox.innerText = "BACKGROUND CHECK: ⚠ FLAGGED BY ENFORCEMENT";
+            bgBox.className = "bg-check bg-flag";
+        } else {
+            bgBox.innerText = "BACKGROUND CHECK: ✓ RECORD CLEAN";
+            bgBox.className = "bg-check bg-clean";
+        }
+
+        // Enable choice buttons
+        document.getElementById('btn-approve').disabled = false;
+        document.getElementById('btn-reject').disabled = false;
+    }
+
+    function callNextApplicant() {
+        const form = document.getElementById('app-form');
+        const stampBox = document.getElementById('stamp-box');
+        
+        // If we have a form on screen that was processed, animate it away first
+        if (currentApplicant && currentApplicantStatus) {
+            // Hide stamp instantly so it doesn't show on the sliding animation
+            stampBox.style.opacity = '0';
+
+            if (currentApplicantStatus === 'approved') {
+                form.className = 'application-form archive-left'; 
+            } else {
+                form.className = 'application-form archive-right'; 
+            }
+
+            currentApplicant = null;
+            currentApplicantStatus = null;
+
+            document.getElementById('btn-approve').disabled = true;
+            document.getElementById('btn-reject').disabled = true;
+
+            // Wait for slide-out animation, then generate fresh
+            setTimeout(() => {
+                const newApplicant = generateRandomApplicant();
+                loadIntoForm(newApplicant);
+            }, 400);
+        } else {
+            // No form processed yet, just load straight away
+            const newApplicant = generateRandomApplicant();
+            loadIntoForm(newApplicant);
+        }
+    }
+
+    function processApplication(isApproved) {
+        if (!currentApplicant) return;
+
+        loadData(); 
+        const stampBox = document.getElementById('stamp-box');
+
+        if (isApproved) {
+            sharedData.registry[currentApplicant.plate] = {
+                id: "DL-AUTH-" + Math.floor(1000+Math.random()*9000),
+                vClass: currentApplicant.vClass,
+                status: "CLEAR", 
+                registeredBy: "AUTH_TERMINAL"
+            };
+            saveData(); 
+
+            stampBox.innerText = "APPROVED";
+            stampBox.className = "stamp-overlay stamp-approved";
+            stampBox.style.opacity = "1";
+            currentApplicantStatus = 'approved';
+
+        } else {
+            if (currentApplicant.isFlagged) {
+                sharedData.registry[currentApplicant.plate] = {
+                    id: "WANTED",
+                    vClass: currentApplicant.vClass,
+                    status: "WANTED",
+                    registeredBy: "AUTH_TERMINAL"
+                };
+                saveData();
+            }
+
+            stampBox.innerText = "REJECTED";
+            stampBox.className = "stamp-overlay stamp-rejected";
+            stampBox.style.opacity = "1";
+            currentApplicantStatus = 'rejected';
+        }
+
+        document.getElementById('btn-approve').disabled = true;
+        document.getElementById('btn-reject').disabled = true;
+    }
+
+    // Initial Load
+    loadData();
+    setInterval(loadData, 2000); 
+
+</script>
+</body>
+</html>
