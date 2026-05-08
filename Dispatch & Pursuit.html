@@ -12,7 +12,8 @@
 
         body {
             background-color: var(--bg); color: #ccc; font-family: 'Courier New', monospace;
-            margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+            margin: 0; height: 100vh; display: flex; flex-direction: column; 
+            overflow: hidden;
         }
 
         .top-bar {
@@ -61,7 +62,7 @@
         .btn-dispatch { background: linear-gradient(145deg, #ff0044, #99002a); color: #fff; }
         .btn-intercept { background: linear-gradient(145deg, #ff4757, #c0392b); color: #fff; }
         .btn-clear { background: #333; color: #fff; }
-        .btn-test { background: #222; color: #888; border-color: #444; font-size: 0.7rem; padding: 10px; }
+        .btn-test { background: #222; color: #888; border-color: #444; font-size: 0.7rem; padding: 10px; margin-top: 15px; }
 
         .wanted-list { flex-grow: 1; overflow-y: auto; margin-top: 10px; padding-right: 5px; }
         .wanted-item {
@@ -82,17 +83,27 @@
         /* --- RESPONSIVE DESIGN --- */
         @media (max-width: 1024px) {
             body { overflow: auto; }
-            .main-layout { grid-template-columns: 1fr; overflow-y: auto; height: auto; min-height: calc(100vh - 60px); }
+            .main-layout {
+                grid-template-columns: 1fr; 
+                overflow-y: auto; 
+                height: auto;
+                min-height: calc(100vh - 60px);
+            }
             .panel { min-height: 300px; }
             .wanted-list { max-height: 40vh; }
         }
+
         @media (max-width: 600px) {
             .top-bar h1 { font-size: 0.7rem; letter-spacing: 0.5px; }
             .main-layout { padding: 10px; gap: 15px; }
             .panel { padding: 15px; }
             .status-text { font-size: 1.2rem; }
             .mech-btn { padding: 12px; font-size: 0.8rem; }
-            .wanted-item { flex-direction: column; align-items: flex-start; gap: 8px; }
+            .wanted-item {
+                flex-direction: column; 
+                align-items: flex-start;
+                gap: 8px;
+            }
             .wanted-item .mech-btn { width: 100%; }
             .plate-tag { font-size: 0.9rem; }
         }
@@ -122,8 +133,6 @@
 
         <button class="mech-btn btn-dispatch" id="btn-dispatch" onclick="dispatchRoguePatrol()" disabled>DISPATCH ROGUE PATROL</button>
         <button class="mech-btn btn-clear" onclick="clearRogueStatus()">CLEAR ALERT</button>
-        
-        <!-- TESTING BUTTON: Fakes an UNKNOWN toll payment to test the dispatch system -->
         <button class="mech-btn btn-test" onclick="simulateRogueBypass()">TEST: SIMULATE ROGUE BYPASS</button>
     </div>
 
@@ -180,16 +189,23 @@
             document.getElementById('rogue-status').className = "status-text status-rogue";
             document.getElementById('rogue-details').innerText = "Unregistered vehicle bypassed NHAI Toll. Dispatch patrol immediately.";
             document.getElementById('btn-dispatch').disabled = false;
-        } else {
-            if(sharedData.nextSpawnOverride && sharedData.nextSpawnOverride.startsWith("HOLD-")) {
+        } else if(sharedData.nextSpawnOverride && sharedData.nextSpawnOverride.startsWith("HOLD-")) {
+            
+            // BUG FIX: If the registry was wiped (cache cleared), but a patrol was en route, 
+            // the HOLD vehicle won't exist anymore. Cancel the alert automatically.
+            if (!sharedData.registry[sharedData.nextSpawnOverride]) {
+                clearRogueStatus();
+                sharedData.nextSpawnOverride = null;
+                saveData();
+            } else {
                 isRogueDetected = true;
                 document.getElementById('rogue-status').innerText = "⚠ PATROL EN ROUTE";
                 document.getElementById('rogue-status').className = "status-text status-pursuit";
                 document.getElementById('rogue-details').innerText = `Target held as ${sharedData.nextSpawnOverride}. Awaiting Enforcement scan.`;
                 document.getElementById('btn-dispatch').disabled = true;
-            } else if (!isRogueDetected) {
-                clearRogueStatus();
             }
+        } else {
+            clearRogueStatus();
         }
     }
 
