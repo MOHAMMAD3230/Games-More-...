@@ -210,7 +210,7 @@
 
   let car=null, revenue=0, valids=0, missed=0, level=1, rankPoints=0, wantedPlates=[], isResetting=false, isScanning=false;
   let history = []; 
-  let sharedData = { revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null };
+  let sharedData = { revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null, activeInmates: [], releasedInmates: [] };
 
   function loadData() {
       const savedData = localStorage.getItem('enforcementTerminalV23');
@@ -223,6 +223,8 @@
               if(!sharedData.registry) sharedData.registry = {};
               if(!sharedData.forgedAliases) sharedData.forgedAliases = {};
               if(sharedData.nextSpawnOverride === undefined) sharedData.nextSpawnOverride = null;
+              if(!sharedData.activeInmates) sharedData.activeInmates = [];
+              if(!sharedData.releasedInmates) sharedData.releasedInmates = [];
           } catch (e) { console.error("Corrupted save data, resetting."); }
       }
       updateStatusUI();
@@ -230,7 +232,7 @@
   }
 
   function saveData() {
-      const finalData = { revenue, valids, missed, level, rankPoints, history, registry: sharedData.registry, forgedAliases: sharedData.forgedAliases, nextSpawnOverride: sharedData.nextSpawnOverride };
+      const finalData = { revenue, valids, missed, level, rankPoints, history, registry: sharedData.registry, forgedAliases: sharedData.forgedAliases, nextSpawnOverride: sharedData.nextSpawnOverride, activeInmates: sharedData.activeInmates, releasedInmates: sharedData.releasedInmates };
       localStorage.setItem('enforcementTerminalV23', JSON.stringify(finalData));
   }
 
@@ -239,7 +241,7 @@
       if (savedData) {
           try {
               const data = JSON.parse(savedData);
-              if(data.revenue !== revenue || data.valids !== valids || JSON.stringify(data.registry) !== JSON.stringify(sharedData.registry) || data.nextSpawnOverride !== sharedData.nextSpawnOverride) {
+              if(data.revenue !== revenue || data.valids !== valids || JSON.stringify(data.registry) !== JSON.stringify(sharedData.registry) || data.nextSpawnOverride !== sharedData.nextSpawnOverride || data.activeInmates.length !== sharedData.activeInmates.length) {
                   revenue = data.revenue; valids = data.valids; missed = data.missed;
                   level = data.level; rankPoints = data.rankPoints; history = data.history || [];
                   sharedData = data;
@@ -272,7 +274,6 @@
       let isForgedAlias = false;
       let isPatrolDispatch = false;
 
-      // PRIORITY 1: Check for NHAI Toll Patrol Dispatch
       if (sharedData.nextSpawnOverride) {
           customSpawn = sharedData.registry[sharedData.nextSpawnOverride];
           if(customSpawn) {
@@ -280,18 +281,15 @@
               isPatrolDispatch = true;
               addLog(`⚠ PRIORITY OVERRIDE: Incoming Patrol Dispatch.`, "var(--danger)");
           }
-          sharedData.nextSpawnOverride = null; // Clear override once grabbed
-          saveData();
+          sharedData.nextSpawnOverride = null; saveData();
       }
 
-      // PRIORITY 2: Check standard registry & Syndicate Forge
       if (!isPatrolDispatch && sharedData.registry && Object.keys(sharedData.registry).length > 0) {
           if (Math.random() < 0.4) { 
               const regPlates = Object.keys(sharedData.registry);
               const randomPlate = regPlates[Math.floor(Math.random() * regPlates.length)];
               customSpawn = sharedData.registry[randomPlate];
               customSpawn.plate = randomPlate; 
-              
               if(sharedData.forgedAliases && sharedData.forgedAliases[randomPlate]) {
                   isForgedAlias = true;
                   customSpawn.realWantedPlate = sharedData.forgedAliases[randomPlate].realPlate;
@@ -303,42 +301,29 @@
       let isCriminal, plate, isWanted, sex, photo, isForged, expiry, id, hasMissingID, realWantedPlate;
 
       if (customSpawn) {
-          plate = customSpawn.plate;
-          id = customSpawn.id;
-          isWanted = customSpawn.status === 'WANTED';
-          isCriminal = isWanted;
-          hasMissingID = id === "MISSING";
-          isForged = false; 
+          plate = customSpawn.plate; id = customSpawn.id;
+          isWanted = customSpawn.status === 'WANTED'; isCriminal = isWanted;
+          hasMissingID = id === "MISSING"; isForged = false; 
           realWantedPlate = customSpawn.realWantedPlate || null;
           
-          if(isForgedAlias) {
-              addLog(`DATABASE REGISTRY: Forged Alias detected in stream.`, "var(--danger)");
-          } else if (isPatrolDispatch) {
-              addLog(`DATABASE REGISTRY: Rogue vehicle held by patrol.`, "var(--warning)");
-          } else {
-              addLog(`DATABASE REGISTRY: Custom vehicle detected.`, "var(--warning)");
-          }
+          if(isForgedAlias) addLog(`DATABASE REGISTRY: Forged Alias detected in stream.`, "var(--danger)");
+          else if (isPatrolDispatch) addLog(`DATABASE REGISTRY: Rogue vehicle held by patrol.`, "var(--warning)");
+          else addLog(`DATABASE REGISTRY: Custom vehicle detected.`, "var(--warning)");
 
-          sex = Math.random() > 0.5 ? "MALE" : "FEMALE";
-          photo = sex === "MALE" ? "👨" : "👩";
-          expiry = isCriminal ? "2023" : "2034";
+          sex = Math.random() > 0.5 ? "MALE" : "FEMALE"; photo = sex === "MALE" ? "👨" : "👩"; expiry = isCriminal ? "2023" : "2034";
       } else {
           isCriminal = Math.random() < 0.5;
-          plate = prefixes[Math.floor(Math.random()*prefixes.length)] + "-" + Math.floor(1000+Math.random()*9000); 
-          isWanted = false;
+          plate = prefixes[Math.floor(Math.random()*prefixes.length)] + "-" + Math.floor(1000+Math.random()*9000); isWanted = false;
           if(Math.random() < 0.3 && wantedPlates.length > 0) { plate = wantedPlates[Math.floor(Math.random()*wantedPlates.length)]; isWanted = true; }
           sex = Math.random() > 0.5 ? "MALE" : "FEMALE"; photo = sex === "MALE" ? "👨" : "👩"; isForged = false;
           if (isCriminal && Math.random() < 0.4) { isForged = true; photo = sex === "MALE" ? "👩" : "👨"; }
           id = (isCriminal && Math.random() < 0.3) ? "MISSING" : "DL-" + Math.floor(1000+Math.random()*9000);
-          hasMissingID = (isCriminal && Math.random() < 0.3);
-          expiry = (isCriminal && Math.random() < 0.5) ? "2023" : "2034";
-          realWantedPlate = null;
+          hasMissingID = (isCriminal && Math.random() < 0.3); expiry = (isCriminal && Math.random() < 0.5) ? "2023" : "2034"; realWantedPlate = null;
       }
 
       car = {
           plate: plate, id: id, hasMissingID: hasMissingID, expired: isCriminal && Math.random() < 0.5, 
-          isWanted: isWanted, isForged: isForged, expiry: expiry, photo: photo, sex: sex, 
-          realWantedPlate: realWantedPlate
+          isWanted: isWanted, isForged: isForged, expiry: expiry, photo: photo, sex: sex, realWantedPlate: realWantedPlate
       };
 
       const sprite = document.getElementById('vSprite'); sprite.className='vehicle'; sprite.style.transition="none"; sprite.style.left="-250px"; void sprite.offsetWidth; 
@@ -354,15 +339,9 @@
           document.getElementById('dID').innerText=car.id; document.getElementById('dExp').innerText=car.expiry;
           document.getElementById('dName').innerText="SUBJECT_"+car.plate; document.getElementById('dSex').innerText=car.sex;
           document.getElementById('dPhoto').innerText=car.photo; 
-          
           const forgeryBox = document.getElementById('forgeryBox');
-          if(car.realWantedPlate) {
-              forgeryBox.style.display = "block";
-              document.getElementById('dRealPlate').innerText = car.realWantedPlate;
-          } else {
-              forgeryBox.style.display = "none";
-          }
-
+          if(car.realWantedPlate) { forgeryBox.style.display = "block"; document.getElementById('dRealPlate').innerText = car.realWantedPlate; } 
+          else { forgeryBox.style.display = "none"; }
           doc.style.display="block";
           addLog(`Credentials visible. Copy to verification unit.`, "var(--accent)");
       }
@@ -377,14 +356,10 @@
       addLog("Querying Intelligence Network...");
       setTimeout(() => {
           isScanning = false; document.getElementById('btnScan').disabled = false; 
-          
           if(car.realWantedPlate && pIn === car.realWantedPlate) {
               addLog("CRIMINAL ALERT: WANTED FUGITIVE PLATE DETECTED UNDER FORGED ALIAS!", "var(--danger)");
-              document.getElementById('vSprite').classList.add('criminal-alert'); 
-              document.getElementById('btnArrest').disabled=false; playSirenSound();
-              return;
+              document.getElementById('vSprite').classList.add('criminal-alert'); document.getElementById('btnArrest').disabled=false; playSirenSound(); return;
           }
-
           if (pIn !== car.plate || lIn !== car.id) { addLog("SCAN ERROR: INPUT DATA DISCREPANCY.", "var(--warning)"); playSound('error'); return; }
           let alertFlags = [];
           if (car.isWanted) alertFlags.push("WANTED FUGITIVE"); if (car.expired) alertFlags.push("EXPIRED CREDENTIALS");
@@ -429,24 +404,48 @@
       let logPlate = car.realWantedPlate ? `${car.plate} (Real: ${car.realWantedPlate})` : car.plate;
       history.push({ plate: logPlate, id: car.id, action: "ARRESTED", timestamp: new Date().toLocaleTimeString() });
       
-      // NEW: Clear the warrant from the database so Dashboard 7 updates!
+      // Send to Jail (Dashboard 8) and clear from streets (Dashboard 4 & 7)
       clearWarrantOnArrest(car.plate);
-      if (car.realWantedPlate) clearWarrantOnArrest(car.realWantedPlate); // Clear the real plate too if forged
+      if (car.realWantedPlate) clearWarrantOnArrest(car.realWantedPlate); 
       
       updateLevel(); updateStatusUI(); resetStage();
   }
 
-  // NEW FUNCTION: Removes WANTED status and Forged Aliases upon arrest
+  // Sends arrested criminals to Dashboard 8 and clears them from the active streets
   function clearWarrantOnArrest(plate) {
-      if (sharedData.registry[plate]) {
-          // Remove from registry entirely (they are in jail, not driving)
-          delete sharedData.registry[plate];
-      }
+      let inmateData = null;
+
       if (sharedData.forgedAliases && sharedData.forgedAliases[plate]) {
-          // Remove the forged alias link
-          delete sharedData.forgedAliases[plate];
+          inmateData = {
+              plate: plate,
+              realPlate: sharedData.forgedAliases[plate].realPlate,
+              id: sharedData.forgedAliases[plate].fakeId,
+              offense: "FORGERY & FUGITIVE",
+              dateArrested: new Date().toLocaleDateString(),
+              facility: "MAXIMUM SECURITY",
+              status: "ARRESTED"
+          };
+          delete sharedData.forgedAliases[plate]; 
+      } 
+      else if (sharedData.registry[plate]) {
+          inmateData = {
+              plate: plate,
+              realPlate: plate,
+              id: sharedData.registry[plate].id,
+              offense: "WARRANT / ROGUE",
+              dateArrested: new Date().toLocaleDateString(),
+              facility: "CENTRAL DETENTION",
+              status: "ARRESTED"
+          };
       }
-      saveData(); // Push changes to network so Dashboard 4 & 7 see it immediately
+
+      if (inmateData) {
+          if(!sharedData.activeInmates) sharedData.activeInmates = [];
+          sharedData.activeInmates.push(inmateData);
+      }
+
+      if (sharedData.registry[plate]) delete sharedData.registry[plate];
+      saveData(); 
   }
 
   function updateLevel() {
