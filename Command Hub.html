@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NHAI CENTRAL COMMAND - NETWORK HUB v4.0</title>
+    <style>
+        :root {
+            --bg: #050508; --panel: #0d0d14; --accent: #00d9ff; --success: #00ff9d;
+            --danger: #ff0044; --warning: #ffcc00; --border: #1a1a2e;
+        }
+
+        body {
+            background-color: var(--bg); color: #ccc; font-family: 'Courier New', monospace;
+            margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        .top-bar {
+            background: #000; padding: 15px 30px; border-bottom: 2px solid var(--accent);
+            display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+        }
+
+        .top-bar h1 { margin: 0; font-size: 1.2rem; color: var(--accent); letter-spacing: 2px; }
+        .top-bar .time { color: var(--warning); font-size: 0.9rem; }
+
+        .grid-layout {
+            display: grid; grid-template-columns: 1fr 2fr; grid-template-rows: 1fr 1fr;
+            gap: 20px; padding: 20px; flex-grow: 1; min-height: 0;
+        }
+
+        .panel {
+            background: var(--panel); border: 1px solid var(--border); border-radius: 4px;
+            padding: 20px; display: flex; flex-direction: column; overflow: hidden; position: relative;
+        }
+
+        .panel-header {
+            color: var(--accent); font-size: 0.8rem; border-bottom: 1px solid var(--border);
+            padding-bottom: 10px; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px;
+        }
+
+        /* Stats Panel */
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; flex-grow: 1; }
+        .stat-box { background: #000; border: 1px solid var(--border); padding: 15px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .stat-label { font-size: 0.7rem; color: #888; margin-bottom: 5px; }
+        .stat-value { font-size: 2.5rem; font-weight: bold; }
+
+        /* Network Feed Panel */
+        .feed-container { flex-grow: 1; overflow-y: auto; background: #000; padding: 10px; border: 1px solid var(--border); }
+        .feed-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed var(--border); font-size: 0.8rem; }
+        .feed-item:last-child { border-bottom: none; }
+        .feed-plate { color: var(--warning); font-weight: bold; width: 100px; }
+        .feed-action { flex-grow: 1; padding: 0 15px; }
+        .feed-action.toll { color: var(--success); }
+        .feed-action.enforce { color: var(--danger); }
+        .feed-time { color: #555; width: 80px; text-align: right; }
+
+        /* System Health Panel */
+        .health-row { display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 0.85rem; }
+        .health-status { font-weight: bold; }
+        .health-status.online { color: var(--success); }
+        .health-status.offline { color: var(--danger); }
+
+        .activity-graph { flex-grow: 1; background: #000; border: 1px solid var(--border); position: relative; overflow: hidden; display: flex; align-items: flex-end; padding: 10px; gap: 5px; }
+        .graph-bar { background: var(--accent); width: 10%; opacity: 0.7; transition: height 0.5s ease-out; }
+        
+        /* Scanner line effect */
+        .scan-line { position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: var(--accent); opacity: 0.3; animation: scanDown 3s infinite linear; }
+        @keyframes scanDown { 0% { top: 0; } 100% { top: 100%; } }
+
+        @media (max-width: 900px) {
+            .grid-layout { grid-template-columns: 1fr; grid-template-rows: auto auto auto; overflow-y: auto; }
+            .panel { min-height: 250px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <h1>▸ NHAI_CENTRAL_COMMAND // HUB_v4.0</h1>
+    <div class="time" id="clock">00:00:00</div>
+</div>
+
+<div class="grid-layout">
+    <!-- Top Left: Stats Overview -->
+    <div class="panel">
+        <div class="panel-header">■ Field Terminal Aggregation</div>
+        <div class="stats-grid">
+            <div class="stat-box">
+                <div class="stat-label">TOTAL REVENUE</div>
+                <div class="stat-value" style="color: var(--success);" id="cmd-rev">$0</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">CRIMINALS DETAINED</div>
+                <div class="stat-value" style="color: var(--danger);" id="cmd-arrests">0</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">VALID PASSES</div>
+                <div class="stat-value" style="color: var(--accent);" id="cmd-valids">0</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">STATION LEVEL</div>
+                <div class="stat-value" style="color: var(--warning);" id="cmd-level">1</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Right & Bottom Right: Network Feed (Spans 2 rows) -->
+    <div class="panel" style="grid-row: 1 / 3;">
+        <div class="scan-line"></div>
+        <div class="panel-header">■ Live Network Feed [TERMINAL_01 & TERMINAL_02]</div>
+        <div class="feed-container" id="network-feed">
+            <div class="feed-item" style="color:#555; justify-content: center;">AWAITING NETWORK DATA...</div>
+        </div>
+    </div>
+
+    <!-- Bottom Left: System Health -->
+    <div class="panel">
+        <div class="panel-header">■ System Health & Activity</div>
+        <div class="health-row">
+            <span>CACHE MEMORY:</span>
+            <span class="health-status online" id="cmd-cache">SYNCED</span>
+        </div>
+        <div class="health-row">
+            <span>TERMINAL_01 (ENFORCEMENT):</span>
+            <span class="health-status online">CONNECTED</span>
+        </div>
+        <div class="health-row">
+            <span>TERMINAL_02 (NHAI TOLL):</span>
+            <span class="health-status online">CONNECTED</span>
+        </div>
+        
+        <div style="font-size: 0.7rem; color: #888; margin-top: 10px;">NETWORK ACTIVITY (LAST 10 EVENTS)</div>
+        <div class="activity-graph" id="activity-graph">
+            <!-- Bars will be generated by JS -->
+        </div>
+    </div>
+</div>
+
+<script>
+    let sharedData = { revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, history: [] };
+
+    function updateClock() {
+        document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB');
+    }
+    setInterval(updateClock, 1000);
+
+    function loadSharedData() {
+        const saved = localStorage.getItem('enforcementTerminalV23');
+        let needsUpdate = false;
+
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                // Check if data has changed to avoid unnecessary DOM updates
+                if (JSON.stringify(parsed) !== JSON.stringify(sharedData)) {
+                    sharedData = parsed;
+                    needsUpdate = true;
+                }
+                document.getElementById('cmd-cache').innerText = "SYNCED";
+                document.getElementById('cmd-cache').className = "health-status online";
+            } catch(e) {
+                document.getElementById('cmd-cache').innerText = "CORRUPTED";
+                document.getElementById('cmd-cache').className = "health-status offline";
+            }
+        } else {
+            document.getElementById('cmd-cache').innerText = "NO DATA";
+            document.getElementById('cmd-cache').className = "health-status offline";
+        }
+
+        if (needsUpdate) {
+            renderDashboard();
+        }
+    }
+
+    function renderDashboard() {
+        // Update Stats
+        document.getElementById('cmd-rev').innerText = `$${sharedData.revenue || 0}`;
+        document.getElementById('cmd-valids').innerText = sharedData.valids || 0;
+        document.getElementById('cmd-level').innerText = sharedData.level || 1;
+        
+        // Calculate Arrests specifically from history
+        const arrests = (sharedData.history || []).filter(item => item.action === "ARRESTED").length;
+        document.getElementById('cmd-arrests').innerText = arrests;
+
+        // Update Network Feed
+        const feedContainer = document.getElementById('network-feed');
+        feedContainer.innerHTML = ''; // Clear feed
+
+        const history = sharedData.history || [];
+        if (history.length === 0) {
+            feedContainer.innerHTML = '<div class="feed-item" style="color:#555; justify-content: center;">AWAITING NETWORK DATA...</div>';
+        } else {
+            // Show latest 50 events (reverse order so newest is on top)
+            const recentHistory = history.slice(-50).reverse();
+            recentHistory.forEach(event => {
+                const item = document.createElement('div');
+                item.className = 'feed-item';
+                
+                // Determine action type and style
+                let actionClass = '';
+                let actionText = event.action;
+                if (event.action.includes('TOLL') || event.action.includes('RELEASED')) {
+                    actionClass = 'toll';
+                } else if (event.action.includes('ARRESTED')) {
+                    actionClass = 'enforce';
+                }
+
+                item.innerHTML = `
+                    <div class="feed-plate">${event.plate || 'SYS'}</div>
+                    <div class="feed-action ${actionClass}">${actionText} (ID: ${event.id || 'N/A'})</div>
+                    <div class="feed-time">${event.timestamp || '--:--'}</div>
+                `;
+                feedContainer.appendChild(item);
+            });
+        }
+
+        // Update Activity Graph
+        const graphContainer = document.getElementById('activity-graph');
+        graphContainer.innerHTML = '';
+        const last10 = history.slice(-10);
+        const maxEvents = 10;
+        
+        for(let i = 0; i < maxEvents; i++) {
+            const bar = document.createElement('div');
+            bar.className = 'graph-bar';
+            if (last10[i]) {
+                // Scale height based on string length of action just to give visual variance, or randomize
+                // Let's make Toll actions green and Enforcement red
+                if(last10[i].action.includes('TOLL')) {
+                    bar.style.background = 'var(--success)';
+                    bar.style.height = '40%';
+                } else if(last10[i].action.includes('ARRESTED')) {
+                    bar.style.background = 'var(--danger)';
+                    bar.style.height = '90%';
+                } else {
+                    bar.style.height = '60%';
+                }
+            } else {
+                bar.style.height = '2px'; // Empty slot
+                bar.style.background = '#333';
+            }
+            graphContainer.appendChild(bar);
+        }
+    }
+
+    // Initial load
+    loadSharedData();
+    // Sync with cache every 2 seconds
+    setInterval(loadSharedData, 2000);
+
+</script>
+</body>
+</html>
