@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <title>Rust-Bucket Metro Sim: Pro Edition</title>
+    <style>
+        :root {
+            --rust: #8b4513;
+            --iron: #444;
+            --dirty-yellow: #d4af37;
+            --panel: #2b2b2b;
+            --lcd-green: #63701d;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: #111;
+            color: #ddd;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        .viewport {
+            width: 100%;
+            max-width: 1100px;
+            height: 30%;
+            min-height: 150px;
+            background: #050505;
+            border: 10px solid var(--iron);
+            border-bottom: 16px solid #222;
+            position: relative;
+            flex-shrink: 0;
+        }
+        canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+        .dashboard {
+            width: 100%;
+            max-width: 1100px;
+            flex: 1 1 0%;
+            min-height: 0;
+            background: var(--panel);
+            background-image: radial-gradient(#333333 10%, transparent 10%);
+            background-size: 8px 8px;
+            border: 4px solid #1a1a1a;
+            display: grid;
+            grid-template-columns: 200px 1fr 200px;
+            padding: 8px;
+            gap: 8px;
+        }
+        .side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            background: #1a1a1a;
+            padding: 8px;
+            border: 3px inset #555555;
+            overflow-y: auto;
+            overflow-x: hidden;
+            min-height: 0;
+            flex-shrink: 0;
+        }
+        .side-panel::-webkit-scrollbar { width: 8px; }
+        .side-panel::-webkit-scrollbar-track { background: #111111; border-radius: 4px; }
+        .side-panel::-webkit-scrollbar-thumb { background: #555555; border-radius: 4px; border: 1px solid #222222; }
+        .side-panel::-webkit-scrollbar-thumb:hover { background: #777777; }
+        .side-panel { scrollbar-width: thin; scrollbar-color: #555555 #111111; }
+        
+        .analog-gauge {
+            height: 45px;
+            background: #d1d1d1;
+            border-radius: 5px;
+            position: relative;
+            border: 3px solid #000000;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .needle {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 3px;
+            height: 36px;
+            background: #cc0000;
+            transform-origin: bottom center;
+            transition: transform 0.1s linear;
+        }
+        .gauge-label {
+            font-size: 8px;
+            color: #000000;
+            text-align: center;
+            width: 100%;
+            position: absolute;
+            top: 2px;
+            font-weight: bold;
+        }
+        .controls-main {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-height: 0;
+        }
+        .lever-row {
+            display: flex;
+            justify-content: space-around;
+            background: #222222;
+            padding: 8px;
+            border: 2px solid #444444;
+            flex-shrink: 0;
+        }
+        .lever {
+            width: 50px;
+            height: 80px;
+            background: #111111;
+            border: 2px solid #555555;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            flex-shrink: 0;
+        }
+        .lever-handle {
+            width: 36px;
+            height: 16px;
+            background: #666666;
+            border: 2px solid #999999;
+            position: absolute;
+            top: 50%;
+            transition: top 0.1s;
+        }
+        .active-thrust { top: 10% !important; background: #00ff00 !important; box-shadow: 0 0 10px #00ff00 !important; }
+        .active-brake { top: 70% !important; background: #ff0000 !important; box-shadow: 0 0 10px #ff0000 !important; }
+        
+        .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; flex-shrink: 0; }
+        .btn-action {
+            height: 42px;
+            background: #883333;
+            border: 4px outset #aa4444;
+            color: #ffffff;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-action:active { border-style: inset; background: #662222; }
+        .btn-action.engine-btn { background: #554400; border-color: #886600; }
+        .btn-action.engine-btn.on { background: #225522; border-color: #44aa44; box-shadow: 0 0 12px rgba(0,255,0,0.2); }
+        
+        .shop-container {
+            background: #0a0a0a;
+            border: 2px solid var(--dirty-yellow);
+            padding: 6px;
+            font-size: 11px;
+            overflow-y: auto;
+            flex: 1 1 0%;
+            min-height: 0;
+        }
+        .shop-container::-webkit-scrollbar { width: 8px; }
+        .shop-container::-webkit-scrollbar-track { background: #111111; border-radius: 4px; }
+        .shop-container::-webkit-scrollbar-thumb { background: #d4af37; border-radius: 4px; border: 1px solid #222222; }
+        .shop-container::-webkit-scrollbar-thumb:hover { background: #ffe066; }
+        .shop-container { scrollbar-width: thin; scrollbar-color: #d4af37 #111111; }
+
+        .upgrade-item {
+            display: flex;
+            flex-direction: column;
+            padding: 6px 8px;
+            border-bottom: 1px solid #333333;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .upgrade-item:hover { background: #151515; }
+        .upgrade-item:active { background: #222222; }
+        .upgrade-info { display: flex; justify-content: space-between; margin-top: 3px; color: #888888; font-size: 9px; }
+        .upgrade-item.coal-item { border-left: 3px solid #8b4513; }
+        .section-header {
+            text-align: center;
+            margin: 6px 0 2px;
+            font-size: 10px;
+            font-weight: bold;
+            border-top: 1px solid #444444;
+            padding-top: 6px;
+        }
+
+        .bulb-box { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; font-size: 9px; flex-shrink: 0; }
+        .bulb { width: 10px; height: 10px; border-radius: 50%; background: #220000; border: 1px solid #000000; flex-shrink: 0; }
+        .bulb.on { background: #ff0000; box-shadow: 0 0 6px #ff0000; }
+        .bulb.green.on { background: #00ff00; box-shadow: 0 0 6px #00ff00; }
+        .bulb.yellow.on { background: #ffaa00; box-shadow: 0 0 6px #ffaa00; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.1; } }
+        .bulb.blinking { animation: blink 0.4s infinite; }
+
+        .lcd-display {
+            background: var(--lcd-green);
+            color: #000000;
+            padding: 5px 6px;
+            font-family: monospace;
+            border: 3px inset #444444;
+            font-size: 10px;
+            line-height: 1.4;
+            flex-shrink: 0;
+        }
+        .coal-bar-container {
+            background: #111111;
+            border: 2px solid #555555;
+            height: 20px;
+            position: relative;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .coal-bar-fill {
+            height: 100%;
+            background: linear-gradient(to right, #3a1a00, #8b4513, #d4af37);
+            transition: width 0.3s;
+            position: relative;
+        }
+        .coal-bar-fill::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(90deg, transparent, transparent 8px, rgba(0,0,0,0.3) 8px, rgba(0,0,0,0.3) 10px);
+        }
+        .coal-bar-text {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            font-weight: bold;
+            color: #ffffff;
+            text-shadow: 1px 1px 2px #000000;
+        }
+        .steam-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 6px;
+            background: #111111;
+            border: 2px inset #444444;
+            font-size: 9px;
+            flex-shrink: 0;
+        }
+        .steam-pipes { display: flex; gap: 3px; align-items: flex-end; height: 16px; }
+        .steam-puff { width: 7px; background: #666666; border-radius: 2px; transition: height 0.2s, background 0.2s; }
+        .funding-display { color: var(--dirty-yellow); font-weight: bold; font-size: 11px; flex-shrink: 0; }
+
+        #splash {
+            position: fixed; inset: 0;
+            background: #000000; z-index: 100; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; text-align: center;
+            gap: 16px; padding: 20px;
+        }
+        #splash h1 { color: var(--rust); font-size: clamp(18px, 5vw, 32px); }
+        #splash p { color: #888888; font-size: clamp(9px, 2vw, 13px); line-height: 1.8; }
+        .splash-gear { font-size: 50px; color: var(--dirty-yellow); animation: spin 4s linear infinite; display: inline-block; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        #log { font-size: 9px; color: #66aa66; line-height: 1.3; flex-grow: 1; overflow-y: auto; min-height: 0; }
+        #log::-webkit-scrollbar { width: 4px; }
+        #log::-webkit-scrollbar-thumb { background: #333333; border-radius: 2px; }
+        #log { scrollbar-width: thin; scrollbar-color: #333333 transparent; }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr auto;
+                overflow-y: auto;
+            }
+            .side-panel { max-height: 40vh; }
+            .viewport { height: 25%; min-height: 120px; border-width: 6px; }
+        }
+        @media (min-width: 769px) and (max-width: 1000px) {
+            .dashboard { grid-template-columns: 160px 1fr 160px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="splash">
+        <div class="splash-gear" aria-hidden="true">&#9881;</div>
+        <h1>RUST-BUCKET METRO: PRO</h1>
+        <p>
+            W / S : Throttle / Brake<br>
+            E : Engine Ignition<br>
+            SPACE : Door Control
+        </p>
+        <button class="btn-action" style="padding: 0 30px; height: 48px; font-size: 13px;" onclick="startSim()" aria-label="Start simulation">INITIALIZE SYSTEMS</button>
+    </div>
+
+    <div class="viewport" role="img" aria-label="Train viewport">
+        <canvas id="metroCanvas"></canvas>
+    </div>
+
+    <div class="dashboard">
+        <div class="side-panel" aria-label="Systems panel">
+            <div class="lcd-display">
+                STATUS: <span id="ui-status">READY</span><br>
+                ENGINE: <span id="ui-engine">OFFLINE</span><br>
+                NEXT: <span id="ui-next-station">---</span><br>
+                DIST: <span id="ui-dist">0</span>m
+            </div>
+            <div style="font-size:8px; color:var(--dirty-yellow); font-weight:bold;">COAL HOPPER</div>
+            <div class="coal-bar-container">
+                <div id="coal-bar" class="coal-bar-fill" style="width:25%"></div>
+                <div id="coal-bar-text" class="coal-bar-text">50 / 200 kg</div>
+            </div>
+            <div class="steam-indicator">
+                <div class="steam-pipes">
+                    <div id="sp1" class="steam-puff" style="height:4px"></div>
+                    <div id="sp2" class="steam-puff" style="height:4px"></div>
+                    <div id="sp3" class="steam-puff" style="height:4px"></div>
+                    <div id="sp4" class="steam-puff" style="height:4px"></div>
+                </div>
+                <span id="steam-label">0 PSI</span>
+            </div>
+            <div class="analog-gauge"><div class="gauge-label">VELOCITY (km/h)</div><div id="needle-speed" class="needle" style="transform: rotate(-90deg)"></div></div>
+            <div class="analog-gauge"><div class="gauge-label">BOILER TEMP</div><div id="needle-temp" class="needle" style="transform: rotate(-90deg)"></div></div>
+            <div class="analog-gauge"><div class="gauge-label">STEAM PSI</div><div id="needle-psi" class="needle" style="transform: rotate(-90deg)"></div></div>
+            <div class="funding-display">FUNDING: $<span id="ui-cash">200</span></div>
+        </div>
+
+        <div class="controls-main">
+            <div class="lever-row">
+                <div class="lever"><span style="font-size:7px">PWR</span><div id="handle-power" class="lever-handle"></div><span style="font-size:7px">IDLE</span></div>
+                <div class="lever"><span style="font-size:7px">BRK</span><div id="handle-brake" class="lever-handle"></div><span style="font-size:7px">OFF</span></div>
+            </div>
+            <div class="btn-row">
+                <button class="btn-action engine-btn" id="btn-engine" onclick="toggleEngine()" aria-label="Toggle engine">ENGINE OFF (E)</button>
+                <button class="btn-action" id="btn-doors" onclick="toggleDoors()" aria-label="Toggle doors">DOORS (SPC)</button>
+            </div>
+            <div class="shop-container" id="shop" role="list" aria-label="Shop upgrades"></div>
+        </div>
+
+        <div class="side-panel" aria-label="Indicator panel">
+            <div style="font-size:9px; color:var(--dirty-yellow); font-weight:bold; margin-bottom:2px;">INDICATORS</div>
+            <div class="bulb-box"><div id="bulb-engine" class="bulb green"></div><span>ENGINE RUNNING</span></div>
+            <div class="bulb-box"><div id="bulb-fuel" class="bulb yellow on"></div><span>COAL SUPPLY</span></div>
+            <div class="bulb-box"><div id="bulb-steam" class="bulb green"></div><span>STEAM PRESSURE</span></div>
+            <div class="bulb-box"><div id="bulb-door" class="bulb green on"></div><span>DOORS SEALED</span></div>
+            <div class="bulb-box"><div id="bulb-station" class="bulb green"></div><span>IN STATION ZONE</span></div>
+            <div class="bulb-box"><div id="bulb-overheat" class="bulb"></div><span>TEMP CRITICAL</span></div>
+            <div class="bulb-box"><div id="bulb-moving" class="bulb"></div><span>TRAIN IN MOTION</span></div>
+            <hr style="width:100%; border:1px solid #333333; flex-shrink:0;">
+            <div id="log" aria-live="polite">> BOOTING...<br>> COAL LOW<br>> ENGINE OFFLINE</div>
+        </div>
+    </div>
+
+<script>
+    (function() {
+        "use strict";
+
+        var canvas = document.getElementById('metroCanvas');
+        var ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        var worldX = 0, vel = 0, cash = 200, doorsOpen = false;
+        var engineTemp = 25, engineOn = false, coal = 50;
+        var maxCoal = 200, steamPressure = 0, onboardPassengers = 0;
+        var keys = {}, blinkTimer = 0, engineIgnitionTimer = 0;
+        var IGNITION_TIME = 120, particles = [], running = false;
+
+        var upgrades = {
+            brakes:   { level: 1, baseCost: 150, name: "Squeaky Pads",   desc: "Improved stopping power", maxLv: 5 },
+            engine:   { level: 1, baseCost: 200, name: "Coolant Loop",   desc: "Lower overheat rate",     maxLv: 5 },
+            thrust:   { level: 1, baseCost: 300, name: "Turbo Coil",     desc: "Faster acceleration",     maxLv: 5 },
+            lighting: { level: 1, baseCost: 100, name: "Warm Bulbs",     desc: "Passenger comfort bonus",  maxLv: 5 },
+            capacity: { level: 1, baseCost: 500, name: "Extra Carriage", desc: "Carry more passengers",    maxLv: 5 }
+        };
+
+        var coalTiers = [
+            { amount: 30,  cost: 40,  label: "Small Sack (30 kg)" },
+            { amount: 80,  cost: 90,  label: "Large Bin (80 kg)" },
+            { amount: 200, cost: 180, label: "Full Hopper (200 kg)" }
+        ];
+
+        var stationNames = ["Central", "Dusty Acres", "Iron Works", "Neon Plaza", "Rust Falls", "The Void", "Sector 7", "Steam Port", "Coal Hill", "Gear Town"];
+        var stations = [];
+        var i, j, k;
+        for (i = 0; i < 50; i++) {
+            stations.push({
+                x: (i + 1) * 3500,
+                name: stationNames[i % stationNames.length] + " " + (100 + i),
+                waiting: 10 + Math.floor(Math.random() * 20),
+                visited: false,
+                hue: (i * 70) % 360
+            });
+        }
+
+        window.addEventListener('keydown', function(e) {
+            keys[e.code] = true;
+            if (e.code === 'Space') { e.preventDefault(); toggleDoors(); }
+            if (e.code === 'KeyE') { toggleEngine(); }
+        }, { passive: false });
+
+        window.addEventListener('keyup', function(e) { keys[e.code] = false; });
+        window.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+
+        window.startSim = function() {
+            document.getElementById('splash').style.display = 'none';
+            renderShop();
+            logMsg("SYSTEMS NOMINAL");
+            logMsg("LOAD COAL & IGNITE ENGINE");
+            resizeCanvas();
+            if (!running) { running = true; loop(); }
+        };
+
+        function toggleEngine() {
+            if (!engineOn) {
+                if (coal <= 0) { logMsg("NO COAL TO IGNITE!"); return; }
+                if (engineIgnitionTimer > 0) return;
+                engineOn = true;
+                engineIgnitionTimer = 1;
+                logMsg("IGNITION STARTED...");
+            } else {
+                engineOn = false;
+                engineIgnitionTimer = 0;
+                logMsg("ENGINE KILLED.");
+            }
+        }
+
+        window.toggleEngine = toggleEngine;
+
+        window.toggleDoors = function() {
+            if (vel > 0.5) { logMsg("DOORS LOCKED AT SPEED"); return; }
+            doorsOpen = !doorsOpen;
+            var s = findNearStation();
+            if (doorsOpen && s && !s.visited) {
+                var gain = s.waiting * (10 + upgrades.lighting.level * 2);
+                cash += gain;
+                onboardPassengers += s.waiting;
+                s.waiting = 0;
+                s.visited = true;
+                logMsg("Boarded " + onboardPassengers + " +" + gain + "$");
+            }
+        };
+
+        function findNearStation() {
+            for (i = 0; i < stations.length; i++) {
+                if (Math.abs(worldX - stations[i].x) < 400) return stations[i];
+            }
+            return null;
+        }
+
+        function findNextStation() {
+            for (i = 0; i < stations.length; i++) {
+                if (stations[i].x > worldX - 600) return stations[i];
+            }
+            return stations[stations.length - 1];
+        }
+
+        function buyUpgrade(id) {
+            var up = upgrades[id];
+            var cost = up.level * up.baseCost;
+            if (up.level >= up.maxLv) { logMsg(up.name + " MAXED"); return; }
+            if (cash >= cost) {
+                cash -= cost;
+                up.level++;
+                logMsg("UPGRADED: " + up.name + " Lv." + up.level);
+                renderShop();
+            } else { logMsg("INSUFFICIENT FUNDS"); }
+        }
+
+        function buyCoal(idx) {
+            var tier = coalTiers[idx];
+            if (coal >= maxCoal) { logMsg("HOPPER FULL!"); return; }
+            if (cash < tier.cost) { logMsg("NEED $" + tier.cost); return; }
+            cash -= tier.cost;
+            var actual = Math.min(tier.amount, maxCoal - coal);
+            coal += actual;
+            var refund = tier.cost - Math.floor((actual / tier.amount) * tier.cost);
+            cash += refund;
+            logMsg("LOADED " + actual + "kg COAL");
+            renderShop();
+        }
+
+        window._buyCoal = buyCoal;
+        window._buyUp = buyUpgrade;
+
+        function renderShop() {
+            var c = document.getElementById('shop');
+            var h = '<div style="text-align:center; color:#d4af37; margin-bottom:2px; font-size:10px;">&#9881; MAINTENANCE SHOP &#9881;</div>';
+            h += '<div class="section-header" style="color:#8b4513;">COAL DEPOT</div>';
+            for (i = 0; i < coalTiers.length; i++) {
+                var t = coalTiers[i];
+                var full = coal >= maxCoal;
+                h += '<div class="upgrade-item coal-item" role="listitem" onclick="window._buyCoal(' + i + ')">';
+                h += '<div style="font-weight:bold; color:#8b4513">' + t.label + '</div>';
+                h += '<div class="upgrade-info"><span>$' + t.cost + '</span><span style="color:' + (full ? '#ff4444' : '#66aa66') + '">' + (full ? 'FULL' : 'BUY') + '</span></div></div>';
+            }
+            h += '<div class="section-header" style="color:#d4af37;">UPGRADES</div>';
+            var ids = Object.keys(upgrades);
+            for (j = 0; j < ids.length; j++) {
+                var id = ids[j];
+                var up = upgrades[id];
+                var cost = up.level * up.baseCost;
+                var maxed = up.level >= up.maxLv;
+                h += '<div class="upgrade-item" role="listitem" style="opacity:' + (maxed ? '0.4' : '1') + '" onclick="window._buyUp(\'' + id + '\')">';
+                h += '<div style="font-weight:bold; color:#d4af37">' + up.name + ' [' + up.level + '/' + up.maxLv + ']</div>';
+                h += '<div style="font-size:9px">' + up.desc + '</div>';
+                h += '<div class="upgrade-info"><span>' + (maxed ? 'MAXED' : '$' + cost) + '</span></div></div>';
+            }
+            c.innerHTML = h;
+        }
+
+        function logMsg(m) {
+            var l = document.getElementById('log');
+            var lines = l.innerHTML.split('<br>');
+            l.innerHTML = '> ' + m + '<br>' + lines.slice(0, 10).join('<br>');
+            l.scrollTop = 0;
+        }
+
+        function spawnParticle(x, y, type) {
+            if (particles.length > 120) return;
+            particles.push({
+                x: x, y: y,
+                vx: (Math.random() - 0.3) * 2,
+                vy: -Math.random() * 3 - 1,
+                life: 40 + Math.random() * 40,
+                maxLife: 80,
+                size: 3 + Math.random() * 5,
+                type: type
+            });
+        }
+
+        function update() {
+            blinkTimer++;
+            var engineReady = engineOn && engineIgnitionTimer >= IGNITION_TIME;
+            var isThrusting = (keys['KeyW'] || keys['ArrowUp']) && !doorsOpen && engineReady && coal > 0;
+            var isBraking = keys['KeyS'] || keys['ArrowDown'];
+
+            if (engineOn && engineIgnitionTimer > 0 && engineIgnitionTimer < IGNITION_TIME) {
+                engineIgnitionTimer++;
+                if (engineIgnitionTimer === IGNITION_TIME) logMsg("ENGINE ONLINE!");
+            }
+
+            if (engineOn && engineIgnitionTimer >= IGNITION_TIME) {
+                var rate = 0.008 / upgrades.engine.level;
+                if (isThrusting) rate *= 3;
+                coal -= rate;
+                if (coal <= 0) {
+                    coal = 0;
+                    engineOn = false;
+                    engineIgnitionTimer = 0;
+                    logMsg("COAL DEPLETED! ENGINE DEAD!");
+                }
+            }
+
+            if (engineReady && coal > 0) {
+                var build = 0.15 * (1 + upgrades.thrust.level * 0.2);
+                if (isThrusting) build *= 0.5;
+                steamPressure += build;
+                var maxPsi = 100 + upgrades.thrust.level * 10;
+                if (steamPressure > maxPsi) steamPressure = maxPsi;
+            } else {
+                steamPressure -= 0.3;
+                if (steamPressure < 0) steamPressure = 0;
+            }
+
+            if (isThrusting && steamPressure > 5) {
+                vel += 0.04 * upgrades.thrust.level * (steamPressure / 80);
+                steamPressure -= 0.08;
+                engineTemp += 0.12 / upgrades.engine.level;
+                if (Math.random() < 0.5) spawnParticle(canvas.width / 2, canvas.height * 0.12, 'smoke');
+            } else if (engineReady && coal > 0 && Math.random() < 0.12) {
+                spawnParticle(canvas.width / 2, canvas.height * 0.12, 'smoke');
+            }
+
+            if (isBraking && vel > 0) {
+                vel -= 0.18 * upgrades.brakes.level;
+                if (vel < 0) vel = 0;
+                if (Math.random() < 0.25) spawnParticle(canvas.width / 2 - 90, canvas.height * 0.7, 'spark');
+            }
+
+            document.getElementById('handle-power').className = 'lever-handle' + (isThrusting ? ' active-thrust' : '');
+            document.getElementById('handle-brake').className = 'lever-handle' + ((isBraking && vel > 0) ? ' active-brake' : '');
+
+            vel *= 0.997;
+            if (vel < 0.05) vel = 0;
+            if (vel > 0) doorsOpen = false;
+            worldX += vel;
+
+            if (!isThrusting) engineTemp -= 0.04;
+            if (engineTemp < 25) engineTemp = 25;
+            if (engineTemp > 130) engineTemp = 130;
+            if (engineTemp > 120) {
+                vel *= 0.8;
+                if (blinkTimer % 90 === 0) logMsg("OVERHEAT! POWER CUT!");
+            }
+
+            var alive = [];
+            for (k = 0; k < particles.length; k++) {
+                var p = particles[k];
+                p.x += p.vx; p.y += p.vy; p.life--;
+                if (p.type === 'smoke') { p.vy *= 0.98; p.vx += (Math.random() - 0.5) * 0.3; p.size += 0.15; }
+                if (p.type === 'spark') { p.vy += 0.15; p.size *= 0.97; }
+                if (p.life > 0) alive.push(p);
+            }
+            particles = alive;
+
+            document.getElementById('needle-speed').style.transform = 'rotate(' + (Math.min(vel * 8, 90) - 90) + 'deg)';
+            document.getElementById('needle-temp').style.transform = 'rotate(' + ((engineTemp - 25) * 1.5 - 90) + 'deg)';
+            document.getElementById('needle-psi').style.transform = 'rotate(' + (Math.min(steamPressure, 150) * 1.1 - 90) + 'deg)';
+
+            var coalPct = Math.max(0, (coal / maxCoal) * 100);
+            document.getElementById('coal-bar').style.width = coalPct + '%';
+            document.getElementById('coal-bar-text').textContent = Math.floor(coal) + ' / ' + maxCoal + ' kg';
+
+            var pipeIds = ['sp1','sp2','sp3','sp4'];
+            for (i = 0; i < 4; i++) {
+                var el = document.getElementById(pipeIds[i]);
+                if (engineReady && coal > 0) {
+                    var base = 4 + (steamPressure / 100) * 14;
+                    var hp = base + Math.sin(blinkTimer * 0.1 + i * 1.5) * 3;
+                    if (isThrusting) hp += 4 + Math.random() * 4;
+                    el.style.height = hp + 'px';
+                    var bv = Math.floor(100 + hp * 8);
+                    el.style.background = 'rgb(' + bv + ',' + bv + ',' + bv + ')';
+                } else {
+                    el.style.height = '4px';
+                    el.style.background = '#666666';
+                }
+            }
+            document.getElementById('steam-label').textContent = Math.floor(steamPressure) + ' PSI';
+            document.getElementById('ui-cash').textContent = Math.floor(cash);
+
+            var nextS = findNextStation();
+            document.getElementById('ui-next-station').textContent = nextS.name;
+            document.getElementById('ui-dist').textContent = Math.floor(Math.abs(nextS.x - worldX));
+
+            var st = "IDLE";
+            if (engineIgnitionTimer > 0 && engineIgnitionTimer < IGNITION_TIME) st = "WARMING";
+            else if (vel > 0.5) st = "TRANSIT";
+            else if (doorsOpen) st = "BOARDING";
+            else if (coal <= 0 && !engineOn) st = "NO FUEL";
+            document.getElementById('ui-status').textContent = st;
+
+            var et = "OFFLINE";
+            if (engineIgnitionTimer > 0 && engineIgnitionTimer < IGNITION_TIME) et = "WARMING " + Math.floor((engineIgnitionTimer / IGNITION_TIME) * 100) + "%";
+            else if (engineReady) et = coal > 0 ? "RUNNING" : "STARVED";
+            document.getElementById('ui-engine').textContent = et;
+
+            var eb = document.getElementById('btn-engine');
+            if (engineReady) { eb.textContent = "ENGINE ON (E)"; eb.classList.add('on'); }
+            else if (engineIgnitionTimer > 0) { eb.textContent = "IGNITING..."; eb.classList.remove('on'); }
+            else { eb.textContent = "ENGINE OFF (E)"; eb.classList.remove('on'); }
+
+            setBulb('bulb-engine', 'green', engineReady);
+            setBulb('bulb-steam', 'green', steamPressure > 20);
+            setBulb('bulb-door', 'green', !doorsOpen);
+            setBulb('bulb-overheat', '', engineTemp > 100);
+            setBulb('bulb-moving', '', vel > 1);
+            setBulb('bulb-station', 'green', Math.abs(worldX - nextS.x) < 400);
+
+            var fuelBulb = document.getElementById('bulb-fuel');
+            var fuelEmpty = coal <= 0;
+            fuelBulb.className = 'bulb yellow' + (fuelEmpty ? ' blinking' : ' on');
+        }
+
+        function setBulb(id, colorClass, on) {
+            var el = document.getElementById(id);
+            el.className = 'bulb' + (colorClass ? ' ' + colorClass : '') + (on ? ' on' : '');
+        }
+
+        function draw() {
+            var w = canvas.width, h = canvas.height;
+            if (w < 2 || h < 2) return;
+
+            ctx.fillStyle = '#050505';
+            ctx.fillRect(0, 0, w, h);
+
+            var centerY = h * 0.72;
+
+            ctx.fillStyle = '#0a0a0a';
+            ctx.fillRect(0, 0, w, Math.max(0, centerY - 120));
+
+            ctx.strokeStyle = '#1a1a1a';
+            ctx.lineWidth = 3;
+            var archSpacing = 400;
+            var archOff = -(worldX * 0.8) % archSpacing;
+            if (archOff > 0) archOff -= archSpacing;
+            for (i = -1; i < w / archSpacing + 3; i++) {
+                ctx.beginPath();
+                ctx.arc(archOff + i * archSpacing, centerY - 110, 80, Math.PI, 0);
+                ctx.stroke();
+            }
+
+            ctx.fillStyle = '#2a2a2a';
+            for (i = 0; i < 25; i++) {
+                var rx = ((i * 157 - (worldX * 1.1) % (w + 200)) % (w + 200) + w + 200) % (w + 200) - 100;
+                var ry = (i * 23) % Math.max(1, centerY - 140) + 10;
+                ctx.fillRect(rx, ry, 2, 2);
+            }
+
+            ctx.fillStyle = '#333333';
+            ctx.fillRect(0, centerY + 2, w, 4);
+            ctx.fillRect(0, centerY + 14, w, 4);
+            ctx.fillStyle = '#222222';
+            var tieOff = -(worldX * 1.0) % 30;
+            if (tieOff > 0) tieOff -= 30;
+            for (i = -1; i < w / 30 + 3; i++) {
+                ctx.fillRect(tieOff + i * 30, centerY, 20, 20);
+            }
+
+            for (i = 0; i < stations.length; i++) {
+                var s = stations[i];
+                var sx = (s.x - worldX) + (w / 2);
+                if (sx < -1500 || sx > w + 1500) continue;
+
+                ctx.fillStyle = 'hsl(' + s.hue + ', 15%, 25%)';
+                ctx.fillRect(sx - 800, centerY, 1600, 50);
+                ctx.fillStyle = '#ffaa00';
+                ctx.fillRect(sx - 800, centerY, 1600, 3);
+
+                for (j = 0; j < 6; j++) {
+                    var bw = 60 + Math.sin(j * 3.7) * 30;
+                    var bh = 80 + Math.sin(j * 2.1) * 50;
+                    var bx = sx - 500 + (j * 200);
+                    ctx.fillStyle = '#1a1a1a';
+                    ctx.fillRect(bx, centerY - bh - 5, bw, bh);
+                    ctx.fillStyle = j % 3 === 0 ? '#332200' : '#111111';
+                    for (var wy = 0; wy < bh - 15; wy += 18) {
+                        for (var wx = 5; wx < bw - 10; wx += 15) {
+                            ctx.fillRect(bx + wx, centerY - bh - 5 + wy + 5, 8, 10);
+                        }
+                    }
+                }
+
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(sx - 120, centerY - 200, 240, 28);
+                ctx.strokeStyle = '#ffaa00';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(sx - 120, centerY - 200, 240, 28);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 14px Courier New';
+                ctx.textAlign = 'center';
+                ctx.fillText(s.name, sx, centerY - 182);
+                ctx.textAlign = 'left';
+
+                for (var pi = 0; pi < s.waiting; pi++) {
+                    ctx.fillStyle = 'hsl(' + ((pi * 37) % 360) + ', 40%, 45%)';
+                    ctx.fillRect(sx - 400 + (pi * 14), centerY - 40, 8, 40);
+                    ctx.fillStyle = 'hsl(' + ((pi * 37) % 360) + ', 40%, 60%)';
+                    ctx.fillRect(sx - 398 + (pi * 14), centerY - 48, 4, 8);
+                }
+            }
+
+            for (k = 0; k < particles.length; k++) {
+                var p = particles[k];
+                var alpha = p.life / p.maxLife;
+                if (alpha < 0) alpha = 0;
+                if (p.type === 'smoke') {
+                    ctx.fillStyle = 'rgba(80,80,80,' + (alpha * 0.4).toFixed(3) + ')';
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, Math.max(1, p.size), 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                if (p.type === 'spark') {
+                    var gv = Math.floor(150 + alpha * 100);
+                    ctx.fillStyle = 'rgba(255,' + gv + ',0,' + alpha.toFixed(3) + ')';
+                    var sz = Math.max(1, p.size);
+                    ctx.fillRect(p.x, p.y, sz, sz);
+                }
+            }
+
+            ctx.save();
+            ctx.translate(w / 2, centerY - 95);
+            if (vel > 3) ctx.translate((Math.random() - 0.5) * vel * 0.08, (Math.random() - 0.5) * vel * 0.06);
+
+            var carCount = 1 + Math.floor(upgrades.capacity.level / 2);
+            for (i = 0; i < carCount; i++) {
+                var cx = (i - (carCount - 1) / 2) * 210;
+
+                if (i > 0) { ctx.fillStyle = '#555555'; ctx.fillRect(cx - 120, 30, 25, 10); }
+
+                ctx.fillStyle = '#222222';
+                ctx.fillRect(cx - 95, 85, 190, 12);
+                ctx.fillStyle = '#444444';
+                ctx.beginPath(); ctx.arc(cx - 70, 97, 8, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(cx + 70, 97, 8, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#666666';
+                ctx.beginPath(); ctx.arc(cx - 70, 97, 4, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(cx + 70, 97, 4, 0, Math.PI * 2); ctx.fill();
+
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.fillRect(cx - 98, 92, 196, 6);
+
+                var bg = ctx.createLinearGradient(cx, -5, cx, 85);
+                bg.addColorStop(0, '#666666');
+                bg.addColorStop(0.5, '#555555');
+                bg.addColorStop(1, '#444444');
+                ctx.fillStyle = bg;
+                ctx.fillRect(cx - 100, -5, 200, 90);
+                ctx.strokeStyle = '#333333';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(cx - 100, -5, 200, 90);
+
+                ctx.fillStyle = 'rgba(139,69,19,0.3)';
+                ctx.fillRect(cx - 80 + (i * 13) % 60, 10 + (i * 7) % 30, 20, 15);
+                ctx.fillRect(cx + 30 + (i * 17) % 40, 40 + (i * 11) % 20, 15, 10);
+
+                ctx.fillStyle = '#444444';
+                ctx.fillRect(cx - 90, -8, 180, 5);
+
+                if (i === 0) {
+                    ctx.fillStyle = '#333333';
+                    ctx.fillRect(cx + 50, -35, 18, 32);
+                    ctx.fillStyle = '#2a2a2a';
+                    ctx.fillRect(cx + 46, -40, 26, 8);
+                    if (engineOn && engineIgnitionTimer >= IGNITION_TIME && coal > 0) {
+                        var ga = (0.3 + Math.random() * 0.3).toFixed(3);
+                        var gr = Math.floor(100 + Math.random() * 50);
+                        ctx.fillStyle = 'rgba(255,' + gr + ',0,' + ga + ')';
+                        ctx.beginPath();
+                        ctx.arc(cx + 59, -40, 12, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+
+                ctx.fillStyle = doorsOpen ? '#556666' : (engineOn ? '#1a2530' : '#0a0f14');
+                ctx.fillRect(cx - 88, 12, 55, 40);
+                ctx.fillRect(cx + 33, 12, 55, 40);
+                ctx.strokeStyle = '#444444';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(cx - 88, 12, 55, 40);
+                ctx.strokeRect(cx + 33, 12, 55, 40);
+                ctx.beginPath();
+                ctx.moveTo(cx - 60, 12); ctx.lineTo(cx - 60, 52);
+                ctx.moveTo(cx + 60, 12); ctx.lineTo(cx + 60, 52);
+                ctx.stroke();
+
+                if (engineOn) {
+                    ctx.fillStyle = 'rgba(255,220,150,0.08)';
+                    ctx.fillRect(cx - 88, 12, 55, 40);
+                    ctx.fillRect(cx + 33, 12, 55, 40);
+                }
+
+                ctx.fillStyle = '#3a3a3a';
+                var dOff = doorsOpen ? 30 : 0;
+                ctx.fillRect(cx - 18 - dOff, 5, 16, 75);
+                ctx.fillRect(cx + 2 + dOff, 5, 16, 75);
+                ctx.fillStyle = '#888888';
+                ctx.fillRect(cx - 14 - dOff, 35, 3, 8);
+                ctx.fillRect(cx + 13 + dOff, 35, 3, 8);
+
+                ctx.fillStyle = '#999999';
+                ctx.font = 'bold 9px Courier New';
+                ctx.textAlign = 'center';
+                ctx.fillText('CAR-' + (i + 1), cx, 78);
+                ctx.textAlign = 'left';
+            }
+            ctx.restore();
+
+            var innerR = Math.max(1, w * 0.2);
+            var outerR = Math.max(innerR + 1, w * 0.7);
+            var grad = ctx.createRadialGradient(w / 2, h / 2, innerR, w / 2, h / 2, outerR);
+            grad.addColorStop(0, 'rgba(0,0,0,0)');
+            grad.addColorStop(1, 'rgba(0,0,0,0.7)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, w, h);
+
+            ctx.fillStyle = 'rgba(0,0,0,0.06)';
+            for (var sl = 0; sl < h; sl += 3) {
+                ctx.fillRect(0, sl, w, 1);
+            }
+        }
+
+        function loop() {
+            update();
+            draw();
+            if (running) requestAnimationFrame(loop);
+        }
+
+        function resizeCanvas() {
+            var rect = canvas.parentElement.getBoundingClientRect();
+            var w = Math.max(2, Math.floor(rect.width));
+            var h = Math.max(2, Math.floor(rect.height));
+            if (canvas.width !== w || canvas.height !== h) {
+                canvas.width = w;
+                canvas.height = h;
+            }
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+    })();
+</script>
+</body>
+</html>
