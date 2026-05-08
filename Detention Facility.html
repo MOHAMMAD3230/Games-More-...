@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NHAI - Prison & Detention Terminal</title>
+    <style>
+        :root {
+            --bg: #0a0508; --panel: #101018; --accent: #ff0044; --success: #2ed573;
+            --danger: #ff4757; --warning: #ffa502; --border: #2a1a2a;
+        }
+
+        body {
+            background-color: var(--bg); color: #ccc; font-family: 'Courier New', monospace;
+            margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        .top-bar {
+            background: #000; padding: 15px 20px; border-bottom: 2px solid var(--accent);
+            display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+        }
+
+        .top-bar h1 { margin: 0; font-size: 1rem; color: var(--accent); letter-spacing: 1px; text-shadow: 0 0 10px rgba(255,0,68,0.5); }
+        .top-bar .time { color: var(--warning); font-size: 0.9rem; }
+
+        .main-layout {
+            display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px; padding: 20px;
+            flex-grow: 1; min-height: 0; overflow: hidden;
+        }
+
+        .panel {
+            background: var(--panel); border: 1px solid var(--border); border-radius: 4px;
+            padding: 20px; display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        .panel-title {
+            color: var(--accent); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;
+            margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; flex-shrink: 0;
+        }
+
+        .stat-row {
+            display: flex; gap: 15px; margin-bottom: 20px; flex-shrink: 0;
+        }
+
+        .stat-box {
+            flex: 1; background: #000; border: 1px solid var(--border); padding: 15px; border-radius: 4px; text-align: center;
+        }
+        .stat-num { font-size: 2rem; font-weight: 900; margin-bottom: 5px; }
+        .stat-label { font-size: 0.75rem; color: #888; text-transform: uppercase; }
+
+        .inmate-list { flex-grow: 1; overflow-y: auto; padding-right: 5px; }
+        .inmate-item {
+            background: #000; border: 1px solid var(--border); padding: 15px; margin-bottom: 10px;
+            border-left: 4px solid var(--danger); border-radius: 4px;
+            display: flex; justify-content: space-between; align-items: center; gap: 15px;
+        }
+        .inmate-item.released { border-left-color: var(--success); opacity: 0.6; }
+
+        .plate-tag { color: var(--warning); font-weight: bold; font-size: 1.1rem; }
+        .meta-tag { color: #555; font-size: 0.75rem; margin-top: 4px; }
+
+        .mech-btn {
+            padding: 10px 15px; border: 2px solid #000; cursor: pointer; font-weight: bold;
+            text-transform: uppercase; font-size: 0.7rem; box-shadow: 0 3px 0 #000;
+            transition: all 0.1s; font-family: monospace; border-radius: 4px;
+        }
+        .mech-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #000; }
+        .btn-release { background: linear-gradient(145deg, #2ed573, #1e9e55); color: #fff; }
+        .btn-transfer { background: linear-gradient(145deg, #ffa502, #cc8400); color: #fff; }
+
+        .inmate-list::-webkit-scrollbar { width: 6px; }
+        .inmate-list::-webkit-scrollbar-track { background: #000; border: 1px solid var(--border); }
+        .inmate-list::-webkit-scrollbar-thumb { background: var(--accent); border: 1px solid #000; }
+
+        .cell-block { 
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 15px; flex-shrink: 0;
+        }
+        .cell { 
+            background: #000; border: 1px solid var(--border); height: 60px; border-radius: 4px;
+            display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: #333;
+        }
+        .cell.occupied { border-color: var(--danger); color: var(--danger); box-shadow: inset 0 0 10px rgba(255,0,68,0.2); }
+
+        @media (max-width: 1024px) {
+            .main-layout { grid-template-columns: 1fr; overflow-y: auto; }
+            .cell-block { grid-template-columns: repeat(3, 1fr); }
+        }
+        @media (max-width: 600px) {
+            .top-bar h1 { font-size: 0.7rem; }
+            .main-layout { padding: 10px; }
+            .inmate-item { flex-direction: column; align-items: flex-start; }
+            .cell-block { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <h1>▸ NHAI_PRISON // DETENTION_TERMINAL_v8.0</h1>
+    <div class="time" id="clock">00:00:00</div>
+</div>
+
+<div class="main-layout">
+    <!-- Left Side: Facility Overview -->
+    <div class="panel">
+        <div class="panel-title">■ Central Detention Block</div>
+        
+        <div class="stat-row">
+            <div class="stat-box">
+                <div class="stat-num" style="color:var(--danger);" id="stat-active">0</div>
+                <div class="stat-label">Active Inmates</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-num" style="color:var(--success);" id="stat-released">0</div>
+                <div class="stat-label">Released</div>
+            </div>
+        </div>
+
+        <div style="color: #555; font-size: 0.75rem; margin-bottom: 10px;">
+            Holding Cells (Max 12)
+        </div>
+        <div class="cell-block" id="cellGrid">
+            <!-- Cells generated by JS -->
+        </div>
+
+        <div style="color: #555; font-size: 0.75rem; margin-top: auto; border-top: 1px solid var(--border); padding-top: 15px;">
+            SYSTEM NOTE: Inmates are pulled directly from Enforcement Gate 1 arrests.
+        </div>
+    </div>
+
+    <!-- Right Side: Inmate Roster -->
+    <div class="panel">
+        <div class="panel-title">■ Active Inmate Roster</div>
+        <div class="inmate-list" id="inmate-list">
+            <div style="color:#555; text-align:center; padding:40px;">NO INMATES IN CUSTODY</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let sharedData = { 
+        revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, 
+        history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null,
+        activeInmates: [], releasedInmates: []
+    };
+
+    function updateClock() { document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB'); }
+    setInterval(updateClock, 1000);
+
+    function loadData() {
+        const saved = localStorage.getItem('enforcementTerminalV23');
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                sharedData = parsed;
+                if(!sharedData.registry) sharedData.registry = {};
+                if(!sharedData.forgedAliases) sharedData.forgedAliases = {};
+                if(sharedData.nextSpawnOverride === undefined) sharedData.nextSpawnOverride = null;
+                if(!sharedData.activeInmates) sharedData.activeInmates = [];
+                if(!sharedData.releasedInmates) sharedData.releasedInmates = [];
+            } catch(e) {}
+        }
+        renderDashboard();
+    }
+
+    function saveData() {
+        localStorage.setItem('enforcementTerminalV23', JSON.stringify(sharedData));
+    }
+
+    function releaseInmate(index) {
+        if(index < 0 || index >= sharedData.activeInmates.length) return;
+        let inmate = sharedData.activeInmates.splice(index, 1)[0];
+        inmate.dateReleased = new Date().toLocaleDateString();
+        inmate.status = "RELEASED";
+        sharedData.releasedInmates.push(inmate);
+        saveData();
+        renderDashboard();
+    }
+
+    function renderDashboard() {
+        const activeCount = sharedData.activeInmates.length;
+        const releasedCount = sharedData.releasedInmates.length;
+
+        // Update Stats
+        document.getElementById('stat-active').innerText = activeCount;
+        document.getElementById('stat-released').innerText = releasedCount;
+
+        // Render Cell Grid
+        const cellGrid = document.getElementById('cellGrid');
+        cellGrid.innerHTML = '';
+        for(let i = 0; i < 12; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'cell' + (i < activeCount ? ' occupied' : '');
+            cell.innerText = i < activeCount ? sharedData.activeInmates[i].plate : 'EMPTY';
+            cellGrid.appendChild(cell);
+        }
+
+        // Render Inmate List
+        const listContainer = document.getElementById('inmate-list');
+        listContainer.innerHTML = '';
+
+        if (activeCount === 0 && releasedCount === 0) {
+            listContainer.innerHTML = '<div style="color:#555; text-align:center; padding:40px;">NO INMATES IN CUSTODY</div>';
+            return;
+        }
+
+        // Active Inmates
+        sharedData.activeInmates.forEach((inmate, index) => {
+            const item = document.createElement('div');
+            item.className = 'inmate-item';
+            item.innerHTML = `
+                <div>
+                    <div class="plate-tag">${inmate.plate}</div>
+                    <div class="meta-tag">Real Plate: ${inmate.realPlate || 'N/A'} | ID: ${inmate.id || 'MISSING'}</div>
+                    <div class="meta-tag">Offense: ${inmate.offense} | Facility: ${inmate.facility}</div>
+                    <div class="meta-tag">Arrested: ${inmate.dateArrested}</div>
+                </div>
+                <div style="display:flex; gap:8px; flex-shrink:0;">
+                    <button class="mech-btn btn-release" onclick="releaseInmate(${index})">RELEASE</button>
+                </div>
+            `;
+            listContainer.appendChild(item);
+        });
+
+        // Released Inmates (greyed out history)
+        sharedData.releasedInmates.slice(-5).reverse().forEach(inmate => {
+            const item = document.createElement('div');
+            item.className = 'inmate-item released';
+            item.innerHTML = `
+                <div>
+                    <div class="plate-tag" style="color:#555;">${inmate.plate} (SERVED)</div>
+                    <div class="meta-tag">Released: ${inmate.dateReleased}</div>
+                </div>
+                <div style="color:var(--success); font-size:0.7rem;">DISCHARGED</div>
+            `;
+            listContainer.appendChild(item);
+        });
+    }
+
+    // Initial load and live sync
+    loadData();
+    setInterval(loadData, 2000);
+</script>
+</body>
+</html>
