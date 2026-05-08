@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SYNDICATE FORGE - v6.0</title>
+    <style>
+        :root {
+            --bg: #0a0508; --panel: #1a1015; --accent: #ff0044; --success: #2ed573;
+            --danger: #ff4757; --warning: #ffa502; --border: #3a1a2a; --neon: #ff0044;
+        }
+
+        body {
+            background-color: var(--bg); color: #ccc; font-family: 'Courier New', monospace;
+            margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        .top-bar {
+            background: #000; padding: 15px 30px; border-bottom: 2px solid var(--accent);
+            display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+        }
+
+        .top-bar h1 { margin: 0; font-size: 1.1rem; color: var(--accent); letter-spacing: 2px; text-shadow: 0 0 10px rgba(255,0,68,0.5); }
+        .top-bar .time { color: var(--warning); font-size: 0.9rem; }
+
+        .main-layout {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 25px; padding: 25px;
+            flex-grow: 1; min-height: 0; overflow: hidden;
+        }
+
+        .panel {
+            background: var(--panel); border: 1px solid var(--border); border-radius: 4px;
+            padding: 25px; display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        .panel-title {
+            color: var(--accent); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;
+            margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 10px;
+        }
+
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-size: 0.75rem; color: #888; margin-bottom: 8px; text-transform: uppercase; }
+        .form-group input {
+            width: 100%; background: #000; border: 1px solid var(--border); color: var(--warning);
+            padding: 15px; box-sizing: border-box; font-family: monospace; font-size: 1.1rem; outline: none;
+        }
+        .form-group input:focus { border-color: var(--accent); box-shadow: 0 0 10px rgba(255,0,68,0.2); }
+
+        .forge-btn {
+            width: 100%; padding: 15px; background: linear-gradient(145deg, #ff0044, #99002a);
+            border: 2px solid #000; color: #fff; font-weight: bold; text-transform: uppercase;
+            font-size: 1rem; cursor: pointer; font-family: monospace; letter-spacing: 2px;
+            box-shadow: 0 5px 0 #330011; transition: all 0.1s; margin-top: auto;
+        }
+        .forge-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #330011; }
+
+        .active-forge-list { flex-grow: 1; overflow-y: auto; margin-top: 15px; padding-right: 5px; }
+        
+        .forge-item {
+            background: #000; border: 1px solid var(--border); padding: 15px; margin-bottom: 10px;
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.85rem;
+        }
+        .forge-tag { color: var(--accent); font-weight: bold; }
+        .clean-tag { color: var(--success); font-weight: bold; }
+
+        /* Custom Scrollbar */
+        .active-forge-list::-webkit-scrollbar { width: 8px; }
+        .active-forge-list::-webkit-scrollbar-track { background: #000; border: 1px solid var(--border); }
+        .active-forge-list::-webkit-scrollbar-thumb { background: var(--accent); border: 1px solid #000; }
+
+        @media (max-width: 900px) {
+            .main-layout { grid-template-columns: 1fr; overflow-y: auto; }
+            .panel { min-height: 400px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <h1>▸ SYNDICATE_FORGE // DOCUMENT_ALTERATION_v6.0</h1>
+    <div class="time" id="clock">00:00:00</div>
+</div>
+
+<div class="main-layout">
+    <!-- Left Side: Forge Input -->
+    <div class="panel">
+        <div class="panel-title">■ Identity Fabrication</div>
+        
+        <div style="color: #555; font-size: 0.8rem; margin-bottom: 20px; border-left: 3px solid var(--accent); padding-left: 10px;">
+            SYSTEM ALERT: Input the target's real APB plate, then assign a clean alias. The system will inject this into the Enforcement Database.
+        </div>
+
+        <div class="form-group">
+            <label>Target Real Plate (APB/WANTED)</label>
+            <input type="text" id="inp-real-plate" placeholder="e.g. CR-8800 (WANTED)">
+        </div>
+        <div class="form-group">
+            <label>Fake Alias Plate (Clean Cover)</label>
+            <input type="text" id="inp-fake-plate" placeholder="e.g. TX-1234 (CLEAR)">
+        </div>
+        <div class="form-group">
+            <label>Fake Driver License ID</label>
+            <input type="text" id="inp-fake-id" placeholder="e.g. DL-FAKE-9981">
+        </div>
+
+        <button class="forge-btn" onclick="forgeIdentity()">INJECT INTO NETWORK</button>
+    </div>
+
+    <!-- Right Side: Active Forges -->
+    <div class="panel">
+        <div class="panel-title">■ Active Forged Aliases</div>
+        <div class="active-forge-list" id="forge-list">
+            <div style="color:#555; text-align:center; padding:20px;">NO FORGED IDENTITIES ACTIVE</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let sharedData = { 
+        revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, 
+        history: [], registry: {}, forgedAliases: {} 
+    };
+
+    function updateClock() { document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB'); }
+    setInterval(updateClock, 1000);
+
+    function loadData() {
+        const saved = localStorage.getItem('enforcementTerminalV23');
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                sharedData = parsed;
+                if(!sharedData.registry) sharedData.registry = {};
+                if(!sharedData.forgedAliases) sharedData.forgedAliases = {};
+            } catch(e) {}
+        }
+        renderForgeList();
+    }
+
+    function saveData() {
+        localStorage.setItem('enforcementTerminalV23', JSON.stringify(sharedData));
+    }
+
+    function forgeIdentity() {
+        const realPlate = document.getElementById('inp-real-plate').value.toUpperCase().trim();
+        const fakePlate = document.getElementById('inp-fake-plate').value.toUpperCase().trim();
+        const fakeId = document.getElementById('inp-fake-id').value.toUpperCase().trim();
+
+        if (!realPlate || !fakePlate || !fakeId) {
+            alert("ERROR: All fields are required for forgery.");
+            return;
+        }
+
+        // 1. Add the FAKE plate to the official Registry as CLEAR (Dashboard 4 & 5)
+        sharedData.registry[fakePlate] = {
+            id: fakeId,
+            vClass: "LVM_CLASS_1",
+            status: "CLEAR",
+            registeredBy: "SYNDICATE_FORGE"
+        };
+
+        // 2. Save the mapping in the underworld database
+        sharedData.forgedAliases[fakePlate] = {
+            realPlate: realPlate,
+            fakeId: fakeId,
+            timeActivated: new Date().toLocaleTimeString('en-GB')
+        };
+
+        saveData();
+        renderForgeList();
+
+        // Clear inputs
+        document.getElementById('inp-real-plate').value = '';
+        document.getElementById('inp-fake-plate').value = '';
+        document.getElementById('inp-fake-id').value = '';
+    }
+
+    function burnIdentity(fakePlate) {
+        // Remove the fake plate from the official registry
+        if (sharedData.registry[fakePlate]) delete sharedData.registry[fakePlate];
+        // Remove from forged aliases
+        if (sharedData.forgedAliases[fakePlate]) delete sharedData.forgedAliases[fakePlate];
+        
+        saveData();
+        renderForgeList();
+    }
+
+    function renderForgeList() {
+        const listContainer = document.getElementById('forge-list');
+        listContainer.innerHTML = '';
+
+        const aliases = sharedData.forgedAliases || {};
+        const keys = Object.keys(aliases);
+
+        if (keys.length === 0) {
+            listContainer.innerHTML = '<div style="color:#555; text-align:center; padding:20px;">NO FORGED IDENTITIES ACTIVE</div>';
+            return;
+        }
+
+        keys.forEach(fakePlate => {
+            const record = aliases[fakePlate];
+            const item = document.createElement('div');
+            item.className = 'forge-item';
+            
+            item.innerHTML = `
+                <div>REAL PLATE:<br><span class="forge-tag">${record.realPlate}</span></div>
+                <div>FAKE ALIAS:<br><span class="clean-tag">${fakePlate}</span></div>
+                <div>FAKE ID:<br>${record.fakeId}</div>
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                    <div>ACTIVE: ${record.timeActivated}</div>
+                    <button class="forge-btn" style="padding:5px 10px; font-size:0.7rem; margin:0; width:auto;" onclick="burnIdentity('${fakePlate}')">BURN</button>
+                </div>
+            `;
+            listContainer.appendChild(item);
+        });
+    }
+
+    // Initial load and live sync
+    loadData();
+    setInterval(loadData, 2000);
+</script>
+</body>
+</html>
