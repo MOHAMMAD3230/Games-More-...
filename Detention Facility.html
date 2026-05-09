@@ -18,6 +18,7 @@
         :root {
             --bg: #0a0508; --panel: #101018; --accent: #ff0044; --success: #2ed573;
             --danger: #ff4757; --warning: #ffa502; --border: #2a1a2a;
+            --police: #00d9ff; --ems: #ff4757; --fire: #ffa502;
         }
 
         body {
@@ -66,9 +67,20 @@
         }
         .inmate-item.served { border-left-color: var(--success); box-shadow: inset 0 0 15px rgba(46, 213, 115, 0.1); }
         .inmate-item.released { border-left-color: #555; opacity: 0.5; }
+        .inmate-item.federal { border-left-color: var(--ems); box-shadow: inset 0 0 10px rgba(255,71,87,0.15); }
+        .inmate-item.federal.served { border-left-color: var(--success); box-shadow: inset 0 0 15px rgba(46, 213, 115, 0.1); }
 
         .plate-tag { color: var(--warning); font-weight: bold; font-size: 1.1rem; }
         .meta-tag { color: #555; font-size: 0.75rem; margin-top: 4px; }
+
+        .offense-badge {
+            display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 0.65rem;
+            font-weight: bold; text-transform: uppercase; margin-top: 6px;
+        }
+        .offense-rogue { background: rgba(255,165,2,0.15); color: var(--warning); border: 1px solid var(--warning); }
+        .offense-forgery { background: rgba(255,0,68,0.15); color: var(--accent); border: 1px solid var(--accent); }
+        .offense-911 { background: rgba(255,71,87,0.2); color: var(--ems); border: 1px solid var(--ems); }
+        .offense-default { background: rgba(255,255,255,0.05); color: #888; border: 1px solid #555; }
 
         .mech-btn {
             padding: 10px 15px; border: 2px solid #000; cursor: pointer; font-weight: bold;
@@ -90,9 +102,13 @@
         .cell { 
             background: #000; border: 1px solid var(--border); height: 60px; border-radius: 4px;
             display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: #333; text-align:center; padding:5px;
+            flex-direction: column; gap: 3px;
         }
         .cell.occupied { border-color: var(--danger); color: var(--danger); box-shadow: inset 0 0 10px rgba(255,0,68,0.2); }
         .cell.served { border-color: var(--success); color: var(--success); box-shadow: inset 0 0 10px rgba(46,213,115,0.2); }
+        .cell.federal { border-color: var(--ems); color: var(--ems); box-shadow: inset 0 0 10px rgba(255,71,87,0.15); }
+        .cell.federal.served { border-color: var(--success); color: var(--success); box-shadow: inset 0 0 10px rgba(46,213,115,0.2); }
+        .cell-day { font-size: 0.55rem; color: #555; }
 
         .sentence-bar {
             width: 100%; height: 4px; background: #333; border-radius: 2px; margin-top: 8px; overflow: hidden;
@@ -100,6 +116,13 @@
         .sentence-fill { height: 100%; border-radius: 2px; transition: width 1s linear; }
         .sentence-fill.active { background: var(--warning); }
         .sentence-fill.complete { background: var(--success); }
+
+        .facility-tag {
+            font-size: 0.65rem; padding: 2px 6px; border-radius: 2px; margin-top: 4px; display: inline-block;
+        }
+        .facility-central { background: rgba(255,165,2,0.1); color: var(--warning); }
+        .facility-max { background: rgba(255,0,68,0.1); color: var(--accent); }
+        .facility-federal { background: rgba(255,71,87,0.15); color: var(--ems); border: 1px solid var(--ems); }
 
         @media (max-width: 1024px) {
             .main-layout { grid-template-columns: 1fr; overflow-y: auto; }
@@ -146,7 +169,7 @@
         <div class="cell-block" id="cellGrid"></div>
 
         <div style="color: #555; font-size: 0.75rem; margin-top: auto; border-top: 1px solid var(--border); padding-top: 15px;">
-            SYSTEM NOTE: Inmates serve 30-90 day sentences (1 sec = 1 day).
+            SYSTEM NOTE: Inmates serve sentences in real-time (1 sec = 1 day). Federal holds require 120 days.
         </div>
     </div>
 
@@ -163,11 +186,46 @@
     let sharedData = { 
         revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, 
         history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null,
-        activeInmates: [], releasedInmates: [], ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: []
+        activeInmates: [], releasedInmates: [], ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [], call911Logs: []
     };
 
     function updateClock() { document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB'); }
     setInterval(updateClock, 1000);
+
+    // Fix any inmate records that have missing/undefined sentence data
+    function repairInmateData(inmate) {
+        if (!inmate) return inmate;
+
+        // If sentenceDays is missing, determine from offense type
+        if (inmate.sentenceDays === undefined || inmate.sentenceDays === null) {
+            if (inmate.offense === "911 FELONY" || inmate.facility === "FEDERAL HOLD") {
+                inmate.sentenceDays = 120;
+            } else if (inmate.offense === "FORGERY & FUGITIVE" || inmate.facility === "MAXIMUM SECURITY") {
+                inmate.sentenceDays = 90;
+            } else {
+                inmate.sentenceDays = 60;
+            }
+        }
+
+        // If sentenceRemaining is missing, set it to sentenceDays (fresh intake)
+        if (inmate.sentenceRemaining === undefined || inmate.sentenceRemaining === null) {
+            inmate.sentenceRemaining = inmate.sentenceDays;
+        }
+
+        // Clamp to 0 minimum
+        inmate.sentenceRemaining = Math.max(0, inmate.sentenceRemaining);
+        inmate.sentenceDays = Math.max(1, inmate.sentenceDays);
+
+        // Ensure other fields have defaults
+        if (!inmate.offense) inmate.offense = "WARRANT / ROGUE";
+        if (!inmate.facility) inmate.facility = "CENTRAL DETENTION";
+        if (!inmate.realPlate) inmate.realPlate = inmate.plate || "UNKNOWN";
+        if (!inmate.id) inmate.id = "MISSING";
+        if (!inmate.dateArrested) inmate.dateArrested = new Date().toLocaleDateString();
+        if (!inmate.status) inmate.status = "ARRESTED";
+
+        return inmate;
+    }
 
     function loadData() {
         const saved = localStorage.getItem('enforcementTerminalV23');
@@ -185,13 +243,20 @@
                 if(!sharedData.paroleRecords) sharedData.paroleRecords = [];
                 if(!sharedData.iaViolations) sharedData.iaViolations = [];
                 if(!sharedData.rehabPrograms) sharedData.rehabPrograms = [];
-            } catch(e) {}
+                if(!sharedData.call911Logs) sharedData.call911Logs = [];
+
+                // Repair any broken inmate records
+                let needsSave = false;
+                sharedData.activeInmates.forEach((inmate, i) => {
+                    const before = JSON.stringify(inmate);
+                    sharedData.activeInmates[i] = repairInmateData(inmate);
+                    if (JSON.stringify(sharedData.activeInmates[i]) !== before) needsSave = true;
+                });
+                if (needsSave) saveData();
+
+            } catch(e) { console.error("Load error:", e); }
         }
-        // Don't re-render from storage every 2s if we are running local timers
-        if (!this.loadInitialized) {
-            renderDashboard();
-            this.loadInitialized = true;
-        }
+        renderDashboard();
     }
 
     function saveData() {
@@ -206,6 +271,25 @@
         sharedData.releasedInmates.push(inmate);
         saveData();
         renderDashboard();
+    }
+
+    function getOffenseBadgeClass(offense) {
+        if (!offense) return 'offense-default';
+        if (offense.includes('911') || offense.includes('FELONY')) return 'offense-911';
+        if (offense.includes('FORGERY')) return 'offense-forgery';
+        if (offense.includes('ROGUE') || offense.includes('WARRANT')) return 'offense-rogue';
+        return 'offense-default';
+    }
+
+    function getFacilityTagClass(facility) {
+        if (!facility) return 'facility-central';
+        if (facility.includes('FEDERAL')) return 'facility-federal';
+        if (facility.includes('MAXIMUM')) return 'facility-max';
+        return 'facility-central';
+    }
+
+    function isFederalInmate(inmate) {
+        return inmate.facility === "FEDERAL HOLD" || (inmate.offense && inmate.offense.includes('911'));
     }
 
     function renderDashboard() {
@@ -225,8 +309,16 @@
             if (i < activeCount) {
                 const inmate = sharedData.activeInmates[i];
                 const isServed = inmate.sentenceRemaining <= 0;
-                cell.className = 'cell ' + (isServed ? 'served' : 'occupied');
-                cell.innerText = inmate.plate;
+                const isFed = isFederalInmate(inmate);
+                let cellClass = 'cell';
+                if (isFed && !isServed) cellClass += ' federal';
+                else if (isServed) cellClass += ' served';
+                else cellClass += ' occupied';
+                cell.className = cellClass;
+                
+                const totalDays = inmate.sentenceDays || 60;
+                const remaining = inmate.sentenceRemaining || 0;
+                cell.innerHTML = `<span>${inmate.plate}</span><span class="cell-day">${isServed ? 'DONE' : remaining + 'd left'}</span>`;
             } else {
                 cell.className = 'cell';
                 cell.innerText = 'EMPTY';
@@ -243,41 +335,58 @@
             return;
         }
 
-        sharedData.activeInmates.forEach((inmate, index) => {
+        // Sort: federal first, then by remaining time
+        const sortedInmates = [...sharedData.activeInmates].sort((a, b) => {
+            const aFed = isFederalInmate(a) ? 0 : 1;
+            const bFed = isFederalInmate(b) ? 0 : 1;
+            if (aFed !== bFed) return aFed - bFed;
+            return (a.sentenceRemaining || 0) - (b.sentenceRemaining || 0);
+        });
+
+        sortedInmates.forEach((inmate) => {
+            // Find original index for release button
+            const originalIndex = sharedData.activeInmates.indexOf(inmate);
             const isServed = inmate.sentenceRemaining <= 0;
-            const item = document.createElement('div');
-            item.className = 'inmate-item' + (isServed ? ' served' : '');
+            const isFed = isFederalInmate(inmate);
+            
+            let itemClass = 'inmate-item';
+            if (isFed && !isServed) itemClass += ' federal';
+            if (isServed) itemClass += isFed ? ' federal served' : ' served';
             
             const totalSentence = inmate.sentenceDays || 60;
-            const timeServed = totalSentence - inmate.sentenceRemaining;
-            const percentServed = Math.min(100, (timeServed / totalSentence) * 100);
+            const timeServed = totalSentence - (inmate.sentenceRemaining || 0);
+            const percentServed = Math.min(100, Math.max(0, (timeServed / totalSentence) * 100));
+
+            const offenseBadge = `<span class="offense-badge ${getOffenseBadgeClass(inmate.offense)}">${inmate.offense || 'UNKNOWN'}</span>`;
+            const facilityTag = `<span class="facility-tag ${getFacilityTagClass(inmate.facility)}">${inmate.facility || 'CENTRAL DETENTION'}</span>`;
 
             item.innerHTML = `
                 <div style="flex:1;">
                     <div class="plate-tag">${inmate.plate}</div>
-                    <div class="meta-tag">Real Plate: ${inmate.realPlate || 'N/A'} | ID: ${inmate.id || 'MISSING'}</div>
-                    <div class="meta-tag">Offense: ${inmate.offense} | Facility: ${inmate.facility}</div>
-                    <div class="meta-tag" style="color:${isServed ? 'var(--success)' : '#888'}">
-                        ${isServed ? '✔ SENTENCE SERVED' : `Time Remaining: ${inmate.sentenceRemaining} Days`}
+                    <div class="meta-tag">Real Plate: ${inmate.realPlate || inmate.plate || 'N/A'} | ID: ${inmate.id || 'MISSING'}</div>
+                    <div style="margin-top:6px;">${offenseBadge} ${facilityTag}</div>
+                    <div class="meta-tag" style="color:${isServed ? 'var(--success)' : '#888'}; margin-top:6px;">
+                        ${isServed ? '✔ SENTENCE SERVED — ELIGIBLE FOR RELEASE' : `Time Remaining: ${inmate.sentenceRemaining} / ${totalSentence} Days`}
                     </div>
                     <div class="sentence-bar">
                         <div class="sentence-fill ${isServed ? 'complete' : 'active'}" style="width:${percentServed}%"></div>
                     </div>
                 </div>
-                <button class="mech-btn btn-release" onclick="releaseInmate(${index})" ${!isServed ? 'disabled' : ''}>
+                <button class="mech-btn btn-release" onclick="releaseInmate(${originalIndex})" ${!isServed ? 'disabled' : ''}>
                     ${isServed ? 'RELEASE' : 'LOCKED'}
                 </button>
             `;
             listContainer.appendChild(item);
         });
 
+        // Show last 3 released
         sharedData.releasedInmates.slice(-3).reverse().forEach(inmate => {
             const item = document.createElement('div');
             item.className = 'inmate-item released';
             item.innerHTML = `
                 <div>
                     <div class="plate-tag" style="color:#555;">${inmate.plate} (SERVED)</div>
-                    <div class="meta-tag">Released: ${inmate.dateReleased}</div>
+                    <div class="meta-tag">Offense: ${inmate.offense || 'N/A'} | Released: ${inmate.dateReleased || 'N/A'}</div>
                 </div>
                 <div style="color:var(--success); font-size:0.7rem;">DISCHARGED</div>
             `;
@@ -290,6 +399,10 @@
     setInterval(() => {
         let needsRender = false;
         sharedData.activeInmates.forEach(inmate => {
+            // Safety check: repair on the fly if somehow still broken
+            if (inmate.sentenceRemaining === undefined || inmate.sentenceRemaining === null) {
+                inmate.sentenceRemaining = inmate.sentenceDays || 60;
+            }
             if (inmate.sentenceRemaining > 0) {
                 inmate.sentenceRemaining--;
                 needsRender = true;
@@ -297,7 +410,7 @@
         });
 
         if (needsRender) {
-            saveData(); // Sync to network so other dashboards see progress
+            saveData();
             renderDashboard();
         }
     }, 1000);
