@@ -34,8 +34,6 @@ body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:
 .road-svg line.active-road{stroke:var(--accent);stroke-width:2;stroke-dasharray:8 4;animation:dashMove 1s linear infinite;}
 .road-svg line.danger-road{stroke:var(--danger);stroke-width:2;stroke-dasharray:8 4;animation:dashMove .5s linear infinite;}
 @keyframes dashMove{to{stroke-dashoffset:-12;}}
-.pulse-dot{position:absolute;width:8px;height:8px;border-radius:50%;background:var(--accent);z-index:3;pointer-events:none;animation:pulseDot 1.5s infinite;}
-@keyframes pulseDot{0%{opacity:1;transform:scale(1);}50%{opacity:.3;transform:scale(1.5);}100%{opacity:1;transform:scale(1);}}
 .legend{display:flex;gap:20px;flex-shrink:0;font-size:.7rem;color:#555;justify-content:center;padding:10px;background:var(--panel);border:1px solid var(--border);border-radius:4px;}
 .legend-item{display:flex;align-items:center;gap:5px;}
 .legend-dot{width:10px;height:10px;border-radius:50%;}
@@ -55,7 +53,7 @@ body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:
 <div class="node node-d4" id="n-d4"><div class="node-label">D4: REGISTRY</div><div class="node-count" id="nc-d4">0</div></div>
 <div class="node node-d6" id="n-d6"><div class="node-label">D6: FORGE</div><div class="node-count" id="nc-d6">0</div></div>
 <div class="node node-d7" id="n-d7"><div class="node-label">D7: DISPATCH</div><div class="node-count" id="nc-d7">0</div></div>
-<div class="node node-d1" id="n-d1"><div class="node-label">D1: ENFORCEMENT</div><div class="node-count" id="nc-d1">0</div></div>
+<div class="node node-d1" id="n-d1"><div class="node-label">D1: ENFORCE</div><div class="node-count" id="nc-d1">0</div></div>
 <div class="node node-d2" id="n-d2"><div class="node-label">D2: TOLL</div><div class="node-count" id="nc-d2">0</div></div>
 <div class="node node-d8" id="n-d8"><div class="node-label">D8: PRISON</div><div class="node-count" id="nc-d8">0</div></div>
 <div class="node node-d9" id="n-d9"><div class="node-label">D9: AUDIT</div><div class="node-count" id="nc-d9">0</div></div>
@@ -68,56 +66,104 @@ body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:
 </div>
 </div>
 <script>
-let sharedData={revenue:0,valids:0,missed:0,level:1,rankPoints:0,history:[],registry:{},forgedAliases:{},nextSpawnOverride:null,activeInmates:[],releasedInmates:[],ledgerCashouts:[],intelFlags:[]};
+let sharedData={revenue:0,valids:0,missed:0,level:1,rankPoints:0,history:[],registry:{},forgedAliases:{},nextSpawnOverride:null,activeInmates:[],releasedInmates:[],ledgerCashouts:[],intelFlags:[],paroleRecords:[],iaViolations:[],rehabPrograms:[]};
+
 function updateClock(){document.getElementById('clock').innerText=new Date().toLocaleTimeString('en-GB');}
 setInterval(updateClock,1000);
-function loadData(){const s=localStorage.getItem('enforcementTerminalV23');if(s){try{const p=JSON.parse(s);sharedData=p;if(!sharedData.registry)sharedData.registry={};if(!sharedData.forgedAliases)sharedData.forgedAliases={};if(!sharedData.activeInmates)sharedData.activeInmates=[];if(!sharedData.releasedInmates)sharedData.releasedInmates=[];if(!sharedData.ledgerCashouts)sharedData.ledgerCashouts=[];if(!sharedData.intelFlags)sharedData.intelFlags=[];}catch(e){}}renderMap();}
+
+function loadData(){
+    const s=localStorage.getItem('enforcementTerminalV23');
+    if(s){
+        try{
+            const p=JSON.parse(s);
+            sharedData=p;
+            if(!sharedData.registry)sharedData.registry={};
+            if(!sharedData.forgedAliases)sharedData.forgedAliases={};
+            if(sharedData.nextSpawnOverride===undefined)sharedData.nextSpawnOverride=null;
+            if(!sharedData.activeInmates)sharedData.activeInmates=[];
+            if(!sharedData.releasedInmates)sharedData.releasedInmates=[];
+            if(!sharedData.ledgerCashouts)sharedData.ledgerCashouts=[];
+            if(!sharedData.intelFlags)sharedData.intelFlags=[];
+            if(!sharedData.paroleRecords)sharedData.paroleRecords=[];
+            if(!sharedData.iaViolations)sharedData.iaViolations=[];
+            if(!sharedData.rehabPrograms)sharedData.rehabPrograms=[];
+        }catch(e){}
+    }
+    renderMap();
+}
+
 function renderMap(){
-const reg=sharedData.registry||{};const aliases=sharedData.forgedAliases||{};const hist=sharedData.history||[];
-const d5Count=Object.values(reg).filter(r=>r.registeredBy==='AUTH_TERMINAL').length;
-const d4Count=Object.values(reg).filter(r=>r.registeredBy==='DB_TERMINAL').length;
-const d6Count=Object.keys(aliases).length;
-const d7Wanted=Object.values(reg).filter(r=>r.status==='WANTED').length;
-const d1Recent=hist.filter(h=>h.action==='RELEASED'||h.action==='ARRESTED').length;
-const d2Recent=hist.filter(h=>h.action&&h.action.includes('TOLL')).length;
-const d8Count=(sharedData.activeInmates||[]).length;
-const d9Count=(sharedData.ledgerCashouts||[]).length;
-document.getElementById('nc-d5').innerText=d5Count;
-document.getElementById('nc-d4').innerText=d4Count;
-document.getElementById('nc-d6').innerText=d6Count;
-document.getElementById('nc-d7').innerText=d7Wanted;
-document.getElementById('nc-d1').innerText=d1Recent;
-document.getElementById('nc-d2').innerText=d2Recent;
-document.getElementById('nc-d8').innerText=d8Count;
-document.getElementById('nc-d9').innerText='$'+(d9Count>0?sharedData.ledgerCashouts.reduce((s,c)=>s+c.totalCashOut,0):0);
-const isPatrolActive=sharedData.nextSpawnOverride&&sharedData.nextSpawnOverride.startsWith('HOLD-');
-document.getElementById('n-d7').className='node node-d7'+(isPatrolActive?' active':'');
-document.getElementById('n-d1').className='node node-d1'+(sharedData.nextSpawnOverride?' active':'');
-document.getElementById('n-d8').className='node node-d8'+(d8Count>0?' active':'');
-drawRoads();
+    const reg=sharedData.registry||{};
+    const aliases=sharedData.forgedAliases||{};
+    const hist=sharedData.history||[];
+    
+    const d5Count=Object.values(reg).filter(r=>r.registeredBy==='AUTH_TERMINAL').length;
+    const d4Count=Object.values(reg).filter(r=>r.registeredBy==='DB_TERMINAL').length;
+    const d6Count=Object.keys(aliases).length;
+    const d7Wanted=Object.values(reg).filter(r=>r.status==='WANTED').length;
+    const d1Recent=hist.filter(h=>h.action==='RELEASED'||h.action==='ARRESTED').length;
+    const d2Recent=hist.filter(h=>h.action&&h.action.includes('TOLL')).length;
+    const d8Count=(sharedData.activeInmates||[]).length;
+    const d9Count=(sharedData.ledgerCashouts||[]).reduce((s,c)=>s+c.totalCashOut,0);
+    
+    document.getElementById('nc-d5').innerText=d5Count;
+    document.getElementById('nc-d4').innerText=d4Count;
+    document.getElementById('nc-d6').innerText=d6Count;
+    document.getElementById('nc-d7').innerText=d7Wanted;
+    document.getElementById('nc-d1').innerText=d1Recent;
+    document.getElementById('nc-d2').innerText=d2Recent;
+    document.getElementById('nc-d8').innerText=d8Count;
+    document.getElementById('nc-d9').innerText='$'+d9Count;
+    
+    const isPatrolActive=sharedData.nextSpawnOverride&&sharedData.nextSpawnOverride.startsWith('HOLD-');
+    document.getElementById('n-d7').className='node node-d7'+(isPatrolActive?' active':'');
+    document.getElementById('n-d1').className='node node-d1'+(sharedData.nextSpawnOverride?' active':'');
+    document.getElementById('n-d8').className='node node-d8'+(d8Count>0?' active':'');
+    
+    drawRoads();
 }
+
 function drawRoads(){
-const svg=document.getElementById('road-svg');svg.innerHTML='';
-const connections=[
-{from:'n-d5',to:'n-d4',cls:''},{from:'n-d6',to:'n-d4',cls:'danger-road'},
-{from:'n-d4',to:'n-d1',cls:''},{from:'n-d7',to:'n-d1',cls:sharedData.nextSpawnOverride?'danger-road':''},
-{from:'n-d1',to:'n-d2',cls:'active-road'},{from:'n-d1',to:'n-d8',cls:(sharedData.activeInmates||[]).length>0?'danger-road':''},
-{from:'n-d2',to:'n-d9',cls:'active-road'},{from:'n-d1',to:'n-d9',cls:''}
-];
-connections.forEach(c=>{
-const fEl=document.getElementById(c.from);const tEl=document.getElementById(c.to);
-if(!fEl||!tEl)return;
-const fR=fEl.getBoundingClientRect();const tR=tEl.getBoundingClientRect();
-const cR=document.getElementById('map-canvas').getBoundingClientRect();
-const x1=fR.left+fR.width/2-cR.left;const y1=fR.top+fR.height/2-cR.top;
-const x2=tR.left+tR.width/2-cR.left;const y2=tR.top+tR.height/2-cR.top;
-const line=document.createElementNS('http://www.w3.org/2000/svg','line');
-line.setAttribute('x1',x1);line.setAttribute('y1',y1);line.setAttribute('x2',x2);line.setAttribute('y2',y2);
-line.setAttribute('class',c.cls);svg.appendChild(line);
-});
+    const svg=document.getElementById('road-svg');
+    svg.innerHTML='';
+    const connections=[
+        {from:'n-d5',to:'n-d4',cls:''},
+        {from:'n-d6',to:'n-d4',cls:'danger-road'},
+        {from:'n-d4',to:'n-d1',cls:''},
+        {from:'n-d7',to:'n-d1',cls:sharedData.nextSpawnOverride?'danger-road':''},
+        {from:'n-d1',to:'n-d2',cls:'active-road'},
+        {from:'n-d1',to:'n-d8',cls:(sharedData.activeInmates||[]).length>0?'danger-road':''},
+        {from:'n-d2',to:'n-d9',cls:'active-road'},
+        {from:'n-d1',to:'n-d9',cls:''}
+    ];
+    
+    connections.forEach(c=>{
+        const fEl=document.getElementById(c.from);
+        const tEl=document.getElementById(c.to);
+        if(!fEl||!tEl)return;
+        
+        const fR=fEl.getBoundingClientRect();
+        const tR=tEl.getBoundingClientRect();
+        const cR=document.getElementById('map-canvas').getBoundingClientRect();
+        
+        const x1=fR.left+fR.width/2-cR.left;
+        const y1=fR.top+fR.height/2-cR.top;
+        const x2=tR.left+tR.width/2-cR.left;
+        const y2=tR.top+tR.height/2-cR.top;
+        
+        const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+        line.setAttribute('x1',x1);
+        line.setAttribute('y1',y1);
+        line.setAttribute('x2',x2);
+        line.setAttribute('y2',y2);
+        line.setAttribute('class',c.cls);
+        svg.appendChild(line);
+    });
 }
+
 window.addEventListener('resize',drawRoads);
-loadData();setInterval(loadData,2000);
+loadData();
+setInterval(loadData,2000);
 </script>
 </body>
 </html>
