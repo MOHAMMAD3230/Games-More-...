@@ -40,6 +40,7 @@ body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:
 .rehab-list::-webkit-scrollbar-track,.log-box::-webkit-scrollbar-track{background:#000;border:1px solid var(--border);}
 .rehab-list::-webkit-scrollbar-thumb,.log-box::-webkit-scrollbar-thumb{background:var(--accent);}
 @media(max-width:1024px){.main-layout{grid-template-columns:1fr;overflow-y:auto;}}
+@media(max-width:600px){.top-bar h1{font-size:.7rem;}.rehab-item{padding:10px;}.mech-btn{font-size:.6rem;padding:8px 10px;}}
 </style>
 </head>
 <body>
@@ -65,71 +66,162 @@ body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:
 </div>
 <script>
 let sharedData={revenue:0,valids:0,missed:0,level:1,rankPoints:0,history:[],registry:{},forgedAliases:{},nextSpawnOverride:null,activeInmates:[],releasedInmates:[],ledgerCashouts:[],intelFlags:[],paroleRecords:[],iaViolations:[],rehabPrograms:[]};
+
 function updateClock(){document.getElementById('clock').innerText=new Date().toLocaleTimeString('en-GB');}
 setInterval(updateClock,1000);
-function loadData(){const s=localStorage.getItem('enforcementTerminalV23');if(s){try{const p=JSON.parse(s);sharedData=p;if(!sharedData.releasedInmates)sharedData.releasedInmates=[];if(!sharedData.rehabPrograms)sharedData.rehabPrograms=[];if(!sharedData.registry)sharedData.registry={};}catch(e){}}renderDashboard();}
+
+function loadData(){
+    const s=localStorage.getItem('enforcementTerminalV23');
+    if(s){
+        try{
+            const p=JSON.parse(s);
+            sharedData=p;
+            if(!sharedData.releasedInmates)sharedData.releasedInmates=[];
+            if(!sharedData.rehabPrograms)sharedData.rehabPrograms=[];
+            if(!sharedData.registry)sharedData.registry={};
+            if(!sharedData.forgedAliases)sharedData.forgedAliases={};
+            if(sharedData.nextSpawnOverride===undefined)sharedData.nextSpawnOverride=null;
+            if(!sharedData.activeInmates)sharedData.activeInmates=[];
+            if(!sharedData.ledgerCashouts)sharedData.ledgerCashouts=[];
+            if(!sharedData.intelFlags)sharedData.intelFlags=[];
+            if(!sharedData.paroleRecords)sharedData.paroleRecords=[];
+            if(!sharedData.iaViolations)sharedData.iaViolations=[];
+        }catch(e){}
+    }
+    renderDashboard();
+}
+
 function saveData(){localStorage.setItem('enforcementTerminalV23',JSON.stringify(sharedData));}
-function addLog(msg,color){const l=document.getElementById('rehab-log');const e=document.createElement('div');e.style.color=color||'var(--accent)';e.style.marginBottom='5px';e.innerText='> '+msg;l.prepend(e);}
+
+function addLog(msg,color){
+    const l=document.getElementById('rehab-log');
+    const e=document.createElement('div');
+    e.style.color=color||'var(--accent)';
+    e.style.marginBottom='5px';
+    e.innerText='> '+msg;
+    l.prepend(e);
+}
+
 function enrollFromReleased(){
-const released=sharedData.releasedInmates.filter(i=>i.status==='RELEASED'||i.status==='PAROLED');
-let enrolled=0;
-released.forEach(inmate=>{
-const already=sharedData.rehabPrograms.find(r=>r.plate===inmate.plate);
-if(!already){
-sharedData.rehabPrograms.push({plate:inmate.plate,realPlate:inmate.realPlate||inmate.plate,id:inmate.id||'MISSING',offense:inmate.offense,progress:0,programDays:15+Math.floor(Math.random()*16),status:'ENROLLED',dateEnrolled:new Date().toLocaleDateString()});
-enrolled++;
+    const released=sharedData.releasedInmates.filter(i=>i.status==='RELEASED'||i.status==='PAROLED');
+    let enrolled=0;
+    released.forEach(inmate=>{
+        const already=sharedData.rehabPrograms.find(r=>r.plate===inmate.plate);
+        if(!already){
+            sharedData.rehabPrograms.push({
+                plate:inmate.plate,
+                realPlate:inmate.realPlate||inmate.plate,
+                id:inmate.id||'MISSING',
+                offense:inmate.offense,
+                progress:0,
+                programDays:15+Math.floor(Math.random()*16),
+                status:'ENROLLED',
+                dateEnrolled:new Date().toLocaleDateString()
+            });
+            enrolled++;
+        }
+    });
+    if(enrolled>0){
+        saveData();
+        renderDashboard();
+        addLog(`ENROLLED: ${enrolled} released inmates into rehabilitation.`,'var(--accent)');
+    }
+    else{
+        addLog('No new released inmates to enroll.','var(--warning)');
+    }
 }
-});
-if(enrolled>0){saveData();renderDashboard();addLog(`ENROLLED: ${enrolled} released inmates into rehabilitation.`,'var(--accent)');}
-else{addLog('No new released inmates to enroll.','var(--warning)');}
-}
+
 function graduateInmate(index){
-const prog=sharedData.rehabPrograms;if(index<0||index>=prog.length)return;
-const inmate=prog[index];if(inmate.progress<inmate.programDays)return;
-const newPlate='RH-'+Math.floor(1000+Math.random()*9000);
-const newId='DL-REHAB-'+Math.floor(1000+Math.random()*9000);
-sharedData.registry[newPlate]={id:newId,vClass:'LVM_CLASS_1',status:'CLEAR',registeredBy:'REHAB_CENTER'};
-inmate.status='GRADUATED';inmate.newPlate=newPlate;inmate.newId=newId;
-sharedData.history.push({plate:newPlate,id:newId,action:'REHAB GRADUATED',timestamp:new Date().toLocaleTimeString()});
-prog.splice(index,1);saveData();renderDashboard();
-addLog(`GRADUATED: ${inmate.plate} → ${newPlate} (${newId}). Reintegrated as CLEAR citizen.`,'var(--success)');
+    const prog=sharedData.rehabPrograms;
+    if(index<0||index>=prog.length)return;
+    const inmate=prog[index];
+    if(inmate.progress<inmate.programDays)return;
+    
+    const newPlate='RH-'+Math.floor(1000+Math.random()*9000);
+    const newId='DL-REHAB-'+Math.floor(1000+Math.random()*9000);
+    
+    sharedData.registry[newPlate]={
+        id:newId,
+        vClass:'LVM_CLASS_1',
+        status:'CLEAR',
+        registeredBy:'REHAB_CENTER'
+    };
+    
+    inmate.status='GRADUATED';
+    inmate.newPlate=newPlate;
+    inmate.newId=newId;
+    
+    sharedData.history.push({
+        plate:newPlate,
+        id:newId,
+        action:'REHAB GRADUATED',
+        timestamp:new Date().toLocaleTimeString()
+    });
+    
+    prog.splice(index,1);
+    saveData();
+    renderDashboard();
+    addLog(`GRADUATED: ${inmate.plate} → ${newPlate} (${newId}). Reintegrated as CLEAR citizen.`,'var(--success)');
 }
+
 function renderDashboard(){
-const programs=sharedData.rehabPrograms||[];
-const enrolled=programs.filter(p=>p.status==='ENROLLED').length;
-const graduated=programs.filter(p=>p.status==='GRADUATED').length;
-const awaiting=(sharedData.releasedInmates||[]).filter(i=>(i.status==='RELEASED'||i.status==='PAROLED')&&!programs.find(p=>p.plate===i.plate)).length;
-document.getElementById('stat-enrolled').innerText=enrolled;
-document.getElementById('stat-graduated').innerText=graduated;
-document.getElementById('stat-awaiting').innerText=awaiting;
-const list=document.getElementById('rehab-list');list.innerHTML='';
-if(programs.length===0){list.innerHTML='<div style="color:#555;text-align:center;padding:40px;">NO INMATES IN REHABILITATION</div>';return;}
-programs.forEach((inmate,idx)=>{
-const pct=Math.min(100,Math.round((inmate.progress/inmate.programDays)*100));
-const isReady=inmate.progress>=inmate.programDays;
-const item=document.createElement('div');item.className='rehab-item '+(isReady?'ready':'in-progress');
-item.innerHTML=`
-<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:15px;">
-<div style="flex:1;">
-<div class="plate-tag">${inmate.plate}</div>
-<div class="meta-tag">Real: ${inmate.realPlate||'N/A'} | ID: ${inmate.id||'MISSING'}</div>
-<div class="meta-tag">Offense: ${inmate.offense} | Program: ${inmate.programDays} days</div>
-<div class="meta-tag" style="color:${isReady?'var(--success)':'var(--warning)'}">
- ${isReady?'✔ PROGRAM COMPLETE — READY FOR GRADUATION':`Progress: ${inmate.progress}/${inmate.programDays} days (${pct}%)`}
-</div>
-<div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${isReady?'var(--success)':'var(--warning)'}"></div></div>
-</div>
- ${isReady?`<button class="mech-btn btn-graduate" onclick="graduateInmate(${idx})">GRADUATE</button>`:''}
-</div>`;
-list.appendChild(item);
-});
+    const programs=sharedData.rehabPrograms||[];
+    const enrolled=programs.filter(p=>p.status==='ENROLLED').length;
+    const graduated=programs.filter(p=>p.status==='GRADUATED').length;
+    const awaiting=(sharedData.releasedInmates||[]).filter(i=>(i.status==='RELEASED'||i.status==='PAROLED')&&!programs.find(p=>p.plate===i.plate)).length;
+    
+    document.getElementById('stat-enrolled').innerText=enrolled;
+    document.getElementById('stat-graduated').innerText=graduated;
+    document.getElementById('stat-awaiting').innerText=awaiting;
+    
+    const list=document.getElementById('rehab-list');
+    list.innerHTML='';
+    
+    if(programs.length===0){
+        list.innerHTML='<div style="color:#555;text-align:center;padding:40px;">NO INMATES IN REHABILITATION</div>';
+        return;
+    }
+    
+    programs.forEach((inmate,idx)=>{
+        const pct=Math.min(100,Math.round((inmate.progress/inmate.programDays)*100));
+        const isReady=inmate.progress>=inmate.programDays;
+        const item=document.createElement('div');
+        item.className='rehab-item '+(isReady?'ready':'in-progress');
+        item.innerHTML=`
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:15px;">
+            <div style="flex:1;">
+                <div class="plate-tag">${inmate.plate}</div>
+                <div class="meta-tag">Real: ${inmate.realPlate||'N/A'} | ID: ${inmate.id||'MISSING'}</div>
+                <div class="meta-tag">Offense: ${inmate.offense} | Program: ${inmate.programDays} days</div>
+                <div class="meta-tag" style="color:${isReady?'var(--success)':'var(--warning)'}">
+                    ${isReady?'✔ PROGRAM COMPLETE — READY FOR GRADUATION':`Progress: ${inmate.progress}/${inmate.programDays} days (${pct}%)`}
+                </div>
+                <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${isReady?'var(--success)':'var(--warning)'}"></div></div>
+            </div>
+            ${isReady?`<button class="mech-btn btn-graduate" onclick="graduateInmate(${idx})">GRADUATE</button>`:''}
+        </div>`;
+        list.appendChild(item);
+    });
 }
+
+// --- REHABILITATION TIMER ENGINE ---
+// 1 Real Second = 1 Simulation Day
 setInterval(()=>{
-let needsSave=false;
-(sharedData.rehabPrograms||[]).forEach(p=>{if(p.status==='ENROLLED'&&p.progress<p.programDays){p.progress++;needsSave=true;}});
-if(needsSave){saveData();renderDashboard();}
+    let needsSave=false;
+    (sharedData.rehabPrograms||[]).forEach(p=>{
+        if(p.status==='ENROLLED'&&p.progress<p.programDays){
+            p.progress++;
+            needsSave=true;
+        }
+    });
+    if(needsSave){
+        saveData();
+        renderDashboard();
+    }
 },1000);
-loadData();setInterval(loadData,2000);
+
+loadData();
+setInterval(loadData,2000);
 </script>
 </body>
 </html>
