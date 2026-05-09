@@ -37,6 +37,7 @@ body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:
 .mech-btn{width:100%;padding:12px;border:2px solid #000;cursor:pointer;font-weight:bold;text-transform:uppercase;font-size:.8rem;box-shadow:0 3px 0 #000;transition:all .1s;font-family:monospace;border-radius:4px;margin-top:10px;flex-shrink:0;background:var(--danger);color:#fff;}
 .mech-btn:active{transform:translateY(2px);box-shadow:0 1px 0 #000;}
 @media(max-width:1024px){.main-layout{grid-template-columns:1fr;overflow-y:auto;}}
+@media(max-width:600px){.top-bar h1{font-size:.7rem;}.integrity-score{font-size:3rem;}}
 </style>
 </head>
 <body>
@@ -66,57 +67,136 @@ body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:
 </div>
 </div>
 <script>
-let sharedData={revenue:0,valids:0,missed:0,level:1,rankPoints:0,history:[],registry:{},forgedAliases:{},nextSpawnOverride:null,activeInmates:[],releasedInmates:[],ledgerCashouts:[],intelFlags:[],paroleRecords:[],iaViolations:[]};
+let sharedData={revenue:0,valids:0,missed:0,level:1,rankPoints:0,history:[],registry:{},forgedAliases:{},nextSpawnOverride:null,activeInmates:[],releasedInmates:[],ledgerCashouts:[],intelFlags:[],paroleRecords:[],iaViolations:[],rehabPrograms:[]};
+
 function updateClock(){document.getElementById('clock').innerText=new Date().toLocaleTimeString('en-GB');}
 setInterval(updateClock,1000);
-function loadData(){const s=localStorage.getItem('enforcementTerminalV23');if(s){try{const p=JSON.parse(s);sharedData=p;if(!sharedData.history)sharedData.history=[];if(!sharedData.registry)sharedData.registry={};if(!sharedData.forgedAliases)sharedData.forgedAliases={};if(!sharedData.iaViolations)sharedData.iaViolations=[];}catch(e){}}renderDashboard();}
+
+function loadData(){
+    const s=localStorage.getItem('enforcementTerminalV23');
+    if(s){
+        try{
+            const p=JSON.parse(s);
+            sharedData=p;
+            if(!sharedData.history)sharedData.history=[];
+            if(!sharedData.registry)sharedData.registry={};
+            if(!sharedData.forgedAliases)sharedData.forgedAliases={};
+            if(sharedData.nextSpawnOverride===undefined)sharedData.nextSpawnOverride=null;
+            if(!sharedData.activeInmates)sharedData.activeInmates=[];
+            if(!sharedData.releasedInmates)sharedData.releasedInmates=[];
+            if(!sharedData.ledgerCashouts)sharedData.ledgerCashouts=[];
+            if(!sharedData.intelFlags)sharedData.intelFlags=[];
+            if(!sharedData.paroleRecords)sharedData.paroleRecords=[];
+            if(!sharedData.iaViolations)sharedData.iaViolations=[];
+            if(!sharedData.rehabPrograms)sharedData.rehabPrograms=[];
+        }catch(e){}
+    }
+    renderDashboard();
+}
+
 function saveData(){localStorage.setItem('enforcementTerminalV23',JSON.stringify(sharedData));}
-function addLog(msg,color){const l=document.getElementById('ia-log');const e=document.createElement('div');e.style.color=color||'var(--danger)';e.style.marginBottom='5px';e.innerText='> '+msg;l.prepend(e);}
+
+function addLog(msg,color){
+    const l=document.getElementById('ia-log');
+    const e=document.createElement('div');
+    e.style.color=color||'var(--danger)';
+    e.style.marginBottom='5px';
+    e.innerText='> '+msg;
+    l.prepend(e);
+}
+
 function runAudit(){
-addLog('AUDIT: Scanning all officer actions...','#888');
-const hist=sharedData.history||[];const reg=sharedData.registry||{};const aliases=sharedData.forgedAliases||{};
-let violations=[];let suspicious=0;
-const forgedPlates=Object.keys(aliases);
-hist.forEach(h=>{
-if(h.action==='ARRESTED'&&h.plate!=='UNKNOWN'&&!h.plate.startsWith('HOLD-')){
-if(reg[h.plate]&&reg[h.plate].status==='CLEAR'){violations.push({type:'WRONGFUL ARREST',plate:h.plate,severity:'major',time:h.timestamp,detail:'Arrested a CLEAR citizen'});}
+    addLog('AUDIT: Scanning all officer actions...','#888');
+    const hist=sharedData.history||[];
+    const reg=sharedData.registry||{};
+    const aliases=sharedData.forgedAliases||{};
+    let violations=[];
+    let suspicious=0;
+    
+    const forgedPlates=Object.keys(aliases);
+
+    hist.forEach(h=>{
+        if(h.action==='ARRESTED'&&h.plate!=='UNKNOWN'&&!h.plate.startsWith('HOLD-')){
+            if(reg[h.plate]&&reg[h.plate].status==='CLEAR'){
+                violations.push({type:'WRONGFUL ARREST',plate:h.plate,severity:'major',time:h.timestamp,detail:'Arrested a CLEAR citizen'});
+            }
+        }
+        if(h.action==='RELEASED'){
+            if(forgedPlates.includes(h.plate)){
+                violations.push({type:'CORRUPT RELEASE',plate:h.plate,severity:'major',time:h.timestamp,detail:'Released a known forged alias'});
+                suspicious++;
+            }
+        }
+    });
+
+    Object.keys(reg).forEach(plate=>{
+        if(reg[plate].registeredBy==='SYNDICATE_FORGE'){
+            const tollPass=hist.find(h=>h.plate===plate&&h.action&&h.action.includes('TOLL'));
+            if(tollPass){
+                violations.push({type:'TOLL BYPASS ASSIST',plate:plate,severity:'minor',time:tollPass.timestamp,detail:'Forged vehicle passed toll without flag'});
+                suspicious++;
+            }
+        }
+        if(reg[plate].registeredBy==='AUTH_TERMINAL'&&reg[plate].status==='CLEAR'){
+            const hasAlias=aliases[plate];
+            if(hasAlias){
+                violations.push({type:'CORRUPT LICENSING',plate:plate,severity:'major',time:'N/A',detail:'Approved license for flagged applicant'});
+                suspicious++;
+            }
+        }
+    });
+
+    sharedData.iaViolations=violations;
+    saveData();
+
+    const validActions=sharedData.valids||0;
+    const breaches=sharedData.missed||0;
+    const integrity=Math.max(0,100-(breaches*5)-(violations.filter(v=>v.severity==='major').length*10)-(suspicious*3));
+    
+    document.getElementById('integrity-score').innerText=integrity;
+    const fill=document.getElementById('integrity-fill');
+    fill.style.width=integrity+'%';
+    fill.style.background=integrity>70?'var(--success)':integrity>40?'var(--warning)':'var(--danger)';
+    
+    document.getElementById('s-valid').innerText=validActions;
+    document.getElementById('s-breaches').innerText=breaches;
+    document.getElementById('s-suspect').innerText=suspicious;
+
+    const list=document.getElementById('violation-list');
+    list.innerHTML='';
+    
+    if(violations.length===0){
+        list.innerHTML='<div style="color:var(--success);text-align:center;padding:20px;">NO VIOLATIONS DETECTED</div>';
+        addLog('AUDIT COMPLETE: Officer conduct is clean.','var(--success)');
+        return;
+    }
+
+    violations.forEach(v=>{
+        const d=document.createElement('div');
+        d.className='violation-item '+v.severity;
+        d.innerHTML=`<div style="display:flex;justify-content:space-between"><span style="color:${v.severity==='major'?'var(--danger)':'var(--warning)'};font-weight:bold">${v.type}</span><span style="color:#555">${v.time}</span></div><div style="font-size:.7rem;color:#888;margin-top:4px">${v.plate} — ${v.detail}</div>`;
+        list.appendChild(d);
+    });
+
+    addLog(`AUDIT COMPLETE: ${violations.length} violations, ${suspicious} suspicious patterns. Integrity: ${integrity}%`,integrity>70?'var(--success)':'var(--danger)');
 }
-if(h.action==='RELEASED'){
-if(forgedPlates.includes(h.plate)){violations.push({type:'CORRUPT RELEASE',plate:h.plate,severity:'major',time:h.timestamp,detail:'Released a known forged alias'});suspicious++;}
-}
-});
-Object.keys(reg).forEach(plate=>{
-if(reg[plate].registeredBy==='SYNDICATE_FORGE'){
-const tollPass=hist.find(h=>h.plate===plate&&h.action&&h.action.includes('TOLL'));
-if(tollPass){violations.push({type:'TOLL BYPASS ASSIST',plate:plate,severity:'minor',time:tollPass.timestamp,detail:'Forged vehicle passed toll without flag'});suspicious++;}
-}
-if(reg[plate].registeredBy==='AUTH_TERMINAL'&&reg[plate].status==='CLEAR'){
-const hasAlias=aliases[plate];
-if(hasAlias){violations.push({type:'CORRUPT LICENSING',plate:plate,severity:'major',time:'N/A',detail:'Approved license for flagged applicant'});suspicious++;}
-}
-});
-sharedData.iaViolations=violations;saveData();
-const validActions=sharedData.valids||0;const breaches=sharedData.missed||0;
-const integrity=Math.max(0,100-(breaches*5)-(violations.filter(v=>v.severity==='major').length*10)-(suspicious*3));
-document.getElementById('integrity-score').innerText=integrity;
-const fill=document.getElementById('integrity-fill');fill.style.width=integrity+'%';
-fill.style.background=integrity>70?'var(--success)':integrity>40?'var(--warning)':'var(--danger)';
-document.getElementById('s-valid').innerText=validActions;
-document.getElementById('s-breaches').innerText=breaches;
-document.getElementById('s-suspect').innerText=suspicious;
-const list=document.getElementById('violation-list');list.innerHTML='';
-if(violations.length===0){list.innerHTML='<div style="color:var(--success);text-align:center;padding:20px;">NO VIOLATIONS DETECTED</div>';addLog('AUDIT COMPLETE: Officer conduct is clean.','var(--success)');return;}
-violations.forEach(v=>{const d=document.createElement('div');d.className='violation-item '+v.severity;d.innerHTML=`<div style="display:flex;justify-content:space-between"><span style="color:${v.severity==='major'?'var(--danger)':'var(--warning)'};font-weight:bold">${v.type}</span><span style="color:#555">${v.time}</span></div><div style="font-size:.7rem;color:#888;margin-top:4px">${v.plate} — ${v.detail}</div>`;list.appendChild(d);});
-addLog(`AUDIT COMPLETE: ${violations.length} violations, ${suspicious} suspicious patterns. Integrity: ${integrity}%`,integrity>70?'var(--success)':'var(--danger)');
-}
+
 function renderDashboard(){
-const v=(sharedData.iaViolations||[]);const b=sharedData.missed||0;
-const integrity=Math.max(0,100-(b*5)-(v.filter(x=>x.severity==='major').length*10));
-document.getElementById('integrity-score').innerText=integrity;
-const fill=document.getElementById('integrity-fill');fill.style.width=integrity+'%';
-fill.style.background=integrity>70?'var(--success)':integrity>40?'var(--warning)':'var(--danger)';
+    const v=(sharedData.iaViolations||[]);
+    const b=sharedData.missed||0;
+    const integrity=Math.max(0,100-(b*5)-(v.filter(x=>x.severity==='major').length*10));
+    
+    document.getElementById('integrity-score').innerText=integrity;
+    const fill=document.getElementById('integrity-fill');
+    fill.style.width=integrity+'%';
+    fill.style.background=integrity>70?'var(--success)':integrity>40?'var(--warning)':'var(--danger)';
+    
+    document.getElementById('s-valid').innerText=sharedData.valids||0;
+    document.getElementById('s-breaches').innerText=b;
 }
-loadData();setInterval(loadData,2000);
+
+loadData();
+setInterval(loadData,2000);
 </script>
 </body>
 </html>
