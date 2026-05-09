@@ -10,6 +10,7 @@
     gtag('js', new Date());
     gtag('config', 'GT-NC6T5LRJ');
   </script>
+    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NHAI CENTRAL COMMAND - NETWORK HUB v4.0</title>
@@ -146,7 +147,7 @@
 </div>
 
 <script>
-    let sharedData = { revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, history: [] };
+    let sharedData = { revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null, activeInmates: [], releasedInmates: [], ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [] };
 
     function updateClock() {
         document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB');
@@ -165,6 +166,19 @@
                     sharedData = parsed;
                     needsUpdate = true;
                 }
+                
+                // Sync new properties safely
+                if(!sharedData.registry) sharedData.registry = {};
+                if(!sharedData.forgedAliases) sharedData.forgedAliases = {};
+                if(sharedData.nextSpawnOverride === undefined) sharedData.nextSpawnOverride = null;
+                if(!sharedData.activeInmates) sharedData.activeInmates = [];
+                if(!sharedData.releasedInmates) sharedData.releasedInmates = [];
+                if(!sharedData.ledgerCashouts) sharedData.ledgerCashouts = [];
+                if(!sharedData.intelFlags) sharedData.intelFlags = [];
+                if(!sharedData.paroleRecords) sharedData.paroleRecords = [];
+                if(!sharedData.iaViolations) sharedData.iaViolations = [];
+                if(!sharedData.rehabPrograms) sharedData.rehabPrograms = [];
+
                 document.getElementById('cmd-cache').innerText = "SYNCED";
                 document.getElementById('cmd-cache').className = "health-status online";
             } catch(e) {
@@ -208,9 +222,9 @@
                 // Determine action type and style
                 let actionClass = '';
                 let actionText = event.action;
-                if (event.action.includes('TOLL') || event.action.includes('RELEASED')) {
+                if (event.action.includes('TOLL') || event.action.includes('RELEASED') || event.action.includes('PAROLE') || event.action.includes('REHAB')) {
                     actionClass = 'toll';
-                } else if (event.action.includes('ARRESTED')) {
+                } else if (event.action.includes('ARRESTED') || event.action.includes('INTERCEPT') || event.action.includes('PATROL')) {
                     actionClass = 'enforce';
                 }
 
@@ -235,10 +249,10 @@
             if (last10[i]) {
                 // Scale height based on string length of action just to give visual variance, or randomize
                 // Let's make Toll actions green and Enforcement red
-                if(last10[i].action.includes('TOLL')) {
+                if(last10[i].action.includes('TOLL') || last10[i].action.includes('REHAB') || last10[i].action.includes('PAROLE')) {
                     bar.style.background = 'var(--success)';
                     bar.style.height = '40%';
-                } else if(last10[i].action.includes('ARRESTED')) {
+                } else if(last10[i].action.includes('ARRESTED') || last10[i].action.includes('PATROL') || last10[i].action.includes('INTERCEPT')) {
                     bar.style.background = 'var(--danger)';
                     bar.style.height = '90%';
                 } else {
