@@ -25,7 +25,6 @@ body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:
 .parole-list{flex-grow:1;overflow-y:auto;padding-right:5px;min-height:0;}
 .parole-item{background:#000;border:1px solid var(--border);padding:15px;margin-bottom:10px;border-left:4px solid var(--success);border-radius:4px;}
 .parole-item.pending{border-left-color:var(--warning);}
-.parole-item.denied{border-left-color:var(--danger);opacity:.4;}
 .plate-tag{color:var(--warning);font-weight:bold;font-size:1.1rem;}
 .meta-tag{color:#555;font-size:.75rem;margin-top:4px;}
 .mech-btn{padding:10px 15px;border:2px solid #000;cursor:pointer;font-weight:bold;text-transform:uppercase;font-size:.7rem;box-shadow:0 3px 0 #000;transition:all .1s;font-family:monospace;border-radius:4px;flex-shrink:0;}
@@ -38,6 +37,7 @@ body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:
 .parole-list::-webkit-scrollbar-track,.log-box::-webkit-scrollbar-track{background:#000;border:1px solid var(--border);}
 .parole-list::-webkit-scrollbar-thumb,.log-box::-webkit-scrollbar-thumb{background:var(--warning);}
 @media(max-width:1024px){.main-layout{grid-template-columns:1fr;overflow-y:auto;}}
+@media(max-width:600px){.top-bar h1{font-size:.7rem;}.parole-item{padding:10px;}.mech-btn{font-size:.6rem;padding:8px 10px;}}
 </style>
 </head>
 <body>
@@ -61,60 +61,151 @@ body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:
 </div>
 </div>
 <script>
-let sharedData={revenue:0,valids:0,missed:0,level:1,rankPoints:0,history:[],registry:{},forgedAliases:{},nextSpawnOverride:null,activeInmates:[],releasedInmates:[],ledgerCashouts:[],intelFlags:[],paroleRecords:[]};
+let sharedData={revenue:0,valids:0,missed:0,level:1,rankPoints:0,history:[],registry:{},forgedAliases:{},nextSpawnOverride:null,activeInmates:[],releasedInmates:[],ledgerCashouts:[],intelFlags:[],paroleRecords:[],iaViolations:[],rehabPrograms:[]};
+
 function updateClock(){document.getElementById('clock').innerText=new Date().toLocaleTimeString('en-GB');}
 setInterval(updateClock,1000);
-function loadData(){const s=localStorage.getItem('enforcementTerminalV23');if(s){try{const p=JSON.parse(s);sharedData=p;if(!sharedData.activeInmates)sharedData.activeInmates=[];if(!sharedData.releasedInmates)sharedData.releasedInmates=[];if(!sharedData.registry)sharedData.registry={};if(!sharedData.paroleRecords)sharedData.paroleRecords=[];}catch(e){}}renderDashboard();}
+
+function loadData(){
+    const s=localStorage.getItem('enforcementTerminalV23');
+    if(s){
+        try{
+            const p=JSON.parse(s);
+            sharedData=p;
+            if(!sharedData.activeInmates)sharedData.activeInmates=[];
+            if(!sharedData.releasedInmates)sharedData.releasedInmates=[];
+            if(!sharedData.registry)sharedData.registry={};
+            if(!sharedData.forgedAliases)sharedData.forgedAliases={};
+            if(sharedData.nextSpawnOverride===undefined)sharedData.nextSpawnOverride=null;
+            if(!sharedData.ledgerCashouts)sharedData.ledgerCashouts=[];
+            if(!sharedData.intelFlags)sharedData.intelFlags=[];
+            if(!sharedData.paroleRecords)sharedData.paroleRecords=[];
+            if(!sharedData.iaViolations)sharedData.iaViolations=[];
+            if(!sharedData.rehabPrograms)sharedData.rehabPrograms=[];
+        }catch(e){}
+    }
+    renderDashboard();
+}
+
 function saveData(){localStorage.setItem('enforcementTerminalV23',JSON.stringify(sharedData));}
-function addLog(msg,color){const l=document.getElementById('parole-log');const e=document.createElement('div');e.style.color=color||'var(--warning)';e.style.marginBottom='5px';e.innerText='> '+msg;l.prepend(e);}
+
+function addLog(msg,color){
+    const l=document.getElementById('parole-log');
+    const e=document.createElement('div');
+    e.style.color=color||'var(--warning)';
+    e.style.marginBottom='5px';
+    e.innerText='> '+msg;
+    l.prepend(e);
+}
+
 function grantParole(index){
-const inmates=sharedData.activeInmates;if(index<0||index>=inmates.length)return;
-const inmate=inmates[index];if(inmate.sentenceRemaining>0)return;
-const plate=inmate.realPlate||inmate.plate;
-sharedData.registry[plate]={id:inmate.id==='MISSING'?'DL-PAROLE-'+Math.floor(1000+Math.random()*9000):inmate.id,vClass:'LVM_CLASS_1',status:'CLEAR',registeredBy:'PAROLE_BOARD'};
-inmate.status='PAROLED';sharedData.releasedInmates.push({plate:inmate.plate,realPlate:inmate.realPlate,id:inmate.id,offense:inmate.offense,dateArrested:inmate.dateArrested,facility:inmate.facility,status:'PAROLED',dateReleased:new Date().toLocaleDateString()});
-sharedData.paroleRecords.push({plate:plate,decision:'GRANTED',date:new Date().toLocaleString()});
-inmates.splice(index,1);
-sharedData.history.push({plate:plate,id:'PAROLE',action:'PAROLE GRANTED',timestamp:new Date().toLocaleTimeString()});
-saveData();renderDashboard();addLog(`PAROLE GRANTED: ${plate} reintegrated into registry as CLEAR.`,'var(--success)');
+    const inmates=sharedData.activeInmates;
+    if(index<0||index>=inmates.length)return;
+    const inmate=inmates[index];
+    if(inmate.sentenceRemaining>0)return;
+    
+    const plate=inmate.realPlate||inmate.plate;
+    const newId=inmate.id==='MISSING'?'DL-PAROLE-'+Math.floor(1000+Math.random()*9000):inmate.id;
+    
+    sharedData.registry[plate]={
+        id:newId,
+        vClass:'LVM_CLASS_1',
+        status:'CLEAR',
+        registeredBy:'PAROLE_BOARD'
+    };
+    
+    inmate.status='PAROLED';
+    sharedData.releasedInmates.push({
+        plate:inmate.plate,
+        realPlate:inmate.realPlate,
+        id:inmate.id,
+        offense:inmate.offense,
+        dateArrested:inmate.dateArrested,
+        facility:inmate.facility,
+        status:'PAROLED',
+        dateReleased:new Date().toLocaleDateString()
+    });
+    
+    if(!sharedData.paroleRecords)sharedData.paroleRecords=[];
+    sharedData.paroleRecords.push({plate:plate,decision:'GRANTED',date:new Date().toLocaleString()});
+    
+    inmates.splice(index,1);
+    
+    sharedData.history.push({
+        plate:plate,
+        id:'PAROLE',
+        action:'PAROLE GRANTED',
+        timestamp:new Date().toLocaleTimeString()
+    });
+    
+    saveData();
+    renderDashboard();
+    addLog(`PAROLE GRANTED: ${plate} reintegrated into registry as CLEAR.`,'var(--success)');
 }
+
 function denyParole(index){
-const inmates=sharedData.activeInmates;if(index<0||index>=inmates.length)return;
-const inmate=inmates[index];if(inmate.sentenceRemaining>0)return;
-inmate.sentenceRemaining=30;
-sharedData.paroleRecords.push({plate:inmate.plate,decision:'DENIED',date:new Date().toLocaleString()});
-sharedData.history.push({plate:inmate.plate,id:'PAROLE',action:'PAROLE DENIED',timestamp:new Date().toLocaleTimeString()});
-saveData();renderDashboard();addLog(`PAROLE DENIED: ${inmate.plate} sentence extended by 30 days.`,'var(--danger)');
+    const inmates=sharedData.activeInmates;
+    if(index<0||index>=inmates.length)return;
+    const inmate=inmates[index];
+    if(inmate.sentenceRemaining>0)return;
+    
+    inmate.sentenceRemaining=30; // Extend sentence by 30 days
+    
+    if(!sharedData.paroleRecords)sharedData.paroleRecords=[];
+    sharedData.paroleRecords.push({plate:inmate.plate,decision:'DENIED',date:new Date().toLocaleString()});
+    
+    sharedData.history.push({
+        plate:inmate.plate,
+        id:'PAROLE',
+        action:'PAROLE DENIED',
+        timestamp:new Date().toLocaleTimeString()
+    });
+    
+    saveData();
+    renderDashboard();
+    addLog(`PAROLE DENIED: ${inmate.plate} sentence extended by 30 days.`,'var(--danger)');
 }
+
 function renderDashboard(){
-const eligible=sharedData.activeInmates.filter(i=>i.sentenceRemaining<=0);
-const rehabCount=(sharedData.paroleRecords||[]).filter(r=>r.decision==='GRANTED').length;
-const deniedCount=(sharedData.paroleRecords||[]).filter(r=>r.decision==='DENIED').length;
-document.getElementById('stat-eligible').innerText=eligible.length;
-document.getElementById('stat-rehabilitated').innerText=rehabCount;
-document.getElementById('stat-denied').innerText=deniedCount;
-const list=document.getElementById('parole-list');list.innerHTML='';
-if(eligible.length===0){list.innerHTML='<div style="color:#555;text-align:center;padding:40px;">NO INMATES ELIGIBLE FOR PAROLE</div>';return;}
-sharedData.activeInmates.forEach((inmate,idx)=>{
-if(inmate.sentenceRemaining>0)return;
-const item=document.createElement('div');item.className='parole-item pending';
-item.innerHTML=`
-<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:15px;">
-<div style="flex:1;">
-<div class="plate-tag">${inmate.plate}</div>
-<div class="meta-tag">Real: ${inmate.realPlate||'N/A'} | ID: ${inmate.id||'MISSING'}</div>
-<div class="meta-tag">Offense: ${inmate.offense} | Facility: ${inmate.facility}</div>
-<div class="meta-tag" style="color:var(--success)">✔ SENTENCE SERVED — ELIGIBLE FOR PAROLE</div>
-</div>
-<div style="display:flex;flex-direction:column;gap:8px;">
-<button class="mech-btn btn-approve" onclick="grantParole(${idx})">GRANT</button>
-<button class="mech-btn btn-deny" onclick="denyParole(${idx})">DENY</button>
-</div>
-</div>`;
-list.appendChild(item);
-});
+    const eligible=sharedData.activeInmates.filter(i=>i.sentenceRemaining<=0);
+    const rehabCount=(sharedData.paroleRecords||[]).filter(r=>r.decision==='GRANTED').length;
+    const deniedCount=(sharedData.paroleRecords||[]).filter(r=>r.decision==='DENIED').length;
+    
+    document.getElementById('stat-eligible').innerText=eligible.length;
+    document.getElementById('stat-rehabilitated').innerText=rehabCount;
+    document.getElementById('stat-denied').innerText=deniedCount;
+    
+    const list=document.getElementById('parole-list');
+    list.innerHTML='';
+    
+    if(eligible.length===0){
+        list.innerHTML='<div style="color:#555;text-align:center;padding:40px;">NO INMATES ELIGIBLE FOR PAROLE</div>';
+        return;
+    }
+    
+    sharedData.activeInmates.forEach((inmate,idx)=>{
+        if(inmate.sentenceRemaining>0)return;
+        const item=document.createElement('div');
+        item.className='parole-item pending';
+        item.innerHTML=`
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:15px;">
+            <div style="flex:1;">
+                <div class="plate-tag">${inmate.plate}</div>
+                <div class="meta-tag">Real: ${inmate.realPlate||'N/A'} | ID: ${inmate.id||'MISSING'}</div>
+                <div class="meta-tag">Offense: ${inmate.offense} | Facility: ${inmate.facility}</div>
+                <div class="meta-tag" style="color:var(--success)">✔ SENTENCE SERVED — ELIGIBLE FOR PAROLE</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+                <button class="mech-btn btn-approve" onclick="grantParole(${idx})">GRANT</button>
+                <button class="mech-btn btn-deny" onclick="denyParole(${idx})">DENY</button>
+            </div>
+        </div>`;
+        list.appendChild(item);
+    });
 }
-loadData();setInterval(loadData,2000);
+
+loadData();
+setInterval(loadData,2000);
 </script>
 </body>
 </html>
