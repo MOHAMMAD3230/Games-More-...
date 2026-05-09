@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
 <link rel="icon" href="https://mohammad3230.github.io/PROJECT/favicon.png" type="image/png" sizes="32x32" />
         <script async src="https://www.googletagmanager.com/gtag/js?id=GT-NC6T5LRJ"></script>
   <script>
@@ -164,7 +163,7 @@
     let sharedData = { 
         revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, 
         history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null,
-        activeInmates: [], releasedInmates: [], ledgerCashouts: []
+        activeInmates: [], releasedInmates: [], ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: []
     };
 
     function updateClock() { document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB'); }
@@ -182,6 +181,10 @@
                 if(!sharedData.activeInmates) sharedData.activeInmates = [];
                 if(!sharedData.releasedInmates) sharedData.releasedInmates = [];
                 if(!sharedData.ledgerCashouts) sharedData.ledgerCashouts = [];
+                if(!sharedData.intelFlags) sharedData.intelFlags = [];
+                if(!sharedData.paroleRecords) sharedData.paroleRecords = [];
+                if(!sharedData.iaViolations) sharedData.iaViolations = [];
+                if(!sharedData.rehabPrograms) sharedData.rehabPrograms = [];
             } catch(e) {}
         }
         renderDashboard();
@@ -228,14 +231,17 @@
         let tollRev = 0;
         let arrestRev = 0;
         let penaltyRev = 0;
+        let rehabRev = 0; // Added for D13/D15
         
         (sharedData.history || []).forEach(h => {
             if(h.action.includes("TOLL") || h.action.includes("ROGUE TOLL")) tollRev += 500; // Base approx
             else if(h.action === "ARRESTED") arrestRev += 200;
             else if(h.action === "RELEASED") penaltyRev += 50;
+            else if(h.action === "REHAB GRADUATED") rehabRev += 100; // D15 Rehab Fee
+            else if(h.action === "PAROLE GRANTED") rehabRev += 50;   // D13 Parole Fee
         });
 
-        return { tolls: tollRev, arrests: arrestRev, penalties: penaltyRev };
+        return { tolls: tollRev, arrests: arrestRev, penalties: penaltyRev, rehab: rehabRev };
     }
 
     function addAuditLog(msg, color) {
@@ -287,6 +293,8 @@
             if(h.action.includes("TOLL")) { cssClass = 'toll'; amountText = 'Toll Paid'; }
             else if(h.action === "ARRESTED") { cssClass = 'arrest'; amountText = '+$200 Bounty'; }
             else if(h.action === "RELEASED") { cssClass = 'penalty'; amountText = '+$50 Toll'; }
+            else if(h.action === "REHAB GRADUATED") { cssClass = 'penalty'; amountText = '+$100 Rehab Fee'; }
+            else if(h.action === "PAROLE GRANTED") { cssClass = 'penalty'; amountText = '+$50 Parole Fee'; }
 
             item.className = `breakdown-item ${cssClass}`;
             item.innerHTML = `
