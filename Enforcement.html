@@ -16,6 +16,7 @@
       :root {
           --bg: #0a0a0c; --panel: #1a1a1f; --accent: #00f2ff;
           --success: #00ff9d; --danger: #ff0044; --warning: #ffcc00;
+          --police: #00d9ff; --ems: #ff4757; --fire: #ffa502;
       }
       body {
           background-color: var(--bg); color: #eee; font-family: 'Courier New', monospace;
@@ -53,10 +54,23 @@
       }
       .vehicle.criminal-alert { animation: pulseDanger 0.5s infinite; }
       .vehicle.emergency-vehicle { border-color: var(--warning); box-shadow: 0 0 20px var(--warning); }
+      .vehicle.agency-police { border-color: var(--police); box-shadow: 0 0 25px var(--police); background: #0a2530; }
+      .vehicle.agency-ems { border-color: var(--ems); box-shadow: 0 0 25px var(--ems); background: #300a15; }
+      .vehicle.agency-fire { border-color: var(--fire); box-shadow: 0 0 25px var(--fire); background: #30200a; }
+      .vehicle.agency-multi { 
+          border-color: var(--danger); box-shadow: 0 0 30px var(--police), 0 0 60px var(--ems), 0 0 90px var(--fire); 
+          animation: multiAgencyPulse 1s infinite; background: #1a1a1a;
+      }
       @keyframes pulseDanger {
           0% { border-color: var(--danger); box-shadow: 0 0 10px var(--danger); }
           50% { border-color: transparent; box-shadow: none; }
           100% { border-color: var(--danger); box-shadow: 0 0 10px var(--danger); }
+      }
+      @keyframes multiAgencyPulse {
+          0% { border-color: var(--police); box-shadow: 0 0 30px var(--police); }
+          33% { border-color: var(--ems); box-shadow: 0 0 30px var(--ems); }
+          66% { border-color: var(--fire); box-shadow: 0 0 30px var(--fire); }
+          100% { border-color: var(--police); box-shadow: 0 0 30px var(--police); }
       }
       #scanEffect {
           position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--accent);
@@ -91,18 +105,17 @@
       .mech-btn { 
           background: linear-gradient(180deg, #444 0%, #222 100%); border: 2px solid #000; color: #fff; 
           padding: 15px; cursor: pointer; text-transform: uppercase; font-size: 0.7rem; font-weight: bold; 
-          box-shadow: 0 4px #000; transition: all 0.1s; 
+          box-shadow: 0 4px #000; transition: all 0.1s; font-family: monospace;
       }
       .mech-btn:active { transform: translateY(2px); box-shadow: 0 1px #000; }
       .mech-btn:disabled { opacity: 0.2; cursor: not-allowed; transform: none; box-shadow: none; }
       
-      /* EMERGENCY BUTTON STYLES */
       .btn-emergency {
           grid-column: 1 / -1; 
           background: linear-gradient(145deg, #ff0044, #99002a); 
           color: #fff; font-size: 1rem; letter-spacing: 2px;
           border: 3px solid var(--warning);
-          display: none; /* Hidden by default */
+          display: none; 
       }
       .btn-emergency.active {
           display: block; 
@@ -133,6 +146,12 @@
           transform: rotate(-12deg); pointer-events: none; 
       }
       .forgery-warning { color: var(--danger); font-size: 0.6rem; font-weight: bold; margin-top: 5px; display: none; }
+      .agency-tags { display: flex; gap: 5px; margin-top: 5px; }
+      .agency-tag { font-size: 0.55rem; padding: 2px 6px; border-radius: 2px; font-weight: bold; }
+      .tag-police { background: rgba(0,217,255,0.2); color: var(--police); border: 1px solid var(--police); }
+      .tag-ems { background: rgba(255,71,87,0.2); color: var(--ems); border: 1px solid var(--ems); }
+      .tag-fire { background: rgba(255,165,2,0.2); color: var(--fire); border: 1px solid var(--fire); }
+      
       @media (max-width: 1024px) { .dashboard { grid-template-columns: 1fr 300px; } }
       @media (max-width: 800px) {
           body { overflow: auto; height: auto; }
@@ -179,7 +198,6 @@
           </div>
       </div>
 
-      <!-- NEW EMERGENCY DISPATCH BUTTON -->
       <button class="mech-btn btn-emergency" id="btnEmergency" onclick="acceptEmergencyDispatch()">⚠ EMERGENCY DISPATCH ⚠</button>
 
       <button class="mech-btn" id="btnNext" onclick="spawnVehicle()" style="grid-column: 1/-1;">NEXT VEHICLE</button>
@@ -200,6 +218,7 @@
       ID NO: <span id="dID">---</span><br>
       EXPIRY: <span id="dExp" style="font-weight:bold">---</span><br>
       <div id="forgeryBox" class="forgery-warning">⚠ FORGERY DETECTED: REAL PLATE IS <span id="dRealPlate">---</span></div>
+      <div id="agencyTagsBox" class="agency-tags" style="display:none;"></div>
       <div id="stampBox" class="stamp"></div>
   </div>
   <div style="margin-top: 20px; display: flex; gap: 10px;">
@@ -223,7 +242,6 @@
           case 'buzzer': osc.type='square'; osc.frequency.setValueAtTime(200,t); gain.gain.setValueAtTime(0.3,t); gain.gain.exponentialRampToValueAtTime(0.01,t+0.3); osc.start(t); osc.stop(t+0.3); break;
           case 'arrest': osc.type='sawtooth'; osc.frequency.setValueAtTime(400,t); osc.frequency.setValueAtTime(500,t+0.2); osc.frequency.setValueAtTime(400,t+0.4); gain.gain.setValueAtTime(0.3,t); gain.gain.exponentialRampToValueAtTime(0.01,t+0.5); osc.start(t); osc.stop(t+0.5); break;
           case 'gate': osc.type='sine'; osc.frequency.setValueAtTime(400,t); osc.frequency.exponentialRampToValueAtTime(1200,t+0.3); gain.gain.setValueAtTime(0.2,t); gain.gain.exponentialRampToValueAtTime(0.01,t+0.4); osc.start(t); osc.stop(t+0.4); break;
-          // NEW EMERGENCY ALARM SOUND
           case 'emergency': osc.type='sawtooth'; osc.frequency.setValueAtTime(600,t); osc.frequency.setValueAtTime(900,t+0.2); osc.frequency.setValueAtTime(600,t+0.4); osc.frequency.setValueAtTime(900,t+0.6); gain.gain.setValueAtTime(0.4,t); gain.gain.exponentialRampToValueAtTime(0.01,t+0.8); osc.start(t); osc.stop(t+0.8); break;
       }
   }
@@ -240,10 +258,10 @@
       if(sirenOsc){sirenGain.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.1);sirenOsc.stop(audioCtx.currentTime+0.1);sirenOsc=null;sirenGain=null;}
   }
 
-  // EMERGENCY ALARM LOOP
   let emergencyAlarmInterval=null;
   function playEmergencyAlarm(){
       if(emergencyAlarmInterval)return;
+      playSound('emergency');
       emergencyAlarmInterval=setInterval(()=>{playSound('emergency');},1500);
   }
   function stopEmergencyAlarm(){
@@ -274,7 +292,6 @@
               if(!sharedData.rehabPrograms) sharedData.rehabPrograms = [];
               if(!sharedData.call911Logs) sharedData.call911Logs = [];
               
-              // CHECK FOR 911 EMERGENCY OVERRIDE
               checkEmergencyDispatch();
           } catch (e) { console.error("Corrupted save data, resetting."); }
       }
@@ -292,7 +309,7 @@
       if (savedData) {
           try {
               const data = JSON.parse(savedData);
-              if(data.revenue !== revenue || data.valids !== valids || JSON.stringify(data.registry) !== JSON.stringify(sharedData.registry) || data.nextSpawnOverride !== sharedData.nextSpawnOverride || data.activeInmates.length !== sharedData.activeInmates.length) {
+              if(data.revenue !== revenue || data.valids !== valids || JSON.stringify(data.registry) !== JSON.stringify(sharedData.registry) || data.nextSpawnOverride !== sharedData.nextSpawnOverride || data.activeInmates.length !== sharedData.activeInmates.length || (data.call911Logs||[]).length !== sharedData.call911Logs.length) {
                   revenue = data.revenue; valids = data.valids; missed = data.missed;
                   level = data.level; rankPoints = data.rankPoints; history = data.history || [];
                   sharedData = data;
@@ -305,32 +322,56 @@
       }
   }, 2000);
 
-  // EMERGENCY DISPATCH LOGIC
   let emergencyActive = false;
   
   function checkEmergencyDispatch(){
-      if(sharedData.nextSpawnOverride && sharedData.registry[sharedData.nextSpawnOverride] && sharedData.registry[sharedData.nextSpawnOverride].registeredBy === "911_OPERATOR"){
-          if(!emergencyActive){
-              emergencyActive = true;
-              document.getElementById('btnEmergency').classList.add('active');
-              playEmergencyAlarm();
-              addLog("⚠ PRIORITY 1: 911 EMERGENCY DISPATCH RECEIVED!", "var(--danger)");
-          }
-      } else {
-          if(emergencyActive){
-              emergencyActive = false;
-              document.getElementById('btnEmergency').classList.remove('active');
-              stopEmergencyAlarm();
+      const override = sharedData.nextSpawnOverride;
+      if(override && !override.startsWith("HOLD-") && sharedData.registry[override]){
+          const reg = sharedData.registry[override];
+          if(reg.registeredBy === "911_OPERATOR" || reg.source === "911_DISPATCH"){
+              if(!emergencyActive){
+                  emergencyActive = true;
+                  document.getElementById('btnEmergency').classList.add('active');
+                  playEmergencyAlarm();
+                  addLog("⚠ PRIORITY 1: 911 EMERGENCY DISPATCH RECEIVED!", "var(--danger)");
+              }
+              return;
           }
       }
+      
+      if(override && override.startsWith("HOLD-")){
+          // Patrol dispatch from Dashboard 16 - auto-spawn without emergency alarm
+          if(!emergencyActive && car === null && !isResetting){
+              addLog("⚠ PATROL DISPATCH: Incoming rogue vehicle.", "var(--warning)");
+              // Let normal spawn handle it
+          }
+      }
+      
+      if(emergencyActive && (!override || override.startsWith("HOLD-"))){
+          emergencyActive = false;
+          document.getElementById('btnEmergency').classList.remove('active');
+          stopEmergencyAlarm();
+      }
+  }
+
+  function get911AgencyUnits(){
+      const logs = sharedData.call911Logs || [];
+      const dispatched = logs.filter(l => l.status === 'DISPATCHED');
+      if(dispatched.length > 0){
+          const latest = dispatched[dispatched.length - 1];
+          return latest.dispatchedUnits || ['POLICE'];
+      }
+      return ['POLICE'];
   }
 
   function acceptEmergencyDispatch(){
       if(!emergencyActive) return;
       stopEmergencyAlarm();
       playSound('gate');
-      addLog(`OFFICER ACKNOWLEDGED. Pulling ${sharedData.nextSpawnOverride} to gate NOW.`, "var(--warning)");
-      spawnVehicle(); // Force spawn the emergency vehicle
+      const agencies = get911AgencyUnits();
+      const agencyStr = agencies.join(' + ');
+      addLog(`OFFICER ACKNOWLEDGED. ${agencyStr} pulling to gate NOW.`, "var(--warning)");
+      spawnVehicle(); 
   }
 
   function addLog(msg, color) {
@@ -355,20 +396,34 @@
       let isForgedAlias = false;
       let isPatrolDispatch = false;
       let is911Emergency = false;
+      let dispatchedAgencies = [];
 
       if (sharedData.nextSpawnOverride) {
           customSpawn = sharedData.registry[sharedData.nextSpawnOverride];
           if(customSpawn) {
               customSpawn.plate = sharedData.nextSpawnOverride;
               
-              if(customSpawn.registeredBy === "911_OPERATOR"){
+              if(customSpawn.registeredBy === "911_OPERATOR" || customSpawn.source === "911_DISPATCH"){
                   is911Emergency = true;
-                  addLog(`🚨 911 EMERGENCY VEHICLE INCOMING!`, "var(--danger)");
+                  dispatchedAgencies = get911AgencyUnits();
+                  const agencyStr = dispatchedAgencies.join(' + ');
+                  addLog(`🚨 911 EMERGENCY: ${agencyStr} UNIT INCOMING!`, "var(--danger)");
+                  
+                  // Mark the 911 log as ARRIVED
+                  const logs = sharedData.call911Logs || [];
+                  const dispatched = logs.filter(l => l.status === 'DISPATCHED');
+                  if(dispatched.length > 0){
+                      dispatched[dispatched.length-1].status = 'ARRIVED';
+                      dispatched[dispatched.length-1].arrivedAt = new Date().toLocaleTimeString();
+                  }
+                  
               } else if (customSpawn.registeredBy === "PATROL_DISPATCH" || customSpawn.registeredBy === "NHAI_PATROL_DISPATCH") {
                   isPatrolDispatch = true;
+                  dispatchedAgencies = ['POLICE'];
                   addLog(`⚠ PRIORITY OVERRIDE: Incoming Patrol Dispatch.`, "var(--danger)");
               } else {
-                  addLog(`⚠ PRIORITY OVERRIDE: Incoming Vehicle.`, "var(--warning)");
+                  addLog(`⚠ PRIORITY OVERRIDE: Intercepted Vehicle.`, "var(--warning)");
+                  dispatchedAgencies = ['POLICE'];
               }
           }
           sharedData.nextSpawnOverride = null; saveData();
@@ -414,15 +469,34 @@
       car = {
           plate: plate, id: id, hasMissingID: hasMissingID, expired: isCriminal && Math.random() < 0.5, 
           isWanted: isWanted, isForged: isForged, expiry: expiry, photo: photo, sex: sex, realWantedPlate: realWantedPlate,
-          is911Emergency: is911Emergency
+          is911Emergency: is911Emergency, isPatrolDispatch: isPatrolDispatch, dispatchedAgencies: dispatchedAgencies
       };
 
       const sprite = document.getElementById('vSprite'); 
-      sprite.className='vehicle' + (is911Emergency ? ' emergency-vehicle' : ''); 
+      
+      let vehicleClass = 'vehicle';
+      if(is911Emergency || isPatrolDispatch){
+          if(dispatchedAgencies.length >= 2){
+              vehicleClass += ' agency-multi';
+          } else if(dispatchedAgencies.includes('EMS')){
+              vehicleClass += ' agency-ems';
+          } else if(dispatchedAgencies.includes('FIRE')){
+              vehicleClass += ' agency-fire';
+          } else {
+              vehicleClass += ' agency-police';
+          }
+      }
+      
+      sprite.className = vehicleClass;
       sprite.style.transition="none"; sprite.style.left="-250px"; void sprite.offsetWidth; 
       sprite.style.transition="left 1.2s ease-in-out"; sprite.style.left="35%"; sprite.innerText=car.plate;
+      
       document.getElementById('btnNext').disabled=true; document.getElementById('btnScan').disabled=false; document.getElementById('btnDocs').disabled=false;
       addLog(`Incoming: ${car.plate}. Inspection required.`);
+      
+      if(is911Emergency || isPatrolDispatch){
+          playSirenSound();
+      }
   }
 
   function toggleDocs() {
@@ -435,6 +509,19 @@
           const forgeryBox = document.getElementById('forgeryBox');
           if(car.realWantedPlate) { forgeryBox.style.display = "block"; document.getElementById('dRealPlate').innerText = car.realWantedPlate; } 
           else { forgeryBox.style.display = "none"; }
+          
+          const agencyBox = document.getElementById('agencyTagsBox');
+          if((car.is911Emergency || car.isPatrolDispatch) && car.dispatchedAgencies && car.dispatchedAgencies.length > 0){
+              agencyBox.style.display = 'flex';
+              agencyBox.innerHTML = '';
+              car.dispatchedAgencies.forEach(u => {
+                  const cls = u === 'POLICE' ? 'tag-police' : u === 'EMS' ? 'tag-ems' : 'tag-fire';
+                  agencyBox.innerHTML += `<span class="agency-tag ${cls}">${u}</span>`;
+              });
+          } else {
+              agencyBox.style.display = 'none';
+          }
+          
           doc.style.display="block";
           addLog(`Credentials visible. Copy to verification unit.`, "var(--accent)");
       }
@@ -515,10 +602,21 @@
           delete sharedData.forgedAliases[plate]; 
       } 
       else if (sharedData.registry[plate]) {
+          const reg = sharedData.registry[plate];
+          let offense = "WARRANT / ROGUE";
+          let facility = "CENTRAL DETENTION";
+          let sentence = 60;
+          
+          if(reg.registeredBy === "911_OPERATOR" || reg.source === "911_DISPATCH"){
+              offense = "911 FELONY";
+              facility = "FEDERAL HOLD";
+              sentence = 120;
+          }
+          
           inmateData = {
-              plate: plate, realPlate: plate, id: sharedData.registry[plate].id,
-              offense: "WARRANT / ROGUE", dateArrested: new Date().toLocaleDateString(), facility: "CENTRAL DETENTION",
-              status: "ARRESTED", sentenceDays: 60, sentenceRemaining: 60
+              plate: plate, realPlate: plate, id: reg.id,
+              offense: offense, dateArrested: new Date().toLocaleDateString(), facility: facility,
+              status: "ARRESTED", sentenceDays: sentence, sentenceRemaining: sentence
           };
       }
 
@@ -545,8 +643,12 @@
   }
 
   function resetStage() {
-      const sprite = document.getElementById('vSprite'); sprite.style.left="120%"; sprite.classList.remove('criminal-alert','emergency-vehicle'); isResetting=true; car=null;
-      document.getElementById('plateIn').value=""; document.getElementById('licenseIn').value=""; document.getElementById('docOverlay').style.display="none"; document.getElementById('stampBox').style.display="none"; document.getElementById('forgeryBox').style.display="none";
+      const sprite = document.getElementById('vSprite'); sprite.style.left="120%"; 
+      sprite.classList.remove('criminal-alert','emergency-vehicle','agency-police','agency-ems','agency-fire','agency-multi');
+      isResetting=true; car=null;
+      document.getElementById('plateIn').value=""; document.getElementById('licenseIn').value=""; 
+      document.getElementById('docOverlay').style.display="none"; document.getElementById('stampBox').style.display="none"; 
+      document.getElementById('forgeryBox').style.display="none"; document.getElementById('agencyTagsBox').style.display="none";
       document.getElementById('btnNext').disabled=true; document.getElementById('btnScan').disabled=true; document.getElementById('btnDocs').disabled=true;
       document.getElementById('btnArrest').disabled=true; document.getElementById('btnRelease').disabled=true; document.getElementById('btnPay').disabled=true;
       setTimeout(() => { sprite.style.transition="none"; sprite.style.left="-250px"; isResetting=false; document.getElementById('btnNext').disabled=false; }, 1300);
