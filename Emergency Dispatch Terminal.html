@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" href="https://mohammad3230.github.io/PROJECT/favicon.png" type="image/png" sizes="32x32" />
+<script async src="https://www.googletagmanager.com/gtag/js?id=GT-NC6T5LRJ"></script>
+<script>
+window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','GT-NC6T5LRJ');
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NHAI - 911 Emergency Dispatch</title>
+<style>
+:root{--bg:#050508;--panel:#0a0a10;--accent:#ff0044;--success:#2ed573;--danger:#ff4757;--warning:#ffa502;--border:#1a1a2e;--ring:#ff0044;}
+body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:0;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+.top-bar{background:#000;padding:12px 20px;border-bottom:2px solid var(--danger);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
+.top-bar h1{margin:0;font-size:.9rem;color:var(--danger);letter-spacing:1px;text-shadow:0 0 10px rgba(255,0,68,.5);}
+.top-bar .time{color:var(--warning);font-size:.8rem;}
+.main-layout{display:grid;grid-template-columns:1fr 1.5fr;gap:20px;padding:20px;flex-grow:1;min-height:0;overflow:hidden;}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:20px;display:flex;flex-direction:column;overflow:hidden;}
+.panel-title{color:var(--danger);font-size:.85rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:15px;border-bottom:1px solid var(--border);padding-bottom:10px;flex-shrink:0;}
+.stat-row{display:flex;gap:12px;margin-bottom:20px;flex-shrink:0;}
+.stat-box{flex:1;background:#000;border:1px solid var(--border);padding:12px;border-radius:4px;text-align:center;border-top:3px solid var(--danger);}
+.stat-num{font-size:1.8rem;font-weight:900;margin-bottom:3px;}
+.stat-label{font-size:.65rem;color:#888;text-transform:uppercase;}
+.call-box{background:#000;border:2px solid var(--border);padding:20px;border-radius:4px;text-align:center;margin-bottom:20px;flex-shrink:0;position:relative;overflow:hidden;}
+.call-box.ringing{border-color:var(--danger);animation:ringPulse 1s infinite;}
+@keyframes ringPulse{0%{box-shadow:0 0 0 0 rgba(255,0,68,0.7);}70%{box-shadow:0 0 0 15px rgba(255,0,68,0);}100%{box-shadow:0 0 0 0 rgba(255,0,68,0);}}
+.call-status{font-size:1.2rem;font-weight:bold;margin-bottom:10px;}
+.call-status.idle{color:#555;}
+.call-status.incoming{color:var(--danger);}
+.call-details{text-align:left;font-size:.8rem;line-height:1.6;margin-top:15px;background:#111;padding:10px;border-radius:4px;display:none;}
+.mech-btn{width:100%;padding:12px;border:2px solid #000;cursor:pointer;font-weight:bold;text-transform:uppercase;font-size:.8rem;box-shadow:0 3px 0 #000;transition:all .1s;font-family:monospace;border-radius:4px;margin-bottom:10px;flex-shrink:0;}
+.mech-btn:active{transform:translateY(2px);box-shadow:0 1px 0 #000;}
+.mech-btn:disabled{opacity:.3;cursor:not-allowed;transform:none;box-shadow:none;}
+.btn-answer{background:var(--danger);color:#fff;}
+.btn-dispatch{background:var(--warning);color:#000;}
+.btn-dismiss{background:#333;color:#fff;}
+.btn-test{background:#111;color:var(--danger);border-color:#333;font-size:.7rem;margin-top:auto;}
+.log-list{flex-grow:1;overflow-y:auto;padding-right:5px;min-height:0;}
+.log-item{background:#000;border:1px solid var(--border);padding:12px;margin-bottom:8px;border-left:4px solid var(--danger);border-radius:4px;font-size:.8rem;}
+.log-item.prank{border-left-color:#555;opacity:.6;}
+.log-item.resolved{border-left-color:var(--success);}
+.plate-tag{color:var(--warning);font-weight:bold;font-size:1rem;}
+.meta-tag{color:#555;font-size:.7rem;margin-top:4px;}
+.log-list::-webkit-scrollbar{width:6px;}
+.log-list::-webkit-scrollbar-track{background:#000;border:1px solid var(--border);}
+.log-list::-webkit-scrollbar-thumb{background:var(--danger);}
+@media(max-width:1024px){.main-layout{grid-template-columns:1fr;overflow-y:auto;}}
+@media(max-width:600px){.top-bar h1{font-size:.7rem;}.call-details{font-size:.7rem;}.stat-num{font-size:1.4rem;}}
+</style>
+</head>
+<body>
+<div class="top-bar">
+<h1>▸ NHAI_911 // EMERGENCY_DISPATCH_v16.0</h1>
+<div class="time" id="clock">00:00:00</div>
+</div>
+<div class="main-layout">
+<div class="panel">
+<div class="panel-title">■ Incoming Emergency Lines</div>
+<div class="stat-row">
+<div class="stat-box"><div class="stat-num" style="color:var(--danger)" id="stat-active">0</div><div class="stat-label">Active 911 Calls</div></div>
+<div class="stat-box"><div class="stat-num" style="color:var(--success)" id="stat-resolved">0</div><div class="stat-label">Units Dispatched</div></div>
+<div class="stat-box"><div class="stat-num" style="color:#555" id="stat-prank">0</div><div class="stat-label">Prank Calls</div></div>
+</div>
+<div class="call-box" id="call-box">
+<div class="call-status idle" id="call-status">LINES CLEAR</div>
+<div style="font-size:.7rem;color:#555;">Awaiting incoming distress signals...</div>
+<div class="call-details" id="call-details"></div>
+</div>
+<button class="mech-btn btn-answer" id="btn-answer" onclick="answerCall()" disabled>ANSWER CALL</button>
+<button class="mech-btn btn-dispatch" id="btn-dispatch" onclick="dispatchUnit()" disabled>DISPATCH UNIT</button>
+<button class="mech-btn btn-dismiss" id="btn-dismiss" onclick="dismissCall()" disabled>DISMISS (PRANK)</button>
+<button class="mech-btn btn-test" onclick="simulateIncomingCall()">TEST: SIMULATE 911 CALL</button>
+</div>
+<div class="panel">
+<div class="panel-title">■ Call Logs & Radio Traffic</div>
+<div class="log-list" id="log-list">
+<div style="color:#555;text-align:center;padding:40px;">NO EMERGENCY LOGS</div>
+</div>
+</div>
+</div>
+<script>
+let sharedData={revenue:0,valids:0,missed:0,level:1,rankPoints:0,history:[],registry:{},forgedAliases:{},nextSpawnOverride:null,activeInmates:[],releasedInmates:[],ledgerCashouts:[],intelFlags:[],paroleRecords:[],iaViolations:[],rehabPrograms:[],call911Logs:[]};
+
+let currentCall = null;
+let callTimer = null;
+
+const prefixes = ["PX","NX","TX","DV","CR","XR","ZK","AV","BN"];
+const incidents = [
+    {desc:"Reckless driving on Highway 10. Vehicle swerving across lanes.", severity:"HIGH"},
+    {desc:"Suspected forged ID at toll booth. Driver acting aggressive.", severity:"HIGH"},
+    {desc:"Hit and run reported near Nashik exit. Damaged rear bumper.", severity:"MEDIUM"},
+    {desc:"Unregistered vehicle parked in restricted government zone.", severity:"MEDIUM"},
+    {desc:"Driver abandoned vehicle after being flagged by scanner.", severity:"CRITICAL"},
+    {desc:"Suspected syndicate meetup at rest stop. Multiple rogue plates.", severity:"CRITICAL"}
+];
+
+function updateClock(){document.getElementById('clock').innerText=new Date().toLocaleTimeString('en-GB');}
+setInterval(updateClock,1000);
+
+function loadData(){
+    const s=localStorage.getItem('enforcementTerminalV23');
+    if(s){
+        try{
+            const p=JSON.parse(s);
+            sharedData=p;
+            if(!sharedData.registry)sharedData.registry={};
+            if(!sharedData.forgedAliases)sharedData.forgedAliases={};
+            if(sharedData.nextSpawnOverride===undefined)sharedData.nextSpawnOverride=null;
+            if(!sharedData.activeInmates)sharedData.activeInmates=[];
+            if(!sharedData.releasedInmates)sharedData.releasedInmates=[];
+            if(!sharedData.ledgerCashouts)sharedData.ledgerCashouts=[];
+            if(!sharedData.intelFlags)sharedData.intelFlags=[];
+            if(!sharedData.paroleRecords)sharedData.paroleRecords=[];
+            if(!sharedData.iaViolations)sharedData.iaViolations=[];
+            if(!sharedData.rehabPrograms)sharedData.rehabPrograms=[];
+            if(!sharedData.call911Logs)sharedData.call911Logs=[];
+        }catch(e){}
+    }
+    renderLogs();
+    updateStats();
+}
+
+function saveData(){localStorage.setItem('enforcementTerminalV23',JSON.stringify(sharedData));}
+
+function updateStats(){
+    const logs=sharedData.call911Logs||[];
+    document.getElementById('stat-active').innerText=logs.filter(l=>l.status==='ACTIVE').length;
+    document.getElementById('stat-resolved').innerText=logs.filter(l=>l.status==='DISPATCHED').length;
+    document.getElementById('stat-prank').innerText=logs.filter(l=>l.status==='PRANK').length;
+}
+
+function simulateIncomingCall(){
+    if(currentCall) return; // Already on a call
+    
+    const plate = prefixes[Math.floor(Math.random()*prefixes.length)] + "-" + Math.floor(1000+Math.random()*9000);
+    const incident = incidents[Math.floor(Math.random()*incidents.length)];
+    
+    currentCall = {
+        id: "911-" + Math.floor(100+Math.random()*900),
+        plate: plate,
+        description: incident.desc,
+        severity: incident.severity,
+        time: new Date().toLocaleTimeString(),
+        isPrank: Math.random() < 0.15 // 15% chance it's a prank
+    };
+
+    const box = document.getElementById('call-box');
+    box.className = 'call-box ringing';
+    document.getElementById('call-status').innerText = '⚠ INCOMING 911 CALL';
+    document.getElementById('call-status').className = 'call-status incoming';
+    
+    document.getElementById('btn-answer').disabled = false;
+    document.getElementById('btn-dismiss').disabled = true;
+    document.getElementById('btn-dispatch').disabled = true;
+
+    // Play ringing effect
+    playRingSound();
+}
+
+function answerCall(){
+    if(!currentCall) return;
+    stopRingSound();
+
+    const details = document.getElementById('call-details');
+    details.style.display = 'block';
+    details.innerHTML = `
+        <div style="color:var(--danger);font-weight:bold;margin-bottom:5px;">CALL ID: ${currentCall.id}</div>
+        <div><span style="color:#888;">REPORTED PLATE:</span> <span style="color:var(--warning);font-weight:bold;">${currentCall.plate}</span></div>
+        <div><span style="color:#888;">SEVERITY:</span> <span style="color:${currentCall.severity==='CRITICAL'?'var(--danger)':'var(--warning)'}">${currentCall.severity}</span></div>
+        <div style="margin-top:8px;color:#ccc;">"${currentCall.description}"</div>
+    `;
+
+    const box = document.getElementById('call-box');
+    box.className = 'call-box'; // Stop ringing animation
+    document.getElementById('call-status').innerText = 'CALL CONNECTED';
+    document.getElementById('call-status').style.color = 'var(--success)';
+
+    document.getElementById('btn-answer').disabled = true;
+    document.getElementById('btn-dispatch').disabled = false;
+    document.getElementById('btn-dismiss').disabled = false;
+}
+
+function dispatchUnit(){
+    if(!currentCall) return;
+
+    // 1. Add to registry as WANTED so D1/D2/D7 can see it
+    sharedData.registry[currentCall.plate] = {
+        id: "911_REPORT",
+        vClass: "LVM_CLASS_1",
+        status: "WANTED",
+        registeredBy: "911_OPERATOR"
+    };
+
+    // 2. Override next spawn so D1 intercepts them immediately
+    sharedData.nextSpawnOverride = currentCall.plate;
+
+    // 3. Log to history
+    sharedData.history.push({
+        plate: currentCall.plate,
+        id: currentCall.id,
+        action: "911 REPORT FILED",
+        timestamp: new Date().toLocaleTimeString()
+    });
+
+    // 4. Save call log
+    sharedData.call911Logs.push({
+        ...currentCall,
+        status: "DISPATCHED",
+        resolvedTime: new Date().toLocaleTimeString()
+    });
+
+    saveData();
+    clearCallUI();
+    renderLogs();
+    updateStats();
+}
+
+function dismissCall(){
+    if(!currentCall) return;
+
+    sharedData.call911Logs.push({
+        ...currentCall,
+        status: currentCall.isPrank ? "PRANK" : "DISMISSED",
+        resolvedTime: new Date().toLocaleTimeString()
+    });
+
+    saveData();
+    clearCallUI();
+    renderLogs();
+    updateStats();
+}
+
+function clearCallUI(){
+    stopRingSound();
+    currentCall = null;
+    const box = document.getElementById('call-box');
+    box.className = 'call-box';
+    document.getElementById('call-status').innerText = 'LINES CLEAR';
+    document.getElementById('call-status').className = 'call-status idle';
+    document.getElementById('call-details').style.display = 'none';
+    document.getElementById('btn-answer').disabled = true;
+    document.getElementById('btn-dispatch').disabled = true;
+    document.getElementById('btn-dismiss').disabled = true;
+}
+
+function renderLogs(){
+    const list = document.getElementById('log-list');
+    list.innerHTML = '';
+    const logs = (sharedData.call911Logs||[]).slice(-20).reverse();
+
+    if(logs.length === 0){
+        list.innerHTML = '<div style="color:#555;text-align:center;padding:40px;">NO EMERGENCY LOGS</div>';
+        return;
+    }
+
+    logs.forEach(log => {
+        const item = document.createElement('div');
+        let cssClass = 'log-item';
+        if(log.status === 'PRANK') cssClass += ' prank';
+        if(log.status === 'DISPATCHED') cssClass += ' resolved';
+
+        item.className = cssClass;
+        item.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span class="plate-tag">${log.plate}</span>
+                <span style="font-size:.65rem;color:${log.severity==='CRITICAL'?'var(--danger)':'var(--warning)'}">${log.severity}</span>
+            </div>
+            <div class="meta-tag" style="color:${log.status==='DISPATCHED'?'var(--success)':log.status==='PRANK'?'#555':'var(--danger)'}">
+                Status: ${log.status} | Call ID: ${log.id} @ ${log.time}
+            </div>
+            <div style="font-size:.7rem;margin-top:4px;color:#888;">${log.description}</div>
+        `;
+        list.appendChild(item);
+    });
+}
+
+// --- AUDIO ENGINE (Ringing Effect) ---
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let ringInterval = null;
+
+function playRingSound(){
+    if(ringInterval) return;
+    let isHigh = false;
+    ringInterval = setInterval(() => {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.type = 'sine';
+        isHigh = !isHigh;
+        osc.frequency.setValueAtTime(isHigh ? 800 : 600, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        osc.start(audioCtx.currentTime);
+        osc.stop(audioCtx.currentTime + 0.3);
+    }, 400);
+}
+
+function stopRingSound(){
+    if(ringInterval){ clearInterval(ringInterval); ringInterval = null; }
+}
+
+loadData();
+setInterval(loadData, 2000);
+</script>
+</body>
+</html>
