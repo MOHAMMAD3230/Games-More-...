@@ -61,51 +61,137 @@ body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:
 </div>
 </div>
 <script>
-let sharedData={revenue:0,valids:0,missed:0,level:1,rankPoints:0,history:[],registry:{},forgedAliases:{},nextSpawnOverride:null,activeInmates:[],releasedInmates:[],ledgerCashouts:[],intelFlags:[]};
+let sharedData={revenue:0,valids:0,missed:0,level:1,rankPoints:0,history:[],registry:{},forgedAliases:{},nextSpawnOverride:null,activeInmates:[],releasedInmates:[],ledgerCashouts:[],intelFlags:[],paroleRecords:[],iaViolations:[],rehabPrograms:[]};
+
 function updateClock(){document.getElementById('clock').innerText=new Date().toLocaleTimeString('en-GB');}
 setInterval(updateClock,1000);
-function loadData(){const s=localStorage.getItem('enforcementTerminalV23');if(s){try{const p=JSON.parse(s);sharedData=p;if(!sharedData.registry)sharedData.registry={};if(!sharedData.forgedAliases)sharedData.forgedAliases={};if(!sharedData.intelFlags)sharedData.intelFlags=[];}catch(e){}}renderDashboard();}
+
+function loadData(){
+    const s=localStorage.getItem('enforcementTerminalV23');
+    if(s){
+        try{
+            const p=JSON.parse(s);
+            sharedData=p;
+            if(!sharedData.registry)sharedData.registry={};
+            if(!sharedData.forgedAliases)sharedData.forgedAliases={};
+            if(sharedData.nextSpawnOverride===undefined)sharedData.nextSpawnOverride=null;
+            if(!sharedData.activeInmates)sharedData.activeInmates=[];
+            if(!sharedData.releasedInmates)sharedData.releasedInmates=[];
+            if(!sharedData.ledgerCashouts)sharedData.ledgerCashouts=[];
+            if(!sharedData.intelFlags)sharedData.intelFlags=[];
+            if(!sharedData.paroleRecords)sharedData.paroleRecords=[];
+            if(!sharedData.iaViolations)sharedData.iaViolations=[];
+            if(!sharedData.rehabPrograms)sharedData.rehabPrograms=[];
+        }catch(e){}
+    }
+    renderDashboard();
+}
+
 function saveData(){localStorage.setItem('enforcementTerminalV23',JSON.stringify(sharedData));}
-function addLog(msg,color){const l=document.getElementById('intel-log');const e=document.createElement('div');e.style.color=color||'var(--accent)';e.style.marginBottom='5px';e.innerText='> '+msg;l.prepend(e);}
+
+function addLog(msg,color){
+    const l=document.getElementById('intel-log');
+    const e=document.createElement('div');
+    e.style.color=color||'var(--accent)';
+    e.style.marginBottom='5px';
+    e.innerText='> '+msg;
+    l.prepend(e);
+}
+
 function runDeepScan(){
-addLog('Initiating deep network scan...','#888');
-let forgeCount=0;let tollBypass=0;let flagged=0;const alerts=[];
-Object.keys(sharedData.registry).forEach(plate=>{
-if(sharedData.registry[plate].registeredBy==='SYNDICATE_FORGE'){
-forgeCount++;const alias=sharedData.forgedAliases[plate];
-const alertObj={plate:plate,realPlate:alias?alias.realPlate:'UNKNOWN',fakeId:alias?alias.fakeId:'N/A',type:'FORGE_INJECTION',time:new Date().toLocaleTimeString(),status:'ACTIVE'};
-alerts.push(alertObj);
-const exists=sharedData.intelFlags.find(f=>f.plate===plate&&f.status==='ACTIVE');
-if(!exists){sharedData.intelFlags.push(alertObj);flagged++;}
+    addLog('Initiating deep network scan...','#888');
+    let forgeCount=0;
+    let tollBypass=0;
+    let flagged=0;
+    const alerts=[];
+
+    Object.keys(sharedData.registry).forEach(plate=>{
+        if(sharedData.registry[plate].registeredBy==='SYNDICATE_FORGE'){
+            forgeCount++;
+            const alias=sharedData.forgedAliases[plate];
+            const alertObj={
+                plate:plate,
+                realPlate:alias?alias.realPlate:'UNKNOWN',
+                fakeId:alias?alias.fakeId:'N/A',
+                type:'FORGE_INJECTION',
+                time:new Date().toLocaleTimeString(),
+                status:'ACTIVE'
+            };
+            alerts.push(alertObj);
+            
+            const exists=sharedData.intelFlags.find(f=>f.plate===plate&&f.status==='ACTIVE');
+            if(!exists){
+                sharedData.intelFlags.push(alertObj);
+                flagged++;
+            }
+        }
+    });
+
+    (sharedData.history||[]).forEach(h=>{
+        if(h.action&&h.action.includes('TOLL')&&h.plate!=='UNKNOWN'){
+            const reg=sharedData.registry[h.plate];
+            if(reg&&reg.registeredBy==='SYNDICATE_FORGE'){
+                tollBypass++;
+            }
+        }
+    });
+
+    saveData();
+
+    document.getElementById('stat-forges').innerText=forgeCount;
+    document.getElementById('stat-tollpass').innerText=tollBypass;
+    document.getElementById('stat-flagged').innerText=sharedData.intelFlags.filter(f=>f.status==='ACTIVE').length;
+
+    const list=document.getElementById('alert-list');
+    list.innerHTML='';
+    
+    if(alerts.length===0&&sharedData.intelFlags.length===0){
+        list.innerHTML='<div style="color:#555;text-align:center;padding:20px;">NO THREATS DETECTED</div>';
+        addLog('Scan complete. Network clean.','var(--success)');
+        return;
+    }
+
+    alerts.forEach(a=>{
+        const d=document.createElement('div');
+        d.className='alert-item';
+        d.innerHTML=`<div style="display:flex;justify-content:space-between"><span style="color:var(--danger);font-weight:bold">${a.plate}</span><span style="color:#555">${a.time}</span></div><div style="font-size:.7rem;color:var(--warning);margin-top:4px">Real Plate: ${a.realPlate} | Fake ID: ${a.fakeId}</div>`;
+        list.appendChild(d);
+    });
+
+    addLog(`Scan complete: ${forgeCount} forges, ${tollBypass} toll bypasses, ${flagged} newly flagged.`,'var(--accent)');
 }
-});
-(sharedData.history||[]).forEach(h=>{
-if(h.action&&h.action.includes('TOLL')&&h.plate!=='UNKNOWN'){
-const reg=sharedData.registry[h.plate];
-if(reg&&reg.registeredBy==='SYNDICATE_FORGE'){tollBypass++;}
-}
-});
-saveData();
-document.getElementById('stat-forges').innerText=forgeCount;
-document.getElementById('stat-tollpass').innerText=tollBypass;
-document.getElementById('stat-flagged').innerText=sharedData.intelFlags.filter(f=>f.status==='ACTIVE').length;
-const list=document.getElementById('alert-list');list.innerHTML='';
-if(alerts.length===0&&sharedData.intelFlags.length===0){list.innerHTML='<div style="color:#555;text-align:center;padding:20px;">NO THREATS DETECTED</div>';addLog('Scan complete. Network clean.','var(--success)');return;}
-alerts.forEach(a=>{const d=document.createElement('div');d.className='alert-item';d.innerHTML=`<div style="display:flex;justify-content:space-between"><span style="color:var(--danger);font-weight:bold">${a.plate}</span><span style="color:#555">${a.time}</span></div><div style="font-size:.7rem;color:var(--warning);margin-top:4px">Real Plate: ${a.realPlate} | Fake ID: ${a.fakeId}</div>`;list.appendChild(d);});
-addLog(`Scan complete: ${forgeCount} forges, ${tollBypass} toll bypasses, ${flagged} newly flagged.`,'var(--accent)');
-}
+
 function purgeForgedEntries(){
-let purged=0;Object.keys(sharedData.registry).forEach(plate=>{
-if(sharedData.registry[plate].registeredBy==='SYNDICATE_FORGE'){delete sharedData.registry[plate];delete sharedData.forgedAliases[plate];purged++;}
-});
-sharedData.intelFlags.forEach(f=>{if(f.type==='FORGE_INJECTION')f.status='PURGED';});
-saveData();renderDashboard();addLog(`PURGED: ${purged} forged entries removed from network.`,'var(--danger)');
+    let purged=0;
+    Object.keys(sharedData.registry).forEach(plate=>{
+        if(sharedData.registry[plate].registeredBy==='SYNDICATE_FORGE'){
+            delete sharedData.registry[plate];
+            delete sharedData.forgedAliases[plate];
+            purged++;
+        }
+    });
+    sharedData.intelFlags.forEach(f=>{if(f.type==='FORGE_INJECTION')f.status='PURGED';});
+    saveData();
+    renderDashboard();
+    addLog(`PURGED: ${purged} forged entries removed from network.`,'var(--danger)');
 }
+
 function renderDashboard(){
-document.getElementById('stat-forges').innerText=Object.values(sharedData.registry||{}).filter(r=>r.registeredBy==='SYNDICATE_FORGE').length;
-document.getElementById('stat-flagged').innerText=(sharedData.intelFlags||[]).filter(f=>f.status==='ACTIVE').length;
+    document.getElementById('stat-forges').innerText=Object.values(sharedData.registry||{}).filter(r=>r.registeredBy==='SYNDICATE_FORGE').length;
+    document.getElementById('stat-flagged').innerText=(sharedData.intelFlags||[]).filter(f=>f.status==='ACTIVE').length;
+    
+    let bypassCount = 0;
+    (sharedData.history||[]).forEach(h=>{
+        if(h.action&&h.action.includes('TOLL')&&h.plate!=='UNKNOWN'){
+            const reg=sharedData.registry[h.plate];
+            if(reg&&reg.registeredBy==='SYNDICATE_FORGE') bypassCount++;
+        }
+    });
+    document.getElementById('stat-tollpass').innerText=bypassCount;
 }
-loadData();setInterval(loadData,2000);
+
+loadData();
+setInterval(loadData,2000);
 </script>
 </body>
 </html>
