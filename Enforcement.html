@@ -9,8 +9,6 @@
     gtag('js', new Date());
     gtag('config', 'GT-NC6T5LRJ');
   </script>
-
-  
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ENFORCEMENT_TERMINAL_v23.2_OFFICIAL</title>
@@ -54,6 +52,7 @@
           justify-content: center; font-weight: bold; font-size: 0.9rem; z-index: 3;
       }
       .vehicle.criminal-alert { animation: pulseDanger 0.5s infinite; }
+      .vehicle.emergency-vehicle { border-color: var(--warning); box-shadow: 0 0 20px var(--warning); }
       @keyframes pulseDanger {
           0% { border-color: var(--danger); box-shadow: 0 0 10px var(--danger); }
           50% { border-color: transparent; box-shadow: none; }
@@ -96,6 +95,25 @@
       }
       .mech-btn:active { transform: translateY(2px); box-shadow: 0 1px #000; }
       .mech-btn:disabled { opacity: 0.2; cursor: not-allowed; transform: none; box-shadow: none; }
+      
+      /* EMERGENCY BUTTON STYLES */
+      .btn-emergency {
+          grid-column: 1 / -1; 
+          background: linear-gradient(145deg, #ff0044, #99002a); 
+          color: #fff; font-size: 1rem; letter-spacing: 2px;
+          border: 3px solid var(--warning);
+          display: none; /* Hidden by default */
+      }
+      .btn-emergency.active {
+          display: block; 
+          animation: emergencyPulse 0.8s infinite;
+      }
+      @keyframes emergencyPulse {
+          0% { box-shadow: 0 0 10px var(--danger); border-color: var(--warning); }
+          50% { box-shadow: 0 0 30px var(--danger); border-color: var(--danger); background: linear-gradient(145deg, #ff4757, #cc0033); }
+          100% { box-shadow: 0 0 10px var(--danger); border-color: var(--warning); }
+      }
+
       .sidebar { 
           grid-row: 1/3; display: flex; flex-direction: column; background: #111; padding: 15px; 
           border-left: 2px solid #333; overflow: hidden;
@@ -161,6 +179,9 @@
           </div>
       </div>
 
+      <!-- NEW EMERGENCY DISPATCH BUTTON -->
+      <button class="mech-btn btn-emergency" id="btnEmergency" onclick="acceptEmergencyDispatch()">⚠ EMERGENCY DISPATCH ⚠</button>
+
       <button class="mech-btn" id="btnNext" onclick="spawnVehicle()" style="grid-column: 1/-1;">NEXT VEHICLE</button>
       <button class="mech-btn" id="btnScan" onclick="runSystemScan()" disabled>RUN DATABASE SCAN</button>
       <button class="mech-btn" id="btnDocs" onclick="toggleDocs()" disabled>INSPECT DOCUMENTS</button>
@@ -202,6 +223,8 @@
           case 'buzzer': osc.type='square'; osc.frequency.setValueAtTime(200,t); gain.gain.setValueAtTime(0.3,t); gain.gain.exponentialRampToValueAtTime(0.01,t+0.3); osc.start(t); osc.stop(t+0.3); break;
           case 'arrest': osc.type='sawtooth'; osc.frequency.setValueAtTime(400,t); osc.frequency.setValueAtTime(500,t+0.2); osc.frequency.setValueAtTime(400,t+0.4); gain.gain.setValueAtTime(0.3,t); gain.gain.exponentialRampToValueAtTime(0.01,t+0.5); osc.start(t); osc.stop(t+0.5); break;
           case 'gate': osc.type='sine'; osc.frequency.setValueAtTime(400,t); osc.frequency.exponentialRampToValueAtTime(1200,t+0.3); gain.gain.setValueAtTime(0.2,t); gain.gain.exponentialRampToValueAtTime(0.01,t+0.4); osc.start(t); osc.stop(t+0.4); break;
+          // NEW EMERGENCY ALARM SOUND
+          case 'emergency': osc.type='sawtooth'; osc.frequency.setValueAtTime(600,t); osc.frequency.setValueAtTime(900,t+0.2); osc.frequency.setValueAtTime(600,t+0.4); osc.frequency.setValueAtTime(900,t+0.6); gain.gain.setValueAtTime(0.4,t); gain.gain.exponentialRampToValueAtTime(0.01,t+0.8); osc.start(t); osc.stop(t+0.8); break;
       }
   }
 
@@ -217,9 +240,19 @@
       if(sirenOsc){sirenGain.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.1);sirenOsc.stop(audioCtx.currentTime+0.1);sirenOsc=null;sirenGain=null;}
   }
 
+  // EMERGENCY ALARM LOOP
+  let emergencyAlarmInterval=null;
+  function playEmergencyAlarm(){
+      if(emergencyAlarmInterval)return;
+      emergencyAlarmInterval=setInterval(()=>{playSound('emergency');},1500);
+  }
+  function stopEmergencyAlarm(){
+      if(emergencyAlarmInterval){clearInterval(emergencyAlarmInterval);emergencyAlarmInterval=null;}
+  }
+
   let car=null, revenue=0, valids=0, missed=0, level=1, rankPoints=0, wantedPlates=[], isResetting=false, isScanning=false;
   let history = []; 
-  let sharedData = { revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null, activeInmates: [], releasedInmates: [], ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [] };
+  let sharedData = { revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null, activeInmates: [], releasedInmates: [], ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [], call911Logs: [] };
 
   function loadData() {
       const savedData = localStorage.getItem('enforcementTerminalV23');
@@ -239,14 +272,18 @@
               if(!sharedData.paroleRecords) sharedData.paroleRecords = [];
               if(!sharedData.iaViolations) sharedData.iaViolations = [];
               if(!sharedData.rehabPrograms) sharedData.rehabPrograms = [];
+              if(!sharedData.call911Logs) sharedData.call911Logs = [];
+              
+              // CHECK FOR 911 EMERGENCY OVERRIDE
+              checkEmergencyDispatch();
           } catch (e) { console.error("Corrupted save data, resetting."); }
       }
       updateStatusUI();
-      addLog("System initialized. Data loaded from cache.", "var(--accent)");
+      addLog("System initialized. Data loaded.", "var(--accent)");
   }
 
   function saveData() {
-      const finalData = { revenue, valids, missed, level, rankPoints, history, registry: sharedData.registry, forgedAliases: sharedData.forgedAliases, nextSpawnOverride: sharedData.nextSpawnOverride, activeInmates: sharedData.activeInmates, releasedInmates: sharedData.releasedInmates, ledgerCashouts: sharedData.ledgerCashouts, intelFlags: sharedData.intelFlags, paroleRecords: sharedData.paroleRecords, iaViolations: sharedData.iaViolations, rehabPrograms: sharedData.rehabPrograms };
+      const finalData = { revenue, valids, missed, level, rankPoints, history, registry: sharedData.registry, forgedAliases: sharedData.forgedAliases, nextSpawnOverride: sharedData.nextSpawnOverride, activeInmates: sharedData.activeInmates, releasedInmates: sharedData.releasedInmates, ledgerCashouts: sharedData.ledgerCashouts, intelFlags: sharedData.intelFlags, paroleRecords: sharedData.paroleRecords, iaViolations: sharedData.iaViolations, rehabPrograms: sharedData.rehabPrograms, call911Logs: sharedData.call911Logs };
       localStorage.setItem('enforcementTerminalV23', JSON.stringify(finalData));
   }
 
@@ -259,12 +296,42 @@
                   revenue = data.revenue; valids = data.valids; missed = data.missed;
                   level = data.level; rankPoints = data.rankPoints; history = data.history || [];
                   sharedData = data;
+                  if(!sharedData.call911Logs) sharedData.call911Logs = [];
                   updateStatusUI();
                   addLog("SYNC: Data updated from Network.", "var(--accent)");
+                  checkEmergencyDispatch();
               }
           } catch(e) {}
       }
   }, 2000);
+
+  // EMERGENCY DISPATCH LOGIC
+  let emergencyActive = false;
+  
+  function checkEmergencyDispatch(){
+      if(sharedData.nextSpawnOverride && sharedData.registry[sharedData.nextSpawnOverride] && sharedData.registry[sharedData.nextSpawnOverride].registeredBy === "911_OPERATOR"){
+          if(!emergencyActive){
+              emergencyActive = true;
+              document.getElementById('btnEmergency').classList.add('active');
+              playEmergencyAlarm();
+              addLog("⚠ PRIORITY 1: 911 EMERGENCY DISPATCH RECEIVED!", "var(--danger)");
+          }
+      } else {
+          if(emergencyActive){
+              emergencyActive = false;
+              document.getElementById('btnEmergency').classList.remove('active');
+              stopEmergencyAlarm();
+          }
+      }
+  }
+
+  function acceptEmergencyDispatch(){
+      if(!emergencyActive) return;
+      stopEmergencyAlarm();
+      playSound('gate');
+      addLog(`OFFICER ACKNOWLEDGED. Pulling ${sharedData.nextSpawnOverride} to gate NOW.`, "var(--warning)");
+      spawnVehicle(); // Force spawn the emergency vehicle
+  }
 
   function addLog(msg, color) {
       const log = document.getElementById('log'); const entry = document.createElement('div');
@@ -287,18 +354,28 @@
       let customSpawn = null;
       let isForgedAlias = false;
       let isPatrolDispatch = false;
+      let is911Emergency = false;
 
       if (sharedData.nextSpawnOverride) {
           customSpawn = sharedData.registry[sharedData.nextSpawnOverride];
           if(customSpawn) {
               customSpawn.plate = sharedData.nextSpawnOverride;
-              isPatrolDispatch = true;
-              addLog(`⚠ PRIORITY OVERRIDE: Incoming Patrol Dispatch.`, "var(--danger)");
+              
+              if(customSpawn.registeredBy === "911_OPERATOR"){
+                  is911Emergency = true;
+                  addLog(`🚨 911 EMERGENCY VEHICLE INCOMING!`, "var(--danger)");
+              } else if (customSpawn.registeredBy === "PATROL_DISPATCH" || customSpawn.registeredBy === "NHAI_PATROL_DISPATCH") {
+                  isPatrolDispatch = true;
+                  addLog(`⚠ PRIORITY OVERRIDE: Incoming Patrol Dispatch.`, "var(--danger)");
+              } else {
+                  addLog(`⚠ PRIORITY OVERRIDE: Incoming Vehicle.`, "var(--warning)");
+              }
           }
           sharedData.nextSpawnOverride = null; saveData();
+          checkEmergencyDispatch(); // Clear alarm since we spawned it
       }
 
-      if (!isPatrolDispatch && sharedData.registry && Object.keys(sharedData.registry).length > 0) {
+      if (!is911Emergency && !isPatrolDispatch && sharedData.registry && Object.keys(sharedData.registry).length > 0) {
           if (Math.random() < 0.4) { 
               const regPlates = Object.keys(sharedData.registry);
               const randomPlate = regPlates[Math.floor(Math.random() * regPlates.length)];
@@ -317,12 +394,11 @@
       if (customSpawn) {
           plate = customSpawn.plate; id = customSpawn.id;
           isWanted = customSpawn.status === 'WANTED'; isCriminal = isWanted;
-          hasMissingID = id === "MISSING"; isForged = false; 
+          hasMissingID = id === "MISSING" || id === "911_REPORT"; isForged = false; 
           realWantedPlate = customSpawn.realWantedPlate || null;
           
           if(isForgedAlias) addLog(`DATABASE REGISTRY: Forged Alias detected in stream.`, "var(--danger)");
-          else if (isPatrolDispatch) addLog(`DATABASE REGISTRY: Rogue vehicle held by patrol.`, "var(--warning)");
-          else addLog(`DATABASE REGISTRY: Custom vehicle detected.`, "var(--warning)");
+          else if (!is911Emergency && !isPatrolDispatch) addLog(`DATABASE REGISTRY: Custom vehicle detected.`, "var(--warning)");
 
           sex = Math.random() > 0.5 ? "MALE" : "FEMALE"; photo = sex === "MALE" ? "👨" : "👩"; expiry = isCriminal ? "2023" : "2034";
       } else {
@@ -337,10 +413,13 @@
 
       car = {
           plate: plate, id: id, hasMissingID: hasMissingID, expired: isCriminal && Math.random() < 0.5, 
-          isWanted: isWanted, isForged: isForged, expiry: expiry, photo: photo, sex: sex, realWantedPlate: realWantedPlate
+          isWanted: isWanted, isForged: isForged, expiry: expiry, photo: photo, sex: sex, realWantedPlate: realWantedPlate,
+          is911Emergency: is911Emergency
       };
 
-      const sprite = document.getElementById('vSprite'); sprite.className='vehicle'; sprite.style.transition="none"; sprite.style.left="-250px"; void sprite.offsetWidth; 
+      const sprite = document.getElementById('vSprite'); 
+      sprite.className='vehicle' + (is911Emergency ? ' emergency-vehicle' : ''); 
+      sprite.style.transition="none"; sprite.style.left="-250px"; void sprite.offsetWidth; 
       sprite.style.transition="left 1.2s ease-in-out"; sprite.style.left="35%"; sprite.innerText=car.plate;
       document.getElementById('btnNext').disabled=true; document.getElementById('btnScan').disabled=false; document.getElementById('btnDocs').disabled=false;
       addLog(`Incoming: ${car.plate}. Inspection required.`);
@@ -429,29 +508,17 @@
 
       if (sharedData.forgedAliases && sharedData.forgedAliases[plate]) {
           inmateData = {
-              plate: plate,
-              realPlate: sharedData.forgedAliases[plate].realPlate,
-              id: sharedData.forgedAliases[plate].fakeId,
-              offense: "FORGERY & FUGITIVE",
-              dateArrested: new Date().toLocaleDateString(),
-              facility: "MAXIMUM SECURITY",
-              status: "ARRESTED",
-              sentenceDays: 90,         // UPDATED: Harsher sentence for forgery
-              sentenceRemaining: 90     // UPDATED: Matches sentenceDays
+              plate: plate, realPlate: sharedData.forgedAliases[plate].realPlate, id: sharedData.forgedAliases[plate].fakeId,
+              offense: "FORGERY & FUGITIVE", dateArrested: new Date().toLocaleDateString(), facility: "MAXIMUM SECURITY",
+              status: "ARRESTED", sentenceDays: 90, sentenceRemaining: 90
           };
           delete sharedData.forgedAliases[plate]; 
       } 
       else if (sharedData.registry[plate]) {
           inmateData = {
-              plate: plate,
-              realPlate: plate,
-              id: sharedData.registry[plate].id,
-              offense: "WARRANT / ROGUE",
-              dateArrested: new Date().toLocaleDateString(),
-              facility: "CENTRAL DETENTION",
-              status: "ARRESTED",
-              sentenceDays: 60,         // UPDATED: Standard sentence
-              sentenceRemaining: 60     // UPDATED: Matches sentenceDays
+              plate: plate, realPlate: plate, id: sharedData.registry[plate].id,
+              offense: "WARRANT / ROGUE", dateArrested: new Date().toLocaleDateString(), facility: "CENTRAL DETENTION",
+              status: "ARRESTED", sentenceDays: 60, sentenceRemaining: 60
           };
       }
 
@@ -478,7 +545,7 @@
   }
 
   function resetStage() {
-      const sprite = document.getElementById('vSprite'); sprite.style.left="120%"; sprite.classList.remove('criminal-alert'); isResetting=true; car=null;
+      const sprite = document.getElementById('vSprite'); sprite.style.left="120%"; sprite.classList.remove('criminal-alert','emergency-vehicle'); isResetting=true; car=null;
       document.getElementById('plateIn').value=""; document.getElementById('licenseIn').value=""; document.getElementById('docOverlay').style.display="none"; document.getElementById('stampBox').style.display="none"; document.getElementById('forgeryBox').style.display="none";
       document.getElementById('btnNext').disabled=true; document.getElementById('btnScan').disabled=true; document.getElementById('btnDocs').disabled=true;
       document.getElementById('btnArrest').disabled=true; document.getElementById('btnRelease').disabled=true; document.getElementById('btnPay').disabled=true;
