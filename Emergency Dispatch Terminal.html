@@ -8,9 +8,9 @@ window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NHAI - 911 Emergency Dispatch</title>
+<title>NHAI - 911 Emergency & Dispatch Center</title>
 <style>
-:root{--bg:#050508;--panel:#0a0a10;--accent:#ff0044;--success:#2ed573;--danger:#ff4757;--warning:#ffa502;--border:#1a1a2e;}
+:root{--bg:#050508;--panel:#0a0a10;--accent:#ff0044;--success:#2ed573;--danger:#ff4757;--warning:#ffa502;--border:#1a1a2e;--police:#00d9ff;--ems:#ff4757;--fire:#ffa502;}
 *{box-sizing:border-box;}
 body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:0;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
 .top-bar{background:#000;padding:12px 20px;border-bottom:2px solid var(--danger);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;flex-wrap:wrap;gap:10px;}
@@ -50,53 +50,74 @@ body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:
 .t-op{color:var(--success);}.t-caller{color:var(--warning);}.t-sys{color:var(--danger);font-weight:bold;animation:blink 1.5s infinite;}
 @keyframes blink{0%{opacity:1;}50%{opacity:0.3;}100%{opacity:1;}}
 
+/* Multi-Agency Dispatch UI */
+.dispatch-config{flex-shrink:0;padding-top:15px;border-top:1px solid var(--border);margin-top:15px;display:none;}
+.dispatch-config.active{display:block;}
+.agency-toggle{display:flex;align-items:center;justify-content:space-between;background:#111;padding:12px;margin-bottom:10px;border-radius:4px;border-left:4px solid #333;transition:all .2s;}
+.agency-toggle.active{background:#0a1a1a;}
+.agency-toggle.police.active{border-left-color:var(--police);}.agency-toggle.ems.active{border-left-color:var(--ems);}.agency-toggle.fire.active{border-left-color:var(--fire);}
+.agency-label{display:flex;align-items:center;gap:10px;font-weight:bold;font-size:.9rem;}
+.agency-icon{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem;color:#000;font-weight:900;}
+.icon-police{background:var(--police);}.icon-ems{background:var(--ems);}.icon-fire{background:var(--fire);}
+.toggle-switch{width:60px;height:30px;border-radius:15px;background:#333;border:2px solid #000;cursor:pointer;position:relative;transition:all .2s;}
+.toggle-switch.active{background:var(--success);box-shadow:0 0 10px rgba(46,213,115,0.4);}
+.toggle-knob{width:22px;height:22px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:all .2s;}
+.toggle-switch.active .toggle-knob{left:32px;}
+
 .action-area{flex-shrink:0;padding-top:15px;border-top:1px solid var(--border);margin-top:15px;}
 .mech-btn{width:100%;padding:14px;border:2px solid #000;cursor:pointer;font-weight:bold;text-transform:uppercase;font-size:.8rem;box-shadow:0 3px 0 #000;transition:all .1s;font-family:monospace;border-radius:4px;margin-bottom:10px;}
 .mech-btn:active{transform:translateY(2px);box-shadow:0 1px 0 #000;}
 .mech-btn:disabled{opacity:.3;cursor:not-allowed;transform:none;box-shadow:none;}
-.btn-answer{background:var(--danger);color:#fff;}.btn-dispatch{background:var(--warning);color:#000;}.btn-dismiss{background:#333;color:#fff;}
+.btn-answer{background:var(--danger);color:#fff;}
+.btn-code3{background:linear-gradient(145deg, #ff0044, #99002a);color:#fff;letter-spacing:2px;font-size:1rem;animation:pulseDispatch 1.5s infinite;}
+@keyframes pulseDispatch{0%{box-shadow:0 3px 0 #000, 0 0 0 0 rgba(255,0,68,0.5);}50%{box-shadow:0 3px 0 #000, 0 0 15px 5px rgba(255,0,68,0);}100%{box-shadow:0 3px 0 #000, 0 0 0 0 rgba(255,0,68,0.5);}}
+.btn-dismiss{background:#333;color:#fff;}
 
 .log-list{flex-grow:1;overflow-y:auto;padding-right:5px;min-height:0;}
 .log-item{background:#000;border:1px solid var(--border);padding:12px;margin-bottom:8px;border-left:4px solid var(--danger);border-radius:4px;font-size:.8rem;}
-.log-item.prank{border-left-color:#555;opacity:.6;}
 .log-item.resolved{border-left-color:var(--success);}
 .plate-tag{color:var(--warning);font-weight:bold;font-size:1rem;}
 .meta-tag{color:#555;font-size:.7rem;margin-top:4px;}
+.units-tag{color:var(--accent);font-size:.7rem;margin-top:4px;}
 .log-list::-webkit-scrollbar{width:8px;}
 .log-list::-webkit-scrollbar-track{background:var(--bg);border:1px solid var(--border);}
 .log-list::-webkit-scrollbar-thumb{background:var(--danger);border-radius:4px;}
 
-@media(max-width:1024px){.main-layout{grid-template-columns:1fr;overflow-y:auto;height:auto;min-height:calc(100vh - 60px);}body{overflow:auto;}.panel{min-height:400px;}}
+@media(max-width:1024px){.main-layout{grid-template-columns:1fr;overflow-y:auto;height:auto;min-height:calc(100vh - 60px);}body{overflow:auto;}.panel{min-height:500px;}}
 @media(max-width:600px){.top-bar h1{font-size:.7rem;}.call-details{font-size:.75rem;}.stat-num{font-size:1.4rem;}.toggle-btn{width:80px;height:35px;}.toggle-indicator{width:25px;height:25px;}.toggle-btn.on .toggle-indicator{left:49px;}.stat-row{flex-wrap:wrap;}.stat-box{flex-basis:calc(50% - 6px);}.call-box{min-height:120px;padding:15px;}}
 </style>
 </head>
 <body>
 <div class="top-bar">
-<h1>▸ NHAI_911 // EMERGENCY_DISPATCH_v16.0</h1>
+<h1>▸ NHAI_911 // EMERGENCY_&_DISPATCH_v16.0</h1>
 <div class="toggle-container">
 <span id="toggle-label" style="color:var(--danger)">SYSTEM OFF</span>
-<button class="toggle-btn off" id="system-toggle" onclick="toggleSystem()">
-<div class="toggle-indicator"></div>
-</button>
+<button class="toggle-btn off" id="system-toggle" onclick="toggleSystem()"><div class="toggle-indicator"></div></button>
 </div>
 <div class="time" id="clock">00:00:00</div>
 </div>
 <div class="main-layout">
 <div class="panel">
-<div class="panel-title">■ Incoming Emergency Lines</div>
+<div class="panel-title">■ Incoming Emergency Lines & Dispatch</div>
 <div class="left-scroll">
 <div class="stat-row">
-<div class="stat-box"><div class="stat-num" style="color:var(--danger)" id="stat-active">0</div><div class="stat-label">Active Calls</div></div>
-<div class="stat-box"><div class="stat-num" style="color:var(--success)" id="stat-resolved">0</div><div class="stat-label">Dispatched</div></div>
+<div class="stat-box"><div class="stat-num" style="color:var(--danger)" id="stat-active">0</div><div class="stat-label">Active</div></div>
+<div class="stat-box"><div class="stat-num" style="color:var(--success)" id="stat-dispatched">0</div><div class="stat-label">Dispatched</div></div>
 <div class="stat-box"><div class="stat-num" style="color:#555" id="stat-prank">0</div><div class="stat-label">Pranks</div></div>
 </div>
-<div class="call-box" id="call-box">
-<div class="call-status idle">SYSTEM OFFLINE</div>
-<div style="font-size:.7rem;color:#555;">Toggle system ON to receive 911 signals</div>
+<div class="call-box" id="call-box"><div class="call-status idle">SYSTEM OFFLINE</div><div style="font-size:.7rem;color:#555;">Toggle system ON to receive 911 signals</div></div>
+
+<!-- Multi-Agency Dispatch Config (Hidden until call answered) -->
+<div class="dispatch-config" id="dispatch-config">
+<div style="color:var(--warning);font-size:.75rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;font-weight:bold;">Select Response Units:</div>
+<div class="agency-toggle police" id="toggle-police"><div class="agency-label"><div class="agency-icon icon-police">P</div><span>POLICE UNIT</span></div><div class="toggle-switch" id="sw-police" onclick="toggleAgency('police')"><div class="toggle-knob"></div></div></div>
+<div class="agency-toggle ems" id="toggle-ems"><div class="agency-label"><div class="agency-icon icon-ems">+</div><span>AMBULANCE / EMS</span></div><div class="toggle-switch" id="sw-ems" onclick="toggleAgency('ems')"><div class="toggle-knob"></div></div></div>
+<div class="agency-toggle fire" id="toggle-fire"><div class="agency-label"><div class="agency-icon icon-fire">F</div><span>FIRE & RESCUE</span></div><div class="toggle-switch" id="sw-fire" onclick="toggleAgency('fire')"><div class="toggle-knob"></div></div></div>
 </div>
+
 <div class="action-area">
 <button class="mech-btn btn-answer" id="btn-answer" onclick="answerCall()" disabled>ANSWER CALL</button>
-<button class="mech-btn btn-dispatch" id="btn-dispatch" onclick="dispatchUnit()" disabled>DISPATCH UNIT</button>
+<button class="mech-btn btn-code3" id="btn-dispatch" onclick="executeDispatch()" disabled>⚠ CODE 3 DISPATCH ⚠</button>
 <button class="mech-btn btn-dismiss" id="btn-dismiss" onclick="dismissCall()" disabled>DISMISS (PRANK)</button>
 </div>
 </div>
@@ -104,209 +125,75 @@ body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:
 
 <div class="panel">
 <div class="panel-title">■ Call Logs & Radio Traffic</div>
-<div class="log-list" id="log-list">
-<div style="color:#555;text-align:center;padding:40px;">NO EMERGENCY LOGS</div>
-</div>
+<div class="log-list" id="log-list"><div style="color:#555;text-align:center;padding:40px;">NO EMERGENCY LOGS</div></div>
 </div>
 </div>
 <script>
 let sharedData={revenue:0,valids:0,missed:0,level:1,rankPoints:0,history:[],registry:{},forgedAliases:{},nextSpawnOverride:null,activeInmates:[],releasedInmates:[],ledgerCashouts:[],intelFlags:[],paroleRecords:[],iaViolations:[],rehabPrograms:[],call911Logs:[]};
 
-let currentCall=null;
-let systemOnline=false;
-let autoCallTimer=null;
-let speechTimers=[];
-
+let currentCall=null;let systemOnline=false;let autoCallTimer=null;let speechTimers=[];let agencies={police:false,ems:false,fire:false};
 const prefixes=["PX","NX","TX","DV","CR","XR","ZK","AV","BN"];
-
 const citizenReports=[
-{
-    operatorSummary:"Reckless driving on Highway 10. Vehicle swerving across lanes.",
-    severity:"HIGH",location:"Highway 10 near the bridge",
-    citizenGreeting:"Oh my god, there's a car driving crazy out here!",
-    citizenDetail:"It's swerving all over the road! Almost hit two cars! The license plate starts with D V... I think it's ",
-    citizenExtra:"It's really dangerous, someone's gonna get killed!"
-},
-{
-    operatorSummary:"Suspected forged documents at toll booth. Driver acting aggressive.",
-    severity:"HIGH",location:"Toll Plaza 3, south side",
-    citizenGreeting:"Hi, I'm at the toll booth and there's this guy causing trouble.",
-    citizenDetail:"He's yelling at the booth attendant. Something about his papers not matching. His car plate is ",
-    citizenExtra:"He looks really nervous and aggressive at the same time."
-},
-{
-    operatorSummary:"Hit and run reported. Vehicle fled scene with damage.",
-    severity:"MEDIUM",location:"Main street near the traffic light",
-    citizenGreeting:"I just saw an accident! The guy just drove off!",
-    citizenDetail:"He hit the car in front and just took off! I got his plate number, it's ",
-    citizenExtra:"The other driver is okay but the guy just ran the red light and left!"
-},
-{
-    operatorSummary:"Suspicious vehicle in restricted government zone.",
-    severity:"MEDIUM",location:"Near the government office complex",
-    citizenGreeting:"Um, there's a weird car parked here that shouldn't be.",
-    citizenDetail:"It's just sitting there with the engine running. Nobody's getting out. The plate says ",
-    citizenExtra:"It's been here for like 20 minutes. This is a restricted area."
-},
-{
-    operatorSummary:"Driver abandoned vehicle after being flagged. Suspect fled on foot.",
-    severity:"CRITICAL",location:"Scanner checkpoint on the east highway",
-    citizenGreeting:"A guy just abandoned his car and ran away!",
-    citizenDetail:"The scanner started beeping and he just took off running into the bushes! The car plate is ",
-    citizenExtra:"He dropped something as he was running. This is really suspicious!"
-},
-{
-    operatorSummary:"Suspicious group activity at rest stop. Multiple vehicles involved.",
-    severity:"CRITICAL",location:"Midway rest stop off the highway",
-    citizenGreeting:"There's a group of people doing something weird at the rest stop.",
-    citizenDetail:"They keep opening their car trunks and swapping stuff between vehicles. One of the cars has plate ",
-    citizenExtra:"They keep looking around like they're watching for police or something."
-}
+{operatorSummary:"Reckless driving on Highway 10. Vehicle swerving across lanes.",severity:"HIGH",location:"Highway 10 near the bridge",citizenGreeting:"Oh my god, there's a car driving crazy out here!",citizenDetail:"It's swerving all over the road! Almost hit two cars! The license plate starts with D V... I think it's ",citizenExtra:"It's really dangerous, someone's gonna get killed!"},
+{operatorSummary:"Suspected forged documents at toll booth. Driver acting aggressive.",severity:"HIGH",location:"Toll Plaza 3, south side",citizenGreeting:"Hi, I'm at the toll booth and there's this guy causing trouble.",citizenDetail:"He's yelling at the booth attendant. Something about his papers not matching. His car plate is ",citizenExtra:"He looks really nervous and aggressive at the same time."},
+{operatorSummary:"Hit and run reported. Vehicle fled scene with damage.",severity:"MEDIUM",location:"Main street near the traffic light",citizenGreeting:"I just saw an accident! The guy just drove off!",citizenDetail:"He hit the car in front and just took off! I got his plate number, it's ",citizenExtra:"The other driver is okay but the guy just ran the red light and left!"},
+{operatorSummary:"Suspicious vehicle in restricted government zone.",severity:"MEDIUM",location:"Near the government office complex",citizenGreeting:"Um, there's a weird car parked here that shouldn't be.",citizenDetail:"It's just sitting there with the engine running. Nobody's getting out. The plate says ",citizenExtra:"It's been here for like 20 minutes. This is a restricted area."},
+{operatorSummary:"Driver abandoned vehicle after being flagged. Suspect fled on foot.",severity:"CRITICAL",location:"Scanner checkpoint on the east highway",citizenGreeting:"A guy just abandoned his car and ran away!",citizenDetail:"The scanner started beeping and he just took off running into the bushes! The car plate is ",citizenExtra:"He dropped something as he was running. This is really suspicious!"},
+{operatorSummary:"Suspicious group activity at rest stop. Multiple vehicles involved.",severity:"CRITICAL",location:"Midway rest stop off the highway",citizenGreeting:"There's a group of people doing something weird at the rest stop.",citizenDetail:"They keep opening their car trunks and swapping stuff between vehicles. One of the cars has plate ",citizenExtra:"They keep looking around like they're watching for police or something."}
 ];
-
 const audioCtx=new(window.AudioContext||window.webkitAudioContext)();
-
-function updateClock(){document.getElementById('clock').innerText=new Date().toLocaleTimeString('en-GB');}
-setInterval(updateClock,1000);
-
-function loadData(){
-    const s=localStorage.getItem('enforcementTerminalV23');
-    if(s){
-        try{
-            const p=JSON.parse(s);sharedData=p;
-            if(!sharedData.registry)sharedData.registry={};if(!sharedData.forgedAliases)sharedData.forgedAliases={};
-            if(sharedData.nextSpawnOverride===undefined)sharedData.nextSpawnOverride=null;
-            if(!sharedData.activeInmates)sharedData.activeInmates=[];if(!sharedData.releasedInmates)sharedData.releasedInmates=[];
-            if(!sharedData.ledgerCashouts)sharedData.ledgerCashouts=[];if(!sharedData.intelFlags)sharedData.intelFlags=[];
-            if(!sharedData.paroleRecords)sharedData.paroleRecords=[];if(!sharedData.iaViolations)sharedData.iaViolations=[];
-            if(!sharedData.rehabPrograms)sharedData.rehabPrograms=[];if(!sharedData.call911Logs)sharedData.call911Logs=[];
-        }catch(e){}
-    }
-    renderLogs();updateStats();
-}
-
+function updateClock(){document.getElementById('clock').innerText=new Date().toLocaleTimeString('en-GB');}setInterval(updateClock,1000);
+function loadData(){const s=localStorage.getItem('enforcementTerminalV23');if(s){try{const p=JSON.parse(s);sharedData=p;if(!sharedData.registry)sharedData.registry={};if(!sharedData.forgedAliases)sharedData.forgedAliases={};if(sharedData.nextSpawnOverride===undefined)sharedData.nextSpawnOverride=null;if(!sharedData.activeInmates)sharedData.activeInmates=[];if(!sharedData.releasedInmates)sharedData.releasedInmates=[];if(!sharedData.ledgerCashouts)sharedData.ledgerCashouts=[];if(!sharedData.intelFlags)sharedData.intelFlags=[];if(!sharedData.paroleRecords)sharedData.paroleRecords=[];if(!sharedData.iaViolations)sharedData.iaViolations=[];if(!sharedData.rehabPrograms)sharedData.rehabPrograms=[];if(!sharedData.call911Logs)sharedData.call911Logs=[];}catch(e){}}renderLogs();updateStats();}
 function saveData(){localStorage.setItem('enforcementTerminalV23',JSON.stringify(sharedData));}
+function updateStats(){const logs=sharedData.call911Logs||[];document.getElementById('stat-active').innerText=logs.filter(l=>l.status==='ACTIVE').length;document.getElementById('stat-dispatched').innerText=logs.filter(l=>l.status==='DISPATCHED').length;document.getElementById('stat-prank').innerText=logs.filter(l=>l.status==='PRANK').length;}
 
-function updateStats(){
-    const logs=sharedData.call911Logs||[];
-    document.getElementById('stat-active').innerText=logs.filter(l=>l.status==='ACTIVE').length;
-    document.getElementById('stat-resolved').innerText=logs.filter(l=>l.status==='DISPATCHED').length;
-    document.getElementById('stat-prank').innerText=logs.filter(l=>l.status==='PRANK').length;
-}
-
-function toggleSystem(){
-    if(audioCtx.state==='suspended')audioCtx.resume();
-    systemOnline=!systemOnline;const btn=document.getElementById('system-toggle');const label=document.getElementById('toggle-label');
-    if(systemOnline){
-        btn.className='toggle-btn on';label.innerText='SYSTEM ON';label.style.color='var(--success)';playSound('online');scheduleNextCall();
-        document.getElementById('call-box').innerHTML='<div class="call-status standby">⚡ STANDBY</div><div style="font-size:.7rem;color:var(--success);">System online. Awaiting incoming 911 signals...</div>';
-    }else{
-        btn.className='toggle-btn off';label.innerText='SYSTEM OFF';label.style.color='var(--danger)';playSound('offline');if(autoCallTimer)clearTimeout(autoCallTimer);clearCallUI(true);
-        document.getElementById('call-box').innerHTML='<div class="call-status idle">SYSTEM OFFLINE</div><div style="font-size:.7rem;color:#555;">Toggle system ON to receive 911 signals</div>';
-    }
-}
-
-function scheduleNextCall(){
-    if(!systemOnline)return;const delay=(15+Math.floor(Math.random()*30))*1000;
-    autoCallTimer=setTimeout(()=>{if(systemOnline&&!currentCall){simulateIncomingCall();}else{scheduleNextCall();}},delay);
-}
-
-function simulateIncomingCall(){
-    if(currentCall)return;
-    const plate=prefixes[Math.floor(Math.random()*prefixes.length)]+"-"+Math.floor(1000+Math.random()*9000);
-    const report=citizenReports[Math.floor(Math.random()*citizenReports.length)];
-    currentCall={id:"911-"+Math.floor(100+Math.random()*900),plate:plate,description:report.operatorSummary,severity:report.severity,location:report.location,citizenGreeting:report.citizenGreeting,citizenDetail:report.citizenDetail,citizenExtra:report.citizenExtra,time:new Date().toLocaleTimeString(),isPrank:Math.random()<0.15};
-    const box=document.getElementById('call-box');box.className='call-box ringing';
-    box.innerHTML=`<div class="call-status incoming">⚠ INCOMING 911 CALL</div><div style="font-size:.7rem;color:var(--danger);">CALL ID: ${currentCall.id}</div>`;
-    document.getElementById('btn-answer').disabled=false;document.getElementById('btn-dismiss').disabled=true;document.getElementById('btn-dispatch').disabled=true;
-    playRingSound();
-}
+function toggleSystem(){if(audioCtx.state==='suspended')audioCtx.resume();systemOnline=!systemOnline;const btn=document.getElementById('system-toggle');const label=document.getElementById('toggle-label');if(systemOnline){btn.className='toggle-btn on';label.innerText='SYSTEM ON';label.style.color='var(--success)';playSound('online');scheduleNextCall();document.getElementById('call-box').innerHTML='<div class="call-status standby">⚡ STANDBY</div><div style="font-size:.7rem;color:var(--success);">System online. Awaiting incoming 911 signals...</div>';}else{btn.className='toggle-btn off';label.innerText='SYSTEM OFF';label.style.color='var(--danger)';playSound('offline');if(autoCallTimer)clearTimeout(autoCallTimer);clearCallUI(true);document.getElementById('call-box').innerHTML='<div class="call-status idle">SYSTEM OFFLINE</div><div style="font-size:.7rem;color:#555;">Toggle system ON to receive 911 signals</div>';}}
+function scheduleNextCall(){if(!systemOnline)return;const delay=(15+Math.floor(Math.random()*30))*1000;autoCallTimer=setTimeout(()=>{if(systemOnline&&!currentCall){simulateIncomingCall();}else{scheduleNextCall();}},delay);}
+function simulateIncomingCall(){if(currentCall)return;const plate=prefixes[Math.floor(Math.random()*prefixes.length)]+"-"+Math.floor(1000+Math.random()*9000);const report=citizenReports[Math.floor(Math.random()*citizenReports.length)];currentCall={id:"911-"+Math.floor(100+Math.random()*900),plate:plate,description:report.operatorSummary,severity:report.severity,location:report.location,citizenGreeting:report.citizenGreeting,citizenDetail:report.citizenDetail,citizenExtra:report.citizenExtra,time:new Date().toLocaleTimeString(),isPrank:Math.random()<0.15};const box=document.getElementById('call-box');box.className='call-box ringing';box.innerHTML=`<div class="call-status incoming">⚠ INCOMING 911 CALL</div><div style="font-size:.7rem;color:var(--danger);">CALL ID: ${currentCall.id}</div>`;document.getElementById('btn-answer').disabled=false;document.getElementById('btn-dismiss').disabled=true;document.getElementById('btn-dispatch').disabled=true;playRingSound();}
 
 function speak(text,rate=1.0){if('speechSynthesis' in window){const utterance=new SpeechSynthesisUtterance(text);utterance.rate=rate;utterance.pitch=0.9;utterance.volume=1;window.speechSynthesis.speak(utterance);}}
-function stopSpeech(){if('speechSynthesis' in window) window.speechSynthesis.cancel();speechTimers.forEach(t=>clearTimeout(t));speechTimers=[];}
+function stopSpeech(){if('speechSynthesis' in window)window.speechSynthesis.cancel();speechTimers.forEach(t=>clearTimeout(t));speechTimers=[];}
+function addTranscriptLine(speaker,text){const tBox=document.getElementById('transcript-box');if(!tBox)return;const cls=speaker==='OP'?'t-op':speaker==='CALLER'?'t-caller':'t-sys';const prefix=speaker==='OP'?'OPERATOR: ':speaker==='CALLER'?'CALLER: ':'';tBox.innerHTML+=`<div class="${cls}">${prefix}${text}</div>`;tBox.scrollTop=tBox.scrollHeight;}
 
-function addTranscriptLine(speaker,text){
-    const tBox=document.getElementById('transcript-box');if(!tBox)return;
-    const cls=speaker==='OP'?'t-op':speaker==='CALLER'?'t-caller':'t-sys';
-    const prefix=speaker==='OP'?'OPERATOR: ':speaker==='CALLER'?'CALLER: ':'';
-    tBox.innerHTML+=`<div class="${cls}">${prefix}${text}</div>`;tBox.scrollTop=tBox.scrollHeight;
-}
+function answerCall(){if(!currentCall)return;stopRingSound();playSound('answer');stopSpeech();const c=currentCall;const box=document.getElementById('call-box');box.className='call-box';
+box.innerHTML=`<div class="call-status connected">CALL CONNECTED</div><div class="call-details"><div style="color:var(--danger);font-weight:bold;margin-bottom:8px;">CALL ID: ${c.id} | SEVERITY: <span style="color:${c.severity==='CRITICAL'?'var(--danger)':'var(--warning)'}">${c.severity}</span></div><div><span style="color:#888;">REPORTED PLATE:</span> <span style="color:var(--warning);font-weight:bold;font-size:1.1rem;">${c.plate}</span></div><div style="margin-top:8px;color:#ccc;">"${c.description}"</div></div><div class="transcript-box" id="transcript-box"></div>`;
+document.getElementById('btn-answer').disabled=true;document.getElementById('btn-dismiss').disabled=false;
 
-function answerCall(){
-    if(!currentCall)return;stopRingSound();playSound('answer');stopSpeech();const c=currentCall;
-    const box=document.getElementById('call-box');box.className='call-box';
-    box.innerHTML=`
-        <div class="call-status connected">CALL CONNECTED</div>
-        <div class="call-details">
-            <div style="color:var(--danger);font-weight:bold;margin-bottom:8px;">CALL ID: ${c.id} | SEVERITY: <span style="color:${c.severity==='CRITICAL'?'var(--danger)':'var(--warning)'}">${c.severity}</span></div>
-            <div><span style="color:#888;">REPORTED PLATE:</span> <span style="color:var(--warning);font-weight:bold;font-size:1.1rem;">${c.plate}</span></div>
-            <div style="margin-top:8px;color:#ccc;">"${c.description}"</div>
-        </div>
-        <div class="transcript-box" id="transcript-box"></div>`;
-    document.getElementById('btn-answer').disabled=true;document.getElementById('btn-dispatch').disabled=false;document.getElementById('btn-dismiss').disabled=false;
+// Auto-configure agency units based on severity
+agencies={police:true,ems:false,fire:false};if(c.severity==='CRITICAL'){agencies.ems=true;agencies.fire=true;}else if(c.severity==='HIGH'){agencies.ems=true;}else if(c.description.toLowerCase().includes('hit')||c.description.toLowerCase().includes('accident')){agencies.ems=true;}else if(c.description.toLowerCase().includes('fire')||c.description.toLowerCase().includes('abandoned')){agencies.fire=true;}
+updateToggleUI();document.getElementById('dispatch-config').classList.add('active');
 
-    // CONVERSATION SEQUENCE - Ends with awaiting YOUR decision
-    
-    // 1. Operator greets
-    speechTimers.push(setTimeout(()=>{const txt="911 Emergency. What is your emergency?";speak(txt);addTranscriptLine('OP',txt);},500));
+// CONVERSATION SEQUENCE
+speechTimers.push(setTimeout(()=>{const txt="911 Emergency. What is your emergency?";speak(txt);addTranscriptLine('OP',txt);},500));
+speechTimers.push(setTimeout(()=>{if(!currentCall)return;const txt=c.citizenGreeting;speak(txt);addTranscriptLine('CALLER',txt);},4500));
+speechTimers.push(setTimeout(()=>{if(!currentCall)return;const txt="Stay calm. Where are you calling from?";speak(txt);addTranscriptLine('OP',txt);},8000));
+speechTimers.push(setTimeout(()=>{if(!currentCall)return;const txt="I'm at "+c.location+". "+c.citizenDetail+c.plate+".";speak(txt);addTranscriptLine('CALLER',txt);},11500));
+speechTimers.push(setTimeout(()=>{if(!currentCall)return;const txt="Copy that. Confirming plate: "+c.plate.split('').join(' ')+". Can you tell me more?";speak(txt,0.9);addTranscriptLine('OP',txt);},15500));
+speechTimers.push(setTimeout(()=>{if(!currentCall)return;const txt=c.citizenExtra;speak(txt);addTranscriptLine('CALLER',txt);},19000));
+speechTimers.push(setTimeout(()=>{if(!currentCall)return;const txt="Understood. Information secured. Standby for dispatch decision.";speak(txt);addTranscriptLine('OP',txt);addTranscriptLine('SYS','⚠ AWAITING UNIT SELECTION & DISPATCH');document.getElementById('btn-dispatch').disabled=false;},23000));}
 
-    // 2. Caller explains what's happening
-    speechTimers.push(setTimeout(()=>{if(!currentCall)return;const txt=c.citizenGreeting;speak(txt);addTranscriptLine('CALLER',txt);},4500));
+function toggleAgency(type){if(!currentCall)return;agencies[type]=!agencies[type];playSound('toggle');updateToggleUI();}
+function updateToggleUI(){['police','ems','fire'].forEach(t=>{const el=document.getElementById('toggle-'+t);const sw=document.getElementById('sw-'+t);if(agencies[t]){el.classList.add('active');sw.classList.add('active');}else{el.classList.remove('active');sw.classList.remove('active');}});}
 
-    // 3. Operator asks for location
-    speechTimers.push(setTimeout(()=>{if(!currentCall)return;const txt="Stay calm. Where are you calling from?";speak(txt);addTranscriptLine('OP',txt);},8000));
+function executeDispatch(){if(!currentCall)return;stopRingSound();playSound('dispatch');stopSpeech();const c=currentCall;
+const dispatchedUnits=[];if(agencies.police)dispatchedUnits.push("POLICE");if(agencies.ems)dispatchedUnits.push("EMS");if(agencies.fire)dispatchedUnits.push("FIRE");
+speak("Code 3 dispatch confirmed. Units en route.");addTranscriptLine('SYS',`✓ DISPATCHED: ${dispatchedUnits.join(' + ')}`);
 
-    // 4. Caller gives location and plate
-    speechTimers.push(setTimeout(()=>{if(!currentCall)return;const txt="I'm at "+c.location+". "+c.citizenDetail+c.plate+".";speak(txt);addTranscriptLine('CALLER',txt);},11500));
+if(!sharedData.registry[c.plate]){sharedData.registry[c.plate]={id:"911_REPORT",vClass:"LVM_CLASS_1",status:"WANTED",registeredBy:"911_OPERATOR"};}
+sharedData.nextSpawnOverride=c.plate;
+sharedData.history.push({plate:c.plate,id:c.id,action:`MULTI-AGENCY: ${dispatchedUnits.join('+')}`,timestamp:new Date().toLocaleTimeString()});
+sharedData.call911Logs.push({...c,status:"DISPATCHED",dispatchedUnits:dispatchedUnits,resolvedTime:new Date().toLocaleTimeString()});
+saveData();setTimeout(()=>{clearCallUI();renderLogs();updateStats();scheduleNextCall();},3000);}
 
-    // 5. Operator confirms plate
-    speechTimers.push(setTimeout(()=>{if(!currentCall)return;const txt="Copy that. Confirming plate: "+c.plate.split('').join(' ')+". Can you tell me more?";speak(txt,0.9);addTranscriptLine('OP',txt);},15500));
+function dismissCall(){if(!currentCall)return;stopRingSound();playSound('dismiss');stopSpeech();speak("Call noted. Clearing line.");addTranscriptLine('SYS','✗ CALL DISMISSED');sharedData.call911Logs.push({...currentCall,status:currentCall.isPrank?"PRANK":"DISMISSED",resolvedTime:new Date().toLocaleTimeString()});saveData();setTimeout(()=>{clearCallUI();renderLogs();updateStats();scheduleNextCall();},2000);}
 
-    // 6. Caller gives extra detail
-    speechTimers.push(setTimeout(()=>{if(!currentCall)return;const txt=c.citizenExtra;speak(txt);addTranscriptLine('CALLER',txt);},19000));
+function clearCallUI(offline=false){stopRingSound();stopSpeech();currentCall=null;agencies={police:false,ems:false,fire:false};updateToggleUI();document.getElementById('dispatch-config').classList.remove('active');if(!offline&&systemOnline){document.getElementById('call-box').className='call-box';document.getElementById('call-box').innerHTML='<div class="call-status standby">⚡ STANDBY</div><div style="font-size:.7rem;color:var(--success);">System online. Awaiting incoming 911 signals...</div>';}document.getElementById('btn-answer').disabled=true;document.getElementById('btn-dispatch').disabled=true;document.getElementById('btn-dismiss').disabled=true;}
 
-    // 7. Operator defers to YOU (The Officer)
-    speechTimers.push(setTimeout(()=>{
-        if(!currentCall)return;
-        const txt="Understood. Information secured. Standby for dispatch decision.";
-        speak(txt);addTranscriptLine('OP',txt);
-        addTranscriptLine('SYS','⚠ AWAITING YOUR ACTION: DISPATCH UNIT OR DISMISS CALL');
-    },23000));
-}
+function renderLogs(){const list=document.getElementById('log-list');list.innerHTML='';const logs=(sharedData.call911Logs||[]).slice(-20).reverse();if(logs.length===0){list.innerHTML='<div style="color:#555;text-align:center;padding:40px;">NO EMERGENCY LOGS</div>';return;}logs.forEach(log=>{const item=document.createElement('div');let cssClass='log-item';if(log.status==='DISPATCHED')cssClass+=' resolved';item.className=cssClass;const unitsTxt=log.dispatchedUnits?`UNITS: ${log.dispatchedUnits.join(' / ')}`:'';item.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;"><span class="plate-tag">${log.plate}</span><span style="font-size:.65rem;color:${log.severity==='CRITICAL'?'var(--danger)':'var(--warning)'}">${log.severity}</span></div><div class="meta-tag" style="color:${log.status==='DISPATCHED'?'var(--success)':'var(--danger)'}">Status: ${log.status} | Call ID: ${log.id} @ ${log.time}</div>${unitsTxt?`<div class="units-tag">${unitsTxt}</div>`:''}<div style="font-size:.7rem;margin-top:4px;color:#888;">${log.description}</div>`;list.appendChild(item);});}
 
-function dispatchUnit(){
-    if(!currentCall)return;stopRingSound();playSound('dispatch');stopSpeech();const c=currentCall;
-    speak("Unit dispatched to "+c.location+". Stay safe.");addTranscriptLine('SYS','✓ UNIT DISPATCHED - CALL ENDED');
-    sharedData.registry[c.plate]={id:"911_REPORT",vClass:"LVM_CLASS_1",status:"WANTED",registeredBy:"911_OPERATOR"};
-    sharedData.nextSpawnOverride=c.plate;
-    sharedData.history.push({plate:c.plate,id:c.id,action:"911 REPORT FILED",timestamp:new Date().toLocaleTimeString()});
-    sharedData.call911Logs.push({...c,status:"DISPATCHED",resolvedTime:new Date().toLocaleTimeString()});
-    saveData();setTimeout(()=>{clearCallUI();renderLogs();updateStats();scheduleNextCall();},3000);
-}
-
-function dismissCall(){
-    if(!currentCall)return;stopRingSound();playSound('dismiss');stopSpeech();
-    speak("Call noted. Clearing line.");addTranscriptLine('SYS','✗ CALL DISMISSED - CALL ENDED');
-    sharedData.call911Logs.push({...currentCall,status:currentCall.isPrank?"PRANK":"DISMISSED",resolvedTime:new Date().toLocaleTimeString()});
-    saveData();setTimeout(()=>{clearCallUI();renderLogs();updateStats();scheduleNextCall();},2000);
-}
-
-function clearCallUI(offline=false){stopRingSound();stopSpeech();currentCall=null;if(!offline&&systemOnline){document.getElementById('call-box').className='call-box';document.getElementById('call-box').innerHTML='<div class="call-status standby">⚡ STANDBY</div><div style="font-size:.7rem;color:var(--success);">System online. Awaiting incoming 911 signals...</div>';}document.getElementById('btn-answer').disabled=true;document.getElementById('btn-dispatch').disabled=true;document.getElementById('btn-dismiss').disabled=true;}
-
-function renderLogs(){
-    const list=document.getElementById('log-list');list.innerHTML='';const logs=(sharedData.call911Logs||[]).slice(-20).reverse();
-    if(logs.length===0){list.innerHTML='<div style="color:#555;text-align:center;padding:40px;">NO EMERGENCY LOGS</div>';return;}
-    logs.forEach(log=>{const item=document.createElement('div');let cssClass='log-item';if(log.status==='PRANK')cssClass+=' prank';if(log.status==='DISPATCHED')cssClass+=' resolved';item.className=cssClass;
-        item.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;"><span class="plate-tag">${log.plate}</span><span style="font-size:.65rem;color:${log.severity==='CRITICAL'?'var(--danger)':'var(--warning)'}">${log.severity}</span></div><div class="meta-tag" style="color:${log.status==='DISPATCHED'?'var(--success)':log.status==='PRANK'?'#555':'var(--danger)'}">Status: ${log.status} | Call ID: ${log.id} @ ${log.time}</div><div style="font-size:.7rem;margin-top:4px;color:#888;">${log.description}</div>`;
-        list.appendChild(item);});
-}
-
-function playSound(type){if(audioCtx.state==='suspended')audioCtx.resume();const osc=audioCtx.createOscillator();const gain=audioCtx.createGain();osc.connect(gain);gain.connect(audioCtx.destination);const t=audioCtx.currentTime;switch(type){case'online':osc.type='sine';osc.frequency.setValueAtTime(800,t);osc.frequency.setValueAtTime(1200,t+0.1);gain.gain.setValueAtTime(0.2,t);gain.gain.exponentialRampToValueAtTime(0.01,t+0.2);osc.start(t);osc.stop(t+0.2);break;case'offline':osc.type='sine';osc.frequency.setValueAtTime(1200,t);osc.frequency.setValueAtTime(400,t+0.2);gain.gain.setValueAtTime(0.2,t);gain.gain.exponentialRampToValueAtTime(0.01,t+0.3);osc.start(t);osc.stop(t+0.3);break;case'answer':osc.type='sine';osc.frequency.setValueAtTime(600,t);osc.frequency.setValueAtTime(900,t+0.1);gain.gain.setValueAtTime(0.2,t);gain.gain.exponentialRampToValueAtTime(0.01,t+0.2);osc.start(t);osc.stop(t+0.2);break;case'dispatch':osc.type='sawtooth';osc.frequency.setValueAtTime(300,t);osc.frequency.setValueAtTime(600,t+0.1);osc.frequency.setValueAtTime(900,t+0.2);gain.gain.setValueAtTime(0.3,t);gain.gain.exponentialRampToValueAtTime(0.01,t+0.3);osc.start(t);osc.stop(t+0.3);break;case'dismiss':osc.type='triangle';osc.frequency.setValueAtTime(400,t);osc.frequency.exponentialRampToValueAtTime(100,t+0.2);gain.gain.setValueAtTime(0.2,t);gain.gain.exponentialRampToValueAtTime(0.01,t+0.2);osc.start(t);osc.stop(t+0.2);break;}}
-
-let ringInterval=null;
-function playRingSound(){if(ringInterval)return;let isHigh=false;ringInterval=setInterval(()=>{if(audioCtx.state==='suspended')audioCtx.resume();const osc=audioCtx.createOscillator();const gain=audioCtx.createGain();osc.connect(gain);gain.connect(audioCtx.destination);osc.type='sine';isHigh=!isHigh;osc.frequency.setValueAtTime(isHigh?800:600,audioCtx.currentTime);gain.gain.setValueAtTime(0.15,audioCtx.currentTime);gain.gain.exponentialRampToValueAtTime(0.01,audioCtx.currentTime+0.3);osc.start(audioCtx.currentTime);osc.stop(audioCtx.currentTime+0.3);},400);}
+function playSound(type){if(audioCtx.state==='suspended')audioCtx.resume();const osc=audioCtx.createOscillator();const gain=audioCtx.createGain();osc.connect(gain);gain.connect(audioCtx.destination);const t=audioCtx.currentTime;switch(type){case'online':osc.type='sine';osc.frequency.setValueAtTime(800,t);osc.frequency.setValueAtTime(1200,t+0.1);gain.gain.setValueAtTime(0.2,t);gain.gain.exponentialRampToValueAtTime(0.01,t+0.2);osc.start(t);osc.stop(t+0.2);break;case'offline':osc.type='sine';osc.frequency.setValueAtTime(1200,t);osc.frequency.setValueAtTime(400,t+0.2);gain.gain.setValueAtTime(0.2,t);gain.gain.exponentialRampToValueAtTime(0.01,t+0.3);osc.start(t);osc.stop(t+0.3);break;case'answer':osc.type='sine';osc.frequency.setValueAtTime(600,t);osc.frequency.setValueAtTime(900,t+0.1);gain.gain.setValueAtTime(0.2,t);gain.gain.exponentialRampToValueAtTime(0.01,t+0.2);osc.start(t);osc.stop(t+0.2);break;case'dispatch':osc.type='sawtooth';osc.frequency.setValueAtTime(300,t);osc.frequency.setValueAtTime(600,t+0.1);osc.frequency.setValueAtTime(900,t+0.2);gain.gain.setValueAtTime(0.4,t);gain.gain.exponentialRampToValueAtTime(0.01,t+0.4);osc.start(t);osc.stop(t+0.4);break;case'dismiss':osc.type='triangle';osc.frequency.setValueAtTime(400,t);osc.frequency.exponentialRampToValueAtTime(100,t+0.2);gain.gain.setValueAtTime(0.2,t);gain.gain.exponentialRampToValueAtTime(0.01,t+0.2);osc.start(t);osc.stop(t+0.2);break;case'toggle':osc.type='sine';osc.frequency.setValueAtTime(800,t);gain.gain.setValueAtTime(0.2,t);gain.gain.exponentialRampToValueAtTime(0.01,t+0.1);osc.start(t);osc.stop(t+0.1);break;}}
+let ringInterval=null;function playRingSound(){if(ringInterval)return;let isHigh=false;ringInterval=setInterval(()=>{if(audioCtx.state==='suspended')audioCtx.resume();const osc=audioCtx.createOscillator();const gain=audioCtx.createGain();osc.connect(gain);gain.connect(audioCtx.destination);osc.type='sine';isHigh=!isHigh;osc.frequency.setValueAtTime(isHigh?800:600,audioCtx.currentTime);gain.gain.setValueAtTime(0.15,audioCtx.currentTime);gain.gain.exponentialRampToValueAtTime(0.01,audioCtx.currentTime+0.3);osc.start(audioCtx.currentTime);osc.stop(audioCtx.currentTime+0.3);},400);}
 function stopRingSound(){if(ringInterval){clearInterval(ringInterval);ringInterval=null;}}
-
 loadData();setInterval(loadData,2000);
 </script>
 </body>
