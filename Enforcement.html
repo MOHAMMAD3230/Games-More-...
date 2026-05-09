@@ -219,7 +219,7 @@
 
   let car=null, revenue=0, valids=0, missed=0, level=1, rankPoints=0, wantedPlates=[], isResetting=false, isScanning=false;
   let history = []; 
-  let sharedData = { revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null, activeInmates: [], releasedInmates: [] };
+  let sharedData = { revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null, activeInmates: [], releasedInmates: [], ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [] };
 
   function loadData() {
       const savedData = localStorage.getItem('enforcementTerminalV23');
@@ -234,6 +234,11 @@
               if(sharedData.nextSpawnOverride === undefined) sharedData.nextSpawnOverride = null;
               if(!sharedData.activeInmates) sharedData.activeInmates = [];
               if(!sharedData.releasedInmates) sharedData.releasedInmates = [];
+              if(!sharedData.ledgerCashouts) sharedData.ledgerCashouts = [];
+              if(!sharedData.intelFlags) sharedData.intelFlags = [];
+              if(!sharedData.paroleRecords) sharedData.paroleRecords = [];
+              if(!sharedData.iaViolations) sharedData.iaViolations = [];
+              if(!sharedData.rehabPrograms) sharedData.rehabPrograms = [];
           } catch (e) { console.error("Corrupted save data, resetting."); }
       }
       updateStatusUI();
@@ -241,7 +246,7 @@
   }
 
   function saveData() {
-      const finalData = { revenue, valids, missed, level, rankPoints, history, registry: sharedData.registry, forgedAliases: sharedData.forgedAliases, nextSpawnOverride: sharedData.nextSpawnOverride, activeInmates: sharedData.activeInmates, releasedInmates: sharedData.releasedInmates };
+      const finalData = { revenue, valids, missed, level, rankPoints, history, registry: sharedData.registry, forgedAliases: sharedData.forgedAliases, nextSpawnOverride: sharedData.nextSpawnOverride, activeInmates: sharedData.activeInmates, releasedInmates: sharedData.releasedInmates, ledgerCashouts: sharedData.ledgerCashouts, intelFlags: sharedData.intelFlags, paroleRecords: sharedData.paroleRecords, iaViolations: sharedData.iaViolations, rehabPrograms: sharedData.rehabPrograms };
       localStorage.setItem('enforcementTerminalV23', JSON.stringify(finalData));
   }
 
@@ -413,14 +418,12 @@
       let logPlate = car.realWantedPlate ? `${car.plate} (Real: ${car.realWantedPlate})` : car.plate;
       history.push({ plate: logPlate, id: car.id, action: "ARRESTED", timestamp: new Date().toLocaleTimeString() });
       
-      // Send to Jail (Dashboard 8) and clear from streets (Dashboard 4 & 7)
       clearWarrantOnArrest(car.plate);
       if (car.realWantedPlate) clearWarrantOnArrest(car.realWantedPlate); 
       
       updateLevel(); updateStatusUI(); resetStage();
   }
 
-  // Sends arrested criminals to Dashboard 8 and clears them from the active streets
   function clearWarrantOnArrest(plate) {
       let inmateData = null;
 
@@ -432,7 +435,9 @@
               offense: "FORGERY & FUGITIVE",
               dateArrested: new Date().toLocaleDateString(),
               facility: "MAXIMUM SECURITY",
-              status: "ARRESTED"
+              status: "ARRESTED",
+              sentenceDays: 90,         // UPDATED: Harsher sentence for forgery
+              sentenceRemaining: 90     // UPDATED: Matches sentenceDays
           };
           delete sharedData.forgedAliases[plate]; 
       } 
@@ -444,7 +449,9 @@
               offense: "WARRANT / ROGUE",
               dateArrested: new Date().toLocaleDateString(),
               facility: "CENTRAL DETENTION",
-              status: "ARRESTED"
+              status: "ARRESTED",
+              sentenceDays: 60,         // UPDATED: Standard sentence
+              sentenceRemaining: 60     // UPDATED: Matches sentenceDays
           };
       }
 
