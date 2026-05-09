@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" href="https://mohammad3230.github.io/PROJECT/favicon.png" type="image/png" sizes="32x32" />
+<script async src="https://www.googletagmanager.com/gtag/js?id=GT-NC6T5LRJ"></script>
+<script>
+window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','GT-NC6T5LRJ');
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NHAI - Network Map Terminal</title>
+<style>
+:root{--bg:#050508;--panel:#0a0a12;--accent:#00d9ff;--success:#2ed573;--danger:#ff0044;--warning:#ffa502;--border:#1a1a2e;--road:#1a1a2a;}
+body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:0;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+.top-bar{background:#000;padding:15px 20px;border-bottom:2px solid var(--accent);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
+.top-bar h1{margin:0;font-size:.9rem;color:var(--accent);letter-spacing:1px;}
+.top-bar .time{color:var(--warning);font-size:.8rem;}
+.map-container{flex-grow:1;padding:20px;display:flex;flex-direction:column;gap:15px;overflow:hidden;}
+.map-canvas{flex-grow:1;background:var(--panel);border:1px solid var(--border);border-radius:4px;position:relative;overflow:hidden;min-height:0;}
+.node{position:absolute;width:120px;padding:10px;background:#000;border:2px solid var(--border);border-radius:6px;text-align:center;font-size:.65rem;transition:all .3s;z-index:2;}
+.node.active{box-shadow:0 0 20px rgba(0,217,255,.3);}
+.node-label{font-weight:bold;font-size:.75rem;margin-bottom:4px;}
+.node-count{font-size:1.2rem;font-weight:900;}
+.node-d5{border-color:var(--success);top:8%;left:5%;}.node-d5 .node-label,.node-d5 .node-count{color:var(--success);}
+.node-d4{border-color:#888;top:8%;left:35%;}.node-d4 .node-label,.node-d4 .node-count{color:#888;}
+.node-d6{border-color:var(--danger);top:8%;right:5%;}.node-d6 .node-label,.node-d6 .node-count{color:var(--danger);}
+.node-d1{border-color:var(--accent);top:45%;left:35%;}.node-d1 .node-label,.node-d1 .node-count{color:var(--accent);}
+.node-d2{border-color:var(--warning);top:45%;left:65%;}.node-d2 .node-label,.node-d2 .node-count{color:var(--warning);}
+.node-d7{border-color:var(--danger);top:45%;left:5%;}.node-d7 .node-label,.node-d7 .node-count{color:var(--danger);}
+.node-d8{border-color:#ff6b81;bottom:8%;left:20%;}.node-d8 .node-label,.node-d8 .node-count{color:#ff6b81;}
+.node-d9{border-color:var(--success);bottom:8%;right:20%;}.node-d9 .node-label,.node-d9 .node-count{color:var(--success);}
+.road-svg{position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;pointer-events:none;}
+.road-svg line{stroke:#222;stroke-width:2;}
+.road-svg line.active-road{stroke:var(--accent);stroke-width:2;stroke-dasharray:8 4;animation:dashMove 1s linear infinite;}
+.road-svg line.danger-road{stroke:var(--danger);stroke-width:2;stroke-dasharray:8 4;animation:dashMove .5s linear infinite;}
+@keyframes dashMove{to{stroke-dashoffset:-12;}}
+.pulse-dot{position:absolute;width:8px;height:8px;border-radius:50%;background:var(--accent);z-index:3;pointer-events:none;animation:pulseDot 1.5s infinite;}
+@keyframes pulseDot{0%{opacity:1;transform:scale(1);}50%{opacity:.3;transform:scale(1.5);}100%{opacity:1;transform:scale(1);}}
+.legend{display:flex;gap:20px;flex-shrink:0;font-size:.7rem;color:#555;justify-content:center;padding:10px;background:var(--panel);border:1px solid var(--border);border-radius:4px;}
+.legend-item{display:flex;align-items:center;gap:5px;}
+.legend-dot{width:10px;height:10px;border-radius:50%;}
+@media(max-width:1024px){.map-container{overflow-y:auto;}.map-canvas{min-height:500px;}.node{width:90px;font-size:.55rem;padding:6px;}.node-count{font-size:1rem;}}
+@media(max-width:600px){.node{width:70px;font-size:.5rem;padding:4px;}.node-count{font-size:.8rem;}.legend{flex-wrap:wrap;gap:10px;}}
+</style>
+</head>
+<body>
+<div class="top-bar">
+<h1>▸ NHAI_NETMAP // NETWORK_MAP_v11.0</h1>
+<div class="time" id="clock">00:00:00</div>
+</div>
+<div class="map-container">
+<div class="map-canvas" id="map-canvas">
+<svg class="road-svg" id="road-svg"></svg>
+<div class="node node-d5" id="n-d5"><div class="node-label">D5: LICENSING</div><div class="node-count" id="nc-d5">0</div></div>
+<div class="node node-d4" id="n-d4"><div class="node-label">D4: REGISTRY</div><div class="node-count" id="nc-d4">0</div></div>
+<div class="node node-d6" id="n-d6"><div class="node-label">D6: FORGE</div><div class="node-count" id="nc-d6">0</div></div>
+<div class="node node-d7" id="n-d7"><div class="node-label">D7: DISPATCH</div><div class="node-count" id="nc-d7">0</div></div>
+<div class="node node-d1" id="n-d1"><div class="node-label">D1: ENFORCEMENT</div><div class="node-count" id="nc-d1">0</div></div>
+<div class="node node-d2" id="n-d2"><div class="node-label">D2: TOLL</div><div class="node-count" id="nc-d2">0</div></div>
+<div class="node node-d8" id="n-d8"><div class="node-label">D8: PRISON</div><div class="node-count" id="nc-d8">0</div></div>
+<div class="node node-d9" id="n-d9"><div class="node-label">D9: AUDIT</div><div class="node-count" id="nc-d9">0</div></div>
+</div>
+<div class="legend">
+<div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div> Active Flow</div>
+<div class="legend-item"><div class="legend-dot" style="background:var(--danger)"></div> Criminal/Pursuit</div>
+<div class="legend-item"><div class="legend-dot" style="background:var(--success)"></div> Clear/Revenue</div>
+<div class="legend-item"><div class="legend-dot" style="background:var(--warning)"></div> Toll Activity</div>
+</div>
+</div>
+<script>
+let sharedData={revenue:0,valids:0,missed:0,level:1,rankPoints:0,history:[],registry:{},forgedAliases:{},nextSpawnOverride:null,activeInmates:[],releasedInmates:[],ledgerCashouts:[],intelFlags:[]};
+function updateClock(){document.getElementById('clock').innerText=new Date().toLocaleTimeString('en-GB');}
+setInterval(updateClock,1000);
+function loadData(){const s=localStorage.getItem('enforcementTerminalV23');if(s){try{const p=JSON.parse(s);sharedData=p;if(!sharedData.registry)sharedData.registry={};if(!sharedData.forgedAliases)sharedData.forgedAliases={};if(!sharedData.activeInmates)sharedData.activeInmates=[];if(!sharedData.releasedInmates)sharedData.releasedInmates=[];if(!sharedData.ledgerCashouts)sharedData.ledgerCashouts=[];if(!sharedData.intelFlags)sharedData.intelFlags=[];}catch(e){}}renderMap();}
+function renderMap(){
+const reg=sharedData.registry||{};const aliases=sharedData.forgedAliases||{};const hist=sharedData.history||[];
+const d5Count=Object.values(reg).filter(r=>r.registeredBy==='AUTH_TERMINAL').length;
+const d4Count=Object.values(reg).filter(r=>r.registeredBy==='DB_TERMINAL').length;
+const d6Count=Object.keys(aliases).length;
+const d7Wanted=Object.values(reg).filter(r=>r.status==='WANTED').length;
+const d1Recent=hist.filter(h=>h.action==='RELEASED'||h.action==='ARRESTED').length;
+const d2Recent=hist.filter(h=>h.action&&h.action.includes('TOLL')).length;
+const d8Count=(sharedData.activeInmates||[]).length;
+const d9Count=(sharedData.ledgerCashouts||[]).length;
+document.getElementById('nc-d5').innerText=d5Count;
+document.getElementById('nc-d4').innerText=d4Count;
+document.getElementById('nc-d6').innerText=d6Count;
+document.getElementById('nc-d7').innerText=d7Wanted;
+document.getElementById('nc-d1').innerText=d1Recent;
+document.getElementById('nc-d2').innerText=d2Recent;
+document.getElementById('nc-d8').innerText=d8Count;
+document.getElementById('nc-d9').innerText='$'+(d9Count>0?sharedData.ledgerCashouts.reduce((s,c)=>s+c.totalCashOut,0):0);
+const isPatrolActive=sharedData.nextSpawnOverride&&sharedData.nextSpawnOverride.startsWith('HOLD-');
+document.getElementById('n-d7').className='node node-d7'+(isPatrolActive?' active':'');
+document.getElementById('n-d1').className='node node-d1'+(sharedData.nextSpawnOverride?' active':'');
+document.getElementById('n-d8').className='node node-d8'+(d8Count>0?' active':'');
+drawRoads();
+}
+function drawRoads(){
+const svg=document.getElementById('road-svg');svg.innerHTML='';
+const connections=[
+{from:'n-d5',to:'n-d4',cls:''},{from:'n-d6',to:'n-d4',cls:'danger-road'},
+{from:'n-d4',to:'n-d1',cls:''},{from:'n-d7',to:'n-d1',cls:sharedData.nextSpawnOverride?'danger-road':''},
+{from:'n-d1',to:'n-d2',cls:'active-road'},{from:'n-d1',to:'n-d8',cls:(sharedData.activeInmates||[]).length>0?'danger-road':''},
+{from:'n-d2',to:'n-d9',cls:'active-road'},{from:'n-d1',to:'n-d9',cls:''}
+];
+connections.forEach(c=>{
+const fEl=document.getElementById(c.from);const tEl=document.getElementById(c.to);
+if(!fEl||!tEl)return;
+const fR=fEl.getBoundingClientRect();const tR=tEl.getBoundingClientRect();
+const cR=document.getElementById('map-canvas').getBoundingClientRect();
+const x1=fR.left+fR.width/2-cR.left;const y1=fR.top+fR.height/2-cR.top;
+const x2=tR.left+tR.width/2-cR.left;const y2=tR.top+tR.height/2-cR.top;
+const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+line.setAttribute('x1',x1);line.setAttribute('y1',y1);line.setAttribute('x2',x2);line.setAttribute('y2',y2);
+line.setAttribute('class',c.cls);svg.appendChild(line);
+});
+}
+window.addEventListener('resize',drawRoads);
+loadData();setInterval(loadData,2000);
+</script>
+</body>
+</html>
