@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" href="https://mohammad3230.github.io/PROJECT/favicon.png" type="image/png" sizes="32x32" />
+<script async src="https://www.googletagmanager.com/gtag/js?id=GT-NC6T5LRJ"></script>
+<script>
+window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','GT-NC6T5LRJ');
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NHAI - Cyber Intelligence Terminal</title>
+<style>
+:root{--bg:#050510;--panel:#0a0a1a;--accent:#a855f7;--success:#2ed573;--danger:#ff0044;--warning:#ffa502;--border:#2a1a3a;}
+body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:0;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+.top-bar{background:#000;padding:15px 20px;border-bottom:2px solid var(--accent);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
+.top-bar h1{margin:0;font-size:.9rem;color:var(--accent);letter-spacing:1px;text-shadow:0 0 10px rgba(168,85,247,.5);}
+.top-bar .time{color:var(--warning);font-size:.8rem;}
+.main-layout{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:20px;flex-grow:1;min-height:0;overflow:hidden;}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:20px;display:flex;flex-direction:column;overflow:hidden;}
+.panel-title{color:var(--accent);font-size:.85rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:15px;border-bottom:1px solid var(--border);padding-bottom:10px;flex-shrink:0;}
+.stat-row{display:flex;gap:12px;margin-bottom:20px;flex-shrink:0;}
+.stat-box{flex:1;background:#000;border:1px solid var(--border);padding:15px;border-radius:4px;text-align:center;border-top:3px solid var(--accent);}
+.stat-num{font-size:2rem;font-weight:900;margin-bottom:5px;}
+.stat-label{font-size:.7rem;color:#888;text-transform:uppercase;}
+.alert-list{flex-grow:1;overflow-y:auto;padding-right:5px;min-height:0;}
+.alert-item{background:#000;border:1px solid var(--border);padding:12px;margin-bottom:8px;border-left:4px solid var(--danger);border-radius:4px;font-size:.8rem;}
+.alert-item.low{border-left-color:var(--warning);}
+.alert-item.resolved{border-left-color:var(--success);opacity:.5;}
+.mech-btn{width:100%;padding:12px;border:2px solid #000;cursor:pointer;font-weight:bold;text-transform:uppercase;font-size:.8rem;box-shadow:0 3px 0 #000;transition:all .1s;font-family:monospace;border-radius:4px;margin-top:10px;flex-shrink:0;}
+.mech-btn:active{transform:translateY(2px);box-shadow:0 1px 0 #000;}
+.btn-scan{background:linear-gradient(145deg,#a855f7,#7c3aed);color:#fff;}
+.btn-purge{background:var(--danger);color:#fff;}
+.log-box{flex:1;background:#000;border:1px solid #222;padding:10px;font-size:.7rem;color:var(--accent);overflow-y:auto;border-radius:4px;min-height:0;}
+.alert-list::-webkit-scrollbar,.log-box::-webkit-scrollbar{width:6px;}
+.alert-list::-webkit-scrollbar-track,.log-box::-webkit-scrollbar-track{background:#000;border:1px solid var(--border);}
+.alert-list::-webkit-scrollbar-thumb,.log-box::-webkit-scrollbar-thumb{background:var(--accent);border:1px solid #000;}
+@media(max-width:1024px){.main-layout{grid-template-columns:1fr;overflow-y:auto;}}
+@media(max-width:600px){.top-bar h1{font-size:.7rem;}.stat-row{flex-direction:column;}}
+</style>
+</head>
+<body>
+<div class="top-bar">
+<h1>▸ NHAI_CYBERINT // INTELLIGENCE_TERMINAL_v10.0</h1>
+<div class="time" id="clock">00:00:00</div>
+</div>
+<div class="main-layout">
+<div class="panel">
+<div class="panel-title">■ Forge Detection Matrix</div>
+<div class="stat-row">
+<div class="stat-box"><div class="stat-num" style="color:var(--danger)" id="stat-forges">0</div><div class="stat-label">Active Forges</div></div>
+<div class="stat-box"><div class="stat-num" style="color:var(--warning)" id="stat-tollpass">0</div><div class="stat-label">Toll Bypasses</div></div>
+<div class="stat-box"><div class="stat-num" style="color:var(--success)" id="stat-flagged">0</div><div class="stat-label">Flagged</div></div>
+</div>
+<div class="alert-list" id="alert-list"><div style="color:#555;text-align:center;padding:20px;">NO INTELLIGENCE DATA</div></div>
+<button class="mech-btn btn-scan" onclick="runDeepScan()">DEEP NETWORK SCAN</button>
+<button class="mech-btn btn-purge" onclick="purgeForgedEntries()">PURGE FORGED ENTRIES</button>
+</div>
+<div class="panel">
+<div class="panel-title">■ Intelligence Log</div>
+<div class="log-box" id="intel-log"></div>
+</div>
+</div>
+<script>
+let sharedData={revenue:0,valids:0,missed:0,level:1,rankPoints:0,history:[],registry:{},forgedAliases:{},nextSpawnOverride:null,activeInmates:[],releasedInmates:[],ledgerCashouts:[],intelFlags:[]};
+function updateClock(){document.getElementById('clock').innerText=new Date().toLocaleTimeString('en-GB');}
+setInterval(updateClock,1000);
+function loadData(){const s=localStorage.getItem('enforcementTerminalV23');if(s){try{const p=JSON.parse(s);sharedData=p;if(!sharedData.registry)sharedData.registry={};if(!sharedData.forgedAliases)sharedData.forgedAliases={};if(!sharedData.intelFlags)sharedData.intelFlags=[];}catch(e){}}renderDashboard();}
+function saveData(){localStorage.setItem('enforcementTerminalV23',JSON.stringify(sharedData));}
+function addLog(msg,color){const l=document.getElementById('intel-log');const e=document.createElement('div');e.style.color=color||'var(--accent)';e.style.marginBottom='5px';e.innerText='> '+msg;l.prepend(e);}
+function runDeepScan(){
+addLog('Initiating deep network scan...','#888');
+let forgeCount=0;let tollBypass=0;let flagged=0;const alerts=[];
+Object.keys(sharedData.registry).forEach(plate=>{
+if(sharedData.registry[plate].registeredBy==='SYNDICATE_FORGE'){
+forgeCount++;const alias=sharedData.forgedAliases[plate];
+const alertObj={plate:plate,realPlate:alias?alias.realPlate:'UNKNOWN',fakeId:alias?alias.fakeId:'N/A',type:'FORGE_INJECTION',time:new Date().toLocaleTimeString(),status:'ACTIVE'};
+alerts.push(alertObj);
+const exists=sharedData.intelFlags.find(f=>f.plate===plate&&f.status==='ACTIVE');
+if(!exists){sharedData.intelFlags.push(alertObj);flagged++;}
+}
+});
+(sharedData.history||[]).forEach(h=>{
+if(h.action&&h.action.includes('TOLL')&&h.plate!=='UNKNOWN'){
+const reg=sharedData.registry[h.plate];
+if(reg&&reg.registeredBy==='SYNDICATE_FORGE'){tollBypass++;}
+}
+});
+saveData();
+document.getElementById('stat-forges').innerText=forgeCount;
+document.getElementById('stat-tollpass').innerText=tollBypass;
+document.getElementById('stat-flagged').innerText=sharedData.intelFlags.filter(f=>f.status==='ACTIVE').length;
+const list=document.getElementById('alert-list');list.innerHTML='';
+if(alerts.length===0&&sharedData.intelFlags.length===0){list.innerHTML='<div style="color:#555;text-align:center;padding:20px;">NO THREATS DETECTED</div>';addLog('Scan complete. Network clean.','var(--success)');return;}
+alerts.forEach(a=>{const d=document.createElement('div');d.className='alert-item';d.innerHTML=`<div style="display:flex;justify-content:space-between"><span style="color:var(--danger);font-weight:bold">${a.plate}</span><span style="color:#555">${a.time}</span></div><div style="font-size:.7rem;color:var(--warning);margin-top:4px">Real Plate: ${a.realPlate} | Fake ID: ${a.fakeId}</div>`;list.appendChild(d);});
+addLog(`Scan complete: ${forgeCount} forges, ${tollBypass} toll bypasses, ${flagged} newly flagged.`,'var(--accent)');
+}
+function purgeForgedEntries(){
+let purged=0;Object.keys(sharedData.registry).forEach(plate=>{
+if(sharedData.registry[plate].registeredBy==='SYNDICATE_FORGE'){delete sharedData.registry[plate];delete sharedData.forgedAliases[plate];purged++;}
+});
+sharedData.intelFlags.forEach(f=>{if(f.type==='FORGE_INJECTION')f.status='PURGED';});
+saveData();renderDashboard();addLog(`PURGED: ${purged} forged entries removed from network.`,'var(--danger)');
+}
+function renderDashboard(){
+document.getElementById('stat-forges').innerText=Object.values(sharedData.registry||{}).filter(r=>r.registeredBy==='SYNDICATE_FORGE').length;
+document.getElementById('stat-flagged').innerText=(sharedData.intelFlags||[]).filter(f=>f.status==='ACTIVE').length;
+}
+loadData();setInterval(loadData,2000);
+</script>
+</body>
+</html>
