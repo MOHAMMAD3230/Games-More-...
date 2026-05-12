@@ -591,6 +591,14 @@
   function acceptEmergencyDispatch(){ if(!emergencyActive) return; stopEmergencyAlarm(); playSound('gate'); const agencies = get911AgencyUnits(); addLog(`OFFICER ACKNOWLEDGED. ${agencies.join(' + ')} pulling to gate NOW.`, "var(--warning)"); spawnVehicle(); }
   
   function addLog(msg, color) { const log = document.getElementById('log'); const entry = document.createElement('div'); entry.style.color = color || "#0f0"; entry.style.marginBottom = "5px"; entry.innerText = `> ${msg}`; log.prepend(entry); }
+  
+  function receiveMail(from, subject, body) {
+      if(!sharedData.inbox) sharedData.inbox = [];
+      sharedData.inbox.push({ from, to: "ENFORCEMENT_D1", cc: "", subject, body, timestamp: new Date().toLocaleString(), read: false });
+      saveData(); updateMailUI();
+      playSound('mail');
+      addLog(`✉ NEW MAIL: ${subject}`, "var(--accent)");
+  }
 
   function refreshAPBList() { const prefixes = ["PX","NX","TX","DV","CR","XR","ZK","AV","BN"]; wantedPlates = []; const count = 3 + Math.floor(Math.random() * 3); for(let i=0; i<count; i++) { wantedPlates.push(`${prefixes[Math.floor(Math.random()*prefixes.length)]}-${Math.floor(1000+Math.random()*9000)}`); } const box = document.getElementById('wantedPlateBox'); box.innerHTML = ''; wantedPlates.forEach(plate => { const div = document.createElement('div'); div.className='wanted-plate-item'; div.innerText=plate; box.appendChild(div); }); }
 
@@ -650,7 +658,14 @@
       
       addLog(`Incoming: ${car.plate}. Inspection required.`);
       
-      if(is911Emergency) playSirenSound();
+      if(is911Emergency) {
+          playSirenSound();
+          receiveMail("911_DISPATCH", "PRIORITY 1: EMERGENCY RESPONSE", `Incoming 911 Dispatch.\nPlate: ${plate}\nUnits: ${dispatchedAgencies.join(', ')}\nProceed with extreme caution.`);
+      } else if(isPatrolDispatch) {
+          receiveMail("NHAI_PATROL", "PATROL INTERCEPT", `Patrol unit is transferring a rogue vehicle to your gate.\nPlate: ${plate}\nEnsure armed backup.`);
+      } else if(isWanted) {
+          receiveMail("APB_NETWORK", "WARRANT ALERT", `Wanted fugitive detected approaching gate.\nPlate: ${plate}\nPrepare for arrest.`);
+      }
   }
 
   function updateD16Status() { 
@@ -704,7 +719,7 @@
           
           document.getElementById('db16Plate').innerText = car.plate;
           updateD16Status();
-          if(car.originDashboard === "D16") { playSound('protocol_d16'); addLog(`🔔 PROTOCOL D-16: VIP/Govt Fast-Track Verified.`, "var(--accent)"); }
+          if(car.originDashboard === "D16") { playSound('protocol_d16'); addLog(`🔔 PROTOCOL D-16: VIP/Govt Fast-Track Verified.`, "var(--accent)"); receiveMail("D16_GOV_OFFICE", "VIP FAST TRACK", `Verified VIP clearance for ${car.plate}. Authorized for Mechanical Gate Override.`); }
           else if(car.originDashboard === "D2") { playSound('protocol_d2'); addLog(`🔔 PROTOCOL D-2: Enforcement Transfer Verified.`, "var(--warning)"); }
           else if(car.originDashboard === "D7") { playSound('protocol_d7'); addLog(`🔔 PROTOCOL D-7: High-Value Jail Target Verified.`, "var(--danger)"); }
 
@@ -714,7 +729,6 @@
           if (car.hasMissingID) alertFlags.push("NO VERIFIED RECORD"); 
           if (car.isForged) alertFlags.push("DOCUMENT FORGERY"); 
           
-          // FIX: Check D-5 Status along with Criminal Flags
           if (alertFlags.length > 0) { 
               const isStrictlyCriminal = car.isWanted || car.isForged || car.realWantedPlate; 
               if(isStrictlyCriminal) { 
@@ -729,7 +743,6 @@
                   if (!car.isWanted && !car.isForged) document.getElementById('btnPay').disabled = false; 
               } 
           } else if (car.d5Status === 'REJECTED') { 
-              // FIX: Innocent citizen, but failed D-5 application
               addLog("SECURITY ALERT: D-5 REGISTRATION REJECTED. Entry Denied. Subject must be turned away or pay for ID renewal.", "var(--warning)"); 
               playSound('buzzer'); 
               document.getElementById('btnPay').disabled = false; 
