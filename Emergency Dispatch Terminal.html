@@ -50,7 +50,6 @@ body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:
 .t-op{color:var(--success);}.t-caller{color:var(--warning);}.t-sys{color:var(--danger);font-weight:bold;animation:blink 1.5s infinite;}
 @keyframes blink{0%{opacity:1;}50%{opacity:0.3;}100%{opacity:1;}}
 
-/* Multi-Agency Dispatch UI */
 .dispatch-config{flex-shrink:0;padding-top:15px;border-top:1px solid var(--border);margin-top:15px;display:none;}
 .dispatch-config.active{display:block;}
 .agency-toggle{display:flex;align-items:center;justify-content:space-between;background:#111;padding:12px;margin-bottom:10px;border-radius:4px;border-left:4px solid #333;transition:all .2s;}
@@ -107,7 +106,6 @@ body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:
 </div>
 <div class="call-box" id="call-box"><div class="call-status idle">SYSTEM OFFLINE</div><div style="font-size:.7rem;color:#555;">Toggle system ON to receive 911 signals</div></div>
 
-<!-- Multi-Agency Dispatch Config (Hidden until call answered) -->
 <div class="dispatch-config" id="dispatch-config">
 <div style="color:var(--warning);font-size:.75rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;font-weight:bold;">Select Response Units:</div>
 <div class="agency-toggle police" id="toggle-police"><div class="agency-label"><div class="agency-icon icon-police">P</div><span>POLICE UNIT</span></div><div class="toggle-switch" id="sw-police" onclick="toggleAgency('police')"><div class="toggle-knob"></div></div></div>
@@ -129,7 +127,12 @@ body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:
 </div>
 </div>
 <script>
-let sharedData={revenue:0,valids:0,missed:0,level:1,rankPoints:0,history:[],registry:{},forgedAliases:{},nextSpawnOverride:null,activeInmates:[],releasedInmates:[],ledgerCashouts:[],intelFlags:[],paroleRecords:[],iaViolations:[],rehabPrograms:[],call911Logs:[]};
+let sharedData = { 
+    revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, 
+    history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null,
+    activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [],
+    ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: []
+};
 
 let currentCall=null;let systemOnline=false;let autoCallTimer=null;let speechTimers=[];let agencies={police:false,ems:false,fire:false};
 const prefixes=["PX","NX","TX","DV","CR","XR","ZK","AV","BN"];
@@ -143,8 +146,60 @@ const citizenReports=[
 ];
 const audioCtx=new(window.AudioContext||window.webkitAudioContext)();
 function updateClock(){document.getElementById('clock').innerText=new Date().toLocaleTimeString('en-GB');}setInterval(updateClock,1000);
-function loadData(){const s=localStorage.getItem('enforcementTerminalV23');if(s){try{const p=JSON.parse(s);sharedData=p;if(!sharedData.registry)sharedData.registry={};if(!sharedData.forgedAliases)sharedData.forgedAliases={};if(sharedData.nextSpawnOverride===undefined)sharedData.nextSpawnOverride=null;if(!sharedData.activeInmates)sharedData.activeInmates=[];if(!sharedData.releasedInmates)sharedData.releasedInmates=[];if(!sharedData.ledgerCashouts)sharedData.ledgerCashouts=[];if(!sharedData.intelFlags)sharedData.intelFlags=[];if(!sharedData.paroleRecords)sharedData.paroleRecords=[];if(!sharedData.iaViolations)sharedData.iaViolations=[];if(!sharedData.rehabPrograms)sharedData.rehabPrograms=[];if(!sharedData.call911Logs)sharedData.call911Logs=[];}catch(e){}}renderLogs();updateStats();}
-function saveData(){localStorage.setItem('enforcementTerminalV23',JSON.stringify(sharedData));}
+
+const HASH_SALT = "ENFORCE_V23_SECURE_SALT";
+function generateSignature(dataStr) {
+    let hash = 0;
+    const str = HASH_SALT + dataStr;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; 
+    }
+    return hash.toString(16);
+}
+
+function loadData(){
+    const savedData = localStorage.getItem('enforcementTerminalV23');
+    const savedSig = localStorage.getItem('enforcementTerminalV23_sig');
+    if(savedData){
+        try{
+            if(savedSig !== generateSignature(savedData)){
+                console.error("911 BREACH: Data tampering detected! Wiping corrupted data.");
+                localStorage.removeItem('enforcementTerminalV23');
+                localStorage.removeItem('enforcementTerminalV23_sig');
+                return;
+            }
+            const p = JSON.parse(savedData);
+            sharedData = p;
+            
+            if(!sharedData.registry)sharedData.registry={};
+            if(!sharedData.forgedAliases)sharedData.forgedAliases={};
+            if(sharedData.nextSpawnOverride===undefined)sharedData.nextSpawnOverride=null;
+            if(!sharedData.activeInmates)sharedData.activeInmates=[];
+            if(!sharedData.releasedInmates)sharedData.releasedInmates=[];
+            if(!sharedData.inbox)sharedData.inbox=[];
+            if(!sharedData.sentMail)sharedData.sentMail=[];
+            if(!sharedData.call911Logs)sharedData.call911Logs=[];
+            if(!sharedData.ledgerCashouts)sharedData.ledgerCashouts=[];
+            if(!sharedData.intelFlags)sharedData.intelFlags=[];
+            if(!sharedData.paroleRecords)sharedData.paroleRecords=[];
+            if(!sharedData.iaViolations)sharedData.iaViolations=[];
+            if(!sharedData.rehabPrograms)sharedData.rehabPrograms=[];
+            if(!sharedData.history)sharedData.history=[];
+        }catch(e){
+            console.error("Load error:", e);
+        }
+    }
+    renderLogs();updateStats();
+}
+
+function saveData(){
+    const dataStr = JSON.stringify(sharedData);
+    localStorage.setItem('enforcementTerminalV23', dataStr);
+    localStorage.setItem('enforcementTerminalV23_sig', generateSignature(dataStr));
+}
+
 function updateStats(){const logs=sharedData.call911Logs||[];document.getElementById('stat-active').innerText=logs.filter(l=>l.status==='ACTIVE').length;document.getElementById('stat-dispatched').innerText=logs.filter(l=>l.status==='DISPATCHED').length;document.getElementById('stat-prank').innerText=logs.filter(l=>l.status==='PRANK').length;}
 
 function toggleSystem(){if(audioCtx.state==='suspended')audioCtx.resume();systemOnline=!systemOnline;const btn=document.getElementById('system-toggle');const label=document.getElementById('toggle-label');if(systemOnline){btn.className='toggle-btn on';label.innerText='SYSTEM ON';label.style.color='var(--success)';playSound('online');scheduleNextCall();document.getElementById('call-box').innerHTML='<div class="call-status standby">⚡ STANDBY</div><div style="font-size:.7rem;color:var(--success);">System online. Awaiting incoming 911 signals...</div>';}else{btn.className='toggle-btn off';label.innerText='SYSTEM OFF';label.style.color='var(--danger)';playSound('offline');if(autoCallTimer)clearTimeout(autoCallTimer);clearCallUI(true);document.getElementById('call-box').innerHTML='<div class="call-status idle">SYSTEM OFFLINE</div><div style="font-size:.7rem;color:#555;">Toggle system ON to receive 911 signals</div>';}}
@@ -159,11 +214,9 @@ function answerCall(){if(!currentCall)return;stopRingSound();playSound('answer')
 box.innerHTML=`<div class="call-status connected">CALL CONNECTED</div><div class="call-details"><div style="color:var(--danger);font-weight:bold;margin-bottom:8px;">CALL ID: ${c.id} | SEVERITY: <span style="color:${c.severity==='CRITICAL'?'var(--danger)':'var(--warning)'}">${c.severity}</span></div><div><span style="color:#888;">REPORTED PLATE:</span> <span style="color:var(--warning);font-weight:bold;font-size:1.1rem;">${c.plate}</span></div><div style="margin-top:8px;color:#ccc;">"${c.description}"</div></div><div class="transcript-box" id="transcript-box"></div>`;
 document.getElementById('btn-answer').disabled=true;document.getElementById('btn-dismiss').disabled=false;
 
-// Auto-configure agency units based on severity
 agencies={police:true,ems:false,fire:false};if(c.severity==='CRITICAL'){agencies.ems=true;agencies.fire=true;}else if(c.severity==='HIGH'){agencies.ems=true;}else if(c.description.toLowerCase().includes('hit')||c.description.toLowerCase().includes('accident')){agencies.ems=true;}else if(c.description.toLowerCase().includes('fire')||c.description.toLowerCase().includes('abandoned')){agencies.fire=true;}
 updateToggleUI();document.getElementById('dispatch-config').classList.add('active');
 
-// CONVERSATION SEQUENCE
 speechTimers.push(setTimeout(()=>{const txt="911 Emergency. What is your emergency?";speak(txt);addTranscriptLine('OP',txt);},500));
 speechTimers.push(setTimeout(()=>{if(!currentCall)return;const txt=c.citizenGreeting;speak(txt);addTranscriptLine('CALLER',txt);},4500));
 speechTimers.push(setTimeout(()=>{if(!currentCall)return;const txt="Stay calm. Where are you calling from?";speak(txt);addTranscriptLine('OP',txt);},8000));
@@ -175,17 +228,17 @@ speechTimers.push(setTimeout(()=>{if(!currentCall)return;const txt="Understood. 
 function toggleAgency(type){if(!currentCall)return;agencies[type]=!agencies[type];playSound('toggle');updateToggleUI();}
 function updateToggleUI(){['police','ems','fire'].forEach(t=>{const el=document.getElementById('toggle-'+t);const sw=document.getElementById('sw-'+t);if(agencies[t]){el.classList.add('active');sw.classList.add('active');}else{el.classList.remove('active');sw.classList.remove('active');}});}
 
-function executeDispatch(){if(!currentCall)return;stopRingSound();playSound('dispatch');stopSpeech();const c=currentCall;
+function executeDispatch(){if(!currentCall)return;loadData();stopRingSound();playSound('dispatch');stopSpeech();const c=currentCall;
 const dispatchedUnits=[];if(agencies.police)dispatchedUnits.push("POLICE");if(agencies.ems)dispatchedUnits.push("EMS");if(agencies.fire)dispatchedUnits.push("FIRE");
 speak("Code 3 dispatch confirmed. Units en route.");addTranscriptLine('SYS',`✓ DISPATCHED: ${dispatchedUnits.join(' + ')}`);
 
-if(!sharedData.registry[c.plate]){sharedData.registry[c.plate]={id:"911_REPORT",vClass:"LVM_CLASS_1",status:"WANTED",registeredBy:"911_OPERATOR"};}
+if(!sharedData.registry[c.plate]){sharedData.registry[c.plate]={id:"911_REPORT",vClass:"LVM_CLASS_1",status:"WANTED",registeredBy:"911_OPERATOR",source:"911_DISPATCH"};}
 sharedData.nextSpawnOverride=c.plate;
-sharedData.history.push({plate:c.plate,id:c.id,action:`MULTI-AGENCY: ${dispatchedUnits.join('+')}`,timestamp:new Date().toLocaleTimeString()});
+sharedData.history.push({plate:c.plate,id:c.id,action:`911 DISPATCH: ${dispatchedUnits.join('+')}`,timestamp:new Date().toLocaleTimeString()});
 sharedData.call911Logs.push({...c,status:"DISPATCHED",dispatchedUnits:dispatchedUnits,resolvedTime:new Date().toLocaleTimeString()});
 saveData();setTimeout(()=>{clearCallUI();renderLogs();updateStats();scheduleNextCall();},3000);}
 
-function dismissCall(){if(!currentCall)return;stopRingSound();playSound('dismiss');stopSpeech();speak("Call noted. Clearing line.");addTranscriptLine('SYS','✗ CALL DISMISSED');sharedData.call911Logs.push({...currentCall,status:currentCall.isPrank?"PRANK":"DISMISSED",resolvedTime:new Date().toLocaleTimeString()});saveData();setTimeout(()=>{clearCallUI();renderLogs();updateStats();scheduleNextCall();},2000);}
+function dismissCall(){if(!currentCall)return;loadData();stopRingSound();playSound('dismiss');stopSpeech();speak("Call noted. Clearing line.");addTranscriptLine('SYS','✗ CALL DISMISSED');sharedData.call911Logs.push({...currentCall,status:currentCall.isPrank?"PRANK":"DISMISSED",resolvedTime:new Date().toLocaleTimeString()});saveData();setTimeout(()=>{clearCallUI();renderLogs();updateStats();scheduleNextCall();},2000);}
 
 function clearCallUI(offline=false){stopRingSound();stopSpeech();currentCall=null;agencies={police:false,ems:false,fire:false};updateToggleUI();document.getElementById('dispatch-config').classList.remove('active');if(!offline&&systemOnline){document.getElementById('call-box').className='call-box';document.getElementById('call-box').innerHTML='<div class="call-status standby">⚡ STANDBY</div><div style="font-size:.7rem;color:var(--success);">System online. Awaiting incoming 911 signals...</div>';}document.getElementById('btn-answer').disabled=true;document.getElementById('btn-dispatch').disabled=true;document.getElementById('btn-dismiss').disabled=true;}
 
