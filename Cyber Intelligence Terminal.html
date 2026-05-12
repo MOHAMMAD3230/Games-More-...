@@ -61,33 +61,69 @@ body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:
 </div>
 </div>
 <script>
-let sharedData={revenue:0,valids:0,missed:0,level:1,rankPoints:0,history:[],registry:{},forgedAliases:{},nextSpawnOverride:null,activeInmates:[],releasedInmates:[],ledgerCashouts:[],intelFlags:[],paroleRecords:[],iaViolations:[],rehabPrograms:[]};
+let sharedData = { 
+    revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, 
+    history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null,
+    activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [],
+    ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: []
+};
 
 function updateClock(){document.getElementById('clock').innerText=new Date().toLocaleTimeString('en-GB');}
 setInterval(updateClock,1000);
 
+const HASH_SALT = "ENFORCE_V23_SECURE_SALT";
+function generateSignature(dataStr) {
+    let hash = 0;
+    const str = HASH_SALT + dataStr;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; 
+    }
+    return hash.toString(16);
+}
+
 function loadData(){
-    const s=localStorage.getItem('enforcementTerminalV23');
-    if(s){
+    const savedData = localStorage.getItem('enforcementTerminalV23');
+    const savedSig = localStorage.getItem('enforcementTerminalV23_sig');
+    if(savedData){
         try{
-            const p=JSON.parse(s);
-            sharedData=p;
+            if(savedSig !== generateSignature(savedData)){
+                console.error("CYBERINT BREACH: Data tampering detected! Wiping corrupted data.");
+                localStorage.removeItem('enforcementTerminalV23');
+                localStorage.removeItem('enforcementTerminalV23_sig');
+                return;
+            }
+            const p = JSON.parse(savedData);
+            sharedData = p;
+            
             if(!sharedData.registry)sharedData.registry={};
             if(!sharedData.forgedAliases)sharedData.forgedAliases={};
             if(sharedData.nextSpawnOverride===undefined)sharedData.nextSpawnOverride=null;
             if(!sharedData.activeInmates)sharedData.activeInmates=[];
             if(!sharedData.releasedInmates)sharedData.releasedInmates=[];
+            if(!sharedData.inbox)sharedData.inbox=[];
+            if(!sharedData.sentMail)sharedData.sentMail=[];
+            if(!sharedData.call911Logs)sharedData.call911Logs=[];
             if(!sharedData.ledgerCashouts)sharedData.ledgerCashouts=[];
             if(!sharedData.intelFlags)sharedData.intelFlags=[];
             if(!sharedData.paroleRecords)sharedData.paroleRecords=[];
             if(!sharedData.iaViolations)sharedData.iaViolations=[];
             if(!sharedData.rehabPrograms)sharedData.rehabPrograms=[];
-        }catch(e){}
+            if(!sharedData.history)sharedData.history=[];
+        }catch(e){
+            console.error("Load error:", e);
+        }
     }
     renderDashboard();
+    renderLogs();
 }
 
-function saveData(){localStorage.setItem('enforcementTerminalV23',JSON.stringify(sharedData));}
+function saveData(){
+    const dataStr = JSON.stringify(sharedData);
+    localStorage.setItem('enforcementTerminalV23', dataStr);
+    localStorage.setItem('enforcementTerminalV23_sig', generateSignature(dataStr));
+}
 
 function addLog(msg,color){
     const l=document.getElementById('intel-log');
@@ -96,9 +132,39 @@ function addLog(msg,color){
     e.style.marginBottom='5px';
     e.innerText='> '+msg;
     l.prepend(e);
+
+    // Persist logs to cross-terminal storage
+    if(!sharedData.intelFlags) sharedData.intelFlags = [];
+    sharedData.intelFlags.push({
+        plate: "SYSTEM",
+        type: "LOG",
+        message: msg,
+        color: color,
+        time: new Date().toLocaleTimeString(),
+        status: "LOGGED"
+    });
+    saveData();
+}
+
+function renderLogs(){
+    const l=document.getElementById('intel-log');
+    l.innerHTML = '';
+    const logs = (sharedData.intelFlags||[]).filter(f => f.type === 'LOG').slice(-30).reverse();
+    if(logs.length === 0){
+        l.innerHTML = '<div style="color:#555;">No intelligence logs recorded yet.</div>';
+    } else {
+        logs.forEach(log => {
+            const e=document.createElement('div');
+            e.style.color=log.color||'var(--accent)';
+            e.style.marginBottom='5px';
+            e.innerText='> '+log.message;
+            l.appendChild(e);
+        });
+    }
 }
 
 function runDeepScan(){
+    loadData(); // Sync before modifying
     addLog('Initiating deep network scan...','#888');
     let forgeCount=0;
     let tollBypass=0;
@@ -119,7 +185,7 @@ function runDeepScan(){
             };
             alerts.push(alertObj);
             
-            const exists=sharedData.intelFlags.find(f=>f.plate===plate&&f.status==='ACTIVE');
+            const exists=sharedData.intelFlags.find(f=>f.plate===plate&&f.status==='ACTIVE'&&f.type==='FORGE_INJECTION');
             if(!exists){
                 sharedData.intelFlags.push(alertObj);
                 flagged++;
@@ -140,12 +206,12 @@ function runDeepScan(){
 
     document.getElementById('stat-forges').innerText=forgeCount;
     document.getElementById('stat-tollpass').innerText=tollBypass;
-    document.getElementById('stat-flagged').innerText=sharedData.intelFlags.filter(f=>f.status==='ACTIVE').length;
+    document.getElementById('stat-flagged').innerText=sharedData.intelFlags.filter(f=>f.status==='ACTIVE'&&f.type==='FORGE_INJECTION').length;
 
     const list=document.getElementById('alert-list');
     list.innerHTML='';
     
-    if(alerts.length===0&&sharedData.intelFlags.length===0){
+    if(alerts.length===0&&sharedData.intelFlags.filter(f=>f.type==='FORGE_INJECTION').length===0){
         list.innerHTML='<div style="color:#555;text-align:center;padding:20px;">NO THREATS DETECTED</div>';
         addLog('Scan complete. Network clean.','var(--success)');
         return;
@@ -162,23 +228,55 @@ function runDeepScan(){
 }
 
 function purgeForgedEntries(){
+    loadData(); // Sync before modifying
     let purged=0;
+    const purgedPlates = [];
+
     Object.keys(sharedData.registry).forEach(plate=>{
         if(sharedData.registry[plate].registeredBy==='SYNDICATE_FORGE'){
             delete sharedData.registry[plate];
             delete sharedData.forgedAliases[plate];
+            purgedPlates.push(plate);
             purged++;
         }
     });
+
+    // Update history so Audit terminal doesn't count forged revenue
+    (sharedData.history||[]).forEach(h => {
+        if(purgedPlates.includes(h.plate)){
+            h.action = "PURGED BY CYBERINT";
+        }
+    });
+
     sharedData.intelFlags.forEach(f=>{if(f.type==='FORGE_INJECTION')f.status='PURGED';});
+    
     saveData();
     renderDashboard();
+    renderAlerts(); // Re-render alerts to show as purged/resolved
     addLog(`PURGED: ${purged} forged entries removed from network.`,'var(--danger)');
+}
+
+function renderAlerts(){
+    const list=document.getElementById('alert-list');
+    list.innerHTML='';
+    const activeFlags = (sharedData.intelFlags||[]).filter(f => f.type === 'FORGE_INJECTION');
+
+    if(activeFlags.length === 0){
+        list.innerHTML='<div style="color:#555;text-align:center;padding:20px;">NO THREATS DETECTED</div>';
+        return;
+    }
+
+    activeFlags.forEach(a => {
+        const d=document.createElement('div');
+        d.className = a.status === 'PURGED' ? 'alert-item resolved' : 'alert-item';
+        d.innerHTML=`<div style="display:flex;justify-content:space-between"><span style="color:var(--danger);font-weight:bold">${a.plate}</span><span style="color:#555">${a.time}</span></div><div style="font-size:.7rem;color:var(--warning);margin-top:4px">Real Plate: ${a.realPlate} | Fake ID: ${a.fakeId} | Status: ${a.status}</div>`;
+        list.appendChild(d);
+    });
 }
 
 function renderDashboard(){
     document.getElementById('stat-forges').innerText=Object.values(sharedData.registry||{}).filter(r=>r.registeredBy==='SYNDICATE_FORGE').length;
-    document.getElementById('stat-flagged').innerText=(sharedData.intelFlags||[]).filter(f=>f.status==='ACTIVE').length;
+    document.getElementById('stat-flagged').innerText=(sharedData.intelFlags||[]).filter(f=>f.status==='ACTIVE'&&f.type==='FORGE_INJECTION').length;
     
     let bypassCount = 0;
     (sharedData.history||[]).forEach(h=>{
@@ -188,6 +286,8 @@ function renderDashboard(){
         }
     });
     document.getElementById('stat-tollpass').innerText=bypassCount;
+    
+    renderAlerts();
 }
 
 loadData();
