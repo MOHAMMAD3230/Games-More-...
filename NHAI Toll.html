@@ -31,6 +31,7 @@
             border: 8px solid #1a1a1a; box-shadow: 0 20px 50px #000;
             display: flex; flex-direction: column; gap: 12px; width: 100%; 
             max-width: 1150px; box-sizing: border-box; height: 100vh;
+            position: relative;
         }
 
         .header-bar { 
@@ -62,6 +63,8 @@
 
         #screen.danger-mode { background: var(--danger-bg); border-color: var(--error); }
         #screen.warning-mode { background: var(--warning-bg); border-color: var(--gold); }
+        #screen.success-mode { background: #001a09; border-color: var(--success); }
+        #screen.pending-mode { background: #001020; border-color: var(--neon); }
 
         #scr-body { font-size: 15px; text-align: center; margin-top: 10px; line-height: 1.4; }
         .sensor-tag { position: absolute; top: 8px; left: 10px; font-size: 9px; color: var(--gold); }
@@ -82,13 +85,14 @@
             text-transform: uppercase; font-size: 9px; text-align: left;
         }
         .mech-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #111; }
-        .mech-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .mech-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none !important; }
         
         .mech-btn.blue { background: linear-gradient(145deg, #3498db, #2980b9); color: white; }
         .mech-btn.gold { background: linear-gradient(145deg, #f1c40f, #f39c12); text-align: center; }
         .mech-btn.red { background: linear-gradient(145deg, #e74c3c, #c0392b); color: white; text-align: center; }
         .mech-btn.purple { background: linear-gradient(145deg, #a55eea, #8854d0); color: white; }
         .mech-btn.police { background: linear-gradient(145deg, #ff0044, #99002a); color: white; text-align: center; animation: pulsePolice 1.5s infinite; }
+        .mech-btn.enforce { background: linear-gradient(145deg, #00b894, #009472); color: white; text-align: center; }
 
         .payment-bank { width: 200px; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
         .user-card { 
@@ -97,11 +101,48 @@
         }
 
         .printer-slot { height: 70px; background: #050505; border: 2px solid #222; position: relative; overflow: hidden; margin-top: auto; }
-        .receipt { 
-            width: 85%; background: #fff; color: #000; position: absolute; 
-            top: -180%; left: 7.5%; padding: 8px; font-size: 9px; text-align: center; 
+        
+        /* --- POPUP RECEIPT MODAL --- */
+        .receipt-modal {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 100; display: none;
+            justify-content: center; align-items: center; backdrop-filter: blur(5px);
         }
-        .print-active { top: 5px; transition: 1.2s ease-in-out; }
+        .receipt-modal.active { display: flex; }
+
+        .receipt-paper {
+            width: 400px; background: #fdfdfd; color: #000; padding: 30px; 
+            font-family: 'Courier New', monospace; position: relative; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8); border: 1px dashed #aaa;
+        }
+        .rcp-header { text-align: center; border-bottom: 2px dashed #000; padding-bottom: 10px; margin-bottom: 15px; }
+        .rcp-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+        .rcp-label { font-weight: bold; color: #333; }
+        .rcp-value { color: #000; text-align: right; }
+        .rcp-divider { border-top: 1px dashed #aaa; margin: 15px 0; }
+        .rcp-total { font-size: 18px; font-weight: 900; }
+        
+        .stamp-box {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg);
+            border: 5px solid transparent; padding: 15px 30px; font-size: 32px; font-weight: 900;
+            text-transform: uppercase; letter-spacing: 3px; opacity: 0; 
+            pointer-events: none; transition: opacity 0.2s; text-align: center; line-height: 1.2;
+        }
+        .stamp-box.stamped { opacity: 0.8; }
+        .stamp-box.approved { border-color: var(--success); color: var(--success); }
+        .stamp-box.rejected { border-color: var(--gold); color: var(--gold); }
+        .stamp-box.arrested { border-color: var(--error); color: var(--error); }
+
+        .stamp-mech-controls { display: flex; gap: 15px; margin-top: 25px; justify-content: center; }
+        .stamp-mech-btn {
+            padding: 15px 25px; border: 3px solid #000; border-radius: 5px; cursor: pointer; 
+            font-weight: 900; text-transform: uppercase; font-size: 16px; text-align: center;
+            box-shadow: 0 5px 0 #111; transition: transform 0.1s;
+        }
+        .stamp-mech-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #111; }
+        .stamp-m-approve { background: var(--success); color: #000; }
+        .stamp-m-reject { background: var(--gold); color: #000; }
+        .stamp-m-arrest { background: var(--error); color: #fff; }
 
         /* Database Panel */
         .db-panel { 
@@ -117,13 +158,15 @@
         .db-clear { color: var(--success); text-shadow: 0 0 10px rgba(46, 213, 115, 0.5); }
         .db-wanted { color: var(--error); text-shadow: 0 0 10px rgba(255, 71, 87, 0.5); animation: pulseDanger 1s infinite; }
         .db-unknown { color: var(--gold); text-shadow: 0 0 10px rgba(255, 165, 2, 0.5); }
+        .db-pending { color: var(--neon); text-shadow: 0 0 10px rgba(0, 217, 255, 0.5); animation: pulseNeon 1.5s infinite; }
         .db-plate-display { font-size: 1.2rem; color: var(--gold); margin-top: 10px; font-weight: bold; word-break: break-all; }
         .db-details { font-size: 0.75rem; color: #888; margin-top: 5px; }
 
         .scan-line { width: 100%; height: 1px; background: var(--neon); position: absolute; top: 0; left: 0; opacity: 0.5; animation: scan 1.5s infinite linear; display: none;}
         @keyframes scan { 0% { top: 0; } 100% { top: 100%; } }
         @keyframes pulseDanger { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-        @keyframes pulsePolice { 0% { background: linear-gradient(145deg, #ff0044, #99002a); } 50% { background: linear-gradient(145deg, #ff4757, #cc2233); } 100% { background: linear-gradient(145deg, #ff0044, #99002a); } }
+        @keyframes pulsePolice { 0% { background-color: #ff0044; } 50% { background-color: #cc2233; } 100% { background-color: #ff0044; } }
+        @keyframes pulseNeon { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
 
         /* --- RESPONSIVE DESIGN --- */
         @media (max-width: 1024px) {
@@ -145,6 +188,9 @@
             .db-details { margin-top: 0; }
         }
         @media (max-width: 600px) {
+            .receipt-paper { width: 95%; padding: 15px; }
+            .rcp-row { font-size: 12px; }
+            .stamp-mech-btn { padding: 10px 15px; font-size: 14px; }
             .console-unit { padding: 5px; gap: 8px; }
             .shared-stats { font-size: 9px; padding: 5px; flex-wrap: wrap; gap: 5px; }
             .header-bar { font-size: 10px; }
@@ -180,6 +226,7 @@
             
             <hr style="width: 100%; border: 0; border-top: 1px solid #444;">
             <button class="mech-btn gold" onclick="detectVehicle()">Detect Vehicle</button>
+            <button class="mech-btn enforce" id="btn-enforce" onclick="runEnforcementCheck()" disabled>Enforce ID Check</button>
             <button class="mech-btn police" id="btn-patrol" onclick="dispatchPatrol()" disabled>Dispatch Patrol</button>
             <button class="mech-btn red" onclick="resetConsole()">Reset Console</button>
         </div>
@@ -221,16 +268,8 @@
             </div>
 
             <button class="mech-btn" id="btn-cash" onclick="initCashMode()" disabled>Cash Pay</button>
-
-            <div class="printer-slot">
-                <div id="paper" class="receipt">
-                    <b id="rcp-head">TOLL RECEIPT</b><br>
-                    <small id="rcp-date" style="font-size: 7px;"></small>
-                    <hr>
-                    <div id="rcp-v" style="font-size: 8px;"></div>
-                    <div id="rcp-a" style="font-weight:bold; margin-top: 3px;"></div>
-                </div>
-            </div>
+            
+            <div class="printer-slot"></div>
         </div>
 
         <!-- Security Re-Verification Database -->
@@ -241,13 +280,50 @@
             </div>
         </div>
     </div>
+
+    <!-- POPUP RECEIPT MODAL -->
+    <div class="receipt-modal" id="receiptModal">
+        <div class="receipt-paper">
+            <div class="rcp-header">
+                <div style="font-size: 18px; font-weight: 900;">NHAI TOLL RECEIPT</div>
+                <div style="font-size: 10px; color: #555;" id="rcp-date"></div>
+            </div>
+            
+            <div class="rcp-row"><span class="rcp-label">NAME:</span> <span class="rcp-value" id="rcp-name">---</span></div>
+            <div class="rcp-row"><span class="rcp-label">SEX:</span> <span class="rcp-value" id="rcp-sex">---</span></div>
+            <div class="rcp-row"><span class="rcp-label">PLATE:</span> <span class="rcp-value" id="rcp-plate">---</span></div>
+            <div class="rcp-row"><span class="rcp-label">LICENCE ID:</span> <span class="rcp-value" id="rcp-lic">---</span></div>
+            
+            <div class="rcp-divider"></div>
+            
+            <div class="rcp-row"><span class="rcp-label">TOLL PLAZA:</span> <span class="rcp-value">NHAI GATE 04</span></div>
+            <div class="rcp-row"><span class="rcp-label">DESTINATION:</span> <span class="rcp-value" id="rcp-dest">---</span></div>
+            <div class="rcp-row"><span class="rcp-label">BASE TOLL:</span> <span class="rcp-value" id="rcp-base">---</span></div>
+            <div class="rcp-row"><span class="rcp-label">DIST CHARGE:</span> <span class="rcp-value" id="rcp-dist">---</span></div>
+            
+            <div class="rcp-divider"></div>
+            
+            <div class="rcp-row rcp-total"><span class="rcp-label">TOTAL PAID:</span> <span class="rcp-value" id="rcp-total">---</span></div>
+
+            <div class="stamp-box" id="stampBox"></div>
+
+            <div class="stamp-mech-controls">
+                <button class="stamp-mech-btn stamp-m-approve" onclick="stampAction('APPROVED')">✓ Approve</button>
+                <button class="stamp-mech-btn stamp-m-reject" onclick="stampAction('REJECTED')">✗ Reject</button>
+                <button class="stamp-mech-btn stamp-m-arrest" onclick="stampAction('ARRESTED')">⚡ Arrest</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
     let mode = 'IDLE', vType = '', baseToll = 100, city = '', dist = 0, totalDue = 0, uIdx = null, inputBuffer = '', currentPlate = 'UNKNOWN';
     let currentVehicleStatus = 'CLEAR'; 
+    let pendingCheckPlate = null; 
     const users = [ {bal: 200}, {bal: 500} ];
     const ratePerKm = 0.5; 
+
+    let currentVehicleData = { name: 'UNKNOWN', sex: 'UNKNOWN', lic: 'N/A' };
 
     let sharedData = { revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null, activeInmates: [], releasedInmates: [], ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [] };
 
@@ -272,7 +348,6 @@
                 if(!sharedData.rehabPrograms) sharedData.rehabPrograms = [];
             } catch(e) {}
         }
-        updateSharedUI();
     }
 
     function saveSharedData() {
@@ -284,20 +359,55 @@
         document.getElementById('sharedRev').innerText = sharedData.revenue;
         document.getElementById('sharedVal').innerText = sharedData.valids;
         
-        if (sharedData.history && sharedData.history.length > 0) {
-            const lastAction = sharedData.history[sharedData.history.length - 1];
-            if(lastAction.action === "RELEASED") {
-                currentPlate = lastAction.plate;
-                document.getElementById('sharedPlate').innerText = currentPlate;
-            } else {
-                currentPlate = "UNKNOWN";
-                document.getElementById('sharedPlate').innerText = "UNKNOWN (ROGUE)";
-            }
+        // NEXT_PLATE logic: Only update if actively routing or a new vehicle arrives
+        if (sharedData.nextSpawnOverride) {
+            document.getElementById('sharedPlate').innerText = sharedData.nextSpawnOverride;
         } else {
-            currentPlate = "UNKNOWN";
-            document.getElementById('sharedPlate').innerText = "---";
+            document.getElementById('sharedPlate').innerText = "---"; // Keep clean when idle
         }
     }
+
+    function checkEnforcementResponse() {
+        if (mode === 'PENDING_ENFORCEMENT' && pendingCheckPlate) {
+            loadSharedData(); 
+            let record = sharedData.registry[pendingCheckPlate];
+            
+            if (record && record.status === 'CLEAR') {
+                currentPlate = pendingCheckPlate;
+                currentVehicleStatus = 'CLEAR';
+                mode = 'SELECT_CITY';
+                
+                currentVehicleData = { name: record.name || 'ENFORCEMENT CLEAR', sex: record.sex || 'N/A', lic: record.id };
+                
+                document.getElementById('screen').className = 'success-mode';
+                document.getElementById('db-box').innerHTML = `
+                    <div class="db-status db-clear">✓ CLEAR</div>
+                    <div class="db-plate-display">${currentPlate}</div>
+                    <div class="db-details">ID: ${record.id}<br>LICENSE VERIFIED BY DASHBOARD 1</div>
+                `;
+                updateScr(`<span style="color:var(--success)">ENFORCEMENT CONFIRMED</span><br>PLATE: ${currentPlate}<br>LICENSE VALID - SELECT DESTINATION`);
+                
+                for(let i=1; i<=5; i++) document.getElementById('city-'+i).disabled = false;
+                pendingCheckPlate = null; 
+            } 
+            else if (record && record.status === 'REJECTED') {
+                currentVehicleStatus = 'REJECTED';
+                mode = 'ENFORCEMENT_REJECTED';
+                
+                document.getElementById('screen').className = 'danger-mode';
+                document.getElementById('db-box').innerHTML = `
+                    <div class="db-status db-wanted">✗ REJECTED</div>
+                    <div class="db-plate-display">${pendingCheckPlate}</div>
+                    <div class="db-details" style="color:var(--error)">ENFORCEMENT REJECTED<br>INVALID ID / WARRANT ACTIVE</div>
+                `;
+                updateScr(`<span style="color:var(--error)">ENFORCEMENT REJECTED</span><br>VEHICLE NOT CLEARED<br>DISPATCH PATROL OR ARREST`);
+                
+                document.getElementById('btn-patrol').disabled = false; 
+                pendingCheckPlate = null;
+            }
+        }
+    }
+    setInterval(checkEnforcementResponse, 1500); 
 
     function detectVehicle() {
         if(mode !== 'IDLE') return;
@@ -318,43 +428,55 @@
             let screenDiv = document.getElementById('screen');
             
             currentVehicleStatus = 'CLEAR'; 
-            document.getElementById('btn-patrol').disabled = true; // Hide patrol by default
+            document.getElementById('btn-patrol').disabled = true; 
+            document.getElementById('btn-enforce').disabled = true; 
+            currentVehicleData = { name: 'UNKNOWN', sex: 'UNKNOWN', lic: 'N/A' };
 
             if (currentPlate === "UNKNOWN") {
                 currentVehicleStatus = 'UNKNOWN';
                 screenDiv.className = 'warning-mode';
-                document.getElementById('btn-patrol').disabled = false; // SHOW PATROL BUTTON
+                document.getElementById('btn-patrol').disabled = false; 
+                document.getElementById('btn-enforce').disabled = false; 
+                
                 dbBox.innerHTML = `
                     <div class="db-status db-unknown">⚠ ROGUE</div>
                     <div class="db-plate-display">UNKNOWN</div>
-                    <div class="db-details" style="color:var(--gold)">UNREGISTERED VEHICLE<br>DISPATCH PATROL OR PENALTY</div>
+                    <div class="db-details" style="color:var(--gold)">UNREGISTERED VEHICLE<br>REQUEST ID CHECK</div>
                 `;
-                updateScr(`VEHICLE: ${vType}<br>PLATE: <span style="color:var(--gold)">UNKNOWN</span> (ROGUE)<br>AWAITING ACTION`);
+                updateScr(`VEHICLE: ${vType}<br>PLATE: <span style="color:var(--gold)">UNKNOWN</span><br>AWAITING ACTION`);
             }
             else if (forgeryData) {
                 currentVehicleStatus = 'WANTED';
                 screenDiv.className = 'danger-mode';
+                document.getElementById('btn-patrol').disabled = false; 
+                currentVehicleData = { name: 'FORGED ALIAS', sex: 'N/A', lic: 'FORGED' };
+                
                 dbBox.innerHTML = `
                     <div class="db-status db-wanted">⚠ WANTED</div>
                     <div class="db-plate-display">${currentPlate}</div>
                     <div class="db-details" style="color:var(--error)">FORGED ALIAS DETECTED<br>REAL PLATE: ${forgeryData.realPlate}</div>
                 `;
-                updateScr(`VEHICLE: ${vType}<br>PLATE: <span style="color:var(--error)">${currentPlate}</span> (SECURITY ALERT)<br>SELECT DESTINATION`);
+                updateScr(`VEHICLE: ${vType}<br>PLATE: <span style="color:var(--error)">${currentPlate}</span> (SECURITY ALERT)<br>DISPATCH OR CASH ONLY`);
             } 
             else if (registryData && registryData.status === 'WANTED') {
                 currentVehicleStatus = 'WANTED';
                 screenDiv.className = 'danger-mode';
+                document.getElementById('btn-patrol').disabled = false; 
+                currentVehicleData = { name: registryData.name || 'WANTED FUGITIVE', sex: registryData.sex || 'N/A', lic: registryData.id };
+                
                 dbBox.innerHTML = `
                     <div class="db-status db-wanted">⚠ WANTED</div>
                     <div class="db-plate-display">${currentPlate}</div>
-                    <div class="db-details" style="color:var(--error)">APB ACTIVE - DO NOT PAY TOLL</div>
+                    <div class="db-details" style="color:var(--error)">APB ACTIVE - DISPATCH PATROL</div>
                 `;
-                updateScr(`VEHICLE: ${vType}<br>PLATE: <span style="color:var(--error)">${currentPlate}</span> (WANTED)<br>SELECT DESTINATION`);
+                updateScr(`VEHICLE: ${vType}<br>PLATE: <span style="color:var(--error)">${currentPlate}</span> (WANTED)<br>DISPATCH PATROL IMMEDIATELY`);
             } 
             else {
                 currentVehicleStatus = 'CLEAR';
                 screenDiv.className = ''; 
                 let idDisplay = registryData ? registryData.id : "N/A";
+                if(registryData) currentVehicleData = { name: registryData.name || 'CIVILIAN', sex: registryData.sex || 'N/A', lic: registryData.id };
+                
                 dbBox.innerHTML = `
                     <div class="db-status db-clear">✓ CLEAR</div>
                     <div class="db-plate-display">${currentPlate}</div>
@@ -367,27 +489,69 @@
         }, 1200);
     }
 
-    function dispatchPatrol() {
+    function runEnforcementCheck() {
         if(currentVehicleStatus !== 'UNKNOWN') return;
 
-        // Generate a temporary hold plate
+        document.getElementById('scanner').style.display = 'block';
+        updateScr("ROUTING TO ENFORCEMENT DASHBOARD 1...<br>INITIATING ID CHECK");
+
+        setTimeout(() => {
+            document.getElementById('scanner').style.display = 'none';
+            mode = 'PENDING_ENFORCEMENT';
+            
+            let checkPlate = "ENF-" + Math.floor(10000+Math.random()*90000);
+            pendingCheckPlate = checkPlate; 
+            
+            sharedData.registry[checkPlate] = {
+                id: "PENDING_ENFORCEMENT",
+                vClass: "LVM_CLASS_1",
+                status: "PENDING_ENFORCEMENT", 
+                registeredBy: "NHAI_TOLL_ENFORCEMENT"
+            };
+
+            sharedData.nextSpawnOverride = checkPlate; 
+
+            sharedData.history.push({
+                plate: checkPlate,
+                id: "PENDING_ENFORCEMENT",
+                action: "ENFORCEMENT HOLD",
+                timestamp: new Date().toLocaleTimeString()
+            });
+
+            saveSharedData();
+
+            document.getElementById('btn-enforce').disabled = true;
+            document.getElementById('btn-patrol').disabled = true;
+            for(let i=1; i<=5; i++) document.getElementById('city-'+i).disabled = true;
+
+            document.getElementById('screen').className = 'pending-mode';
+            document.getElementById('db-box').innerHTML = `
+                <div class="db-status db-pending">⏳ PENDING</div>
+                <div class="db-plate-display">${checkPlate}</div>
+                <div class="db-details" style="color:var(--neon)">WAITING FOR DASHBOARD 1<br>ID VERIFICATION / RENEWAL</div>
+            `;
+            updateScr(`<span style="color:var(--neon)">ENFORCEMENT CHECK PENDING</span><br>PLATE: ${checkPlate}<br>AWAITING DASHBOARD 1 ACTION`);
+            
+        }, 1800);
+    }
+
+    function dispatchPatrol() {
+        if(currentVehicleStatus !== 'UNKNOWN' && currentVehicleStatus !== 'WANTED' && currentVehicleStatus !== 'REJECTED') return;
+
         let holdPlate = "HOLD-" + Math.floor(1000+Math.random()*9000);
 
-        // 1. Add to Registry as WANTED so Dashboard 1 flags it immediately
         sharedData.registry[holdPlate] = {
-            id: "MISSING", // Force them to need a new ID
+            id: currentVehicleStatus === 'WANTED' || currentVehicleStatus === 'REJECTED' ? "ARREST_TARGET" : "MISSING",
             vClass: "ROGUE_CLASS",
             status: "WANTED",
             registeredBy: "NHAI_PATROL_DISPATCH"
         };
 
-        // 2. Force Dashboard 1 to spawn this exact vehicle next!
-        sharedData.nextSpawnOverride = holdPlate;
+        sharedData.nextSpawnOverride = holdPlate; 
 
-        // 3. Log the dispatch
         sharedData.history.push({
             plate: holdPlate,
-            id: "PATROL_DISPATCH",
+            id: currentVehicleStatus === 'WANTED' || currentVehicleStatus === 'REJECTED' ? "ARREST_TARGET" : "MISSING",
             action: "PATROL DISPATCHED",
             timestamp: new Date().toLocaleTimeString()
         });
@@ -397,10 +561,10 @@
         updateScr(`<span style="color:var(--error)">PATROL DISPATCHED</span><br>VEHICLE HELD AS: ${holdPlate}<br>ENROUTE TO ENFORCEMENT GATE`);
         
         document.getElementById('btn-patrol').disabled = true;
+        document.getElementById('btn-enforce').disabled = true;
         document.getElementById('btn-cash').disabled = true;
         for(let i=1; i<=5; i++) document.getElementById('city-'+i).disabled = true;
 
-        // Auto reset after dispatch
         setTimeout(resetConsole, 3000);
     }
 
@@ -408,12 +572,11 @@
         city = name; dist = kms;
         let distFare = kms * ratePerKm; 
         
-        if(currentVehicleStatus === 'UNKNOWN') {
-            totalDue = 500; // Flat Penalty Toll for Rogues
+        if(currentVehicleStatus === 'UNKNOWN' || currentVehicleStatus === 'REJECTED') {
+            totalDue = 500; 
             mode = 'PAYMENT_SEL';
             updateScr(`DEST: ${name}<br><span style="color:var(--error)">PENALTY TOLL: $${totalDue}</span><br>CASH ONLY`);
             document.getElementById('btn-cash').disabled = false;
-            document.getElementById('btn-patrol').disabled = false; // Keep patrol option open
         } 
         else {
             totalDue = baseToll + distFare; 
@@ -435,7 +598,7 @@
 
     function uSel(idx) {
         if(mode === 'PAYMENT_SEL') {
-            if(currentVehicleStatus === 'WANTED' || currentVehicleStatus === 'UNKNOWN') {
+            if(currentVehicleStatus === 'WANTED' || currentVehicleStatus === 'UNKNOWN' || currentVehicleStatus === 'REJECTED') {
                 updateScr(`<span style="color:var(--error)">RFID BLOCKED:</span><br>SECURITY LOCK REQUIRES CASH`);
                 return;
             }
@@ -447,7 +610,7 @@
     function initCashMode() {
         if(mode === 'PAYMENT_SEL') {
             mode = 'PAY_CASH'; inputBuffer = '';
-            if(currentVehicleStatus === 'WANTED') {
+            if(currentVehicleStatus === 'WANTED' || currentVehicleStatus === 'REJECTED') {
                 updateScr(`WANTED VEHICLE<br>SECURITY TOLL: $${totalDue}<br>INPUT CASH TENDERED:`);
             } else if (currentVehicleStatus === 'UNKNOWN') {
                 updateScr(`ROGUE VEHICLE<br>PENALTY TOLL: $${totalDue}<br>INPUT CASH TENDERED:`);
@@ -466,86 +629,132 @@
     function confirmAction() {
         if (mode === 'RECHARGE' && inputBuffer) {
             users[uIdx].bal += parseInt(inputBuffer);
-            finalize("TOP-UP SUCCESS", `+$${inputBuffer}`, 0);
+            syncUI();
+            updateScr(`<span style="color:var(--success)">TOP-UP SUCCESS</span><br>+$${inputBuffer}`);
+            mode = 'IDLE';
+            setTimeout(resetConsole, 2000);
         } 
         else if (mode === 'PAY_CASH' && parseInt(inputBuffer) >= totalDue) {
             let change = parseInt(inputBuffer) - totalDue;
-            if(currentVehicleStatus === 'WANTED') {
-                finalize("SECURITY BYPASS", `$${totalDue} (CHG: $${change})`, totalDue);
+            if(currentVehicleStatus === 'WANTED' || currentVehicleStatus === 'REJECTED') {
+                triggerReceiptModal("CASH (WANTED)", totalDue, change);
             } else if (currentVehicleStatus === 'UNKNOWN') {
-                finalize("ROGUE PENALTY", `$${totalDue} (CHG: $${change})`, totalDue);
+                triggerReceiptModal("CASH (ROGUE)", totalDue, change);
             } else {
-                finalize("PAID CASH", `$${totalDue} (CHG: $${change})`, totalDue);
+                triggerReceiptModal("CASH", totalDue, change);
             }
         }
         else if (mode === 'PAY_RFID' && users[uIdx].bal >= totalDue) {
             users[uIdx].bal -= totalDue;
-            finalize("RFID SUCCESS", `$${totalDue}`, totalDue);
+            syncUI();
+            triggerReceiptModal("RFID", totalDue, 0);
         } else if (mode === 'PAY_RFID') {
             updateScr("<span style='color:var(--error)'>LOW BALANCE</span><br>RECHARGE REQUIRED");
         }
     }
 
-    function finalize(head, amt, tollRevenue) {
-        sharedData.revenue += tollRevenue;
-        
-        if(tollRevenue > 0) {
-            let actionType = "TOLL PAID";
-            if(currentVehicleStatus === 'WANTED') actionType = "WANTED TOLL";
-            if(currentVehicleStatus === 'UNKNOWN') actionType = "ROGUE TOLL";
-
-            sharedData.history.push({
-                plate: currentPlate,
-                id: city,
-                action: actionType,
-                timestamp: new Date().toLocaleTimeString()
-            });
+    function triggerReceiptModal(payMethod, amount, change) {
+        mode = 'AWAITING_STAMP';
+        let distFare = dist * ratePerKm;
+        let baseAmt = amount - distFare;
+        if(currentVehicleStatus === 'UNKNOWN' || currentVehicleStatus === 'REJECTED') {
+            baseAmt = 500; distFare = 0; 
         }
 
-        // If UNKNOWN pays, flag them
-        if(currentVehicleStatus === 'UNKNOWN' && tollRevenue > 0) {
-            let rogueId = "ROGUE-" + Math.floor(1000+Math.random()*9000);
-            sharedData.registry[rogueId] = {
-                id: rogueId, vClass: "ROGUE_CLASS", status: "WANTED", registeredBy: "NHAI_PENALTY_SYSTEM"
-            };
-        }
-        
-        saveSharedData(); 
-        syncUI(); 
-        
-        if(currentVehicleStatus === 'WANTED') {
-            updateScr(`<span style="color:var(--error)">SECURITY LOGGED</span><br>${head}`);
-        } else if (currentVehicleStatus === 'UNKNOWN') {
-            updateScr(`<span style="color:var(--gold)">ROGUE WARRANT ISSUED</span><br>${head}`);
-        } else {
-            updateScr(`<span style="color:var(--success)">TRANSACTION OK</span><br>${head}`);
-        }
-
-        document.getElementById('rcp-head').innerText = head;
         document.getElementById('rcp-date').innerText = new Date().toLocaleString();
-        document.getElementById('rcp-v').innerText = city ? `${vType} to ${city}` : "RECHARGE";
-        document.getElementById('rcp-a').innerText = "AMT: " + amt;
-        document.getElementById('paper').classList.add('print-active');
+        document.getElementById('rcp-name').innerText = currentVehicleData.name;
+        document.getElementById('rcp-sex').innerText = currentVehicleData.sex;
+        document.getElementById('rcp-plate').innerText = currentPlate;
+        document.getElementById('rcp-lic').innerText = currentVehicleData.lic;
+        document.getElementById('rcp-dest').innerText = city || 'N/A';
+        document.getElementById('rcp-base').innerText = `$${baseAmt.toFixed(2)}`;
+        document.getElementById('rcp-dist').innerText = `$${distFare.toFixed(2)}`;
+        document.getElementById('rcp-total').innerText = `$${amount.toFixed(2)}`;
         
-        setTimeout(() => { document.getElementById('paper').classList.remove('print-active'); resetConsole(); }, 3000);
+        if(change > 0) document.getElementById('rcp-total').innerText += ` (Chg: $${change})`;
+        if(payMethod === 'RFID') document.getElementById('rcp-total').innerText += ` [${payMethod}]`;
+
+        let stampBox = document.getElementById('stampBox');
+        stampBox.className = 'stamp-box'; 
+        stampBox.innerText = '';
+        
+        document.getElementById('receiptModal').classList.add('active');
+        document.getElementById('screen').className = 'warning-mode';
+        updateScr(`<span style="color:var(--gold)">PAYMENT RECEIVED</span><br>GATE LOCKED - STAMP RECEIPT`);
+    }
+
+    function stampAction(action) {
+        if(mode !== 'AWAITING_STAMP') return;
+
+        let stampBox = document.getElementById('stampBox');
+        stampBox.className = 'stamp-box stamped'; 
+        
+        if (action === 'APPROVED') {
+            stampBox.classList.add('approved');
+            stampBox.innerText = "APPROVED";
+            document.getElementById('screen').className = 'success-mode';
+            updateScr(`<span style="color:var(--success)">✓ STAMP APPROVED</span><br>GATE OPENED - PROCEED`);
+            
+            sharedData.revenue += totalDue;
+            sharedData.history.push({ plate: currentPlate, action: "TOLL PAID", timestamp: new Date().toLocaleTimeString() });
+            
+            // Clear the NEXT_PLATE because the transaction is complete
+            sharedData.nextSpawnOverride = null; 
+            saveSharedData();
+        } 
+        else if (action === 'REJECTED') {
+            stampBox.classList.add('rejected');
+            stampBox.innerText = "REJECTED";
+            document.getElementById('screen').className = 'warning-mode';
+            updateScr(`<span style="color:var(--gold)">✗ STAMP REJECTED</span><br>ROUTING TO DASHBOARD 1`);
+            
+            let rejectPlate = "REJ-" + Math.floor(10000+Math.random()*90000);
+            sharedData.registry[rejectPlate] = { id: "UNVERIFIED", vClass: vType, status: "PENDING_ENFORCEMENT", registeredBy: "NHAI_REJECTION" };
+            sharedData.nextSpawnOverride = rejectPlate; 
+            sharedData.history.push({ plate: rejectPlate, action: "TOLL REJECTED - PENDING ENFORCEMENT", timestamp: new Date().toLocaleTimeString() });
+            saveSharedData();
+        } 
+        else if (action === 'ARRESTED') {
+            stampBox.classList.add('arrested');
+            stampBox.innerHTML = "ARRESTED<br><span style='font-size:16px'>PENALTY</span>";
+            document.getElementById('screen').className = 'danger-mode';
+            updateScr(`<span style="color:var(--error)">⚡ STAMP ARREST</span><br>DISPATCHING TO DASHBOARD 7 (JAIL)`);
+            
+            let arrestPlate = "ARR-" + Math.floor(10000+Math.random()*90000);
+            sharedData.registry[arrestPlate] = { id: "ARRESTED", vClass: vType, status: "WANTED", registeredBy: "NHAI_ARREST_STAMP" };
+            sharedData.nextSpawnOverride = arrestPlate; 
+            sharedData.activeInmates.push({ plate: arrestPlate, id: "ARRESTED", time: new Date().toLocaleTimeString() });
+            sharedData.revenue += totalDue; 
+            sharedData.history.push({ plate: arrestPlate, action: "ARRESTED AT TOLL", timestamp: new Date().toLocaleTimeString() });
+            saveSharedData();
+        }
+
+        setTimeout(() => { 
+            document.getElementById('receiptModal').classList.remove('active'); 
+            resetConsole(); 
+        }, 1500); 
     }
 
     function updateScr(txt) { document.getElementById('scr-body').innerHTML = txt; }
     function syncUI() { users.forEach((u, i) => document.getElementById('u'+i).innerText = "$"+u.bal); }
     
     function resetConsole() {
-        mode = 'IDLE'; vType = ''; city = ''; totalDue = 0; inputBuffer = ''; currentVehicleStatus = 'CLEAR';
+        mode = 'IDLE'; vType = ''; city = ''; totalDue = 0; inputBuffer = ''; currentVehicleStatus = 'CLEAR'; pendingCheckPlate = null;
+        currentVehicleData = { name: 'UNKNOWN', sex: 'UNKNOWN', lic: 'N/A' };
+        currentPlate = 'UNKNOWN'; 
         document.getElementById('screen').className = ''; 
         updateScr("TOLL SYSTEM READY<br>SCAN VEHICLE TO BEGIN");
         for(let i=1; i<=5; i++) document.getElementById('city-'+i).disabled = true;
         document.getElementById('btn-cash').disabled = true;
         document.getElementById('btn-patrol').disabled = true;
-        
+        document.getElementById('btn-enforce').disabled = true;
+
         document.getElementById('db-box').innerHTML = `<div style="color:#555; font-size: 0.8rem;">NO VEHICLE DETECTED</div>`;
     }
 
+    // Initialize only once on load
     loadSharedData();
-    setInterval(loadSharedData, 2000);
+    updateSharedUI();
 </script>
 
 </body>
