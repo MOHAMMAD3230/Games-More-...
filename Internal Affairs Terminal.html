@@ -67,34 +67,69 @@ body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:
 </div>
 </div>
 <script>
-let sharedData={revenue:0,valids:0,missed:0,level:1,rankPoints:0,history:[],registry:{},forgedAliases:{},nextSpawnOverride:null,activeInmates:[],releasedInmates:[],ledgerCashouts:[],intelFlags:[],paroleRecords:[],iaViolations:[],rehabPrograms:[]};
+let sharedData = { 
+    revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, 
+    history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null,
+    activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [],
+    ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: []
+};
 
 function updateClock(){document.getElementById('clock').innerText=new Date().toLocaleTimeString('en-GB');}
 setInterval(updateClock,1000);
 
+const HASH_SALT = "ENFORCE_V23_SECURE_SALT";
+function generateSignature(dataStr) {
+    let hash = 0;
+    const str = HASH_SALT + dataStr;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; 
+    }
+    return hash.toString(16);
+}
+
 function loadData(){
-    const s=localStorage.getItem('enforcementTerminalV23');
-    if(s){
+    const savedData = localStorage.getItem('enforcementTerminalV23');
+    const savedSig = localStorage.getItem('enforcementTerminalV23_sig');
+    if(savedData){
         try{
-            const p=JSON.parse(s);
-            sharedData=p;
+            if(savedSig !== generateSignature(savedData)){
+                console.error("IA BREACH: Data tampering detected! Wiping corrupted data.");
+                localStorage.removeItem('enforcementTerminalV23');
+                localStorage.removeItem('enforcementTerminalV23_sig');
+                return;
+            }
+            const p = JSON.parse(savedData);
+            sharedData = p;
+            
             if(!sharedData.history)sharedData.history=[];
             if(!sharedData.registry)sharedData.registry={};
             if(!sharedData.forgedAliases)sharedData.forgedAliases={};
             if(sharedData.nextSpawnOverride===undefined)sharedData.nextSpawnOverride=null;
             if(!sharedData.activeInmates)sharedData.activeInmates=[];
             if(!sharedData.releasedInmates)sharedData.releasedInmates=[];
+            if(!sharedData.inbox)sharedData.inbox=[];
+            if(!sharedData.sentMail)sharedData.sentMail=[];
+            if(!sharedData.call911Logs)sharedData.call911Logs=[];
             if(!sharedData.ledgerCashouts)sharedData.ledgerCashouts=[];
             if(!sharedData.intelFlags)sharedData.intelFlags=[];
             if(!sharedData.paroleRecords)sharedData.paroleRecords=[];
             if(!sharedData.iaViolations)sharedData.iaViolations=[];
             if(!sharedData.rehabPrograms)sharedData.rehabPrograms=[];
-        }catch(e){}
+        }catch(e){
+            console.error("Load error:", e);
+        }
     }
     renderDashboard();
+    renderLogs();
 }
 
-function saveData(){localStorage.setItem('enforcementTerminalV23',JSON.stringify(sharedData));}
+function saveData(){
+    const dataStr = JSON.stringify(sharedData);
+    localStorage.setItem('enforcementTerminalV23', dataStr);
+    localStorage.setItem('enforcementTerminalV23_sig', generateSignature(dataStr));
+}
 
 function addLog(msg,color){
     const l=document.getElementById('ia-log');
@@ -103,9 +138,39 @@ function addLog(msg,color){
     e.style.marginBottom='5px';
     e.innerText='> '+msg;
     l.prepend(e);
+
+    // Persist logs to cross-terminal storage
+    if(!sharedData.iaViolations) sharedData.iaViolations = [];
+    sharedData.iaViolations.push({
+        plate: "IA_SYSTEM",
+        type: "LOG",
+        message: msg,
+        color: color,
+        time: new Date().toLocaleTimeString(),
+        status: "LOGGED"
+    });
+    saveData();
+}
+
+function renderLogs(){
+    const l=document.getElementById('ia-log');
+    l.innerHTML = '';
+    const logs = (sharedData.iaViolations||[]).filter(f => f.plate === 'IA_SYSTEM' && f.type === 'LOG').slice(-30).reverse();
+    if(logs.length === 0){
+        l.innerHTML = '<div style="color:#555;">No investigation logs recorded yet.</div>';
+    } else {
+        logs.forEach(log => {
+            const e=document.createElement('div');
+            e.style.color=log.color||'var(--danger)';
+            e.style.marginBottom='5px';
+            e.innerText='> '+log.message;
+            l.appendChild(e);
+        });
+    }
 }
 
 function runAudit(){
+    loadData(); // Sync latest data
     addLog('AUDIT: Scanning all officer actions...','#888');
     const hist=sharedData.history||[];
     const reg=sharedData.registry||{};
@@ -121,9 +186,25 @@ function runAudit(){
                 violations.push({type:'WRONGFUL ARREST',plate:h.plate,severity:'major',time:h.timestamp,detail:'Arrested a CLEAR citizen'});
             }
         }
-        if(h.action==='RELEASED'){
+        if(h.action==='RELEASED'||h.action.includes('PAROLE / RELEASED')){
             if(forgedPlates.includes(h.plate)){
                 violations.push({type:'CORRUPT RELEASE',plate:h.plate,severity:'major',time:h.timestamp,detail:'Released a known forged alias'});
+                suspicious++;
+            }
+            // Check if released a wanted felon via parole
+            const histForPlate = hist.filter(x => x.plate === h.plate);
+            const wasArrested = histForPlate.some(x => x.action.includes('ARRESTED'));
+            const currentReg = reg[h.plate];
+            if(wasArrested && currentReg && currentReg.status === 'CLEAR' && currentReg.registeredBy === 'PAROLE_BOARD') {
+                // Valid parole, no violation
+            } else if (wasArrested && !currentReg) {
+                violations.push({type:'ILLEGAL RELEASE',plate:h.plate,severity:'major',time:h.timestamp,detail:'Released subject without updating registry'});
+                suspicious++;
+            }
+        }
+        if(h.action==='LICENSE APPROVED'){
+            if(forgedPlates.includes(h.plate)){
+                violations.push({type:'CORRUPT LICENSING',plate:h.plate,severity:'major',time:h.timestamp,detail:'Approved license for known forged alias'});
                 suspicious++;
             }
         }
@@ -137,16 +218,11 @@ function runAudit(){
                 suspicious++;
             }
         }
-        if(reg[plate].registeredBy==='AUTH_TERMINAL'&&reg[plate].status==='CLEAR'){
-            const hasAlias=aliases[plate];
-            if(hasAlias){
-                violations.push({type:'CORRUPT LICENSING',plate:plate,severity:'major',time:'N/A',detail:'Approved license for flagged applicant'});
-                suspicious++;
-            }
-        }
     });
 
-    sharedData.iaViolations=violations;
+    // Filter out LOG type entries before saving violations back
+    const existingLogs = (sharedData.iaViolations||[]).filter(v => v.type === 'LOG');
+    sharedData.iaViolations = [...existingLogs, ...violations];
     saveData();
 
     const validActions=sharedData.valids||0;
@@ -182,7 +258,7 @@ function runAudit(){
 }
 
 function renderDashboard(){
-    const v=(sharedData.iaViolations||[]);
+    const v=(sharedData.iaViolations||[]).filter(x => x.type !== 'LOG'); // Exclude logs from integrity calc
     const b=sharedData.missed||0;
     const integrity=Math.max(0,100-(b*5)-(v.filter(x=>x.severity==='major').length*10));
     
@@ -193,6 +269,20 @@ function renderDashboard(){
     
     document.getElementById('s-valid').innerText=sharedData.valids||0;
     document.getElementById('s-breaches').innerText=b;
+    
+    // Render Violations List (excluding logs)
+    const list=document.getElementById('violation-list');
+    list.innerHTML='';
+    if(v.length === 0){
+        list.innerHTML='<div style="color:#555;text-align:center;padding:20px;">NO VIOLATIONS</div>';
+    } else {
+        v.forEach(vi=>{
+            const d=document.createElement('div');
+            d.className='violation-item '+(vi.severity||'minor');
+            d.innerHTML=`<div style="display:flex;justify-content:space-between"><span style="color:${vi.severity==='major'?'var(--danger)':'var(--warning)'};font-weight:bold">${vi.type}</span><span style="color:#555">${vi.time||'N/A'}</span></div><div style="font-size:.7rem;color:#888;margin-top:4px">${vi.plate||'SYS'} — ${vi.detail||''}</div>`;
+            list.appendChild(d);
+        });
+    }
 }
 
 loadData();
