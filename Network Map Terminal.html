@@ -10,7 +10,7 @@ window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NHAI - Network Map Terminal</title>
 <style>
-:root{--bg:#050508;--panel:#0a0a12;--accent:#00d9ff;--success:#2ed573;--danger:#ff0044;--warning:#ffa502;--border:#1a1a2e;--road:#1a1a2a;}
+:root{--bg:#050508;--panel:#0a0a12;--accent:#00d9ff;--success:#2ed573;--danger:#ff0044;--warning:#ffa502;--border:#1a1a2e;--road:#1a1a2a;--purple:#a855f7;}
 body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:0;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
 .top-bar{background:#000;padding:15px 20px;border-bottom:2px solid var(--accent);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
 .top-bar h1{margin:0;font-size:.9rem;color:var(--accent);letter-spacing:1px;}
@@ -24,15 +24,17 @@ body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:
 .node-d5{border-color:var(--success);top:8%;left:5%;}.node-d5 .node-label,.node-d5 .node-count{color:var(--success);}
 .node-d4{border-color:#888;top:8%;left:35%;}.node-d4 .node-label,.node-d4 .node-count{color:#888;}
 .node-d6{border-color:var(--danger);top:8%;right:5%;}.node-d6 .node-label,.node-d6 .node-count{color:var(--danger);}
+.node-d7{border-color:var(--warning);top:35%;left:5%;}.node-d7 .node-label,.node-d7 .node-count{color:var(--warning);}
 .node-d1{border-color:var(--accent);top:45%;left:35%;}.node-d1 .node-label,.node-d1 .node-count{color:var(--accent);}
 .node-d2{border-color:var(--warning);top:45%;left:65%;}.node-d2 .node-label,.node-d2 .node-count{color:var(--warning);}
-.node-d7{border-color:var(--danger);top:45%;left:5%;}.node-d7 .node-label,.node-d7 .node-count{color:var(--danger);}
-.node-d8{border-color:#ff6b81;bottom:8%;left:20%;}.node-d8 .node-label,.node-d8 .node-count{color:#ff6b81;}
+.node-d8{border-color:var(--danger);bottom:8%;left:20%;}.node-d8 .node-label,.node-d8 .node-count{color:var(--danger);}
 .node-d9{border-color:var(--success);bottom:8%;right:20%;}.node-d9 .node-label,.node-d9 .node-count{color:var(--success);}
+.node-d10{border-color:var(--purple);top:35%;right:5%;}.node-d10 .node-label,.node-d10 .node-count{color:var(--purple);}
 .road-svg{position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;pointer-events:none;}
 .road-svg line{stroke:#222;stroke-width:2;}
 .road-svg line.active-road{stroke:var(--accent);stroke-width:2;stroke-dasharray:8 4;animation:dashMove 1s linear infinite;}
 .road-svg line.danger-road{stroke:var(--danger);stroke-width:2;stroke-dasharray:8 4;animation:dashMove .5s linear infinite;}
+.road-svg line.purple-road{stroke:var(--purple);stroke-width:2;stroke-dasharray:8 4;animation:dashMove 1.5s linear infinite;}
 @keyframes dashMove{to{stroke-dashoffset:-12;}}
 .legend{display:flex;gap:20px;flex-shrink:0;font-size:.7rem;color:#555;justify-content:center;padding:10px;background:var(--panel);border:1px solid var(--border);border-radius:4px;}
 .legend-item{display:flex;align-items:center;gap:5px;}
@@ -53,6 +55,7 @@ body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:
 <div class="node node-d4" id="n-d4"><div class="node-label">D4: REGISTRY</div><div class="node-count" id="nc-d4">0</div></div>
 <div class="node node-d6" id="n-d6"><div class="node-label">D6: FORGE</div><div class="node-count" id="nc-d6">0</div></div>
 <div class="node node-d7" id="n-d7"><div class="node-label">D7: DISPATCH</div><div class="node-count" id="nc-d7">0</div></div>
+<div class="node node-d10" id="n-d10"><div class="node-label">D10: CYBERINT</div><div class="node-count" id="nc-d10">0</div></div>
 <div class="node node-d1" id="n-d1"><div class="node-label">D1: ENFORCE</div><div class="node-count" id="nc-d1">0</div></div>
 <div class="node node-d2" id="n-d2"><div class="node-label">D2: TOLL</div><div class="node-count" id="nc-d2">0</div></div>
 <div class="node node-d8" id="n-d8"><div class="node-label">D8: PRISON</div><div class="node-count" id="nc-d8">0</div></div>
@@ -63,31 +66,63 @@ body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:
 <div class="legend-item"><div class="legend-dot" style="background:var(--danger)"></div> Criminal/Pursuit</div>
 <div class="legend-item"><div class="legend-dot" style="background:var(--success)"></div> Clear/Revenue</div>
 <div class="legend-item"><div class="legend-dot" style="background:var(--warning)"></div> Toll Activity</div>
+<div class="legend-item"><div class="legend-dot" style="background:var(--purple)"></div> Intelligence</div>
 </div>
 </div>
 <script>
-let sharedData={revenue:0,valids:0,missed:0,level:1,rankPoints:0,history:[],registry:{},forgedAliases:{},nextSpawnOverride:null,activeInmates:[],releasedInmates:[],ledgerCashouts:[],intelFlags:[],paroleRecords:[],iaViolations:[],rehabPrograms:[]};
+let sharedData = { 
+    revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, 
+    history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null,
+    activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [],
+    ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: []
+};
 
 function updateClock(){document.getElementById('clock').innerText=new Date().toLocaleTimeString('en-GB');}
 setInterval(updateClock,1000);
 
+const HASH_SALT = "ENFORCE_V23_SECURE_SALT";
+function generateSignature(dataStr) {
+    let hash = 0;
+    const str = HASH_SALT + dataStr;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; 
+    }
+    return hash.toString(16);
+}
+
 function loadData(){
-    const s=localStorage.getItem('enforcementTerminalV23');
-    if(s){
+    const savedData = localStorage.getItem('enforcementTerminalV23');
+    const savedSig = localStorage.getItem('enforcementTerminalV23_sig');
+    if(savedData){
         try{
-            const p=JSON.parse(s);
-            sharedData=p;
+            if(savedSig !== generateSignature(savedData)){
+                console.error("NETMAP BREACH: Data tampering detected! Wiping corrupted data.");
+                localStorage.removeItem('enforcementTerminalV23');
+                localStorage.removeItem('enforcementTerminalV23_sig');
+                return;
+            }
+            const p = JSON.parse(savedData);
+            sharedData = p;
+            
             if(!sharedData.registry)sharedData.registry={};
             if(!sharedData.forgedAliases)sharedData.forgedAliases={};
             if(sharedData.nextSpawnOverride===undefined)sharedData.nextSpawnOverride=null;
             if(!sharedData.activeInmates)sharedData.activeInmates=[];
             if(!sharedData.releasedInmates)sharedData.releasedInmates=[];
+            if(!sharedData.inbox)sharedData.inbox=[];
+            if(!sharedData.sentMail)sharedData.sentMail=[];
+            if(!sharedData.call911Logs)sharedData.call911Logs=[];
             if(!sharedData.ledgerCashouts)sharedData.ledgerCashouts=[];
             if(!sharedData.intelFlags)sharedData.intelFlags=[];
             if(!sharedData.paroleRecords)sharedData.paroleRecords=[];
             if(!sharedData.iaViolations)sharedData.iaViolations=[];
             if(!sharedData.rehabPrograms)sharedData.rehabPrograms=[];
-        }catch(e){}
+            if(!sharedData.history)sharedData.history=[];
+        }catch(e){
+            console.error("Load error:", e);
+        }
     }
     renderMap();
 }
@@ -97,14 +132,15 @@ function renderMap(){
     const aliases=sharedData.forgedAliases||{};
     const hist=sharedData.history||[];
     
-    const d5Count=Object.values(reg).filter(r=>r.registeredBy==='AUTH_TERMINAL').length;
-    const d4Count=Object.values(reg).filter(r=>r.registeredBy==='DB_TERMINAL').length;
+    const d5Count=Object.values(reg).filter(r=>r.registeredBy==='AUTH_TERMINAL'||r.registeredBy==='NHAI_LICENSING_AUTH').length;
+    const d4Count=Object.values(reg).filter(r=>r.registeredBy==='DB_TERMINAL'||r.registeredBy==='NHAI_DB_TERMINAL').length;
     const d6Count=Object.keys(aliases).length;
-    const d7Wanted=Object.values(reg).filter(r=>r.status==='WANTED').length;
+    const d7Wanted=Object.values(reg).filter(r=>r.status==='WANTED'||r.registeredBy==='NHAI_PATROL_DISPATCH').length;
     const d1Recent=hist.filter(h=>h.action==='RELEASED'||h.action==='ARRESTED').length;
     const d2Recent=hist.filter(h=>h.action&&h.action.includes('TOLL')).length;
     const d8Count=(sharedData.activeInmates||[]).length;
     const d9Count=(sharedData.ledgerCashouts||[]).reduce((s,c)=>s+c.totalCashOut,0);
+    const d10Flags=(sharedData.intelFlags||[]).filter(f=>f.type==='FORGE_INJECTION'&&f.status==='ACTIVE').length;
     
     document.getElementById('nc-d5').innerText=d5Count;
     document.getElementById('nc-d4').innerText=d4Count;
@@ -114,11 +150,15 @@ function renderMap(){
     document.getElementById('nc-d2').innerText=d2Recent;
     document.getElementById('nc-d8').innerText=d8Count;
     document.getElementById('nc-d9').innerText='$'+d9Count;
+    document.getElementById('nc-d10').innerText=d10Flags;
     
     const isPatrolActive=sharedData.nextSpawnOverride&&sharedData.nextSpawnOverride.startsWith('HOLD-');
-    document.getElementById('n-d7').className='node node-d7'+(isPatrolActive?' active':'');
+    const is911Active=sharedData.nextSpawnOverride&&!sharedData.nextSpawnOverride.startsWith('HOLD-')&&sharedData.registry[sharedData.nextSpawnOverride]&&(sharedData.registry[sharedData.nextSpawnOverride].registeredBy==='911_OPERATOR'||sharedData.registry[sharedData.nextSpawnOverride].source==='911_DISPATCH');
+    
+    document.getElementById('n-d7').className='node node-d7'+(isPatrolActive||is911Active?' active':'');
     document.getElementById('n-d1').className='node node-d1'+(sharedData.nextSpawnOverride?' active':'');
     document.getElementById('n-d8').className='node node-d8'+(d8Count>0?' active':'');
+    document.getElementById('n-d10').className='node node-d10'+(d10Flags>0?' active':'');
     
     drawRoads();
 }
@@ -129,6 +169,7 @@ function drawRoads(){
     const connections=[
         {from:'n-d5',to:'n-d4',cls:''},
         {from:'n-d6',to:'n-d4',cls:'danger-road'},
+        {from:'n-d10',to:'n-d4',cls:'purple-road'}, // CyberInt monitors registry
         {from:'n-d4',to:'n-d1',cls:''},
         {from:'n-d7',to:'n-d1',cls:sharedData.nextSpawnOverride?'danger-road':''},
         {from:'n-d1',to:'n-d2',cls:'active-road'},
@@ -137,6 +178,8 @@ function drawRoads(){
         {from:'n-d1',to:'n-d9',cls:''}
     ];
     
+    const cR=document.getElementById('map-canvas').getBoundingClientRect();
+    
     connections.forEach(c=>{
         const fEl=document.getElementById(c.from);
         const tEl=document.getElementById(c.to);
@@ -144,7 +187,6 @@ function drawRoads(){
         
         const fR=fEl.getBoundingClientRect();
         const tR=tEl.getBoundingClientRect();
-        const cR=document.getElementById('map-canvas').getBoundingClientRect();
         
         const x1=fR.left+fR.width/2-cR.left;
         const y1=fR.top+fR.height/2-cR.top;
@@ -161,7 +203,13 @@ function drawRoads(){
     });
 }
 
-window.addEventListener('resize',drawRoads);
+// Debounce window resize to prevent lag
+let resizeTimer;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(drawRoads, 250);
+});
+
 loadData();
 setInterval(loadData,2000);
 </script>
