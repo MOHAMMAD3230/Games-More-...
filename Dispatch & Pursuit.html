@@ -23,7 +23,6 @@ body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:
 .status-idle{color:#555;}.status-rogue{color:var(--warning);animation:pulseRogue 1.5s infinite;}.status-pursuit{color:var(--danger);animation:pulsePursuit 0.5s infinite;}
 @keyframes pulseRogue{0%{opacity:1;}50%{opacity:0.6;}100%{opacity:1;}}@keyframes pulsePursuit{0%{opacity:1;}50%{opacity:0.4;}100%{opacity:1;}}
 
-/* Multi-Agency Manifest */
 .agency-manifest{display:flex;gap:8px;justify-content:center;margin-top:15px;flex-wrap:wrap;}
 .agency-badge{padding:5px 10px;border-radius:4px;font-size:.7rem;font-weight:bold;text-transform:uppercase;border:1px solid #333;background:#111;}
 .badge-police{color:var(--police);border-color:var(--police);}.badge-ems{color:var(--ems);border-color:var(--ems);animation:pulseEms 1s infinite;}.badge-fire{color:var(--fire);border-color:var(--fire);animation:pulseFire 1s infinite;}
@@ -68,48 +67,216 @@ body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:
 </div>
 </div>
 <script>
-let sharedData={revenue:0,valids:0,missed:0,level:1,rankPoints:0,history:[],registry:{},forgedAliases:{},nextSpawnOverride:null,activeInmates:[],releasedInmates:[],ledgerCashouts:[],intelFlags:[],paroleRecords:[],iaViolations:[],rehabPrograms:[],call911Logs:[]};
-let isRogueDetected=false;
-function updateClock(){document.getElementById('clock').innerText=new Date().toLocaleTimeString('en-GB');}setInterval(updateClock,1000);
-function loadData(){const saved=localStorage.getItem('enforcementTerminalV23');if(saved){try{const parsed=JSON.parse(saved);sharedData=parsed;if(!sharedData.registry)sharedData.registry={};if(!sharedData.forgedAliases)sharedData.forgedAliases={};if(sharedData.nextSpawnOverride===undefined)sharedData.nextSpawnOverride=null;if(!sharedData.activeInmates)sharedData.activeInmates=[];if(!sharedData.releasedInmates)sharedData.releasedInmates=[];if(!sharedData.ledgerCashouts)sharedData.ledgerCashouts=[];if(!sharedData.intelFlags)sharedData.intelFlags=[];if(!sharedData.paroleRecords)sharedData.paroleRecords=[];if(!sharedData.iaViolations)sharedData.iaViolations=[];if(!sharedData.rehabPrograms)sharedData.rehabPrograms=[];if(!sharedData.call911Logs)sharedData.call911Logs=[];}catch(e){}}checkRogueStatus();renderAPBList();}
-function saveData(){localStorage.setItem('enforcementTerminalV23',JSON.stringify(sharedData));}
+let sharedData = { 
+    revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, 
+    history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null,
+    activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [],
+    ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: []
+};
+let isRogueDetected = false;
 
-function checkRogueStatus(){
-    const lastAction=sharedData.history.length>0?sharedData.history[sharedData.history.length-1]:null;
-    let active911Units=[];
-    // Check latest 911 dispatch for multi-agency data
-    const dispatches=(sharedData.call911Logs||[]).filter(l=>l.status==='DISPATCHED');
-    if(dispatches.length>0){const latest=dispatches[dispatches.length-1];if(latest.dispatchedUnits)active911Units=latest.dispatchedUnits;}
+function updateClock() { document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB'); }
+setInterval(updateClock, 1000);
 
-    const manifestBox=document.getElementById('agency-manifest');manifestBox.innerHTML='';
-
-    if(lastAction&&lastAction.plate==="UNKNOWN"&&(lastAction.action==="TOLL PAID"||lastAction.action==="ROGUE TOLL")){
-        isRogueDetected=true;document.getElementById('rogue-status').innerText="⚠ ROGUE VEHICLE DETECTED";document.getElementById('rogue-status').className="status-text status-rogue";document.getElementById('rogue-details').innerText="Unregistered vehicle bypassed NHAI Toll. Dispatch patrol immediately.";document.getElementById('btn-dispatch').disabled=false;
-        manifestBox.innerHTML='<div class="agency-badge badge-police">POLICE</div>';
-    }else if(sharedData.nextSpawnOverride&&sharedData.nextSpawnOverride.startsWith("HOLD-")){
-        if(!sharedData.registry[sharedData.nextSpawnOverride]){clearRogueStatus();sharedData.nextSpawnOverride=null;saveData();}
-        else{isRogueDetected=true;document.getElementById('rogue-status').innerText="⚠ PATROL EN ROUTE";document.getElementById('rogue-status').className="status-text status-pursuit";document.getElementById('rogue-details').innerText=`Target held as ${sharedData.nextSpawnOverride}. Awaiting Enforcement scan.`;document.getElementById('btn-dispatch').disabled=true;
-        manifestBox.innerHTML='<div class="agency-badge badge-police">POLICE</div>';}
-    }else if(sharedData.nextSpawnOverride&&!sharedData.nextSpawnOverride.startsWith("HOLD-")){
-        // ACTIVE 911 PURSUIT OVERRIDE
-        isRogueDetected=true;document.getElementById('rogue-status').innerText="🚨 CODE 3 PURSUIT";document.getElementById('rogue-status').className="status-text status-pursuit";document.getElementById('rogue-details').innerText=`911 PRIORITY: ${sharedData.nextSpawnOverride}`;document.getElementById('btn-dispatch').disabled=true;
-        // Show Multi-Agency Manifest
-        if(active911Units.length>0){
-            active911Units.forEach(u=>{const cls=u==='POLICE'?'badge-police':u==='EMS'?'badge-ems':'badge-fire';manifestBox.innerHTML+=`<div class="agency-badge ${cls}">${u}</div>`;});
-        }else{manifestBox.innerHTML='<div class="agency-badge badge-police">POLICE</div>';}
-    }else{clearRogueStatus();}
+const HASH_SALT = "ENFORCE_V23_SECURE_SALT";
+function generateSignature(dataStr) {
+    let hash = 0;
+    const str = HASH_SALT + dataStr;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; 
+    }
+    return hash.toString(16);
 }
 
-function simulateRogueBypass(){sharedData.history.push({plate:"UNKNOWN",id:"BYPASS",action:"ROGUE TOLL",timestamp:new Date().toLocaleTimeString()});saveData();loadData();}
-function dispatchRoguePatrol(){if(!isRogueDetected)return;let holdPlate="HOLD-"+Math.floor(1000+Math.random()*9000);sharedData.registry[holdPlate]={id:"MISSING",vClass:"ROGUE_CLASS",status:"WANTED",registeredBy:"PATROL_DISPATCH"};sharedData.nextSpawnOverride=holdPlate;sharedData.history.push({plate:holdPlate,id:"PATROL",action:"PATROL DISPATCHED",timestamp:new Date().toLocaleTimeString()});saveData();checkRogueStatus();renderAPBList();}
-function clearRogueStatus(){isRogueDetected=false;document.getElementById('rogue-status').innerText="NO ROGUES DETECTED";document.getElementById('rogue-status').className="status-text status-idle";document.getElementById('rogue-details').innerText="All toll traffic is registered.";document.getElementById('btn-dispatch').disabled=true;document.getElementById('agency-manifest').innerHTML='';}
-function interceptWanted(plate){sharedData.nextSpawnOverride=plate;sharedData.history.push({plate:plate,id:"INTERCEPT",action:"INTERCEPT ORDERED",timestamp:new Date().toLocaleTimeString()});saveData();renderAPBList();document.getElementById('scanner').style.display='block';setTimeout(()=>{document.getElementById('scanner').style.display='none';},2000);}
+function loadData() {
+    const savedData = localStorage.getItem('enforcementTerminalV23');
+    const savedSig = localStorage.getItem('enforcementTerminalV23_sig');
+    if (savedData) {
+        try {
+            if (savedSig !== generateSignature(savedData)) {
+                console.error("SECURITY BREACH: Data tampering detected! Wiping corrupted data.");
+                localStorage.removeItem('enforcementTerminalV23');
+                localStorage.removeItem('enforcementTerminalV23_sig');
+                return;
+            }
+            const parsed = JSON.parse(savedData);
+            sharedData = parsed;
+            
+            // Compatibility checks
+            if(!sharedData.registry) sharedData.registry = {};
+            if(!sharedData.forgedAliases) sharedData.forgedAliases = {};
+            if(sharedData.nextSpawnOverride === undefined) sharedData.nextSpawnOverride = null;
+            if(!sharedData.activeInmates) sharedData.activeInmates = [];
+            if(!sharedData.releasedInmates) sharedData.releasedInmates = [];
+            if(!sharedData.inbox) sharedData.inbox = [];
+            if(!sharedData.sentMail) sharedData.sentMail = [];
+            if(!sharedData.call911Logs) sharedData.call911Logs = [];
+            if(!sharedData.ledgerCashouts) sharedData.ledgerCashouts = [];
+            if(!sharedData.intelFlags) sharedData.intelFlags = [];
+            if(!sharedData.paroleRecords) sharedData.paroleRecords = [];
+            if(!sharedData.iaViolations) sharedData.iaViolations = [];
+            if(!sharedData.rehabPrograms) sharedData.rehabPrograms = [];
+            if(!sharedData.history) sharedData.history = [];
+        } catch(e) {
+            console.error("Corrupted save data, resetting."); 
+            localStorage.removeItem('enforcementTerminalV23');
+            localStorage.removeItem('enforcementTerminalV23_sig');
+        }
+    }
+    checkRogueStatus();
+    renderAPBList();
+}
 
-function renderAPBList(){const listContainer=document.getElementById('apb-list');listContainer.innerHTML='';const registry=sharedData.registry||{};const aliases=sharedData.forgedAliases||{};let hasWanted=false;
-Object.keys(aliases).forEach(fakePlate=>{hasWanted=true;const record=aliases[fakePlate];const item=document.createElement('div');item.className='wanted-item';item.innerHTML=`<div><div class="plate-tag">${fakePlate} (FORGED)</div><div class="source-tag">Real Plate: ${record.realPlate}</div></div><button class="mech-btn btn-intercept" style="width:auto;padding:8px 15px;margin:0;flex-shrink:0;" onclick="interceptWanted('${fakePlate}')">INTERCEPT</button>`;listContainer.appendChild(item);});
-Object.keys(registry).forEach(plate=>{if(registry[plate].status==='WANTED'&&!aliases[plate]){hasWanted=true;const record=registry[plate];const item=document.createElement('div');item.className='wanted-item';item.innerHTML=`<div><div class="plate-tag">${plate}</div><div class="source-tag">Source: ${record.registeredBy||"DB_TERMINAL"}</div></div><button class="mech-btn btn-intercept" style="width:auto;padding:8px 15px;margin:0;flex-shrink:0;" onclick="interceptWanted('${plate}')">INTERCEPT</button>`;listContainer.appendChild(item);}});
-if(!hasWanted){listContainer.innerHTML='<div style="color:#555;text-align:center;padding:20px;">NO ACTIVE WARRANTS</div>';}}
-loadData();setInterval(loadData,2000);
+function saveData() {
+    const dataStr = JSON.stringify(sharedData);
+    localStorage.setItem('enforcementTerminalV23', dataStr);
+    localStorage.setItem('enforcementTerminalV23_sig', generateSignature(dataStr));
+}
+
+function checkRogueStatus() {
+    const lastAction = sharedData.history.length > 0 ? sharedData.history[sharedData.history.length - 1] : null;
+    let active911Units = [];
+    const dispatches = (sharedData.call911Logs || []).filter(l => l.status === 'DISPATCHED');
+    if (dispatches.length > 0) {
+        const latest = dispatches[dispatches.length - 1];
+        if (latest.dispatchedUnits) active911Units = latest.dispatchedUnits;
+    }
+
+    const manifestBox = document.getElementById('agency-manifest');
+    manifestBox.innerHTML = '';
+
+    if (lastAction && lastAction.plate === "UNKNOWN" && (lastAction.action === "TOLL PAID" || lastAction.action === "ROGUE TOLL")) {
+        isRogueDetected = true;
+        document.getElementById('rogue-status').innerText = "⚠ ROGUE VEHICLE DETECTED";
+        document.getElementById('rogue-status').className = "status-text status-rogue";
+        document.getElementById('rogue-details').innerText = "Unregistered vehicle bypassed NHAI Toll. Dispatch patrol immediately.";
+        document.getElementById('btn-dispatch').disabled = false;
+        manifestBox.innerHTML = '<div class="agency-badge badge-police">POLICE</div>';
+    } else if (sharedData.nextSpawnOverride && sharedData.nextSpawnOverride.startsWith("HOLD-")) {
+        if (!sharedData.registry[sharedData.nextSpawnOverride]) {
+            clearRogueStatus();
+            sharedData.nextSpawnOverride = null;
+            saveData();
+        } else {
+            isRogueDetected = true;
+            document.getElementById('rogue-status').innerText = "⚠ PATROL EN ROUTE";
+            document.getElementById('rogue-status').className = "status-text status-pursuit";
+            document.getElementById('rogue-details').innerText = `Target held as ${sharedData.nextSpawnOverride}. Awaiting Enforcement scan.`;
+            document.getElementById('btn-dispatch').disabled = true;
+            manifestBox.innerHTML = '<div class="agency-badge badge-police">POLICE</div>';
+        }
+    } else if (sharedData.nextSpawnOverride && !sharedData.nextSpawnOverride.startsWith("HOLD-")) {
+        isRogueDetected = true;
+        document.getElementById('rogue-status').innerText = "🚨 CODE 3 PURSUIT";
+        document.getElementById('rogue-status').className = "status-text status-pursuit";
+        document.getElementById('rogue-details').innerText = `911 PRIORITY: ${sharedData.nextSpawnOverride}`;
+        document.getElementById('btn-dispatch').disabled = true;
+        
+        if (active911Units.length > 0) {
+            active911Units.forEach(u => {
+                const cls = u === 'POLICE' ? 'badge-police' : u === 'EMS' ? 'badge-ems' : 'badge-fire';
+                manifestBox.innerHTML += `<div class="agency-badge ${cls}">${u}</div>`;
+            });
+        } else {
+            manifestBox.innerHTML = '<div class="agency-badge badge-police">POLICE</div>';
+        }
+    } else {
+        clearRogueStatus();
+    }
+}
+
+function simulateRogueBypass() {
+    loadData(); // Fetch latest before pushing history
+    sharedData.history.push({plate: "UNKNOWN", id: "BYPASS", action: "ROGUE TOLL", timestamp: new Date().toLocaleTimeString()});
+    saveData();
+    loadData(); // Re-process UI
+}
+
+function dispatchRoguePatrol() {
+    if (!isRogueDetected) return;
+    loadData();
+    let holdPlate = "HOLD-" + Math.floor(1000 + Math.random() * 9000);
+    sharedData.registry[holdPlate] = {
+        id: "MISSING", 
+        vClass: "ROGUE_CLASS", 
+        status: "WANTED", 
+        registeredBy: "NHAI_PATROL_DISPATCH" // Synced Tag for Enforcement Terminal
+    };
+    sharedData.nextSpawnOverride = holdPlate;
+    sharedData.history.push({plate: holdPlate, id: "PATROL", action: "PATROL DISPATCHED", timestamp: new Date().toLocaleTimeString()});
+    saveData();
+    checkRogueStatus();
+    renderAPBList();
+}
+
+function clearRogueStatus() {
+    isRogueDetected = false;
+    document.getElementById('rogue-status').innerText = "NO ROGUES DETECTED";
+    document.getElementById('rogue-status').className = "status-text status-idle";
+    document.getElementById('rogue-details').innerText = "All toll traffic is registered.";
+    document.getElementById('btn-dispatch').disabled = true;
+    document.getElementById('agency-manifest').innerHTML = '';
+}
+
+function interceptWanted(plate) {
+    loadData();
+    sharedData.nextSpawnOverride = plate;
+    sharedData.history.push({plate: plate, id: "INTERCEPT", action: "INTERCEPT ORDERED", timestamp: new Date().toLocaleTimeString()});
+    saveData();
+    renderAPBList();
+    document.getElementById('scanner').style.display = 'block';
+    setTimeout(() => { document.getElementById('scanner').style.display = 'none'; }, 2000);
+}
+
+function renderAPBList() {
+    const listContainer = document.getElementById('apb-list');
+    listContainer.innerHTML = '';
+    const registry = sharedData.registry || {};
+    const aliases = sharedData.forgedAliases || {};
+    let hasWanted = false;
+
+    Object.keys(aliases).forEach(fakePlate => {
+        hasWanted = true;
+        const record = aliases[fakePlate];
+        const item = document.createElement('div');
+        item.className = 'wanted-item';
+        item.innerHTML = `
+            <div>
+                <div class="plate-tag">${fakePlate} (FORGED)</div>
+                <div class="source-tag">Real Plate: ${record.realPlate}</div>
+            </div>
+            <button class="mech-btn btn-intercept" style="width:auto;padding:8px 15px;margin:0;flex-shrink:0;" onclick="interceptWanted('${fakePlate}')">INTERCEPT</button>
+        `;
+        listContainer.appendChild(item);
+    });
+
+    Object.keys(registry).forEach(plate => {
+        if (registry[plate].status === 'WANTED' && !aliases[plate]) {
+            hasWanted = true;
+            const record = registry[plate];
+            const item = document.createElement('div');
+            item.className = 'wanted-item';
+            item.innerHTML = `
+                <div>
+                    <div class="plate-tag">${plate}</div>
+                    <div class="source-tag">Source: ${record.registeredBy || "DB_TERMINAL"}</div>
+                </div>
+                <button class="mech-btn btn-intercept" style="width:auto;padding:8px 15px;margin:0;flex-shrink:0;" onclick="interceptWanted('${plate}')">INTERCEPT</button>
+            `;
+            listContainer.appendChild(item);
+        }
+    });
+
+    if (!hasWanted) {
+        listContainer.innerHTML = '<div style="color:#555;text-align:center;padding:20px;">NO ACTIVE WARRANTS</div>';
+    }
+}
+
+// Initial load and live sync
+loadData();
+setInterval(loadData, 2000);
 </script>
 </body>
 </html>
