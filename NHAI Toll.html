@@ -107,6 +107,7 @@
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.85); z-index: 100; display: none;
             justify-content: center; align-items: center; backdrop-filter: blur(5px);
+            transition: opacity 0.3s;
         }
         .receipt-modal.active { display: flex; }
 
@@ -114,7 +115,14 @@
             width: 400px; background: #fdfdfd; color: #000; padding: 30px; 
             font-family: 'Courier New', monospace; position: relative; 
             box-shadow: 0 10px 30px rgba(0,0,0,0.8); border: 1px dashed #aaa;
+            animation: slideDown 0.4s ease-out;
         }
+
+        @keyframes slideDown {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
         .rcp-header { text-align: center; border-bottom: 2px dashed #000; padding-bottom: 10px; margin-bottom: 15px; }
         .rcp-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
         .rcp-label { font-weight: bold; color: #333; }
@@ -143,6 +151,19 @@
         .stamp-m-approve { background: var(--success); color: #000; }
         .stamp-m-reject { background: var(--gold); color: #000; }
         .stamp-m-arrest { background: var(--error); color: #fff; }
+
+        /* Evidence Receipt Specifics */
+        .evidence-paper {
+            border: 3px double #000;
+            background: #fff;
+        }
+        .evidence-badge {
+            background: #000; color: #fff; padding: 5px 10px; 
+            display: inline-block; font-size: 12px; font-weight: bold; margin-bottom: 10px;
+        }
+        .evidence-disclaimer {
+            font-size: 10px; color: #555; text-align: center; margin-top: 15px; font-style: italic;
+        }
 
         /* Database Panel */
         .db-panel { 
@@ -281,9 +302,9 @@
         </div>
     </div>
 
-    <!-- POPUP RECEIPT MODAL -->
+    <!-- POPUP RECEIPT MODAL (STAMP) -->
     <div class="receipt-modal" id="receiptModal">
-        <div class="receipt-paper">
+        <div class="receipt-paper" id="mainReceipt">
             <div class="rcp-header">
                 <div style="font-size: 18px; font-weight: 900;">NHAI TOLL RECEIPT</div>
                 <div style="font-size: 10px; color: #555;" id="rcp-date"></div>
@@ -307,10 +328,36 @@
 
             <div class="stamp-box" id="stampBox"></div>
 
-            <div class="stamp-mech-controls">
+            <div class="stamp-mech-controls" id="stampControls">
                 <button class="stamp-mech-btn stamp-m-approve" onclick="stampAction('APPROVED')">✓ Approve</button>
                 <button class="stamp-mech-btn stamp-m-reject" onclick="stampAction('REJECTED')">✗ Reject</button>
                 <button class="stamp-mech-btn stamp-m-arrest" onclick="stampAction('ARRESTED')">⚡ Arrest</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- POPUP EVIDENCE RECEIPT MODAL (DRIVER COPY) -->
+    <div class="receipt-modal" id="evidenceModal">
+        <div class="receipt-paper evidence-paper">
+            <div class="rcp-header">
+                <div class="evidence-badge">OFFICIAL EVIDENCE</div>
+                <div style="font-size: 16px; font-weight: 900;">TOLL PASS VERIFICATION</div>
+                <div style="font-size: 10px; color: #555;" id="ev-date"></div>
+            </div>
+            
+            <div class="rcp-row"><span class="rcp-label">TXN ID:</span> <span class="rcp-value" id="ev-txn">---</span></div>
+            <div class="rcp-row"><span class="rcp-label">PLATE:</span> <span class="rcp-value" id="ev-plate">---</span></div>
+            <div class="rcp-row"><span class="rcp-label">DESTINATION:</span> <span class="rcp-value" id="ev-dest">---</span></div>
+            <div class="rcp-row"><span class="rcp-label">TOTAL PAID:</span> <span class="rcp-value" id="ev-amount">---</span></div>
+            <div class="rcp-row"><span class="rcp-label">GATE STATUS:</span> <span class="rcp-value" id="ev-status">---</span></div>
+            
+            <div class="rcp-divider"></div>
+            
+            <div style="text-align: center; font-weight: bold; font-size: 12px;" id="ev-stamp-text">---</div>
+
+            <div class="evidence-disclaimer">
+                This receipt serves as legal evidence of toll payment/interaction at NHAI GATE 04. 
+                Retain for verification at destination or during security checks.
             </div>
         </div>
     </div>
@@ -327,14 +374,34 @@
 
     let sharedData = { revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null, activeInmates: [], releasedInmates: [], ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [] };
 
+    const HASH_SALT = "ENFORCE_V23_SECURE_SALT";
+    function generateSignature(dataStr) {
+        let hash = 0;
+        const str = HASH_SALT + dataStr;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; 
+        }
+        return hash.toString(16);
+    }
+
     function updateClock() { document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB'); }
     setInterval(updateClock, 1000);
 
     function loadSharedData() {
-        const saved = localStorage.getItem('enforcementTerminalV23');
-        if (saved) {
+        const savedData = localStorage.getItem('enforcementTerminalV23');
+        const savedSig = localStorage.getItem('enforcementTerminalV23_sig');
+        
+        if (savedData) {
             try {
-                const parsed = JSON.parse(saved);
+                if (savedSig !== generateSignature(savedData)) {
+                    updateScr("<span style='color:var(--error)'>SECURITY BREACH: Data tampering detected!</span><br>Wiping corrupted data.");
+                    localStorage.removeItem('enforcementTerminalV23');
+                    localStorage.removeItem('enforcementTerminalV23_sig');
+                    return;
+                }
+                const parsed = JSON.parse(savedData);
                 sharedData = parsed;
                 if(!sharedData.registry) sharedData.registry = {};
                 if(!sharedData.forgedAliases) sharedData.forgedAliases = {};
@@ -351,7 +418,9 @@
     }
 
     function saveSharedData() {
-        localStorage.setItem('enforcementTerminalV23', JSON.stringify(sharedData));
+        const dataStr = JSON.stringify(sharedData);
+        localStorage.setItem('enforcementTerminalV23', dataStr);
+        localStorage.setItem('enforcementTerminalV23_sig', generateSignature(dataStr));
         updateSharedUI();
     }
 
@@ -359,11 +428,10 @@
         document.getElementById('sharedRev').innerText = sharedData.revenue;
         document.getElementById('sharedVal').innerText = sharedData.valids;
         
-        // NEXT_PLATE logic: Only update if actively routing or a new vehicle arrives
         if (sharedData.nextSpawnOverride) {
             document.getElementById('sharedPlate').innerText = sharedData.nextSpawnOverride;
         } else {
-            document.getElementById('sharedPlate').innerText = "---"; // Keep clean when idle
+            document.getElementById('sharedPlate').innerText = "---";
         }
     }
 
@@ -678,6 +746,9 @@
         stampBox.className = 'stamp-box'; 
         stampBox.innerText = '';
         
+        // Show stamp controls again
+        document.getElementById('stampControls').style.display = 'flex';
+        
         document.getElementById('receiptModal').classList.add('active');
         document.getElementById('screen').className = 'warning-mode';
         updateScr(`<span style="color:var(--gold)">PAYMENT RECEIVED</span><br>GATE LOCKED - STAMP RECEIPT`);
@@ -686,9 +757,14 @@
     function stampAction(action) {
         if(mode !== 'AWAITING_STAMP') return;
 
+        // Hide stamp controls immediately
+        document.getElementById('stampControls').style.display = 'none';
+
         let stampBox = document.getElementById('stampBox');
         stampBox.className = 'stamp-box stamped'; 
         
+        let txnId = "TXN-" + Math.floor(100000+Math.random()*900000);
+
         if (action === 'APPROVED') {
             stampBox.classList.add('approved');
             stampBox.innerText = "APPROVED";
@@ -696,9 +772,9 @@
             updateScr(`<span style="color:var(--success)">✓ STAMP APPROVED</span><br>GATE OPENED - PROCEED`);
             
             sharedData.revenue += totalDue;
+            sharedData.valids++;
             sharedData.history.push({ plate: currentPlate, action: "TOLL PAID", timestamp: new Date().toLocaleTimeString() });
             
-            // Clear the NEXT_PLATE because the transaction is complete
             sharedData.nextSpawnOverride = null; 
             saveSharedData();
         } 
@@ -729,10 +805,39 @@
             saveSharedData();
         }
 
+        // Close Admin Receipt and trigger Evidence Receipt for the driver
         setTimeout(() => { 
             document.getElementById('receiptModal').classList.remove('active'); 
-            resetConsole(); 
+            triggerEvidenceReceipt(action, txnId);
         }, 1500); 
+    }
+
+    function triggerEvidenceReceipt(action, txnId) {
+        document.getElementById('ev-date').innerText = new Date().toLocaleString();
+        document.getElementById('ev-txn').innerText = txnId;
+        document.getElementById('ev-plate').innerText = currentPlate;
+        document.getElementById('ev-dest').innerText = city || 'N/A';
+        document.getElementById('ev-amount').innerText = `$${totalDue.toFixed(2)}`;
+        
+        let statusText = action;
+        let statusColor = "#000";
+        if(action === 'APPROVED') statusColor = "#2ed573";
+        if(action === 'REJECTED') statusColor = "#ffa502";
+        if(action === 'ARRESTED') statusColor = "#ff4757";
+
+        document.getElementById('ev-status').innerText = statusText;
+        document.getElementById('ev-status').style.color = statusColor;
+        
+        document.getElementById('ev-stamp-text').innerText = `OFFICIAL STAMP: ${statusText}`;
+        document.getElementById('ev-stamp-text').style.color = statusColor;
+
+        document.getElementById('evidenceModal').classList.add('active');
+        
+        // Auto dismiss evidence receipt and reset console
+        setTimeout(() => {
+            document.getElementById('evidenceModal').classList.remove('active');
+            resetConsole();
+        }, 3000);
     }
 
     function updateScr(txt) { document.getElementById('scr-body').innerHTML = txt; }
