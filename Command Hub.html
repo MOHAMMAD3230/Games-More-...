@@ -11,11 +11,12 @@
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NHAI CENTRAL COMMAND - NETWORK HUB v4.0</title>
+<title>NHAI CENTRAL COMMAND - NETWORK HUB v4.1</title>
 <style>
     :root {
         --bg: #050508; --panel: #0d0d14; --accent: #00d9ff; --success: #00ff9d;
         --danger: #ff0044; --warning: #ffcc00; --border: #1a1a2e;
+        --police: #00d9ff; --ems: #ff4757; --fire: #ffa502;
     }
 
     body {
@@ -26,10 +27,18 @@
     .top-bar {
         background: #000; padding: 15px 30px; border-bottom: 2px solid var(--accent);
         display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+        flex-wrap: wrap; gap: 10px;
     }
 
     .top-bar h1 { margin: 0; font-size: 1.2rem; color: var(--accent); letter-spacing: 2px; }
     .top-bar .time { color: var(--warning); font-size: 0.9rem; }
+    .top-bar .sync-badge {
+        font-size: 0.6rem; padding: 4px 10px; border-radius: 3px; letter-spacing: 1px;
+        font-weight: bold; text-transform: uppercase;
+    }
+    .sync-badge.online { background: rgba(0,255,157,0.1); color: var(--success); border: 1px solid var(--success); }
+    .sync-badge.offline { background: rgba(255,0,68,0.1); color: var(--danger); border: 1px solid var(--danger); }
+    .sync-badge.waiting { background: rgba(255,204,0,0.1); color: var(--warning); border: 1px solid var(--warning); }
 
     .grid-layout {
         display: grid; grid-template-columns: 1fr 2fr; grid-template-rows: 1fr 1fr;
@@ -44,49 +53,89 @@
     .panel-header {
         color: var(--accent); font-size: 0.8rem; border-bottom: 1px solid var(--border);
         padding-bottom: 10px; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px;
+        display: flex; justify-content: space-between; align-items: center;
     }
+    .panel-header .header-count { font-size: 0.65rem; color: #555; }
 
     .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; flex-grow: 1; }
-    .stat-box { background: #000; border: 1px solid var(--border); padding: 15px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-    .stat-label { font-size: 0.7rem; color: #888; margin-bottom: 5px; }
+    .stat-box { background: #000; border: 1px solid var(--border); padding: 15px; display: flex; flex-direction: column; justify-content: center; align-items: center; border-radius: 4px; }
+    .stat-label { font-size: 0.7rem; color: #888; margin-bottom: 5px; text-align: center; }
     .stat-value { font-size: 2.5rem; font-weight: bold; }
 
-    .feed-container { flex-grow: 1; overflow-y: auto; background: #000; padding: 10px; border: 1px solid var(--border); }
+    .feed-container { flex-grow: 1; overflow-y: auto; background: #000; padding: 10px; border: 1px solid var(--border); border-radius: 4px; }
     .feed-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed var(--border); font-size: 0.8rem; }
     .feed-item:last-child { border-bottom: none; }
-    .feed-plate { color: var(--warning); font-weight: bold; width: 100px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .feed-plate { color: var(--warning); font-weight: bold; width: 100px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; flex-shrink: 0; }
     .feed-action { flex-grow: 1; padding: 0 15px; }
     .feed-action.toll { color: var(--success); }
     .feed-action.enforce { color: var(--danger); }
-    .feed-time { color: #555; width: 80px; text-align: right; }
+    .feed-action.parole { color: var(--police); }
+    .feed-action.system { color: #888; }
+    .feed-time { color: #555; width: 80px; text-align: right; flex-shrink: 0; }
 
-    .health-row { display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 0.85rem; }
+    .health-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 0.85rem; align-items: center; }
     .health-status { font-weight: bold; }
     .health-status.online { color: var(--success); }
     .health-status.offline { color: var(--danger); }
+    .health-status.waiting { color: var(--warning); }
+    .health-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+    .health-dot.online { background: var(--success); box-shadow: 0 0 6px var(--success); }
+    .health-dot.offline { background: var(--danger); }
+    .health-dot.waiting { background: var(--warning); animation: pulseDot 1.5s infinite; }
+    @keyframes pulseDot {
+        0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; }
+    }
 
-    .activity-graph { flex-grow: 1; background: #000; border: 1px solid var(--border); position: relative; overflow: hidden; display: flex; align-items: flex-end; padding: 10px; gap: 5px; }
-    .graph-bar { background: var(--accent); width: 10%; opacity: 0.7; transition: height 0.5s ease-out; }
+    .activity-graph { flex-grow: 1; background: #000; border: 1px solid var(--border); position: relative; overflow: hidden; display: flex; align-items: flex-end; padding: 10px; gap: 5px; border-radius: 4px; }
+    .graph-bar { background: var(--accent); width: 10%; opacity: 0.7; transition: height 0.5s ease-out; border-radius: 2px 2px 0 0; min-height: 2px; position: relative; }
+    .graph-bar:hover { opacity: 1; }
+    .graph-bar .bar-tooltip {
+        display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+        background: #222; color: #fff; font-size: 0.55rem; padding: 3px 6px; border-radius: 2px;
+        white-space: nowrap; pointer-events: none; z-index: 5; margin-bottom: 4px;
+    }
+    .graph-bar:hover .bar-tooltip { display: block; }
     
-    .scan-line { position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: var(--accent); opacity: 0.3; animation: scanDown 3s infinite linear; }
+    .scan-line { position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: var(--accent); opacity: 0.3; animation: scanDown 3s infinite linear; pointer-events: none; }
     @keyframes scanDown { 0% { top: 0; } 100% { top: 100%; } }
+
+    /* Mini inmate counter in health panel */
+    .inmate-mini {
+        background: #000; border: 1px solid var(--border); border-radius: 4px; padding: 10px 15px;
+        margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .inmate-mini .inmate-count { font-size: 1.5rem; font-weight: 900; color: var(--danger); }
+    .inmate-mini .inmate-label { font-size: 0.7rem; color: #888; }
+    .inmate-mini .inmate-parole { font-size: 0.8rem; color: var(--success); font-weight: bold; }
+
+    /* Registry count */
+    .registry-badge {
+        display: inline-block; background: rgba(0,217,255,0.1); color: var(--accent);
+        padding: 2px 8px; border-radius: 3px; font-size: 0.65rem; font-weight: bold;
+        border: 1px solid rgba(0,217,255,0.3);
+    }
 
     @media (max-width: 900px) {
         .grid-layout { grid-template-columns: 1fr; grid-template-rows: auto auto auto; overflow-y: auto; }
         .panel { min-height: 250px; }
+        .top-bar h1 { font-size: 0.8rem; }
     }
 </style>
 </head>
 <body>
 
 <div class="top-bar">
-    <h1>▸ NHAI_CENTRAL_COMMAND // HUB_v4.0</h1>
+    <h1>▸ NHAI_CENTRAL_COMMAND // HUB_v4.1</h1>
+    <span class="sync-badge waiting" id="syncBadge">● SYNCING</span>
     <div class="time" id="clock">00:00:00</div>
 </div>
 
 <div class="grid-layout">
     <div class="panel">
-        <div class="panel-header">■ Field Terminal Aggregation</div>
+        <div class="panel-header">
+            <span>■ Field Terminal Aggregation</span>
+            <span class="registry-badge" id="registryCount">0 REGISTRIES</span>
+        </div>
         <div class="stats-grid">
             <div class="stat-box">
                 <div class="stat-label">TOTAL REVENUE</div>
@@ -109,7 +158,10 @@
 
     <div class="panel" style="grid-row: 1 / 3;">
         <div class="scan-line"></div>
-        <div class="panel-header">■ Live Network Feed [ALL TERMINALS]</div>
+        <div class="panel-header">
+            <span>■ Live Network Feed [ALL TERMINALS]</span>
+            <span class="header-count" id="feedCount">0 EVENTS</span>
+        </div>
         <div class="feed-container" id="network-feed">
             <div class="feed-item" style="color:#555; justify-content: center;">AWAITING NETWORK DATA...</div>
         </div>
@@ -117,17 +169,37 @@
 
     <div class="panel">
         <div class="panel-header">■ System Health & Activity</div>
+        
+        <div class="inmate-mini" id="inmateSummary">
+            <div>
+                <div class="inmate-count" id="cmd-inmates">0</div>
+                <div class="inmate-label">ACTIVE INMATES</div>
+            </div>
+            <div style="text-align:right;">
+                <div class="inmate-parole" id="cmd-parole">0</div>
+                <div class="inmate-label">PAROLE READY</div>
+            </div>
+            <div style="text-align:right;">
+                <div class="inmate-parole" style="color: var(--warning);" id="cmd-released">0</div>
+                <div class="inmate-label">DISCHARGED</div>
+            </div>
+        </div>
+
         <div class="health-row">
-            <span>CACHE MEMORY:</span>
+            <span><span class="health-dot online" id="dot-d1"></span>CACHE MEMORY:</span>
             <span class="health-status online" id="cmd-cache">SYNCED</span>
         </div>
         <div class="health-row">
-            <span>TERMINAL_01 (ENFORCEMENT):</span>
-            <span class="health-status online">CONNECTED</span>
+            <span><span class="health-dot waiting" id="dot-d1t"></span>TERMINAL_01 (ENFORCEMENT D1):</span>
+            <span class="health-status waiting" id="cmd-d1-status">PROBING</span>
         </div>
         <div class="health-row">
-            <span>TERMINAL_02 (NHAI TOLL):</span>
-            <span class="health-status online">CONNECTED</span>
+            <span><span class="health-dot waiting" id="dot-d2"></span>TERMINAL_02 (NHAI TOLL D2):</span>
+            <span class="health-status waiting" id="cmd-d2-status">PROBING</span>
+        </div>
+        <div class="health-row">
+            <span><span class="health-dot waiting" id="dot-d7"></span>TERMINAL_07 (PRISON D7):</span>
+            <span class="health-status waiting" id="cmd-d7-status">PROBING</span>
         </div>
         
         <div style="font-size: 0.7rem; color: #888; margin-top: 10px;">NETWORK ACTIVITY (LAST 10 EVENTS)</div>
@@ -136,6 +208,10 @@
 </div>
 
 <script>
+    /* ===== SYNC KEYS — matched to all network terminals ===== */
+    const LS_D1_KEY = 'enforcementTerminalV23_D1';
+    const LS_D2_KEY = 'enforcementTerminalV23_TOLL';
+
     let sharedData = { 
         revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, 
         history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null,
@@ -143,135 +219,284 @@
         ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [] 
     };
 
+    let lastRenderHash = '';
+
     function updateClock() {
         document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB');
     }
     setInterval(updateClock, 1000);
 
-    const HASH_SALT = "ENFORCE_V23_SECURE_SALT";
-    function generateSignature(dataStr) {
-        let hash = 0;
-        const str = HASH_SALT + dataStr;
-        for (let i = 0; i < str.length; i++) {
-            const char = str.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash; 
-        }
-        return hash.toString(16);
-    }
-
+    /* ===== SAFE DATA MERGE — no signature check ===== */
     function loadSharedData() {
-        const savedData = localStorage.getItem('enforcementTerminalV23');
-        const savedSig = localStorage.getItem('enforcementTerminalV23_sig');
-        let needsUpdate = false;
+        try {
+            const d1 = localStorage.getItem(LS_D1_KEY);
+            const d2 = localStorage.getItem(LS_D2_KEY);
 
-        if (savedData) {
-            try {
-                // Verify Signature
-                if (savedSig !== generateSignature(savedData)) {
-                    document.getElementById('cmd-cache').innerText = "CORRUPTED";
-                    document.getElementById('cmd-cache').className = "health-status offline";
-                    console.error("CENTRAL HUB: Data tampering detected! Wiping corrupted data.");
-                    localStorage.removeItem('enforcementTerminalV23');
-                    localStorage.removeItem('enforcementTerminalV23_sig');
-                    return;
-                }
+            let d1Data = null, d2Data = null;
+            if (d1) { try { d1Data = JSON.parse(d1); } catch(e) { d1Data = null; } }
+            if (d2) { try { d2Data = JSON.parse(d2); } catch(e) { d2Data = null; } }
 
-                const parsed = JSON.parse(savedData);
-                
-                // Check if data has changed to avoid unnecessary DOM updates
-                if (JSON.stringify(parsed) !== JSON.stringify(sharedData)) {
-                    sharedData = parsed;
-                    needsUpdate = true;
-                }
-                
-                // Sync new properties safely
-                if(!sharedData.registry) sharedData.registry = {};
-                if(!sharedData.forgedAliases) sharedData.forgedAliases = {};
-                if(sharedData.nextSpawnOverride === undefined) sharedData.nextSpawnOverride = null;
-                if(!sharedData.activeInmates) sharedData.activeInmates = [];
-                if(!sharedData.releasedInmates) sharedData.releasedInmates = [];
-                if(!sharedData.inbox) sharedData.inbox = [];
-                if(!sharedData.sentMail) sharedData.sentMail = [];
-                if(!sharedData.call911Logs) sharedData.call911Logs = [];
-                if(!sharedData.ledgerCashouts) sharedData.ledgerCashouts = [];
-                if(!sharedData.intelFlags) sharedData.intelFlags = [];
-                if(!sharedData.paroleRecords) sharedData.paroleRecords = [];
-                if(!sharedData.iaViolations) sharedData.iaViolations = [];
-                if(!sharedData.rehabPrograms) sharedData.rehabPrograms = [];
-                if(!sharedData.history) sharedData.history = [];
+            let mergedData = {
+                revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0,
+                registry: {}, history: [], activeInmates: [], releasedInmates: [],
+                inbox: [], sentMail: [], call911Logs: [], forgedAliases: {},
+                nextSpawnOverride: null, ledgerCashouts: [], intelFlags: [],
+                paroleRecords: [], iaViolations: [], rehabPrograms: []
+            };
 
-                document.getElementById('cmd-cache').innerText = "SYNCED";
-                document.getElementById('cmd-cache').className = "health-status online";
-            } catch(e) {
-                document.getElementById('cmd-cache').innerText = "CORRUPTED";
-                document.getElementById('cmd-cache').className = "health-status offline";
+            // Merge D1 (Enforcement Gate — primary source)
+            if (d1Data) {
+                Object.assign(mergedData, d1Data);
+                if (d1Data.registry) Object.assign(mergedData.registry, d1Data.registry);
+                if (d1Data.activeInmates) mergedData.activeInmates = d1Data.activeInmates;
+                if (d1Data.releasedInmates) mergedData.releasedInmates = d1Data.releasedInmates;
             }
-        } else {
-            document.getElementById('cmd-cache').innerText = "NO DATA";
+
+            // Merge D2 (Toll/Dispatch — overlay registry, concatenate history)
+            if (d2Data) {
+                // Take the higher revenue/stats (they should match but be safe)
+                mergedData.revenue = Math.max(mergedData.revenue || 0, d2Data.revenue || 0);
+                mergedData.valids = Math.max(mergedData.valids || 0, d2Data.valids || 0);
+                mergedData.missed = Math.max(mergedData.missed || 0, d2Data.missed || 0);
+                mergedData.level = Math.max(mergedData.level || 1, d2Data.level || 1);
+                mergedData.rankPoints = Math.max(mergedData.rankPoints || 0, d2Data.rankPoints || 0);
+
+                // Registry: overlay
+                if (d2Data.registry) Object.assign(mergedData.registry, d2Data.registry);
+
+                // History: concatenate and deduplicate
+                if (d2Data.history) {
+                    mergedData.history = d2Data.history.concat(mergedData.history).filter((v, i, a) => 
+                        a.findIndex(t => (t.plate === v.plate && t.timestamp === v.timestamp)) === i
+                    );
+                }
+
+                // Inmates: use whichever source has more data
+                if (d2Data.activeInmates && d2Data.activeInmates.length > mergedData.activeInmates.length) {
+                    mergedData.activeInmates = d2Data.activeInmates;
+                }
+                if (d2Data.releasedInmates && d2Data.releasedInmates.length > (mergedData.releasedInmates || []).length) {
+                    mergedData.releasedInmates = d2Data.releasedInmates;
+                }
+
+                // Pull sub-keys from D2 if D1 didn't have them
+                if (!mergedData.call911Logs && d2Data.call911Logs) mergedData.call911Logs = d2Data.call911Logs;
+                if (!mergedData.paroleRecords && d2Data.paroleRecords) mergedData.paroleRecords = d2Data.paroleRecords;
+                if (!mergedData.rehabPrograms && d2Data.rehabPrograms) mergedData.rehabPrograms = d2Data.rehabPrograms;
+                if (!mergedData.forgedAliases && d2Data.forgedAliases) mergedData.forgedAliases = d2Data.forgedAliases;
+            }
+
+            // Ensure all sub-keys exist
+            if (!mergedData.registry) mergedData.registry = {};
+            if (!mergedData.forgedAliases) mergedData.forgedAliases = {};
+            if (mergedData.nextSpawnOverride === undefined) mergedData.nextSpawnOverride = null;
+            if (!mergedData.activeInmates) mergedData.activeInmates = [];
+            if (!mergedData.releasedInmates) mergedData.releasedInmates = [];
+            if (!mergedData.inbox) mergedData.inbox = [];
+            if (!mergedData.sentMail) mergedData.sentMail = [];
+            if (!mergedData.call911Logs) mergedData.call911Logs = [];
+            if (!mergedData.ledgerCashouts) mergedData.ledgerCashouts = [];
+            if (!mergedData.intelFlags) mergedData.intelFlags = [];
+            if (!mergedData.paroleRecords) mergedData.paroleRecords = [];
+            if (!mergedData.iaViolations) mergedData.iaViolations = [];
+            if (!mergedData.rehabPrograms) mergedData.rehabPrograms = [];
+            if (!mergedData.history) mergedData.history = [];
+
+            // Check if data actually changed before re-rendering
+            const newHash = JSON.stringify({
+                r: mergedData.revenue, v: mergedData.valids, m: mergedData.missed,
+                l: mergedData.level, rp: mergedData.rankPoints,
+                hc: (mergedData.history || []).length,
+                rc: Object.keys(mergedData.registry || {}).length,
+                ic: (mergedData.activeInmates || []).length,
+                dlc: (mergedData.releasedInmates || []).length,
+                hLast: (mergedData.history || []).slice(-3).map(h => h.plate + h.action + h.timestamp).join('|')
+            });
+
+            sharedData = mergedData;
+
+            // Update health indicators
+            updateHealthStatus(d1Data, d2Data);
+
+            if (newHash !== lastRenderHash) {
+                lastRenderHash = newHash;
+                renderDashboard();
+            }
+
+        } catch(e) {
+            console.error("Central Hub load error:", e);
+            document.getElementById('cmd-cache').innerText = "ERROR";
             document.getElementById('cmd-cache').className = "health-status offline";
         }
+    }
 
-        if (needsUpdate) {
-            renderDashboard();
+    function updateHealthStatus(d1Data, d2Data) {
+        const badge = document.getElementById('syncBadge');
+        const cache = document.getElementById('cmd-cache');
+        const cacheDot = document.getElementById('dot-d1');
+
+        const d1Live = d1Data !== null;
+        const d2Live = d2Data !== null;
+
+        // Cache / sync badge
+        if (d1Live && d2Live) {
+            cache.innerText = "SYNCED";
+            cache.className = "health-status online";
+            cacheDot.className = "health-dot online";
+            badge.innerText = "● DUAL SYNC";
+            badge.className = "sync-badge online";
+        } else if (d1Live || d2Live) {
+            cache.innerText = "PARTIAL";
+            cache.className = "health-status waiting";
+            cacheDot.className = "health-dot waiting";
+            badge.innerText = "● PARTIAL SYNC";
+            badge.className = "sync-badge waiting";
+        } else {
+            cache.innerText = "OFFLINE";
+            cache.className = "health-status offline";
+            cacheDot.className = "health-dot offline";
+            badge.innerText = "● OFFLINE";
+            badge.className = "sync-badge offline";
+        }
+
+        // D1 Terminal
+        const d1Status = document.getElementById('cmd-d1-status');
+        const d1Dot = document.getElementById('dot-d1t');
+        if (d1Live) {
+            d1Status.innerText = "CONNECTED";
+            d1Status.className = "health-status online";
+            d1Dot.className = "health-dot online";
+        } else {
+            d1Status.innerText = "OFFLINE";
+            d1Status.className = "health-status offline";
+            d1Dot.className = "health-dot offline";
+        }
+
+        // D2 Terminal
+        const d2Status = document.getElementById('cmd-d2-status');
+        const d2Dot = document.getElementById('dot-d2');
+        if (d2Live) {
+            d2Status.innerText = "CONNECTED";
+            d2Status.className = "health-status online";
+            d2Dot.className = "health-dot online";
+        } else {
+            d2Status.innerText = "OFFLINE";
+            d2Status.className = "health-status offline";
+            d2Dot.className = "health-dot offline";
+        }
+
+        // D7 Prison — detect by checking if inmate data exists (D7 writes sentence countdowns)
+        const d7Status = document.getElementById('cmd-d7-status');
+        const d7Dot = document.getElementById('dot-d7');
+        const inmates = sharedData.activeInmates || [];
+        const hasInmateActivity = inmates.length > 0 || (sharedData.releasedInmates || []).length > 0 || (sharedData.paroleRecords || []).length > 0;
+        if (hasInmateActivity) {
+            d7Status.innerText = "CONNECTED";
+            d7Status.className = "health-status online";
+            d7Dot.className = "health-dot online";
+        } else {
+            d7Status.innerText = "STANDBY";
+            d7Status.className = "health-status waiting";
+            d7Dot.className = "health-dot waiting";
         }
     }
 
     function renderDashboard() {
+        // Top-level stats
         document.getElementById('cmd-rev').innerText = `$${sharedData.revenue || 0}`;
         document.getElementById('cmd-valids').innerText = sharedData.valids || 0;
         document.getElementById('cmd-level').innerText = sharedData.level || 1;
         
-        const arrests = (sharedData.history || []).filter(item => item.action === "ARRESTED" || item.action === "ARREST STAMPED (NHAI)").length;
+        // Arrests from history
+        const history = sharedData.history || [];
+        const arrests = history.filter(item => 
+            item.action === "ARRESTED" || 
+            item.action === "ARREST STAMPED (NHAI)" ||
+            item.action.includes("ARREST")
+        ).length;
         document.getElementById('cmd-arrests').innerText = arrests;
 
+        // Registry count
+        const regCount = Object.keys(sharedData.registry || {}).length;
+        document.getElementById('registryCount').innerText = `${regCount} REGISTR${regCount === 1 ? 'Y' : 'IES'}`;
+
+        // Inmate summary
+        const inmates = sharedData.activeInmates || [];
+        const released = sharedData.releasedInmates || [];
+        const paroleReady = inmates.filter(i => (i.sentenceRemaining || 0) <= 0).length;
+        document.getElementById('cmd-inmates').innerText = inmates.length;
+        document.getElementById('cmd-parole').innerText = paroleReady;
+        document.getElementById('cmd-released').innerText = released.length;
+
+        // Live network feed
         const feedContainer = document.getElementById('network-feed');
         feedContainer.innerHTML = '';
 
-        const history = sharedData.history || [];
         if (history.length === 0) {
             feedContainer.innerHTML = '<div class="feed-item" style="color:#555; justify-content: center;">AWAITING NETWORK DATA...</div>';
+            document.getElementById('feedCount').innerText = '0 EVENTS';
         } else {
-            const recentHistory = history.slice(-50).reverse();
+            const recentHistory = history.slice(-80).reverse();
+            document.getElementById('feedCount').innerText = `${history.length} EVENTS`;
+
             recentHistory.forEach(event => {
                 const item = document.createElement('div');
                 item.className = 'feed-item';
                 
-                let actionClass = '';
-                let actionText = event.action;
-                if (actionText.includes('TOLL') || actionText.includes('RELEASED') || actionText.includes('PAROLE') || actionText.includes('REHAB') || actionText.includes('APPROVED')) {
+                let actionClass = 'system';
+                let actionText = event.action || 'UNKNOWN';
+                
+                if (actionText.includes('TOLL') || actionText.includes('REVENUE') || actionText.includes('CASHOUT')) {
                     actionClass = 'toll';
-                } else if (actionText.includes('ARRESTED') || actionText.includes('INTERCEPT') || actionText.includes('PATROL') || actionText.includes('REJECTED') || actionText.includes('WANTED')) {
+                } else if (actionText.includes('RELEASED') || actionText.includes('PAROLE') || actionText.includes('REHAB') || actionText.includes('APPROVED') || actionText.includes('CLEAR') || actionText.includes('FAST-TRACK')) {
+                    actionClass = 'parole';
+                } else if (actionText.includes('ARRESTED') || actionText.includes('INTERCEPT') || actionText.includes('PATROL') || actionText.includes('REJECTED') || actionText.includes('WANTED') || actionText.includes('DENIED') || actionText.includes('BREACH')) {
                     actionClass = 'enforce';
                 }
 
                 item.innerHTML = `
                     <div class="feed-plate">${event.plate || 'SYS'}</div>
-                    <div class="feed-action ${actionClass}">${actionText} (ID: ${event.id || 'N/A'})</div>
+                    <div class="feed-action ${actionClass}">${actionText}${event.id && event.id !== 'N/A' ? ' (ID: ' + event.id + ')' : ''}</div>
                     <div class="feed-time">${event.timestamp || '--:--'}</div>
                 `;
                 feedContainer.appendChild(item);
             });
         }
 
+        // Activity graph
         const graphContainer = document.getElementById('activity-graph');
         graphContainer.innerHTML = '';
         const last10 = history.slice(-10);
-        const maxEvents = 10;
+        const maxBars = 10;
         
-        for(let i = 0; i < maxEvents; i++) {
+        for (let i = 0; i < maxBars; i++) {
             const bar = document.createElement('div');
             bar.className = 'graph-bar';
+            
             if (last10[i]) {
-                if(last10[i].action.includes('TOLL') || last10[i].action.includes('REHAB') || last10[i].action.includes('PAROLE') || last10[i].action.includes('APPROVED')) {
-                    bar.style.background = 'var(--success)';
-                    bar.style.height = '40%';
-                } else if(last10[i].action.includes('ARRESTED') || last10[i].action.includes('PATROL') || last10[i].action.includes('INTERCEPT') || last10[i].action.includes('REJECTED')) {
-                    bar.style.background = 'var(--danger)';
-                    bar.style.height = '90%';
-                } else {
-                    bar.style.height = '60%';
+                const action = last10[i].action || '';
+                const plate = last10[i].plate || 'SYS';
+                
+                let height = '40%';
+                let color = 'var(--accent)';
+
+                if (action.includes('ARRESTED') || action.includes('PATROL') || action.includes('INTERCEPT') || action.includes('BREACH')) {
+                    height = '90%';
+                    color = 'var(--danger)';
+                } else if (action.includes('TOLL') || action.includes('REVENUE') || action.includes('CASHOUT')) {
+                    height = '50%';
+                    color = 'var(--success)';
+                } else if (action.includes('RELEASED') || action.includes('PAROLE') || action.includes('APPROVED') || action.includes('FAST-TRACK') || action.includes('CLEAR')) {
+                    height = '60%';
+                    color = 'var(--police)';
+                } else if (action.includes('REJECTED') || action.includes('DENIED') || action.includes('WANTED')) {
+                    height = '80%';
+                    color = 'var(--danger)';
                 }
+
+                bar.style.background = color;
+                bar.style.height = height;
+                bar.innerHTML = `<div class="bar-tooltip">${plate}: ${action}</div>`;
             } else {
                 bar.style.height = '2px';
                 bar.style.background = '#333';
@@ -280,9 +505,8 @@
         }
     }
 
-    // Initial load
+    /* ===== INIT ===== */
     loadSharedData();
-    // Sync with cache every 2 seconds
     setInterval(loadSharedData, 2000);
 </script>
 </body>
