@@ -284,6 +284,28 @@
   }
   .d5-stamp.approved { color: #008000; border-color: #008000; }
   .d5-stamp.rejected { color: #cc0000; border-color: #cc0000; }
+
+  /* Toll Case Management Specifics */
+  .toll-case-layout {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.95); z-index: 55; display: none; flex-direction: column;
+      align-items: center; justify-content: center; border: 3px solid var(--warning); box-sizing: border-box;
+  }
+  .toll-case-layout.active { display: flex; }
+  .toll-case-box {
+      background: #111; border: 2px solid var(--warning); padding: 30px; width: 500px; max-width: 95vw;
+      box-shadow: 0 0 40px rgba(255, 204, 0, 0.2); text-align: center;
+  }
+  .toll-case-title { color: var(--warning); font-size: 1.2rem; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px;}
+  .toll-case-plate { font-size: 2rem; color: #fff; font-weight: 900; margin-bottom: 20px; letter-spacing: 3px; }
+  .toll-case-actions { display: flex; gap: 15px; margin-top: 20px; justify-content: center; }
+  .toll-case-btn {
+      padding: 15px 30px; border: none; border-radius: 4px; cursor: pointer; font-weight: 900; 
+      text-transform: uppercase; font-size: 1rem; font-family: monospace; transition: 0.2s;
+  }
+  .toll-case-btn:active { transform: translateY(2px); }
+  .btn-approve-toll { background: var(--success); color: #000; box-shadow: 0 4px #005f33; }
+  .btn-reject-toll { background: var(--danger); color: #fff; box-shadow: 0 4px #800022; }
   
   @media (max-width: 1024px) { .dashboard { grid-template-columns: 1fr 300px; } .sec-content { grid-template-columns: 1fr; } .mail-layout { grid-template-columns: 1fr; } }
   @media (max-width: 800px) {
@@ -424,6 +446,22 @@
         <input type="text" class="compose-input" id="composeSubject" placeholder="Subject">
         <textarea class="compose-textarea" id="composeBody" placeholder="Write message..."></textarea>
         <button class="compose-send" onclick="sendMail()">Send</button>
+    </div>
+</div>
+
+<!-- TOLL CASE MANAGEMENT LAYOUT -->
+<div class="toll-case-layout" id="tollCaseLayout">
+    <div class="toll-case-box">
+        <div class="toll-case-title">⚠ NHAI TOLL ENFORCEMENT CHECK ⚠</div>
+        <div style="color:#aaa; margin-bottom: 5px;">Pending Verification Plate:</div>
+        <div class="toll-case-plate" id="tollCasePlate">---</div>
+        <div style="color:#aaa; font-size: 0.85rem; margin-bottom: 20px;">
+            Verify identity through D-4 / D-5 databases. <br>If clear, approve to release vehicle. If invalid, reject.
+        </div>
+        <div class="toll-case-actions">
+            <button class="toll-case-btn btn-approve-toll" onclick="resolveTollCase('CLEAR')">✓ APPROVE</button>
+            <button class="toll-case-btn btn-reject-toll" onclick="resolveTollCase('REJECTED')">✗ REJECT</button>
+        </div>
     </div>
 </div>
 
@@ -606,7 +644,6 @@
                   playSound('buzzer');
                   receiveMail("NHAI_TOLL_ENFORCEMENT", "ID VERIFICATION REQUEST", "A vehicle at the Toll Gate requires ID Verification and clearance.\nPlease inspect documents and run a database scan.");
                   
-                  // AUTO-SPAWN FIX: Automatically pull the vehicle to the gate
                   if(!car && !isResetting) {
                       addLog("AUTO-ROUTING: Vehicle approaching gate...", "var(--accent)");
                       setTimeout(() => spawnVehicle(), 1500);
@@ -728,6 +765,15 @@
       if(doc.style.display === "block") { doc.style.display = "none"; } 
       else { 
           if(!car) return; 
+          
+          // TOLL ENFORCEMENT CHECK OVERRIDE
+          if(car.id === "PENDING_ENFORCEMENT" && car.originDashboard === "D2") {
+              document.getElementById('tollCasePlate').innerText = car.plate;
+              document.getElementById('tollCaseLayout').classList.add('active');
+              addLog("TOLL CASE: Displaying verification layout.", "var(--warning)");
+              return;
+          }
+
           document.getElementById('dID').innerText=car.id; 
           document.getElementById('dExp').innerText=car.expiry; 
           document.getElementById('dName').innerText="SUBJECT_"+car.plate; 
@@ -741,6 +787,35 @@
           if(car.hasMissingID || car.id === "MISSING" || car.id === "UNVERIFIED" || car.id === "PENDING_ENFORCEMENT") { missingOverlay.classList.add('active'); playSound('buzzer'); } else { missingOverlay.classList.remove('active'); } 
           doc.style.display="block"; addLog(`Credentials visible. Copy to verification unit.`, "var(--accent)"); 
       } 
+  }
+
+  // Resolves the case from the Toll Plaza and syncs back
+  function resolveTollCase(status) {
+      if(!car) return;
+      document.getElementById('tollCaseLayout').classList.remove('active');
+      
+      sharedData.registry[car.plate] = {
+          id: status === 'CLEAR' ? "ENFORCEMENT_CLEARED" : "UNVERIFIED",
+          vClass: "LVM_CLASS_1",
+          status: status,
+          registeredBy: "ENFORCEMENT_D1",
+          name: status === 'CLEAR' ? "CIVILIAN" : "UNKNOWN",
+          sex: "N/A"
+      };
+
+      saveData();
+
+      if(status === 'CLEAR') {
+          addLog(`TOLL CASE APPROVED: ${car.plate} cleared.`, "var(--success)");
+          playSound('success');
+      } else {
+          addLog(`TOLL CASE REJECTED: ${car.plate} marked invalid.`, "var(--danger)");
+          playSound('buzzer');
+      }
+      
+      setTimeout(() => {
+          triggerRelease();
+      }, 1500);
   }
   
   function acknowledgeMissingID() { document.getElementById('missingIdOverlay').classList.remove('active'); addLog("OFFICER ACKNOWLEDGED: Missing ID record flagged.", "var(--warning)"); }
@@ -884,7 +959,7 @@
   function updateLevel() { rankPoints = Math.max(0, rankPoints); const newLevel = Math.floor(rankPoints / 10) + 1; if (newLevel > level) addLog(`★★★ PROMOTION: STATION RANK INCREASED TO LVL ${newLevel}! ★★★`, "var(--warning)"); else if (newLevel < level) addLog(`DEMOTION: STATION RANK DECREASED TO LVL ${newLevel}.`, "var(--danger)"); level = newLevel; }
   function updateStatusUI() { document.getElementById('valCount').innerText=valids; document.getElementById('missCount').innerText=missed; document.getElementById('salVal').innerText=revenue; document.getElementById('lvlVal').innerText=level; document.getElementById('ptsVal').innerText = rankPoints % 10; }
 
-  function resetStage() { const sprite = document.getElementById('vSprite'); sprite.style.left="120%"; sprite.classList.remove('criminal-alert','emergency-vehicle','agency-police','agency-ems','agency-fire','agency-multi'); isResetting=true; car=null; document.getElementById('plateIn').value=""; document.getElementById('licenseIn').value=""; document.getElementById('searchPlateIn').value=""; document.getElementById('docOverlay').style.display="none"; document.getElementById('stampBox').style.display="none"; document.getElementById('forgeryBox').style.display="none"; document.getElementById('agencyTagsBox').style.display="none"; document.getElementById('missingIdOverlay').classList.remove('active'); document.getElementById('btnNext').disabled=true; document.getElementById('btnScan').disabled=true; document.getElementById('btnDocs').disabled=true; document.getElementById('btnArrest').disabled=true; document.getElementById('btnRelease').disabled=true; document.getElementById('btnPay').disabled=true; document.getElementById('db16Plate').innerText = "NONE"; document.getElementById('db16Status').innerText = "---"; document.getElementById('db16Status').style.color = "var(--success)"; document.getElementById('btnMechGate').classList.add('disabled-gate'); setTimeout(() => { sprite.style.transition="none"; sprite.style.left="-250px"; isResetting=false; document.getElementById('btnNext').disabled=false; }, 1300); }
+  function resetStage() { const sprite = document.getElementById('vSprite'); sprite.style.left="120%"; sprite.classList.remove('criminal-alert','emergency-vehicle','agency-police','agency-ems','agency-fire','agency-multi'); isResetting=true; car=null; document.getElementById('plateIn').value=""; document.getElementById('licenseIn').value=""; document.getElementById('searchPlateIn').value=""; document.getElementById('docOverlay').style.display="none"; document.getElementById('stampBox').style.display="none"; document.getElementById('forgeryBox').style.display="none"; document.getElementById('agencyTagsBox').style.display="none"; document.getElementById('missingIdOverlay').classList.remove('active'); document.getElementById('tollCaseLayout').classList.remove('active'); document.getElementById('btnNext').disabled=true; document.getElementById('btnScan').disabled=true; document.getElementById('btnDocs').disabled=true; document.getElementById('btnArrest').disabled=true; document.getElementById('btnRelease').disabled=true; document.getElementById('btnPay').disabled=true; document.getElementById('db16Plate').innerText = "NONE"; document.getElementById('db16Status').innerText = "---"; document.getElementById('db16Status').style.color = "var(--success)"; document.getElementById('btnMechGate').classList.add('disabled-gate'); setTimeout(() => { sprite.style.transition="none"; sprite.style.left="-250px"; isResetting=false; document.getElementById('btnNext').disabled=false; }, 1300); }
 
   function toggleSecondaryLayout(type) {
       if(type === 'dbs') {
