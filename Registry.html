@@ -10,1338 +10,428 @@
   gtag('config', 'GT-NC6T5LRJ');
 </script>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0a0a10">
-<title>NHAI - Registry & Database Terminal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NHAI - Licensing Authority Terminal</title>
 <style>
     :root {
-        --bg: #0a0a10;
-        --panel: #12121a;
-        --accent: #00d9ff;
-        --success: #2ed573;
-        --danger: #ff4757;
-        --warning: #ffa502;
-        --border: #2a2a3a;
-        --scrollbar-bg: #08080e;
-        --scrollbar-thumb: #1a3a4a;
-        --scrollbar-thumb-hover: #00d9ff;
-        --scrollbar-width: 12px;
-        --safe-bottom: env(safe-area-inset-bottom, 0px);
-        --safe-top: env(safe-area-inset-top, 0px);
-    }
-
-    *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-
-    /* ===== GLOBAL SCROLLBAR STYLES ===== */
-    ::-webkit-scrollbar {
-        width: var(--scrollbar-width);
-        height: var(--scrollbar-width);
-    }
-    ::-webkit-scrollbar-track {
-        background: var(--scrollbar-bg);
-        border-left: 1px solid var(--border);
-    }
-    ::-webkit-scrollbar-thumb {
-        background: var(--scrollbar-thumb);
-        border: 1px solid #000;
-        border-radius: 6px;
-        min-height: 40px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-        background: var(--scrollbar-thumb-hover);
-    }
-    ::-webkit-scrollbar-thumb:active {
-        background: var(--accent);
-    }
-    ::-webkit-scrollbar-corner {
-        background: var(--scrollbar-bg);
-    }
-
-    /* Firefox scrollbar */
-    * {
-        scrollbar-width: thin;
-        scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-bg);
+        --bg: #080810; --panel: #10101a; --accent: #00d9ff; --success: #2ed573;
+        --danger: #ff0044; --warning: #ffa502; --border: #2a2a3a; --paper: #f0f0e8;
     }
 
     body {
-        background-color: var(--bg);
-        color: #ccc;
-        font-family: 'Courier New', Courier, monospace;
-        margin: 0;
-        height: 100vh;
-        height: 100dvh;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
+        background-color: var(--bg); color: #ccc; font-family: 'Courier New', monospace;
+        margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden;
     }
 
-    /* ===== TOP BAR ===== */
     .top-bar {
-        background: #000;
-        padding: 12px 16px;
-        padding-top: calc(12px + var(--safe-top));
-        border-bottom: 2px solid var(--warning);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-shrink: 0;
-        flex-wrap: wrap;
-        gap: 6px;
-        z-index: 10;
+        background: #000; padding: 12px 30px; border-bottom: 2px solid var(--success);
+        display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
     }
 
-    .top-bar h1 {
-        margin: 0;
-        font-size: clamp(0.65rem, 2.5vw, 1rem);
-        color: var(--warning);
-        letter-spacing: 1px;
-        white-space: nowrap;
+    .top-bar h1 { margin: 0; font-size: 1.1rem; color: var(--success); letter-spacing: 2px; }
+    .top-bar .time { color: var(--accent); font-size: 0.9rem; }
+
+    .main-layout {
+        display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px; padding: 20px;
+        flex-grow: 1; min-height: 0; overflow: hidden;
     }
 
-    .top-bar-right {
-        display: flex;
-        align-items: center;
-        gap: 10px;
+    .call-panel { 
+        display: flex; flex-direction: column; justify-content: center; align-items: center; 
+        border-right: 1px solid var(--border); padding-right: 20px; gap: 30px;
+    }
+    .terminal-art {
+        font-size: 0.8rem; color: #555; text-align: center; line-height: 1.5;
     }
 
-    .top-bar .time {
-        color: var(--accent);
-        font-size: clamp(0.65rem, 2vw, 0.8rem);
-        font-variant-numeric: tabular-nums;
+    .btn-next-mega {
+        background: linear-gradient(145deg, #00d9ff, #009aa8); color: #000; border: none;
+        padding: 40px; font-weight: 900; text-transform: uppercase; font-size: 1.5rem;
+        cursor: pointer; box-shadow: 0 8px 0 #005f6b, 0 15px 30px rgba(0,0,0,0.5);
+        transition: all 0.1s; font-family: monospace; width: 100%; border-radius: 4px;
+    }
+    .btn-next-mega:active { transform: translateY(6px); box-shadow: 0 2px 0 #005f6b; }
+    .btn-next-mega.ready-glow {
+        box-shadow: 0 8px 0 #005f6b, 0 0 25px rgba(0, 217, 255, 0.6);
+        animation: readyPulse 2s infinite;
+    }
+    @keyframes readyPulse {
+        0% { box-shadow: 0 8px 0 #005f6b, 0 0 15px rgba(0, 217, 255, 0.4); }
+        50% { box-shadow: 0 8px 0 #005f6b, 0 0 30px rgba(0, 217, 255, 0.8); }
+        100% { box-shadow: 0 8px 0 #005f6b, 0 0 15px rgba(0, 217, 255, 0.4); }
     }
 
-    .sync-badge {
-        font-size: 0.55rem;
-        padding: 3px 8px;
-        border-radius: 3px;
-        letter-spacing: 1px;
-        font-weight: bold;
-        text-transform: uppercase;
-        white-space: nowrap;
+    .detail-panel { display: flex; flex-direction: column; gap: 15px; min-height: 0; overflow: hidden; }
+    
+    .form-container {
+        position: relative; flex-grow: 1; border: 1px solid var(--border); background: #050508;
+        overflow: hidden; 
     }
 
-    .sync-badge.online { background: rgba(0,255,157,0.1); color: var(--success); border: 1px solid var(--success); }
-    .sync-badge.offline { background: rgba(255,0,68,0.1); color: var(--danger); border: 1px solid var(--danger); }
-    .sync-badge.waiting { background: rgba(255,204,0,0.1); color: var(--warning); border: 1px solid var(--warning); }
-
-    /* ===== MAIN LAYOUT ===== */
-    .main-grid {
-        display: grid;
-        grid-template-columns: 360px 1fr;
-        gap: 16px;
-        padding: 16px;
-        flex-grow: 1;
-        min-height: 0;
-        overflow: hidden; /* Grid container itself doesn't scroll */
+    .application-form {
+        background: var(--paper); color: #111; padding: 20px 30px; font-size: 0.9rem;
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%; box-sizing: border-box;
+        opacity: 0; pointer-events: none; transform: translateY(30px);
+        transition: opacity 0.4s ease, transform 0.4s ease;
+        display: flex; flex-direction: column; justify-content: space-around;
+    }
+    .application-form.active { opacity: 1; pointer-events: auto; transform: translateY(0); }
+    
+    .application-form.archive-left {
+        opacity: 0; pointer-events: none; transform: translateX(-150%) rotate(-10deg);
+        transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+    .application-form.archive-right {
+        opacity: 0; pointer-events: none; transform: translateX(150%) rotate(10deg);
+        transition: opacity 0.3s ease, transform 0.3s ease;
     }
 
-    /* ===== PANELS ===== */
-    .form-panel, .list-panel {
-        background: var(--panel);
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        display: flex;
-        flex-direction: column;
-        min-height: 0; /* Crucial for flex children to shrink and allow scrolling */
-        position: relative;
+    .form-header { border-bottom: 2px solid #111; padding-bottom: 8px; text-align: center; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; font-size: 1rem; }
+    .form-row { display: flex; justify-content: space-between; margin-bottom: 5px; border-bottom: 1px dashed #aaa; padding-bottom: 5px; }
+    .form-label { font-weight: bold; }
+    
+    .score-box { 
+        padding: 10px; border: 3px solid #111; text-align: center; 
+        font-size: 2rem; font-weight: 900; background: #e0e0d8; 
     }
+    .score-pass { color: #006400; border-color: #006400; } /* Darker green for paper */
+    .score-fail { color: var(--danger); border-color: var(--danger); }
 
-    /* Desktop padding applied directly to panel */
-    @media (min-width: 769px) {
-        .form-panel, .list-panel {
-            padding: 16px;
-        }
+    .bg-check { 
+        padding: 8px; background: #111; color: #fff; font-size: 0.8rem; 
+        text-align: center; border: 1px solid #333;
     }
+    .bg-clean { color: #009900; border-color: #009900; background: #0a1a0a; }
+    .bg-flag { color: var(--danger); border-color: var(--danger); background: #1a0a0a; animation: pulse 1s infinite; }
 
-    .panel-title {
-        color: var(--accent);
-        font-size: clamp(0.7rem, 2vw, 0.9rem);
-        border-bottom: 1px solid var(--border);
-        padding-bottom: 10px;
-        margin-bottom: 12px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        flex-shrink: 0;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+    .stamp-overlay {
+        position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg);
+        font-size: 4rem; font-weight: 900; border: 8px solid; padding: 10px 30px;
+        opacity: 0; z-index: 5; pointer-events: none; transition: opacity 0.2s;
     }
+    .stamp-approved { color: #008000; border-color: #008000; } /* Darker for paper */
+    .stamp-rejected { color: #cc0000; border-color: #cc0000; }
 
-    .record-count {
-        font-size: 0.6rem;
-        color: #555;
-        font-weight: normal;
-    }
-
-    /* ===== SCROLLABLE FORM BODY ===== */
-    .form-scroll-area {
-        flex: 1;
-        overflow-y: auto; /* Enables the scrollbar */
-        overflow-x: hidden;
-        min-height: 0;
-        padding: 16px;
-        -webkit-overflow-scrolling: touch;
-        overscroll-behavior: contain;
-    }
-
-    /* ===== SOURCE INFO ===== */
-    .source-info {
-        background: #000;
-        border: 1px solid var(--border);
-        border-radius: 4px;
-        padding: 10px;
-        margin-bottom: 12px;
-        font-size: 0.65rem;
-        color: #888;
-        flex-shrink: 0;
-        transition: max-height 0.3s ease, padding 0.3s ease, margin 0.3s ease;
-        overflow: hidden;
-    }
-
-    .source-info.collapsed {
-        max-height: 32px;
-        padding-top: 6px;
-        padding-bottom: 6px;
-        cursor: pointer;
-        margin-bottom: 12px;
-    }
-
-    .source-info.collapsed .source-detail { display: none; }
-
-    .source-toggle {
-        display: none;
-        background: none;
-        border: 1px solid var(--border);
-        color: var(--accent);
-        padding: 4px 8px;
-        font-size: 0.6rem;
-        font-family: monospace;
-        cursor: pointer;
-        border-radius: 3px;
-        margin-left: auto;
-        flex-shrink: 0;
-    }
-
-    .source-tags-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 4px;
-        margin-bottom: 6px;
-        align-items: center;
-    }
-
-    .source-tag {
-        display: inline-block;
-        padding: 2px 6px;
-        border-radius: 2px;
-        font-weight: bold;
-        font-size: 0.55rem;
-        white-space: nowrap;
-    }
-
-    .source-tag.src-d1 { background: rgba(0,217,255,0.15); color: var(--accent); border: 1px solid rgba(0,217,255,0.3); }
-    .source-tag.src-d2 { background: rgba(46,213,115,0.15); color: var(--success); border: 1px solid rgba(46,213,115,0.3); }
-    .source-tag.src-d7 { background: rgba(255,71,87,0.15); color: var(--danger); border: 1px solid rgba(255,71,87,0.3); }
-    .source-tag.src-db { background: rgba(255,165,2,0.15); color: var(--warning); border: 1px solid rgba(255,165,2,0.3); }
-    .source-tag.src-911 { background: rgba(255,0,68,0.15); color: #ff4757; border: 1px solid #ff4757; }
-    .source-tag.src-patrol { background: rgba(0,217,255,0.15); color: var(--accent); border: 1px solid var(--accent); }
-
-    /* ===== FORM ===== */
-    .form-group { margin-bottom: 12px; }
-
-    .form-group label {
-        display: block;
-        font-size: 0.7rem;
-        color: #888;
-        margin-bottom: 4px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .form-group input,
-    .form-group select {
-        width: 100%;
-        background: #000;
-        border: 1px solid var(--border);
-        color: var(--success);
-        padding: 12px;
-        box-sizing: border-box;
-        font-family: monospace;
-        font-size: 1rem;
-        outline: none;
-        transition: border-color 0.2s;
-        border-radius: 4px;
-        -webkit-appearance: none;
-        appearance: none;
-    }
-
-    .form-group select {
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2300d9ff' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 12px center;
-        padding-right: 36px;
-    }
-
-    .form-group input:focus,
-    .form-group select:focus { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(0,217,255,0.2); }
-
-    .form-group input::placeholder { color: #444; }
-
-    .btn-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-        flex-shrink: 0;
-        padding: 16px;
-        border-top: 1px solid var(--border);
-        background: var(--panel);
+    .action-panel {
+        display: flex; gap: 15px; flex-shrink: 0; padding-top: 5px; border-top: 1px solid var(--border);
     }
 
     .mech-btn {
-        padding: 14px;
-        border: 2px solid #000;
-        cursor: pointer;
-        font-weight: bold;
-        text-transform: uppercase;
-        font-size: 0.8rem;
-        box-shadow: 0 3px 0 #000;
-        transition: all 0.1s;
-        font-family: monospace;
-        border-radius: 4px;
-        min-height: 48px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        padding: 12px; border: 2px solid #000; cursor: pointer; font-weight: bold;
+        text-transform: uppercase; font-size: 0.9rem; box-shadow: 0 3px 0 #000;
+        transition: all 0.1s; font-family: monospace; background: #333; color: #fff; flex: 1;
     }
-
     .mech-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #000; }
+    .mech-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; background: #222; }
+    .btn-approve { background: var(--success); color: #000; box-shadow: 0 3px 0 #1e9e55; }
+    .btn-reject { background: var(--danger); color: #fff; box-shadow: 0 3px 0 #cc2233; }
 
-    .btn-register { background: var(--success); color: #000; }
-    .btn-register:hover { background: #3ae07e; }
-    .btn-clear { background: #555; color: #fff; }
-    .btn-clear:hover { background: #666; }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
 
-    /* ===== FILTER BAR ===== */
-    .filter-bar {
-        display: flex;
-        gap: 8px;
-        padding: 16px 16px 0 16px;
-        margin-bottom: 12px;
-        flex-shrink: 0;
+    @media (max-width: 1200px) {
+        .application-form { padding: 15px 20px; font-size: 0.85rem; }
+        .form-header { font-size: 0.9rem; }
+        .score-box { font-size: 1.8rem; padding: 8px; }
+        .stamp-overlay { font-size: 3rem; }
     }
 
-    .filter-bar input {
-        flex: 1;
-        min-width: 0;
-        background: #000;
-        border: 1px solid var(--border);
-        color: var(--warning);
-        padding: 10px 12px;
-        font-family: monospace;
-        font-size: 0.85rem;
-        outline: none;
-        border-radius: 4px;
-    }
-
-    .filter-bar input:focus { border-color: var(--warning); }
-
-    .filter-bar input::placeholder { color: #444; }
-
-    .filter-bar select {
-        background: #000;
-        border: 1px solid var(--border);
-        color: var(--accent);
-        padding: 10px 32px 10px 12px;
-        font-family: monospace;
-        font-size: 0.75rem;
-        outline: none;
-        border-radius: 4px;
-        -webkit-appearance: none;
-        appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2300d9ff' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 10px center;
-        flex-shrink: 0;
-    }
-
-    /* ===== LIST HEADER ===== */
-    .list-header {
-        display: grid;
-        grid-template-columns: 1.4fr 0.9fr 1.1fr 1.3fr;
-        gap: 8px;
-        font-size: 0.65rem;
-        color: var(--accent);
-        padding: 0 16px 8px 16px;
-        border-bottom: 1px solid var(--border);
-        flex-shrink: 0;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    /* ===== LIST SCROLL ===== */
-    .list-scroll {
-        flex: 1;
-        overflow-y: auto; /* Enables the scrollbar */
-        overflow-x: hidden;
-        padding: 8px 16px 16px 16px;
-        -webkit-overflow-scrolling: touch;
-        overscroll-behavior: contain;
-        min-height: 0;
-    }
-
-    /* List scroll gets an accent-tinted scrollbar */
-    .list-scroll::-webkit-scrollbar-thumb {
-        background: #0e2e3a;
-        border: 1px solid var(--border);
-    }
-    .list-scroll::-webkit-scrollbar-thumb:hover {
-        background: var(--accent);
-    }
-    .list-scroll::-webkit-scrollbar-thumb:active {
-        background: var(--accent);
-    }
-
-    /* ===== LIST ITEMS (Desktop) ===== */
-    .list-item {
-        display: grid;
-        grid-template-columns: 1.4fr 0.9fr 1.1fr 1.3fr;
-        gap: 8px;
-        padding: 10px 0;
-        border-bottom: 1px dashed var(--border);
-        font-size: 0.85rem;
-        align-items: center;
-    }
-
-    .list-item:hover { background: rgba(255,255,255,0.02); }
-
-    .plate-tag { color: var(--warning); font-weight: bold; }
-    .plate-tag.wanted-plate { color: var(--danger); }
-
-    .status-tag {
-        font-weight: bold;
-        font-size: 0.65rem;
-        padding: 4px 6px;
-        text-align: center;
-        border-radius: 3px;
-        display: inline-block;
-        width: 100%;
-        box-sizing: border-box;
-        white-space: nowrap;
-    }
-
-    .status-clear { background: rgba(46, 213, 115, 0.2); color: var(--success); }
-    .status-wanted { background: rgba(255, 71, 87, 0.2); color: var(--danger); animation: pulse 1.5s infinite; }
-    .status-pending { background: rgba(255, 165, 2, 0.2); color: var(--warning); }
-    .status-enforcement { background: rgba(0, 217, 255, 0.15); color: var(--accent); }
-
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-
-    .action-btns { display: flex; gap: 4px; align-items: center; }
-    .action-btns .status-tag { flex-shrink: 0; width: auto; min-width: 60px; }
-
-    .sm-btn {
-        background: #333;
-        border: 1px solid #555;
-        color: #fff;
-        padding: 6px 8px;
-        cursor: pointer;
-        font-size: 0.65rem;
-        font-family: monospace;
-        text-align: center;
-        border-radius: 3px;
-        transition: background 0.15s;
-        min-height: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        white-space: nowrap;
-    }
-
-    .sm-btn:hover { background: #444; }
-    .sm-btn:active { background: #222; transform: scale(0.97); }
-    .sm-btn.danger-btn { color: var(--danger); }
-    .sm-btn.danger-btn:hover { background: rgba(255,71,87,0.15); }
-
-    /* ===== TOAST ===== */
-    .reg-toast {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        left: auto;
-        background: #111;
-        border: 2px solid var(--success);
-        padding: 14px 18px;
-        border-radius: 6px;
-        z-index: 100;
-        display: none;
-        animation: toastSlide 0.3s ease-out;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-        max-width: 340px;
-    }
-
-    .reg-toast.active { display: block; }
-    .reg-toast.toast-danger { border-color: var(--danger); }
-    .reg-toast .toast-title { font-weight: bold; font-size: 0.8rem; margin-bottom: 4px; }
-    .reg-toast .toast-msg { font-size: 0.7rem; color: #888; }
-
-    @keyframes toastSlide {
-        from { transform: translateY(20px); opacity: 0; }
-        to { transform: translateY(0); opacity: 1; }
-    }
-
-    /* ===== EMPTY STATE ===== */
-    .empty-state {
-        text-align: center;
-        color: #555;
-        padding: 40px 16px;
-    }
-
-    .empty-state .empty-icon {
-        font-size: 2rem;
-        margin-bottom: 12px;
-        opacity: 0.4;
-    }
-
-    .empty-state .empty-text {
-        font-size: 0.8rem;
-        margin-bottom: 6px;
-    }
-
-    .empty-state .empty-sub {
-        font-size: 0.65rem;
-        color: #444;
-    }
-
-    /* ===== MOBILE CARD LAYOUT ===== */
-    .mobile-card {
-        display: none;
-        background: rgba(0,0,0,0.3);
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        padding: 12px;
-        margin-bottom: 8px;
-    }
-
-    .mobile-card-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 8px;
-        gap: 8px;
-    }
-
-    .mobile-card-plate {
-        color: var(--warning);
-        font-weight: bold;
-        font-size: 1rem;
-    }
-
-    .mobile-card-plate.wanted-plate { color: var(--danger); }
-
-    .mobile-card-meta {
-        display: flex;
-        gap: 12px;
-        font-size: 0.7rem;
-        color: #888;
-        margin-bottom: 10px;
-        flex-wrap: wrap;
-    }
-
-    .mobile-card-meta span { white-space: nowrap; }
-
-    .mobile-card-actions {
-        display: flex;
-        gap: 6px;
-        align-items: center;
-    }
-
-    .mobile-card-actions .status-tag {
-        font-size: 0.6rem;
-        padding: 4px 8px;
-        width: auto;
-    }
-
-    .mobile-card-actions .sm-btn {
-        flex: 1;
-        min-height: 36px;
-        font-size: 0.7rem;
-    }
-
-    /* ===== TAB SWITCHER (Mobile) ===== */
-    .mobile-tabs {
-        display: none;
-        background: var(--panel);
-        border-bottom: 1px solid var(--border);
-        flex-shrink: 0;
-    }
-
-    .mobile-tabs button {
-        flex: 1;
-        background: none;
-        border: none;
-        color: #666;
-        padding: 12px;
-        font-family: monospace;
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        cursor: pointer;
-        border-bottom: 2px solid transparent;
-        transition: all 0.2s;
-    }
-
-    .mobile-tabs button.active {
-        color: var(--accent);
-        border-bottom-color: var(--accent);
-    }
-
-    .mobile-tabs button:active { background: rgba(0,217,255,0.05); }
-
-    /* ===== SCROLL INDICATOR FADE ===== */
-    .scroll-fade-bottom {
-        position: absolute;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        height: 30px;
-        pointer-events: none;
-        z-index: 5;
-        opacity: 0;
-        transition: opacity 0.2s;
-        background: linear-gradient(to top, var(--panel), transparent);
-    }
-
-    .scroll-fade-bottom.visible {
-        opacity: 1;
-    }
-
-    /* ===== RESPONSIVE: TABLET ===== */
-    @media (max-width: 1024px) and (min-width: 769px) {
-        .main-grid {
-            grid-template-columns: 320px 1fr;
-            gap: 12px;
-            padding: 12px;
-        }
-    }
-
-    /* ===== RESPONSIVE: MOBILE / SMALL TABLET ===== */
-    @media (max-width: 768px) {
-        :root {
-            --scrollbar-width: 8px;
-        }
-
-        .top-bar { padding: 10px 12px; padding-top: calc(10px + var(--safe-top)); }
-        .top-bar h1 { font-size: 0.7rem; letter-spacing: 0.5px; }
-
-        .main-grid {
-            grid-template-columns: 1fr;
-            gap: 0;
-            padding: 0;
-            overflow: hidden;
-        }
-
-        .mobile-tabs { display: flex; }
-
-        .form-panel, .list-panel {
-            border-radius: 0;
-            border: none;
-        }
-
-        .form-panel {
-            display: none;
-            height: 100%;
-        }
-
-        .form-panel.tab-active { display: flex; }
-
-        .list-panel {
-            display: none;
-            height: 100%;
-        }
-
-        .list-panel.tab-active { display: flex; }
-
-        .form-scroll-area { padding: 16px; }
-        .btn-grid { padding: 12px 16px; }
-        .filter-bar { padding: 12px 12px 0 12px; }
-        .list-header { padding: 0 12px 8px 12px; }
-        .list-scroll { padding: 8px 12px 12px 12px; }
-
-        .source-info { font-size: 0.6rem; }
-        .source-toggle { display: inline-block; }
-
-        .form-group input,
-        .form-group select { padding: 14px 12px; font-size: 16px; /* Prevents iOS zoom */ }
-
-        .mech-btn { min-height: 52px; font-size: 0.85rem; }
-
-        /* Switch to card layout */
-        .list-header { display: none; }
-        .list-item { display: none; }
-        .mobile-card { display: block; }
-
-        .filter-bar input { padding: 12px; font-size: 16px; }
-        .filter-bar select { padding: 12px 36px 12px 12px; font-size: 0.8rem; min-height: 48px; }
-
-        .reg-toast {
-            left: 12px;
-            right: 12px;
-            bottom: calc(16px + var(--safe-bottom));
-            max-width: none;
-        }
-    }
-
-    /* ===== RESPONSIVE: VERY SMALL PHONES ===== */
-    @media (max-width: 380px) {
-        :root {
-            --scrollbar-width: 6px;
-        }
-        .top-bar h1 { font-size: 0.6rem; }
-        .sync-badge { font-size: 0.5rem; padding: 2px 6px; }
-        .form-scroll-area { padding: 10px; }
-        .btn-grid { padding: 10px; }
-        .mech-btn { padding: 12px; font-size: 0.75rem; min-height: 48px; }
-        .mobile-card { padding: 10px; }
-        .mobile-card-plate { font-size: 0.9rem; }
-        .list-scroll { padding: 8px 10px 10px 10px; }
-    }
-
-    /* ===== LANDSCAPE PHONE ===== */
-    @media (max-height: 500px) and (orientation: landscape) {
-        :root {
-            --scrollbar-width: 6px;
-        }
-        .form-scroll-area { padding: 8px 12px; }
-        .form-group { margin-bottom: 6px; }
-        .form-group input, .form-group select { padding: 8px 10px; font-size: 14px; }
-        .source-info { display: none; }
-        .btn-grid { gap: 6px; padding: 8px 12px; }
-        .mech-btn { min-height: 36px; padding: 6px; }
-        .mobile-tabs button { padding: 6px; font-size: 0.65rem; }
-    }
-
-    /* ===== PRINT ===== */
-    @media print {
-        body { height: auto; overflow: visible; background: #fff; color: #000; }
-        .top-bar, .form-panel, .filter-bar, .mobile-tabs, .reg-toast,
-        .scroll-fade-bottom, .btn-grid { display: none !important; }
-        .list-panel { display: block !important; border: none; padding: 0; overflow: visible; }
-        .list-scroll { overflow: visible; }
-        .list-item { border-bottom: 1px solid #ccc; color: #000; }
-        .plate-tag { color: #000 !important; }
-        .status-tag { border: 1px solid #999; color: #000 !important; background: #eee !important; animation: none !important; }
-    }
-
-    /* ===== FOCUS VISIBLE (Accessibility) ===== */
-    :focus-visible {
-        outline: 2px solid var(--accent);
-        outline-offset: 2px;
-    }
-
-    button:focus-visible {
-        outline: 2px solid var(--accent);
-        outline-offset: 1px;
-    }
-
-    /* ===== REDUCED MOTION ===== */
-    @media (prefers-reduced-motion: reduce) {
-        *, *::before, *::after {
-            animation-duration: 0.01ms !important;
-            animation-iteration-count: 1 !important;
-            transition-duration: 0.01ms !important;
-        }
+    @media (max-width: 1024px) {
+        .main-layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr; overflow-y: auto; }
+        .call-panel { border-right: none; border-bottom: 1px solid var(--border); padding-right: 0; padding-bottom: 20px; }
+        .btn-next-mega { padding: 20px; font-size: 1.2rem; }
+        .detail-panel { min-height: 500px; }
     }
 </style>
 </head>
 <body>
 
 <div class="top-bar">
-    <h1>▸ NHAI_REGISTRY // DB_TERMINAL_v4.2</h1>
-    <div class="top-bar-right">
-        <span class="sync-badge waiting" id="syncBadge">● SYNCING</span>
-        <div class="time" id="clock">00:00:00</div>
-    </div>
+    <h1>▸ NHAI_LICENSING_AUTH // REVIEW_TERMINAL_v5.0</h1>
+    <div class="time" id="clock">00:00:00</div>
 </div>
 
-<!-- Mobile Tab Switcher -->
-<div class="mobile-tabs" id="mobileTabs">
-    <button class="active" onclick="switchTab('register')" id="tabRegister">⊕ Register</button>
-    <button onclick="switchTab('database')" id="tabDatabase">▮ Database</button>
-</div>
-
-<div class="main-grid">
-    <div class="form-panel tab-active" id="formPanel">
-        <div class="panel-title" style="padding: 16px 16px 10px 16px; margin-bottom: 0;">■ Citizen / Vehicle Registration</div>
-
-        <div class="form-scroll-area" id="formScrollArea">
-            <div class="source-info" id="sourceInfo" onclick="toggleSourceInfo()">
-                <div class="source-tags-row">
-                    <span style="color: var(--accent); margin-right: 4px;">NETWORK SOURCES</span>
-                    <button class="source-toggle" onclick="event.stopPropagation(); toggleSourceInfo()" id="sourceToggleBtn">▼</button>
-                </div>
-                <div class="source-detail">
-                    <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px;">
-                        <span class="source-tag src-db">DB</span>
-                        <span class="source-tag src-d1">D1</span>
-                        <span class="source-tag src-d2">TOLL</span>
-                        <span class="source-tag src-d7">D7</span>
-                        <span class="source-tag src-911">911</span>
-                        <span class="source-tag src-patrol">PATROL</span>
-                    </div>
-                    <div style="color:#555;">Records tagged with source show which terminal created them. All changes sync instantly across network.</div>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="inp-plate">License Plate (XX-0000)</label>
-                <input type="text" id="inp-plate" placeholder="e.g. PX-1234" maxlength="8" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false">
-            </div>
-            <div class="form-group">
-                <label for="inp-id">Driver License ID</label>
-                <input type="text" id="inp-id" placeholder="e.g. DL-8901" maxlength="10" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false">
-            </div>
-            <div class="form-group">
-                <label for="inp-class">Vehicle Class</label>
-                <select id="inp-class">
-                    <option value="LVM_CLASS_1">LVM_CLASS_1 (Car)</option>
-                    <option value="HVM_CLASS_2">HVM_CLASS_2 (Truck)</option>
-                    <option value="GOV_CLASS_0">GOV_CLASS_0 (Official)</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="inp-status">Criminal Status</label>
-                <select id="inp-status">
-                    <option value="CLEAR">CLEAR</option>
-                    <option value="WANTED">WANTED (APB)</option>
-                </select>
-            </div>
+<div class="main-layout">
+    <div class="call-panel">
+        <div class="terminal-art">
+            ► SYSTEM READY<br>
+            ► AWAITING OFFICER INPUT<br>
+            ► DATABASE SYNC: ACTIVE
         </div>
-
-        <div class="btn-grid">
-            <button class="mech-btn btn-register" onclick="registerVehicle()" aria-label="Register vehicle">REGISTER</button>
-            <button class="mech-btn btn-clear" onclick="clearForm()" aria-label="Clear form">CLEAR</button>
-        </div>
+        <button class="btn-next-mega ready-glow" id="btnCallNext" onclick="callNextApplicant()">CALL NEXT APPLICANT</button>
+        <div style="font-size: 0.7rem; color: #555;">Press button to pull next random application</div>
     </div>
 
-    <div class="list-panel" id="listPanel">
-        <div class="panel-title" style="padding: 16px 16px 10px 16px; margin-bottom: 0;">
-            <span>■ Active Network Database</span>
-            <span class="record-count" id="recordCount">0 RECORDS</span>
+    <div class="detail-panel">
+        <div class="panel-title" style="color: var(--accent); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 5px;">■ Document Review</div>
+        
+        <div class="form-container">
+            <div class="application-form" id="app-form">
+                <div id="stamp-box" class="stamp-overlay"></div>
+                <div class="form-header">Official Application For Vehicle Registration</div>
+                
+                <div class="form-row"><span class="form-label">APPLICANT NAME:</span> <span id="f-name">---</span></div>
+                <div class="form-row"><span class="form-label">VEHICLE CLASS:</span> <span id="f-class">---</span></div>
+                <div class="form-row"><span class="form-label">REQUESTED PLATE:</span> <span id="f-plate" style="color:#cc0000; font-weight:bold;">---</span></div>
+                
+                <div style="margin-top:5px; font-weight:bold; text-decoration:underline;">TEST RESULTS:</div>
+                <div class="score-box" id="f-score">-- / 100</div>
+                <div style="text-align:center; font-size:0.8rem; margin-top:2px;" id="f-score-status">AWAITING SCORE</div>
+
+                <div class="bg-check" id="f-bgcheck">BACKGROUND CHECK: PENDING</div>
+            </div>
         </div>
 
-        <div class="filter-bar">
-            <input type="text" id="filterSearch" placeholder="Search plate..." oninput="renderDBList()" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" aria-label="Search by license plate">
-            <select id="filterStatus" onchange="renderDBList()" aria-label="Filter by status">
-                <option value="ALL">ALL</option>
-                <option value="CLEAR">CLEAR</option>
-                <option value="WANTED">WANTED</option>
-                <option value="PENDING_ENFORCEMENT">PENDING</option>
-            </select>
+        <div class="action-panel">
+            <button class="mech-btn btn-approve" id="btn-approve" onclick="processApplication(true)" disabled>APPROVE REGISTRY</button>
+            <button class="mech-btn btn-reject" id="btn-reject" onclick="processApplication(false)" disabled>REJECT APPLICATION</button>
         </div>
-
-        <div class="list-header" aria-hidden="true">
-            <div>PLATE</div>
-            <div>DL ID</div>
-            <div>CLASS</div>
-            <div>STATUS / ACTION</div>
-        </div>
-        <div class="list-scroll" id="db-list" role="list" aria-label="Vehicle registry list">
-        </div>
-
-        <!-- Scroll fade indicator -->
-        <div class="scroll-fade-bottom" id="listFadeBottom"></div>
     </div>
-</div>
-
-<!-- Toast notification -->
-<div class="reg-toast" id="regToast" role="alert" aria-live="polite">
-    <div class="toast-title" id="toastTitle">---</div>
-    <div class="toast-msg" id="toastMsg">---</div>
 </div>
 
 <script>
-    /* ===== SYNC KEYS ===== */
-    const LS_D1_KEY = 'enforcementTerminalV23_D1';
-    const LS_D2_KEY = 'enforcementTerminalV23_TOLL';
+    let sharedData = { revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null, activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [], ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [] };
+    let currentApplicant = null;
+    let currentApplicantStatus = null; 
 
-    let sharedData = {
-        revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0,
-        history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null,
-        activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [],
-        ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: []
-    };
+    const firstNames = ["JOHN", "MARIA", "ALEX", "SANJI", "LEILA", "OMAR", "CHEN", "RYUK", "PRIYA", "JINX"];
+    const lastNames = ["WICK", "SOTO", "CHEN", "CARTER", "VALENCIA", "NAKAMURA", "PETROV", "SINGH", "MERCER", "DIAZ"];
+    const prefixes = ["PX","NX","TX","DV","CR","XR","ZK","AV","BN"];
 
-    let lastRegistryHash = '';
-    let currentTab = 'register';
-    let sourceCollapsed = false;
-
-    /* ===== CLOCK ===== */
-    function updateClock() {
-        document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB');
-    }
+    function updateClock() { document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB'); }
     setInterval(updateClock, 1000);
-    updateClock();
 
-    /* ===== MOBILE TAB SWITCHING ===== */
-    function switchTab(tab) {
-        currentTab = tab;
-        const formPanel = document.getElementById('formPanel');
-        const listPanel = document.getElementById('listPanel');
-        const tabReg = document.getElementById('tabRegister');
-        const tabDb = document.getElementById('tabDatabase');
-
-        if (tab === 'register') {
-            formPanel.classList.add('tab-active');
-            listPanel.classList.remove('tab-active');
-            tabReg.classList.add('active');
-            tabDb.classList.remove('active');
-        } else {
-            formPanel.classList.remove('tab-active');
-            listPanel.classList.add('tab-active');
-            tabReg.classList.remove('active');
-            tabDb.classList.add('active');
-            renderDBList();
+    const HASH_SALT = "ENFORCE_V23_SECURE_SALT";
+    function generateSignature(dataStr) {
+        let hash = 0;
+        const str = HASH_SALT + dataStr;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; 
         }
+        return hash.toString(16);
     }
 
-    /* ===== SOURCE INFO TOGGLE ===== */
-    function toggleSourceInfo() {
-        const el = document.getElementById('sourceInfo');
-        const btn = document.getElementById('sourceToggleBtn');
-        sourceCollapsed = !sourceCollapsed;
-        el.classList.toggle('collapsed', sourceCollapsed);
-        btn.innerText = sourceCollapsed ? '▼' : '▲';
-    }
-
-    /* ===== SCROLL FADE INDICATORS ===== */
-    function updateScrollFade(scrollEl, fadeBottomEl) {
-        if (!fadeBottomEl || !scrollEl) return;
-        const atBottom = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 10;
-        fadeBottomEl.classList.toggle('visible', !atBottom);
-    }
-
-    function setupScrollFade() {
-        const listScroll = document.getElementById('db-list');
-        const listFadeBottom = document.getElementById('listFadeBottom');
-        if (listScroll && listFadeBottom) {
-            listScroll.addEventListener('scroll', () => updateScrollFade(listScroll, listFadeBottom));
-            setTimeout(() => updateScrollFade(listScroll, listFadeBottom), 100);
-        }
-    }
-
-    /* ===== DATA LOAD ===== */
     function loadData() {
-        try {
-            const d1 = localStorage.getItem(LS_D1_KEY);
-            const d2 = localStorage.getItem(LS_D2_KEY);
-
-            let d1Data = null, d2Data = null;
-            if (d1) { try { d1Data = JSON.parse(d1); } catch(e) { d1Data = null; } }
-            if (d2) { try { d2Data = JSON.parse(d2); } catch(e) { d2Data = null; } }
-
-            let mergedData = {
-                revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0,
-                registry: {}, history: [], activeInmates: [], releasedInmates: [],
-                inbox: [], sentMail: [], call911Logs: [], forgedAliases: {},
-                nextSpawnOverride: null, ledgerCashouts: [], intelFlags: [],
-                paroleRecords: [], iaViolations: [], rehabPrograms: []
-            };
-
-            if (d1Data) {
-                Object.assign(mergedData, d1Data);
-                if (d1Data.registry) Object.assign(mergedData.registry, d1Data.registry);
-                if (d1Data.activeInmates) mergedData.activeInmates = d1Data.activeInmates;
-                if (d1Data.releasedInmates) mergedData.releasedInmates = d1Data.releasedInmates;
-            }
-
-            if (d2Data) {
-                mergedData.revenue = Math.max(mergedData.revenue || 0, d2Data.revenue || 0);
-                mergedData.valids = Math.max(mergedData.valids || 0, d2Data.valids || 0);
-                mergedData.missed = Math.max(mergedData.missed || 0, d2Data.missed || 0);
-                mergedData.level = Math.max(mergedData.level || 1, d2Data.level || 1);
-                mergedData.rankPoints = Math.max(mergedData.rankPoints || 0, d2Data.rankPoints || 0);
-
-                if (d2Data.registry) Object.assign(mergedData.registry, d2Data.registry);
-
-                if (d2Data.history) {
-                    mergedData.history = d2Data.history.concat(mergedData.history).filter((v, i, a) =>
-                        a.findIndex(t => (t.plate === v.plate && t.timestamp === v.timestamp)) === i
-                    );
+        const savedData = localStorage.getItem('enforcementTerminalV23');
+        const savedSig = localStorage.getItem('enforcementTerminalV23_sig');
+        
+        if (savedData) {
+            try {
+                if (savedSig !== generateSignature(savedData)) {
+                    console.error("SECURITY BREACH: Data tampering detected! Wiping corrupted data.");
+                    localStorage.removeItem('enforcementTerminalV23');
+                    localStorage.removeItem('enforcementTerminalV23_sig');
+                    return;
                 }
-
-                if (d2Data.activeInmates && d2Data.activeInmates.length > mergedData.activeInmates.length) {
-                    mergedData.activeInmates = d2Data.activeInmates;
-                }
-                if (d2Data.releasedInmates && d2Data.releasedInmates.length > (mergedData.releasedInmates || []).length) {
-                    mergedData.releasedInmates = d2Data.releasedInmates;
-                }
-
-                if (!mergedData.call911Logs && d2Data.call911Logs) mergedData.call911Logs = d2Data.call911Logs;
-                if (!mergedData.paroleRecords && d2Data.paroleRecords) mergedData.paroleRecords = d2Data.paroleRecords;
-                if (!mergedData.rehabPrograms && d2Data.rehabPrograms) mergedData.rehabPrograms = d2Data.rehabPrograms;
-                if (!mergedData.forgedAliases && d2Data.forgedAliases) mergedData.forgedAliases = d2Data.forgedAliases;
+                const parsed = JSON.parse(savedData);
+                sharedData = parsed;
+                
+                // Compatibility checks for older save data
+                if(!sharedData.registry) sharedData.registry = {};
+                if(!sharedData.forgedAliases) sharedData.forgedAliases = {};
+                if(sharedData.nextSpawnOverride === undefined) sharedData.nextSpawnOverride = null;
+                if(!sharedData.activeInmates) sharedData.activeInmates = [];
+                if(!sharedData.releasedInmates) sharedData.releasedInmates = [];
+                if(!sharedData.inbox) sharedData.inbox = [];
+                if(!sharedData.sentMail) sharedData.sentMail = [];
+                if(!sharedData.call911Logs) sharedData.call911Logs = [];
+                if(!sharedData.ledgerCashouts) sharedData.ledgerCashouts = [];
+                if(!sharedData.intelFlags) sharedData.intelFlags = [];
+                if(!sharedData.paroleRecords) sharedData.paroleRecords = [];
+                if(!sharedData.iaViolations) sharedData.iaViolations = [];
+                if(!sharedData.rehabPrograms) sharedData.rehabPrograms = [];
+                if(!sharedData.history) sharedData.history = [];
+            } catch(e) {
+                console.error("Corrupted save data, resetting."); 
+                localStorage.removeItem('enforcementTerminalV23');
+                localStorage.removeItem('enforcementTerminalV23_sig');
             }
-
-            if (!mergedData.registry) mergedData.registry = {};
-            if (!mergedData.forgedAliases) mergedData.forgedAliases = {};
-            if (mergedData.nextSpawnOverride === undefined) mergedData.nextSpawnOverride = null;
-            if (!mergedData.activeInmates) mergedData.activeInmates = [];
-            if (!mergedData.releasedInmates) mergedData.releasedInmates = [];
-            if (!mergedData.inbox) mergedData.inbox = [];
-            if (!mergedData.sentMail) mergedData.sentMail = [];
-            if (!mergedData.call911Logs) mergedData.call911Logs = [];
-            if (!mergedData.ledgerCashouts) mergedData.ledgerCashouts = [];
-            if (!mergedData.intelFlags) mergedData.intelFlags = [];
-            if (!mergedData.paroleRecords) mergedData.paroleRecords = [];
-            if (!mergedData.iaViolations) mergedData.iaViolations = [];
-            if (!mergedData.rehabPrograms) mergedData.rehabPrograms = [];
-            if (!mergedData.history) mergedData.history = [];
-
-            const regKeys = Object.keys(mergedData.registry || {}).sort();
-            const newHash = regKeys.map(k => k + ':' + (mergedData.registry[k].status || '') + ':' + (mergedData.registry[k].registeredBy || '')).join('|');
-
-            sharedData = mergedData;
-            updateSyncBadge(d1Data, d2Data);
-
-            if (newHash !== lastRegistryHash) {
-                lastRegistryHash = newHash;
-                renderDBList();
-            }
-
-        } catch(e) {
-            console.error("DB Terminal load error:", e);
         }
     }
 
     function saveData() {
-        try {
-            const dataStr = JSON.stringify(sharedData);
-            localStorage.setItem(LS_D1_KEY, dataStr);
-            localStorage.setItem(LS_D2_KEY, dataStr);
-        } catch(e) {
-            console.error("DB Terminal save error:", e);
+        const dataStr = JSON.stringify(sharedData);
+        localStorage.setItem('enforcementTerminalV23', dataStr);
+        localStorage.setItem('enforcementTerminalV23_sig', generateSignature(dataStr));
+    }
+
+    // Keep data synced with Enforcement Terminal
+    setInterval(() => {
+        const savedData = localStorage.getItem('enforcementTerminalV23');
+        if (savedData) {
+            try {
+                const data = JSON.parse(savedData);
+                if(JSON.stringify(data) !== JSON.stringify(sharedData)) {
+                    sharedData = data;
+                }
+            } catch(e) {}
         }
-    }
+    }, 2000);
 
-    function updateSyncBadge(d1Data, d2Data) {
-        const badge = document.getElementById('syncBadge');
-        if (d1Data && d2Data) {
-            badge.innerText = "● DUAL SYNC";
-            badge.className = "sync-badge online";
-        } else if (d1Data || d2Data) {
-            badge.innerText = "● PARTIAL";
-            badge.className = "sync-badge waiting";
-        } else {
-            badge.innerText = "● OFFLINE";
-            badge.className = "sync-badge offline";
-        }
-    }
+    function generateRandomApplicant() {
+        const fName = firstNames[Math.floor(Math.random()*firstNames.length)];
+        const lName = lastNames[Math.floor(Math.random()*lastNames.length)];
+        const plate = prefixes[Math.floor(Math.random()*prefixes.length)] + "-" + Math.floor(1000+Math.random()*9000);
+        const classes = ["LVM_CLASS_1", "HVM_CLASS_2", "GOV_CLASS_0"];
+        const vClass = classes[Math.floor(Math.random()*classes.length)];
+        const score = Math.floor(Math.random() * 101); 
+        const isFlagged = Math.random() < 0.2; 
 
-    /* ===== TOAST ===== */
-    let toastTimeout = null;
-    function showToast(title, msg, isDanger) {
-        const toast = document.getElementById('regToast');
-        document.getElementById('toastTitle').innerText = title;
-        document.getElementById('toastTitle').style.color = isDanger ? 'var(--danger)' : 'var(--success)';
-        document.getElementById('toastMsg').innerText = msg;
-        toast.className = 'reg-toast active' + (isDanger ? ' toast-danger' : '');
-
-        if (toastTimeout) clearTimeout(toastTimeout);
-        toastTimeout = setTimeout(() => { toast.classList.remove('active'); }, 3000);
-    }
-
-    /* ===== AUDIO ===== */
-    let audioCtx = null;
-    function getAudioCtx() {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        return audioCtx;
-    }
-
-    function playSound(type) {
-        try {
-            const ctx = getAudioCtx();
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.connect(gain); gain.connect(ctx.destination);
-            const t = ctx.currentTime;
-            switch(type) {
-                case 'register':
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(800, t);
-                    osc.frequency.setValueAtTime(1000, t + 0.1);
-                    gain.gain.setValueAtTime(0.15, t);
-                    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
-                    osc.start(t); osc.stop(t + 0.2);
-                    break;
-                case 'toggle':
-                    osc.type = 'triangle';
-                    osc.frequency.setValueAtTime(500, t);
-                    osc.frequency.setValueAtTime(700, t + 0.08);
-                    gain.gain.setValueAtTime(0.12, t);
-                    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
-                    osc.start(t); osc.stop(t + 0.15);
-                    break;
-                case 'delete':
-                    osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(300, t);
-                    osc.frequency.exponentialRampToValueAtTime(100, t + 0.2);
-                    gain.gain.setValueAtTime(0.15, t);
-                    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.25);
-                    osc.start(t); osc.stop(t + 0.25);
-                    break;
-                case 'error':
-                    osc.type = 'square';
-                    osc.frequency.setValueAtTime(150, t);
-                    gain.gain.setValueAtTime(0.2, t);
-                    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
-                    osc.start(t); osc.stop(t + 0.3);
-                    break;
-            }
-        } catch(e) { /* Audio not available */ }
-    }
-
-    /* ===== FORM ACTIONS ===== */
-    function clearForm() {
-        document.getElementById('inp-plate').value = '';
-        document.getElementById('inp-id').value = '';
-        document.getElementById('inp-class').value = 'LVM_CLASS_1';
-        document.getElementById('inp-status').value = 'CLEAR';
-        document.getElementById('inp-plate').focus();
-    }
-
-    function registerVehicle() {
-        const plate = document.getElementById('inp-plate').value.toUpperCase().trim();
-        const id = document.getElementById('inp-id').value.toUpperCase().trim();
-        const vClass = document.getElementById('inp-class').value;
-        const status = document.getElementById('inp-status').value;
-
-        if (!plate || !id) {
-            showToast("REGISTRATION FAILED", "Plate and DL ID are required.", true);
-            playSound('error');
-            return;
-        }
-
-        loadData();
-
-        const isUpdate = !!sharedData.registry[plate];
-
-        sharedData.registry[plate] = {
-            id: id,
+        return {
+            name: `${fName} ${lName}`,
+            plate: plate,
             vClass: vClass,
-            status: status,
-            registeredBy: "NHAI_DB_TERMINAL",
-            d5Status: status === 'WANTED' ? 'REJECTED' : 'APPROVED'
+            score: score,
+            isFlagged: isFlagged
         };
+    }
 
-        saveData();
-        renderDBList();
-        clearForm();
+    function loadIntoForm(applicant) {
+        currentApplicant = applicant;
+        currentApplicantStatus = null;
 
-        if (isUpdate) {
-            showToast("RECORD UPDATED", `${plate} → ${status}`, false);
+        const form = document.getElementById('app-form');
+        form.className = 'application-form active'; 
+        
+        document.getElementById('stamp-box').className = 'stamp-overlay';
+        document.getElementById('stamp-box').style.opacity = '0';
+
+        document.getElementById('f-name').innerText = currentApplicant.name;
+        document.getElementById('f-class').innerText = currentApplicant.vClass;
+        document.getElementById('f-plate').innerText = currentApplicant.plate;
+        
+        const scoreBox = document.getElementById('f-score');
+        const scoreStatus = document.getElementById('f-score-status');
+        scoreBox.innerText = `${currentApplicant.score} / 100`;
+        
+        if (currentApplicant.score >= 70) {
+            scoreBox.className = 'score-box score-pass';
+            scoreStatus.innerText = "STATUS: PASSED";
+            scoreStatus.style.color = "#006400";
         } else {
-            showToast("RECORD CREATED", `${plate} registered as ${status}`, false);
+            scoreBox.className = 'score-box score-fail';
+            scoreStatus.innerText = "STATUS: FAILED (Below 70)";
+            scoreStatus.style.color = "var(--danger)";
         }
-        playSound('register');
 
-        // Auto-switch to database tab on mobile
-        if (window.innerWidth <= 768) {
-            setTimeout(() => switchTab('database'), 400);
+        const bgBox = document.getElementById('f-bgcheck');
+        if (currentApplicant.isFlagged) {
+            bgBox.innerText = "BACKGROUND CHECK: ⚠ FLAGGED BY ENFORCEMENT";
+            bgBox.className = "bg-check bg-flag";
+        } else {
+            bgBox.innerText = "BACKGROUND CHECK: ✓ RECORD CLEAN";
+            bgBox.className = "bg-check bg-clean";
         }
+
+        document.getElementById('btn-approve').disabled = false;
+        document.getElementById('btn-reject').disabled = false;
+        document.getElementById('btnCallNext').classList.remove('ready-glow');
     }
 
-    function toggleStatus(plate) {
-        if (sharedData.registry[plate]) {
-            loadData();
-            let currentStatus = sharedData.registry[plate].status;
-            const newStatus = currentStatus === 'CLEAR' ? 'WANTED' : 'CLEAR';
+    function callNextApplicant() {
+        const form = document.getElementById('app-form');
+        const stampBox = document.getElementById('stamp-box');
+        
+        if (currentApplicant && currentApplicantStatus) {
+            stampBox.style.opacity = '0';
 
-            sharedData.registry[plate].status = newStatus;
-            sharedData.registry[plate].d5Status = newStatus === 'WANTED' ? 'REJECTED' : 'APPROVED';
-            if (!sharedData.registry[plate].registeredBy) {
-                sharedData.registry[plate].registeredBy = "NHAI_DB_TERMINAL";
-            }
-
-            saveData();
-            renderDBList();
-
-            showToast(
-                newStatus === 'WANTED' ? "APB ISSUED" : "STATUS CLEARED",
-                `${plate} → ${newStatus}`,
-                newStatus === 'WANTED'
-            );
-            playSound('toggle');
-        }
-    }
-
-    function deleteRecord(plate) {
-        if (sharedData.registry[plate]) {
-            loadData();
-            delete sharedData.registry[plate];
-            saveData();
-            renderDBList();
-            showToast("RECORD DELETED", `${plate} removed from database.`, true);
-            playSound('delete');
-        }
-    }
-
-    /* ===== SOURCE TAG HELPER ===== */
-    function getSourceTag(source) {
-        if (!source) return '';
-        let cls = 'src-db';
-        let label = source;
-
-        if (source.includes('D1') || source.includes('ENFORCEMENT')) { cls = 'src-d1'; label = 'D1'; }
-        else if (source.includes('TOLL') || source.includes('NHAI_TOLL')) { cls = 'src-d2'; label = 'TOLL'; }
-        else if (source.includes('D7') || source.includes('PRISON') || source.includes('PAROLE')) { cls = 'src-d7'; label = 'D7'; }
-        else if (source.includes('911')) { cls = 'src-911'; label = '911'; }
-        else if (source.includes('PATROL')) { cls = 'src-patrol'; label = 'PATROL'; }
-        else if (source.includes('DB_TERMINAL')) { cls = 'src-db'; label = 'DB'; }
-        else if (source.includes('D16') || source.includes('GOV')) { cls = 'src-d1'; label = 'D16'; }
-        else if (source.includes('D17') || source.includes('RELICENSE')) { cls = 'src-d2'; label = 'D17'; }
-
-        return `<span class="source-tag ${cls}">${label}</span>`;
-    }
-
-    /* ===== RENDER ===== */
-    function renderDBList() {
-        const listContainer = document.getElementById('db-list');
-        listContainer.innerHTML = '';
-
-        const registry = sharedData.registry || {};
-        let keys = Object.keys(registry);
-
-        const filterSearch = (document.getElementById('filterSearch').value || '').toUpperCase().trim();
-        const filterStatus = document.getElementById('filterStatus').value;
-
-        if (filterSearch) {
-            keys = keys.filter(k => k.includes(filterSearch) || (registry[k].id || '').includes(filterSearch));
-        }
-        if (filterStatus !== 'ALL') {
-            keys = keys.filter(k => (registry[k].status || '') === filterStatus);
-        }
-
-        const totalCount = Object.keys(registry).length;
-        document.getElementById('recordCount').innerText = `${keys.length}${keys.length !== totalCount ? '/' + totalCount : ''} RECORDS`;
-
-        if (keys.length === 0) {
-            const isFiltered = filterSearch || filterStatus !== 'ALL';
-            listContainer.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-icon">${isFiltered ? '⊘' : '◽'}</div>
-                    <div class="empty-text">${isFiltered ? 'NO MATCHING RECORDS' : 'NO RECORDS IN DATABASE'}</div>
-                    <div class="empty-sub">${isFiltered ? 'Try adjusting the search filter.' : 'Register entries here or they will appear when other terminals create them.'}</div>
-                </div>`;
-            return;
-        }
-
-        keys.sort((a, b) => {
-            const aW = registry[a].status === 'WANTED' ? 0 : 1;
-            const bW = registry[b].status === 'WANTED' ? 0 : 1;
-            if (aW !== bW) return aW - bW;
-            return a.localeCompare(b);
-        });
-
-        const isMobile = window.innerWidth <= 768;
-
-        keys.forEach(plate => {
-            const record = registry[plate];
-
-            let statusClass = 'status-clear';
-            if (record.status === 'WANTED') statusClass = 'status-wanted';
-            else if (record.status === 'PENDING_ENFORCEMENT') statusClass = 'status-pending';
-            else if (record.status === 'ENFORCEMENT_CLEARED') statusClass = 'status-enforcement';
-
-            const toggleBtnText = record.status === 'WANTED' ? 'CLEAR' : 'WANTED';
-            const sourceTag = getSourceTag(record.registeredBy);
-            const safePlate = plate.replace(/'/g, "\\'");
-
-            if (isMobile) {
-                const card = document.createElement('div');
-                card.className = 'mobile-card';
-                card.setAttribute('role', 'listitem');
-                card.innerHTML = `
-                    <div class="mobile-card-header">
-                        <div>
-                            <div class="mobile-card-plate ${record.status === 'WANTED' ? 'wanted-plate' : ''}">${plate}</div>
-                            <div style="margin-top:2px;">${sourceTag}</div>
-                        </div>
-                        <div class="status-tag ${statusClass}">${record.status}</div>
-                    </div>
-                    <div class="mobile-card-meta">
-                        <span>ID: ${record.id || 'N/A'}</span>
-                        <span>CLS: ${record.vClass || 'N/A'}</span>
-                    </div>
-                    <div class="mobile-card-actions">
-                        <button class="sm-btn" onclick="toggleStatus('${safePlate}')">${toggleBtnText}</button>
-                        <button class="sm-btn danger-btn" onclick="deleteRecord('${safePlate}')">DEL</button>
-                    </div>
-                `;
-                listContainer.appendChild(card);
+            if (currentApplicantStatus === 'approved') {
+                form.className = 'application-form archive-left'; 
             } else {
-                const item = document.createElement('div');
-                item.className = 'list-item';
-                item.setAttribute('role', 'listitem');
-                item.innerHTML = `
-                    <div>
-                        <div class="plate-tag ${record.status === 'WANTED' ? 'wanted-plate' : 'plate-tag'}">${plate}</div>
-                        <div style="margin-top:3px;">${sourceTag}</div>
-                    </div>
-                    <div style="font-size:0.8rem;">${record.id || 'N/A'}</div>
-                    <div style="font-size:0.75rem; color:#888;">${record.vClass || 'N/A'}</div>
-                    <div class="action-btns">
-                        <div class="status-tag ${statusClass}">${record.status}</div>
-                        <button class="sm-btn" onclick="toggleStatus('${safePlate}')">${toggleBtnText}</button>
-                        <button class="sm-btn danger-btn" onclick="deleteRecord('${safePlate}')">DEL</button>
-                    </div>
-                `;
-                listContainer.appendChild(item);
+                form.className = 'application-form archive-right'; 
             }
-        });
 
-        setTimeout(() => {
-            const listScroll = document.getElementById('db-list');
-            const listFadeBottom = document.getElementById('listFadeBottom');
-            updateScrollFade(listScroll, listFadeBottom);
-        }, 50);
+            currentApplicant = null;
+            currentApplicantStatus = null;
+
+            document.getElementById('btn-approve').disabled = true;
+            document.getElementById('btn-reject').disabled = true;
+
+            setTimeout(() => {
+                const newApplicant = generateRandomApplicant();
+                loadIntoForm(newApplicant);
+            }, 400);
+        } else {
+            const newApplicant = generateRandomApplicant();
+            loadIntoForm(newApplicant);
+        }
     }
 
-    /* ===== HANDLE RESIZE ===== */
-    let resizeTimer;
-    window.addEventListener('resize', () => {
-        clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(() => {
-            renderDBList();
-            if (window.innerWidth > 768) {
-                document.getElementById('formPanel').classList.add('tab-active');
-                document.getElementById('listPanel').classList.add('tab-active');
-            } else {
-                switchTab(currentTab);
-            }
-        }, 150);
-    });
+    function processApplication(isApproved) {
+        if (!currentApplicant) return;
 
-    /* ===== KEYBOARD: Enter to register ===== */
-    document.getElementById('inp-plate').addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') { e.preventDefault(); registerVehicle(); }
-    });
-    document.getElementById('inp-id').addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') { e.preventDefault(); registerVehicle(); }
-    });
+        loadData(); // Fetch latest before modifying
+        const stampBox = document.getElementById('stamp-box');
 
-    /* ===== INIT ===== */
+        if (isApproved) {
+            const newID = "DL-AUTH-" + Math.floor(1000+Math.random()*9000);
+            sharedData.registry[currentApplicant.plate] = {
+                id: newID,
+                vClass: currentApplicant.vClass,
+                status: "CLEAR", 
+                registeredBy: "NHAI_LICENSING_AUTH",
+                d5Score: currentApplicant.score,
+                d5Status: currentApplicant.score >= 70 ? 'APPROVED' : 'REJECTED'
+            };
+            
+            // Add to cross-terminal history and update stats
+            sharedData.history.push({ 
+                plate: currentApplicant.plate, 
+                id: newID, 
+                action: "LICENSE APPROVED (NHAI)", 
+                timestamp: new Date().toLocaleTimeString() 
+            });
+            sharedData.valids = (sharedData.valids || 0) + 1;
+            sharedData.revenue = (sharedData.revenue || 0) + 50;
+            sharedData.rankPoints = (sharedData.rankPoints || 0) + 2;
+            
+            saveData(); 
+
+            stampBox.innerText = "APPROVED";
+            stampBox.className = "stamp-overlay stamp-approved";
+            stampBox.style.opacity = "1";
+            currentApplicantStatus = 'approved';
+
+        } else {
+            // Rejections add them to the network as pending enforcement
+            let offenseStatus = "PENDING_ENFORCEMENT";
+            if (currentApplicant.isFlagged) offenseStatus = "WANTED";
+
+            sharedData.registry[currentApplicant.plate] = {
+                id: currentApplicant.isFlagged ? "WANTED" : "UNVERIFIED",
+                vClass: currentApplicant.vClass,
+                status: offenseStatus,
+                registeredBy: currentApplicant.isFlagged ? "NHAI_ARREST_STAMP" : "NHAI_REJECTION",
+                d5Score: currentApplicant.score,
+                d5Status: 'REJECTED'
+            };
+
+            sharedData.history.push({ 
+                plate: currentApplicant.plate, 
+                id: sharedData.registry[currentApplicant.plate].id, 
+                action: currentApplicant.isFlagged ? "ARREST STAMPED (NHAI)" : "LICENSE REJECTED (NHAI)", 
+                timestamp: new Date().toLocaleTimeString() 
+            });
+            
+            sharedData.missed = (sharedData.missed || 0) + 1;
+            sharedData.rankPoints = Math.max(0, (sharedData.rankPoints || 0) - 1);
+            
+            saveData(); 
+
+            stampBox.innerText = "REJECTED";
+            stampBox.className = "stamp-overlay stamp-rejected";
+            stampBox.style.opacity = "1";
+            currentApplicantStatus = 'rejected';
+        }
+
+        document.getElementById('btn-approve').disabled = true;
+        document.getElementById('btn-reject').disabled = true;
+        document.getElementById('btnCallNext').classList.add('ready-glow');
+    }
+
+    // Initial Load
     loadData();
-    setupScrollFade();
-    setInterval(loadData, 2000);
-
-    if (window.innerWidth <= 768) {
-        switchTab('register');
-    }
 </script>
 </body>
 </html>
