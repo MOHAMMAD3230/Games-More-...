@@ -372,8 +372,12 @@
 
     let currentVehicleData = { name: 'UNKNOWN', sex: 'UNKNOWN', lic: 'N/A' };
 
+    // Isolated shared data node specifically for NHAI Toll to avoid overwriting D1 properties
     let sharedData = { revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null, activeInmates: [], releasedInmates: [], ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [] };
 
+    const LS_DATA_KEY = 'enforcementTerminalV23_TOLL';
+    const LS_SIG_KEY = 'enforcementTerminalV23_TOLL_sig';
+    
     const HASH_SALT = "ENFORCE_V23_SECURE_SALT";
     function generateSignature(dataStr) {
         let hash = 0;
@@ -390,15 +394,15 @@
     setInterval(updateClock, 1000);
 
     function loadSharedData() {
-        const savedData = localStorage.getItem('enforcementTerminalV23');
-        const savedSig = localStorage.getItem('enforcementTerminalV23_sig');
+        const savedData = localStorage.getItem(LS_DATA_KEY);
+        const savedSig = localStorage.getItem(LS_SIG_KEY);
         
         if (savedData) {
             try {
                 if (savedSig !== generateSignature(savedData)) {
                     updateScr("<span style='color:var(--error)'>SECURITY BREACH: Data tampering detected!</span><br>Wiping corrupted data.");
-                    localStorage.removeItem('enforcementTerminalV23');
-                    localStorage.removeItem('enforcementTerminalV23_sig');
+                    localStorage.removeItem(LS_DATA_KEY);
+                    localStorage.removeItem(LS_SIG_KEY);
                     return;
                 }
                 const parsed = JSON.parse(savedData);
@@ -419,8 +423,8 @@
 
     function saveSharedData() {
         const dataStr = JSON.stringify(sharedData);
-        localStorage.setItem('enforcementTerminalV23', dataStr);
-        localStorage.setItem('enforcementTerminalV23_sig', generateSignature(dataStr));
+        localStorage.setItem(LS_DATA_KEY, dataStr);
+        localStorage.setItem(LS_SIG_KEY, generateSignature(dataStr));
         updateSharedUI();
     }
 
@@ -437,7 +441,7 @@
 
     function checkEnforcementResponse() {
         if (mode === 'PENDING_ENFORCEMENT' && pendingCheckPlate) {
-            loadSharedData(); 
+            loadSharedData(); // Pull latest
             let record = sharedData.registry[pendingCheckPlate];
             
             if (record && record.status === 'CLEAR') {
