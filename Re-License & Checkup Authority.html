@@ -1,45 +1,147 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
+ <link rel="icon" href="https://mohammad3230.github.io/PROJECT/favicon.png" type="image/png" sizes="32x32" />
+    <script async src="https://www.googletagmanager.com/gtag/js?id=GT-NC6T5LRJ"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'GT-NC6T5LRJ');
+    </script>
+
+    
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DASHBOARD 17 - RE-LICENSE CHECKUP</title>
 <style>
     :root { --bg: #05050a; --panel: #111118; --accent: #00f2ff; --success: #00ff9d; --danger: #ff0044; --warning: #ffcc00; }
-    body { background-color: var(--bg); color: #eee; font-family: 'Courier New', monospace; margin: 0; height: 100vh; display: flex; flex-direction: column; }
-    .header { background: #000; padding: 20px; border-bottom: 3px solid var(--accent); text-align: center; }
-    .header h1 { margin: 0; color: var(--accent); letter-spacing: 3px; font-size: 1.2rem; }
-    .main { flex: 1; display: flex; justify-content: center; align-items: center; padding: 20px; }
-    .queue-box { background: var(--panel); border: 2px solid #333; padding: 30px; width: 100%; max-width: 600px; text-align: center; border-radius: 8px; min-height: 300px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 20px; }
+    body { background-color: var(--bg); color: #eee; font-family: 'Courier New', monospace; margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    
+    .header { background: #000; padding: 15px 20px; border-bottom: 3px solid var(--accent); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+    .header h1 { margin: 0; color: var(--accent); letter-spacing: 3px; font-size: 1rem; }
+    .header-btn { background: var(--accent); color: #000; border: none; padding: 8px 15px; font-weight: bold; cursor: pointer; text-transform: uppercase; font-family: monospace; border-radius: 4px; }
+    
+    .main-layout { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    
+    /* Verification & Search Units */
+    .verification-unit { display: flex; gap: 15px; background: #000; padding: 20px; border-bottom: 1px solid #333; flex-wrap: wrap; align-items: center; }
+    .search-unit { display: flex; gap: 15px; background: #050520; padding: 15px; border-bottom: 1px solid var(--warning); flex-wrap: wrap; align-items: center; }
+    .input-group { flex: 1; min-width: 120px; }
+    .input-group label { display: block; font-size: 0.7rem; color: var(--accent); margin-bottom: 8px; }
+    .input-group.search-group label { color: var(--warning); }
+    .input-group input { 
+        width: 100%; background: #111; border: 1px solid #444; color: var(--success); padding: 15px; 
+        box-sizing: border-box; font-size: 1.4rem; font-family: monospace; outline: none;
+    }
+    .input-group.search-group input { border-color: var(--warning); color: var(--warning); }
+    
+    .mech-btn { 
+        background: linear-gradient(180deg, #444 0%, #222 100%); border: 2px solid #000; color: #fff; 
+        padding: 15px; cursor: pointer; text-transform: uppercase; font-size: 0.7rem; font-weight: bold; 
+        box-shadow: 0 4px #000; transition: all 0.15s; font-family: monospace;
+    }
+    .mech-btn:active { transform: translateY(2px); box-shadow: 0 1px #000; }
+    .search-btn { background: linear-gradient(180deg, #554400 0%, #222 100%); color: var(--warning); border-color: var(--warning); width: 100%; }
+
+    /* Active Case Area */
+    .case-area { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; background: var(--bg); }
+    .queue-box { background: var(--panel); border: 2px solid #333; padding: 30px; width: 100%; max-width: 500px; text-align: center; border-radius: 8px; }
     .plate-display { font-size: 3rem; font-weight: 900; color: var(--warning); letter-spacing: 5px; margin: 20px 0; text-shadow: 0 0 15px rgba(255,204,0,0.4); }
     .status-text { font-size: 1.2rem; color: #aaa; }
     .controls { display: flex; gap: 20px; margin-top: 30px; }
-    .mech-btn { padding: 20px 40px; border: none; border-radius: 4px; font-weight: 900; text-transform: uppercase; font-size: 1.2rem; font-family: monospace; cursor: pointer; transition: 0.2s; box-shadow: 0 5px #000; }
-    .mech-btn:active { transform: translateY(3px); box-shadow: 0 1px #000; }
+    .case-btn { padding: 20px 40px; border: none; border-radius: 4px; font-weight: 900; text-transform: uppercase; font-size: 1.2rem; font-family: monospace; cursor: pointer; transition: 0.2s; box-shadow: 0 5px #000; }
+    .case-btn:active { transform: translateY(3px); box-shadow: 0 1px #000; }
     .btn-approve { background: var(--success); color: #000; }
     .btn-reject { background: var(--danger); color: #fff; }
-    .btn-idle { background: #333; color: #666; cursor: not-allowed; pointer-events: none; }
-    .log-area { background: #000; border-top: 2px solid #222; padding: 15px; font-size: 0.8rem; color: #0f0; height: 150px; overflow-y: auto; }
+    .btn-idle { background: #333; color: #666; cursor: not-allowed; pointer-events: none; box-shadow: none; }
+
+    /* Network DB Layout */
+    .secondary-layout { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 50; display: none; flex-direction: column; border: 2px solid var(--accent); box-sizing: border-box; }
+    .secondary-layout.active { display: flex; }
+    .sec-header { background: #000; padding: 15px; border-bottom: 2px solid var(--accent); display: flex; justify-content: space-between; align-items: center; }
+    .sec-content { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 15px; overflow-y: auto; }
+    .dboard-card { background: #111; border: 1px solid #333; padding: 15px; border-radius: 4px; display: flex; flex-direction: column; gap: 10px; }
+    .dboard-title { font-size: 0.9rem; color: var(--warning); border-bottom: 1px solid #444; padding-bottom: 5px; font-weight: bold; }
+    .dboard-data { flex: 1; font-size: 0.8rem; color: #ccc; overflow-y: auto; background: #000; padding: 10px; }
+    .data-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px dashed #222; }
+
+    .d5-app-doc { background: #f0f0e8; color: #111; padding: 15px; border: 1px solid #888; font-family: 'Courier New', monospace; position: relative; margin-top: 10px; }
+    .d5-app-doc h4 { margin: 0 0 10px 0; text-align: center; border-bottom: 2px solid #111; padding-bottom: 5px; font-size: 0.9rem; }
+    .d5-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.85rem; }
+    .d5-row span:last-child { font-weight: bold; }
+    .d5-stamp { position: absolute; bottom: 20px; right: 20px; width: 120px; height: 50px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: 900; transform: rotate(-15deg); border: 4px solid; text-transform: uppercase; opacity: 0.8; }
+    .d5-stamp.approved { color: #008000; border-color: #008000; }
+    .d5-stamp.rejected { color: #cc0000; border-color: #cc0000; }
+
+    @media (max-width: 800px) { .sec-content { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
 
 <div class="header">
     <h1>■ DASHBOARD 17: RE-LICENSE & CHECKUP AUTHORITY ■</h1>
+    <button class="header-btn" onclick="toggleDBs()">NETWORK DBs</button>
 </div>
 
-<div class="main">
-    <div class="queue-box">
-        <div class="status-text" id="statusText">NO VEHICLES IN QUEUE</div>
-        <div class="plate-display" id="plateDisplay">---</div>
-        <div class="controls">
-            <button class="mech-btn btn-idle" id="btnApprove" onclick="processCase('CLEAR')">✓ APPROVE</button>
-            <button class="mech-btn btn-idle" id="btnReject" onclick="processCase('REJECTED')">✗ REJECT</button>
+<div class="main-layout">
+    <div class="verification-unit">
+        <div class="input-group">
+            <label>Manual Plate Input</label>
+            <input type="text" id="plateIn" placeholder="Type Plate...">
+        </div>
+        <div class="input-group">
+            <label>Manual License Input</label>
+            <input type="text" id="licenseIn" placeholder="Type ID...">
+        </div>
+    </div>
+
+    <div class="search-unit">
+        <div class="input-group search-group" style="flex: 2;">
+            <label>Manual Search Plate (D-4 / D-5 History)</label>
+            <input type="text" id="searchPlateIn" placeholder="Search Plate...">
+        </div>
+        <div class="input-group search-group" style="flex: 1; display: flex; align-items: flex-end;">
+            <button class="mech-btn search-btn" onclick="searchApplicationHistory()">SEARCH HISTORY</button>
+        </div>
+    </div>
+
+    <div class="case-area">
+        <div class="queue-box">
+            <div class="status-text" id="statusText">NO VEHICLES IN QUEUE</div>
+            <div class="plate-display" id="plateDisplay">---</div>
+            <div class="controls">
+                <button class="case-btn btn-idle" id="btnApprove" onclick="processCase('CLEAR')">✓ APPROVE</button>
+                <button class="case-btn btn-idle" id="btnReject" onclick="processCase('REJECTED')">✗ REJECT</button>
+            </div>
         </div>
     </div>
 </div>
 
-<div class="log-area" id="logArea"></div>
+<!-- Network DBs Overlay -->
+<div class="secondary-layout" id="dbLayout">
+    <div class="sec-header">
+        <span style="font-weight: bold; color: var(--warning);">■ SYSTEM NETWORK DATABASES</span>
+        <button class="mech-btn" style="padding: 5px 15px; box-shadow: none; background: var(--danger);" onclick="toggleDBs()">CLOSE [X]</button>
+    </div>
+    <div class="sec-content">
+        <div class="dboard-card">
+            <div class="dboard-title">DASHBOARD 4: CITIZEN APPLICATION HISTORY</div>
+            <div class="dboard-data" id="db4Content">Enter Search Plate and click "SEARCH HISTORY".</div>
+        </div>
+        
+        <div class="dboard-card">
+            <div class="dboard-title">DASHBOARD 5: VEHICLE REGISTRATION APPLICATIONS</div>
+            <div class="dboard-data" id="db5Content">Search a plate to view official registration application data.</div>
+        </div>
+
+        <div class="dboard-card" style="grid-column: 1 / -1;">
+            <div class="dboard-title">DASHBOARD 2: ENFORCEMENT LOG</div>
+            <div class="dboard-data" id="db2Content">Loading network logs...</div>
+        </div>
+    </div>
+</div>
 
 <script>
     const LS_D1_KEY = 'enforcementTerminalV23_D1';
@@ -47,30 +149,36 @@
     let sharedData = {};
     let currentCasePlate = null;
 
-    function log(msg) {
-        const area = document.getElementById('logArea');
-        area.innerHTML += `> ${msg}<br>`;
-        area.scrollTop = area.scrollHeight;
-    }
+    function log(msg) { console.log("[D17]: " + msg); }
 
     function loadData() {
         try {
             const d1 = localStorage.getItem(LS_D1_KEY);
             const d2 = localStorage.getItem(LS_D2_KEY);
-            sharedData = {};
-            if (d1) { const parsed = JSON.parse(d1); Object.assign(sharedData, parsed); }
-            if (d2) { const parsed = JSON.parse(d2); Object.assign(sharedData, parsed); if(parsed.registry) Object.assign(sharedData.registry, parsed.registry); }
+            sharedData = { registry: {}, history: [] };
+            
+            // Merge D1 and D2 data safely
+            if (d1) { 
+                const parsed = JSON.parse(d1); 
+                Object.assign(sharedData, parsed); 
+                if(parsed.registry) Object.assign(sharedData.registry, parsed.registry);
+            }
+            if (d2) { 
+                const parsed = JSON.parse(d2); 
+                Object.assign(sharedData, parsed); 
+                if(parsed.registry) Object.assign(sharedData.registry, parsed.registry);
+                if(parsed.history) sharedData.history = parsed.history.concat(sharedData.history).filter((v, i, a) => a.findIndex(t => (t.plate === v.plate && t.timestamp === v.timestamp)) === i);
+            }
+            
             if(!sharedData.registry) sharedData.registry = {};
-        } catch(e) { sharedData = { registry: {} }; }
+            if(!sharedData.history) sharedData.history = [];
+        } catch(e) { sharedData = { registry: {}, history: [] }; }
     }
 
     function saveData() {
         try {
-            if (sharedData.registry[currentCasePlate]) {
-                sharedData.registry[currentCasePlate].status = sharedData.registry[currentCasePlate].status; 
-            }
-            // Save back to both to ensure sync
             const d1Str = JSON.stringify(sharedData);
+            // Save to both keys so both dashboards see the update instantly
             localStorage.setItem(LS_D1_KEY, d1Str);
             localStorage.setItem(LS_D2_KEY, d1Str);
         } catch(e) {}
@@ -95,7 +203,6 @@
     function updateUI() {
         loadData();
         
-        // Find the first PENDING_ENFORCEMENT case
         const pendingPlate = Object.keys(sharedData.registry).find(p => sharedData.registry[p].status === 'PENDING_ENFORCEMENT');
         
         const plateDiv = document.getElementById('plateDisplay');
@@ -108,22 +215,99 @@
             plateDiv.innerText = pendingPlate;
             statusDiv.innerText = "AWAITING LICENSE VERIFICATION";
             statusDiv.style.color = "var(--warning)";
-            btnApprove.className = "mech-btn btn-approve";
-            btnReject.className = "mech-btn btn-reject";
+            btnApprove.className = "case-btn btn-approve";
+            btnReject.className = "case-btn btn-reject";
+            
+            // Auto-fill inputs for convenience
+            document.getElementById('plateIn').value = pendingPlate;
+            document.getElementById('searchPlateIn').value = pendingPlate;
         } else {
             currentCasePlate = null;
             plateDiv.innerText = "---";
             statusDiv.innerText = "NO VEHICLES IN QUEUE";
             statusDiv.style.color = "#aaa";
-            btnApprove.className = "mech-btn btn-idle";
-            btnReject.className = "mech-btn btn-idle";
+            btnApprove.className = "case-btn btn-idle";
+            btnReject.className = "case-btn btn-idle";
         }
+    }
+
+    function toggleDBs() {
+        document.getElementById('dbLayout').classList.toggle('active');
+        if(document.getElementById('dbLayout').classList.contains('active')) refreshDashboards();
+    }
+
+    function refreshDashboards() {
+        const db2 = document.getElementById('db2Content'); db2.innerHTML = '';
+        const hist = sharedData.history || [];
+        if(hist.length === 0) db2.innerHTML = '<div style="color: #555;">No enforcement logs found.</div>';
+        else hist.slice(-20).reverse().forEach(h => { db2.innerHTML += `<div class="data-row"><span>${h.plate}</span><span style="color:${h.action.includes('ARRESTED')?'var(--danger)':'var(--success)'}">${h.action}</span><span style="color:#888">${h.timestamp||'N/A'}</span></div>`; });
+    }
+
+    function searchApplicationHistory() {
+        const plateSearch = (document.getElementById('searchPlateIn').value || "").toUpperCase().trim();
+        if(!plateSearch) return;
+        
+        const db4 = document.getElementById('db4Content'); db4.innerHTML = '<div style="color: var(--accent);">SEARCHING D-4...</div>';
+        const db5 = document.getElementById('db5Content'); db5.innerHTML = '<div style="color: var(--accent);">SEARCHING D-5...</div>';
+        
+        setTimeout(() => {
+            let historyHTML = ''; 
+            const regData = sharedData.registry[plateSearch]; 
+            const aliasData = sharedData.forgedAliases ? sharedData.forgedAliases[plateSearch] : null;
+            
+            if (regData) {
+                historyHTML += `<div class="data-row" style="color:var(--warning); font-weight:bold;"><span>REGISTRY FOUND</span><span>${plateSearch}</span></div>`;
+                historyHTML += `<div class="data-row"><span>ID:</span><span style="color:var(--success)">${regData.id}</span></div>`;
+                historyHTML += `<div class="data-row"><span>Status:</span><span style="color:${regData.status==='WANTED'?'var(--danger)':'var(--success)'}">${regData.status}</span></div>`;
+            }
+            if (aliasData) { historyHTML += `<div class="data-row" style="color:var(--danger); font-weight:bold; margin-top:10px;"><span>FORGERY FLAG</span><span>DETECTED</span></div>`; }
+            
+            const plateHist = (sharedData.history || []).filter(h => h.plate === plateSearch);
+            if (plateHist.length > 0) {
+                historyHTML += `<div style="margin-top:15px; border-top:1px solid #444; padding-top:10px; color:#888;">APPLICATION LOG:</div>`;
+                plateHist.forEach(h => {
+                    let statusColor = 'var(--accent)'; let statusText = h.action;
+                    if(h.action.includes('ARRESTED') || h.action.includes('REJECTED')) { statusColor = 'var(--danger)'; statusText = 'APPLICATION REJECTED'; }
+                    else if(h.action.includes('RELEASED') || h.action.includes('TURNED AWAY')) { statusColor = 'var(--success)'; statusText = 'APPLICATION APPROVED / CLOSED'; }
+                    historyHTML += `<div class="data-row"><span style="color:#aaa">${h.timestamp||'N/A'}</span><span style="color:${statusColor}; font-weight:bold;">${statusText}</span></div>`;
+                });
+            }
+            if(!regData && !aliasData && plateHist.length === 0) historyHTML = `<div style="color: #555; text-align:center; margin-top:20px;">NO D-4 RECORDS FOUND FOR ${plateSearch}</div>`;
+            db4.innerHTML = historyHTML;
+
+            let d5HTML = '';
+            const isWantedOrForged = (regData && regData.status === 'WANTED') || aliasData;
+            let hash = 0;
+            for (let i = 0; i < plateSearch.length; i++) { hash = ((hash << 5) - hash) + plateSearch.charCodeAt(i); hash = hash & hash; }
+            const testScore = Math.abs(hash % 100) + 1; 
+            const isApproved = testScore >= 70 && !isWantedOrForged;
+            const vehicleClass = "HVM_CLASS_" + (Math.abs(testScore % 3) + 1);
+            const names = ["JOHN SINGH", "MARIA DIAZ", "ALEX JONES", "SARAH CONNOR", "MICHAEL LEE", "LISA RAY"];
+            const applicantName = isWantedOrForged ? "CLASSIFIED / REDACTED" : names[Math.floor(Math.random() * names.length)];
+
+            if(isWantedOrForged) {
+                d5HTML += `<div style="color:var(--danger); text-align:center; padding:20px; border:1px solid var(--danger);">⚠ ACCESS DENIED: SUBJECT WANTED/FORGED ⚠</div>`;
+            } else {
+                d5HTML += `
+                    <div class="d5-app-doc">
+                        <h4>OFFICIAL APPLICATION FOR VEHICLE REGISTRATION</h4>
+                        <div class="d5-row"><span>APPLICANT NAME:</span><span>${applicantName}</span></div>
+                        <div class="d5-row"><span>VEHICLE CLASS:</span><span>${vehicleClass}</span></div>
+                        <div class="d5-row"><span>REQUESTED PLATE:</span><span style="color:var(--accent)">${plateSearch}</span></div>
+                        <div class="d5-row"><span>TEST SCORE:</span><span style="color:${testScore >= 70 ? 'var(--success)' : 'var(--danger)'}">${testScore} / 100</span></div>
+                        <div class="d5-row"><span>STATUS:</span><span style="color:${isApproved ? 'var(--success)' : 'var(--danger)'}">${isApproved ? 'PASSED' : 'FAILED (Below 70)'}</span></div>
+                        <div class="d5-stamp ${isApproved ? 'approved' : 'rejected'}">${isApproved ? 'APPROVED' : 'REJECTED'}</div>
+                    </div>
+                `;
+            }
+            db5.innerHTML = d5HTML;
+            document.getElementById('dbLayout').classList.add('active'); 
+        }, 800);
     }
 
     // Poll for updates every 2 seconds
     setInterval(updateUI, 2000);
     updateUI();
-    log("Dashboard 17 Initialized. Monitoring Network...");
 </script>
 </body>
 </html>
