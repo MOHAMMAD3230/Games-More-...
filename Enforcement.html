@@ -284,8 +284,7 @@
   }
   .d5-stamp.approved { color: #008000; border-color: #008000; }
   .d5-stamp.rejected { color: #cc0000; border-color: #cc0000; }
-
-  /* Toll Case Management Specifics */
+  
   .toll-case-layout {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0,0,0,0.95); z-index: 55; display: none; flex-direction: column;
@@ -449,22 +448,6 @@
     </div>
 </div>
 
-<!-- TOLL CASE MANAGEMENT LAYOUT -->
-<div class="toll-case-layout" id="tollCaseLayout">
-    <div class="toll-case-box">
-        <div class="toll-case-title">⚠ NHAI TOLL ENFORCEMENT CHECK ⚠</div>
-        <div style="color:#aaa; margin-bottom: 5px;">Pending Verification Plate:</div>
-        <div class="toll-case-plate" id="tollCasePlate">---</div>
-        <div style="color:#aaa; font-size: 0.85rem; margin-bottom: 20px;">
-            Verify identity through D-4 / D-5 databases. <br>If clear, approve to release vehicle. If invalid, reject.
-        </div>
-        <div class="toll-case-actions">
-            <button class="toll-case-btn btn-approve-toll" onclick="resolveTollCase('CLEAR')">✓ APPROVE</button>
-            <button class="toll-case-btn btn-reject-toll" onclick="resolveTollCase('REJECTED')">✗ REJECT</button>
-        </div>
-    </div>
-</div>
-
 </div>
 
 <div id="docOverlay">
@@ -490,7 +473,24 @@
 </div>
 </div>
 
+<!-- TOLL CASE MANAGEMENT LAYOUT -->
+<div class="toll-case-layout" id="tollCaseLayout">
+    <div class="toll-case-box">
+        <div class="toll-case-title">⚠ NHAI TOLL ENFORCEMENT CHECK ⚠</div>
+        <div style="color:#aaa; margin-bottom: 5px;">Pending Verification Plate:</div>
+        <div class="toll-case-plate" id="tollCasePlate">---</div>
+        <div style="color:#aaa; font-size: 0.85rem; margin-bottom: 20px;">
+            Verify identity through D-4 / D-5 databases. <br>If clear, approve to release vehicle. If invalid, reject.
+        </div>
+        <div class="toll-case-actions">
+            <button class="toll-case-btn btn-approve-toll" onclick="resolveTollCase('CLEAR')">✓ APPROVE</button>
+            <button class="toll-case-btn btn-reject-toll" onclick="resolveTollCase('REJECTED')">✗ REJECT</button>
+        </div>
+    </div>
+</div>
+
 <script>
+  /* ===== AUDIO ENGINE ===== */
   const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   function playSound(type) {
       if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -513,6 +513,7 @@
       }
   }
 
+  /* ===== SIREN / ALARM CONTROLS ===== */
   let sirenInterval=null, sirenOsc=null, sirenGain=null;
   function playSirenSound() {
       if(sirenInterval) return; sirenOsc=audioCtx.createOscillator(); sirenGain=audioCtx.createGain();
@@ -529,132 +530,116 @@
   function playEmergencyAlarm(){ if(emergencyAlarmInterval)return; playSound('emergency'); emergencyAlarmInterval=setInterval(()=>{playSound('emergency');},1500); }
   function stopEmergencyAlarm(){ if(emergencyAlarmInterval){clearInterval(emergencyAlarmInterval);emergencyAlarmInterval=null;} }
 
+  /* ===== CORE STATE ===== */
   let car=null, revenue=0, valids=0, missed=0, level=1, rankPoints=0, wantedPlates=[], isResetting=false, isScanning=false;
-  let history = []; 
+  let history = [];
 
-  const LS_DATA_KEY = 'enforcementTerminalV23_D1';
-  const LS_SIG_KEY = 'enforcementTerminalV23_D1_sig';
-  const LS_TOLL_KEY = 'enforcementTerminalV23_TOLL';
+  /* ===== SYNC KEYS - matched to Toll/Dispatch terminals ===== */
+  const LS_D1_KEY = 'enforcementTerminalV23_D1';
+  const LS_D2_KEY = 'enforcementTerminalV23_TOLL';
+  
+  let sharedData = {
+      revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, history: [],
+      registry: {}, forgedAliases: {}, nextSpawnOverride: null,
+      activeInmates: [], releasedInmates: [],
+      inbox: [], sentMail: [], call911Logs: [],
+      ledgerCashouts: [], intelFlags: [], paroleRecords: [],
+      iaViolations: [], rehabPrograms: []
+  };
 
-  let sharedData = { revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null, activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [], ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [] };
-
-  const HASH_SALT = "ENFORCE_V23_SECURE_SALT";
-  function generateSignature(dataStr) {
-      let hash = 0;
-      const str = HASH_SALT + dataStr;
-      for (let i = 0; i < str.length; i++) {
-          const char = str.charCodeAt(i);
-          hash = ((hash << 5) - hash) + char;
-          hash = hash & hash; 
-      }
-      return hash.toString(16);
-  }
-
+  /* ===== SAFE DATA MERGE ===== */
   function loadData() {
-      const savedData = localStorage.getItem(LS_DATA_KEY);
-      const savedSig = localStorage.getItem(LS_SIG_KEY);
-      
-      if (savedData) {
-          try {
-              if (savedSig !== generateSignature(savedData)) {
-                  addLog("SECURITY BREACH: Data tampering detected! Wiping corrupted data.", "var(--danger)");
-                  localStorage.removeItem(LS_DATA_KEY);
-                  localStorage.removeItem(LS_SIG_KEY);
-                  return;
-              }
-              const data = JSON.parse(savedData);
-              revenue = data.revenue || 0; valids = data.valids || 0; missed = data.missed || 0;
-              level = data.level || 1; rankPoints = data.rankPoints || 0; history = data.history || [];
-              sharedData = data; 
-              if(!sharedData.registry) sharedData.registry = {};
-              if(!sharedData.forgedAliases) sharedData.forgedAliases = {};
-              if(sharedData.nextSpawnOverride === undefined) sharedData.nextSpawnOverride = null;
-              if(!sharedData.activeInmates) sharedData.activeInmates = [];
-              if(!sharedData.releasedInmates) sharedData.releasedInmates = [];
-              if(!sharedData.inbox) sharedData.inbox = [];
-              if(!sharedData.sentMail) sharedData.sentMail = [];
-              if(!sharedData.call911Logs) sharedData.call911Logs = [];
-              if(!sharedData.ledgerCashouts) sharedData.ledgerCashouts = [];
-              if(!sharedData.intelFlags) sharedData.intelFlags = [];
-              if(!sharedData.paroleRecords) sharedData.paroleRecords = [];
-              if(!sharedData.iaViolations) sharedData.iaViolations = [];
-              if(!sharedData.rehabPrograms) sharedData.rehabPrograms = [];
-              checkEmergencyDispatch();
-          } catch (e) { 
-              console.error("Corrupted save data, resetting."); 
-              localStorage.removeItem(LS_DATA_KEY);
-              localStorage.removeItem(LS_SIG_KEY);
+      try {
+          const d1 = localStorage.getItem(LS_D1_KEY);
+          const d2 = localStorage.getItem(LS_D2_KEY);
+          sharedData = { registry: {}, history: [], call911Logs: [], inbox: [], sentMail: [], activeInmates: [], releasedInmates: [] };
+          
+          // Merge D1 first (local state)
+          if (d1) { 
+              const parsed = JSON.parse(d1); 
+              Object.assign(sharedData, parsed); 
+              if(parsed.registry) Object.assign(sharedData.registry, parsed.registry);
           }
+          // Merge D2 safely (remote Toll/Dispatch updates) — registry keys overlay, history concatenates
+          if (d2) { 
+              const parsed = JSON.parse(d2); 
+              Object.assign(sharedData, parsed); 
+              if(parsed.registry) Object.assign(sharedData.registry, parsed.registry);
+              if(parsed.history) sharedData.history = parsed.history.concat(sharedData.history).filter((v, i, a) => a.findIndex(t => (t.plate === v.plate && t.timestamp === v.timestamp)) === i);
+          }
+          
+          // Ensure every sub-key exists
+          if(!sharedData.registry) sharedData.registry = {};
+          if(!sharedData.forgedAliases) sharedData.forgedAliases = {};
+          if(sharedData.nextSpawnOverride === undefined) sharedData.nextSpawnOverride = null;
+          if(!sharedData.activeInmates) sharedData.activeInmates = [];
+          if(!sharedData.releasedInmates) sharedData.releasedInmates = [];
+          if(!sharedData.inbox) sharedData.inbox = [];
+          if(!sharedData.sentMail) sharedData.sentMail = [];
+          if(!sharedData.call911Logs) sharedData.call911Logs = [];
+          if(!sharedData.ledgerCashouts) sharedData.ledgerCashouts = [];
+          if(!sharedData.intelFlags) sharedData.intelFlags = [];
+          if(!sharedData.paroleRecords) sharedData.paroleRecords = [];
+          if(!sharedData.iaViolations) sharedData.iaViolations = [];
+          if(!sharedData.rehabPrograms) sharedData.rehabPrograms = [];
+          
+          // Pull top-level stats from shared state
+          revenue = sharedData.revenue || 0;
+          valids = sharedData.valids || 0;
+          missed = sharedData.missed || 0;
+          level = sharedData.level || 1;
+          rankPoints = sharedData.rankPoints || 0;
+          history = sharedData.history || [];
+
+          checkEmergencyDispatch();
+      } catch (e) { 
+          console.error("Corrupted save data, resetting.", e); 
       }
       updateStatusUI(); updateMailUI();
-      addLog("System initialized. Data loaded.", "var(--accent)");
   }
 
   function saveData() {
-      syncTollNetworkData();
-      const finalData = { revenue, valids, missed, level, rankPoints, history, registry: sharedData.registry, forgedAliases: sharedData.forgedAliases, nextSpawnOverride: sharedData.nextSpawnOverride, activeInmates: sharedData.activeInmates, releasedInmates: sharedData.releasedInmates, inbox: sharedData.inbox, sentMail: sharedData.sentMail, call911Logs: sharedData.call911Logs, ledgerCashouts: sharedData.ledgerCashouts, intelFlags: sharedData.intelFlags, paroleRecords: sharedData.paroleRecords, iaViolations: sharedData.iaViolations, rehabPrograms: sharedData.rehabPrograms };
-      const dataStr = JSON.stringify(finalData);
-      localStorage.setItem(LS_DATA_KEY, dataStr);
-      localStorage.setItem(LS_SIG_KEY, generateSignature(dataStr));
-  }
-
-  function syncTollNetworkData() {
       try {
-          const tollDataStr = localStorage.getItem(LS_TOLL_KEY);
-          if (tollDataStr) {
-              const tollData = JSON.parse(tollDataStr);
-              if (tollData.registry) Object.assign(sharedData.registry, tollData.registry);
-              if (tollData.forgedAliases) Object.assign(sharedData.forgedAliases, tollData.forgedAliases);
-              if (tollData.activeInmates) sharedData.activeInmates = tollData.activeInmates;
-              if (tollData.releasedInmates) sharedData.releasedInmates = tollData.releasedInmates;
-              if (tollData.history) sharedData.history = sharedData.history.concat(tollData.history).filter((v, i, a) => a.findIndex(t => (t.plate === v.plate && t.timestamp === v.timestamp)) === i);
-          }
-      } catch(e) {}
+          // Sync local state back into sharedData before persisting
+          sharedData.revenue = revenue;
+          sharedData.valids = valids;
+          sharedData.missed = missed;
+          sharedData.level = level;
+          sharedData.rankPoints = rankPoints;
+          sharedData.history = history;
+
+          const dataStr = JSON.stringify(sharedData);
+          localStorage.setItem(LS_D1_KEY, dataStr);
+          localStorage.setItem(LS_D2_KEY, dataStr); // Push to Toll network
+      } catch(e) { console.error("Save failed", e); }
   }
 
+  /* ===== PERIODIC NETWORK SYNC ===== */
   let lastTollPendingState = false;
   setInterval(() => {
-      const savedData = localStorage.getItem(LS_DATA_KEY);
-      if (savedData) {
-          try {
-              const data = JSON.parse(savedData);
-              if(JSON.stringify(data) !== JSON.stringify(sharedData)) {
-                  revenue = data.revenue; valids = data.valids; missed = data.missed;
-                  level = data.level; rankPoints = data.rankPoints; history = data.history || [];
-                  sharedData = data;
-                  if(!sharedData.inbox) sharedData.inbox = [];
-                  if(!sharedData.sentMail) sharedData.sentMail = [];
-                  if(!sharedData.call911Logs) sharedData.call911Logs = [];
-                  updateStatusUI(); updateMailUI();
-                  addLog("SYNC: Data updated from Network.", "var(--accent)");
-                  checkEmergencyDispatch();
-              }
-          } catch(e) {}
-      }
-
+      loadData(); // Safe reload — merges instead of overwriting
+      
       try {
-          const tollDataStr = localStorage.getItem(LS_TOLL_KEY);
-          if (tollDataStr) {
-              const tollData = JSON.parse(tollDataStr);
-              const tollReg = tollData.registry || {};
-              const hasPending = Object.values(tollReg).some(r => r.status === 'PENDING_ENFORCEMENT' && r.registeredBy === "NHAI_TOLL_ENFORCEMENT");
+          // Check for D17 Toll Enforcement requests specifically
+          const tollReg = sharedData.registry || {};
+          const hasPending = Object.values(tollReg).some(r => r.status === 'PENDING_ENFORCEMENT' && r.source === 'D17_RELICENSE');
+          
+          if (hasPending && !lastTollPendingState) {
+              addLog("⚠ NHAI TOLL: ENFORCEMENT CHECK REQUEST RECEIVED", "var(--warning)");
+              playSound('buzzer');
+              receiveMail("NHAI_TOLL_ENFORCEMENT", "ID VERIFICATION REQUEST", "A vehicle at the Toll Gate requires ID Verification and clearance.\nPlease inspect documents and run a database scan.");
               
-              if (hasPending && !lastTollPendingState) {
-                  addLog("⚠ NHAI TOLL: ENFORCEMENT CHECK REQUEST RECEIVED", "var(--warning)");
-                  playSound('buzzer');
-                  receiveMail("NHAI_TOLL_ENFORCEMENT", "ID VERIFICATION REQUEST", "A vehicle at the Toll Gate requires ID Verification and clearance.\nPlease inspect documents and run a database scan.");
-                  
-                  if(!car && !isResetting) {
-                      addLog("AUTO-ROUTING: Vehicle approaching gate...", "var(--accent)");
-                      setTimeout(() => spawnVehicle(), 1500);
-                  }
+              if(!car && !isResetting) {
+                  addLog("AUTO-ROUTING: Vehicle approaching gate...", "var(--accent)");
+                  setTimeout(() => spawnVehicle(), 1500);
               }
-              lastTollPendingState = hasPending;
           }
+          lastTollPendingState = hasPending;
       } catch(e) {}
 
   }, 2000);
 
+  /* ===== EMERGENCY DISPATCH CHECK ===== */
   let emergencyActive = false;
   function checkEmergencyDispatch(){
       const override = sharedData.nextSpawnOverride;
@@ -671,8 +656,10 @@
   function get911AgencyUnits(){ const logs = sharedData.call911Logs || []; const dispatched = logs.filter(l => l.status === 'DISPATCHED'); if(dispatched.length > 0){ return dispatched[dispatched.length - 1].dispatchedUnits || ['POLICE']; } return ['POLICE']; }
   function acceptEmergencyDispatch(){ if(!emergencyActive) return; stopEmergencyAlarm(); playSound('gate'); const agencies = get911AgencyUnits(); addLog(`OFFICER ACKNOWLEDGED. ${agencies.join(' + ')} pulling to gate NOW.`, "var(--warning)"); spawnVehicle(); }
   
+  /* ===== LOGGING ===== */
   function addLog(msg, color) { const log = document.getElementById('log'); const entry = document.createElement('div'); entry.style.color = color || "#0f0"; entry.style.marginBottom = "5px"; entry.innerText = `> ${msg}`; log.prepend(entry); }
   
+  /* ===== MAIL SYSTEM ===== */
   function receiveMail(from, subject, body) {
       if(!sharedData.inbox) sharedData.inbox = [];
       sharedData.inbox.push({ from, to: "ENFORCEMENT_D1", cc: "", subject, body, timestamp: new Date().toLocaleString(), read: false });
@@ -681,60 +668,244 @@
       addLog(`✉ NEW MAIL: ${subject}`, "var(--accent)");
   }
 
-  function refreshAPBList() { const prefixes = ["PX","NX","TX","DV","CR","XR","ZK","AV","BN"]; wantedPlates = []; const count = 3 + Math.floor(Math.random() * 3); for(let i=0; i<count; i++) { wantedPlates.push(`${prefixes[Math.floor(Math.random()*prefixes.length)]}-${Math.floor(1000+Math.random()*9000)}`); } const box = document.getElementById('wantedPlateBox'); box.innerHTML = ''; wantedPlates.forEach(plate => { const div = document.createElement('div'); div.className='wanted-plate-item'; div.innerText=plate; box.appendChild(div); }); }
+  function updateMailUI() {
+      const inbox = sharedData.inbox || [];
+      const unread = inbox.filter(m => !m.read).length;
+      document.getElementById('mailCount').innerText = unread;
+      document.getElementById('inboxBadge').innerText = unread;
+  }
 
+  let currentMailTab = 'inbox';
+  function switchMailTab(tab, el) {
+      currentMailTab = tab;
+      document.querySelectorAll('.mail-nav-item').forEach(n => n.classList.remove('active'));
+      if(el) el.classList.add('active');
+      renderMailList(tab);
+  }
+
+  function renderMailList(tab) {
+      const list = document.getElementById('mailList');
+      const bodyView = document.getElementById('mailBodyView');
+      bodyView.classList.remove('active');
+      bodyView.innerHTML = '<div style="color:#555; text-align:center; margin-top:50px;">Select a mail to read</div>';
+      
+      const mails = tab === 'inbox' ? (sharedData.inbox || []) : (sharedData.sentMail || []);
+      list.innerHTML = '';
+      
+      if(mails.length === 0) {
+          list.innerHTML = '<div style="padding:30px; text-align:center; color:#555;">No messages</div>';
+          return;
+      }
+      
+      mails.slice().reverse().forEach((m, idx) => {
+          const realIdx = mails.length - 1 - idx;
+          const item = document.createElement('div');
+          item.className = 'mail-item' + (tab === 'inbox' && !m.read ? ' unread' : '');
+          item.innerHTML = `
+              <div style="flex:1;">
+                  <div class="mail-from">${m.from}</div>
+                  <div class="mail-subject">${m.subject}</div>
+                  <div class="mail-snippet">${(m.body || '').substring(0, 60)}...</div>
+              </div>
+              <div style="font-size:0.6rem; color:#555; white-space:nowrap;">${m.timestamp || ''}</div>
+          `;
+          item.onclick = () => openMail(tab, realIdx);
+          list.appendChild(item);
+      });
+  }
+
+  function openMail(tab, idx) {
+      const mails = tab === 'inbox' ? (sharedData.inbox || []) : (sharedData.sentMail || []);
+      const m = mails[idx];
+      if(!m) return;
+      
+      if(tab === 'inbox' && !m.read) {
+          m.read = true;
+          saveData(); updateMailUI();
+          renderMailList(tab);
+      }
+      
+      const bodyView = document.getElementById('mailBodyView');
+      bodyView.innerHTML = `
+          <div style="margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px;">
+              <div style="color:var(--warning); font-weight:bold;">From: ${m.from}</div>
+              <div style="color:#888; font-size:0.75rem;">To: ${m.to} ${m.cc ? '| Cc: ' + m.cc : ''}</div>
+              <div style="color:#eee; font-weight:bold; margin-top:5px;">${m.subject}</div>
+              <div style="color:#555; font-size:0.7rem;">${m.timestamp || ''}</div>
+          </div>
+          <div style="white-space:pre-wrap; color:#ccc;">${m.body}</div>
+      `;
+      bodyView.classList.add('active');
+  }
+
+  function openCompose() {
+      document.getElementById('composeWindow').classList.add('active');
+      document.getElementById('composeTo').value = '';
+      document.getElementById('composeCc').value = '';
+      document.getElementById('composeSubject').value = '';
+      document.getElementById('composeBody').value = '';
+  }
+
+  function closeCompose() {
+      document.getElementById('composeWindow').classList.remove('active');
+  }
+
+  function sendMail() {
+      const to = document.getElementById('composeTo').value.trim();
+      const cc = document.getElementById('composeCc').value.trim();
+      const subject = document.getElementById('composeSubject').value.trim();
+      const body = document.getElementById('composeBody').value.trim();
+      
+      if(!to || !subject || !body) {
+          addLog("MAIL ERROR: To, Subject, and Body are required.", "var(--danger)");
+          playSound('error');
+          return;
+      }
+      
+      if(!sharedData.sentMail) sharedData.sentMail = [];
+      sharedData.sentMail.push({
+          from: "ENFORCEMENT_D1",
+          to: to,
+          cc: cc,
+          subject: subject,
+          body: body,
+          timestamp: new Date().toLocaleString(),
+          read: true
+      });
+      
+      saveData();
+      closeCompose();
+      playSound('success');
+      addLog(`✉ MAIL SENT: ${subject} → ${to}`, "var(--accent)");
+  }
+
+  /* ===== APB WANTED LIST ===== */
+  function refreshAPBList() {
+      const prefixes = ["PX","NX","TX","DV","CR","XR","ZK","AV","BN"];
+      wantedPlates = [];
+      const count = 3 + Math.floor(Math.random() * 3);
+      for(let i = 0; i < count; i++) {
+          wantedPlates.push(`${prefixes[Math.floor(Math.random()*prefixes.length)]}-${Math.floor(1000+Math.random()*9000)}`);
+      }
+      const box = document.getElementById('wantedPlateBox');
+      box.innerHTML = '';
+      wantedPlates.forEach(plate => {
+          const div = document.createElement('div');
+          div.className = 'wanted-plate-item';
+          div.innerText = plate;
+          box.appendChild(div);
+      });
+  }
+
+  /* ===== VEHICLE SPAWN ===== */
   function spawnVehicle() {
-      if(car || isResetting) return; playSound('engine');
+      if(car || isResetting) return;
+      playSound('engine');
       if(Math.random() < 0.4 || wantedPlates.length === 0) refreshAPBList();
-      let customSpawn = null, isForgedAlias = false, isPatrolDispatch = false, is911Emergency = false, dispatchedAgencies = [], originDashboard = "DEFAULT";
 
-      syncTollNetworkData();
+      let customSpawn = null, isForgedAlias = false, isPatrolDispatch = false, is911Emergency = false, dispatchedAgencies = [], originDashboard = "DEFAULT";
 
       if (sharedData.nextSpawnOverride) {
           customSpawn = sharedData.registry[sharedData.nextSpawnOverride];
           if(customSpawn) {
               customSpawn.plate = sharedData.nextSpawnOverride;
-              if(customSpawn.registeredBy === "911_OPERATOR" || customSpawn.source === "911_DISPATCH"){ is911Emergency = true; dispatchedAgencies = get911AgencyUnits(); originDashboard = "911"; const logs = sharedData.call911Logs || []; const dispatched = logs.filter(l => l.status === 'DISPATCHED'); if(dispatched.length > 0){ dispatched[dispatched.length-1].status = 'ARRIVED'; dispatched[dispatched.length-1].arrivedAt = new Date().toLocaleTimeString(); } }
+              if(customSpawn.registeredBy === "911_OPERATOR" || customSpawn.source === "911_DISPATCH"){
+                  is911Emergency = true;
+                  dispatchedAgencies = get911AgencyUnits();
+                  originDashboard = "911";
+                  const logs = sharedData.call911Logs || [];
+                  const dispatched = logs.filter(l => l.status === 'DISPATCHED');
+                  if(dispatched.length > 0){
+                      dispatched[dispatched.length-1].status = 'ARRIVED';
+                      dispatched[dispatched.length-1].arrivedAt = new Date().toLocaleTimeString();
+                  }
+              }
               else if (customSpawn.registeredBy === "PATROL_DISPATCH" || customSpawn.registeredBy === "NHAI_PATROL_DISPATCH") { isPatrolDispatch = true; dispatchedAgencies = ['POLICE']; originDashboard = "D16"; }
               else if (customSpawn.registeredBy === "NHAI_ARREST_STAMP" || customSpawn.registeredBy === "NHAI_REJECTION") { originDashboard = "D7"; }
               else if (customSpawn.registeredBy === "NHAI_TOLL_ENFORCEMENT" || customSpawn.registeredBy === "ENFORCEMENT_HOLD") { originDashboard = "D2"; }
           }
-          sharedData.nextSpawnOverride = null; saveData(); checkEmergencyDispatch(); 
+          sharedData.nextSpawnOverride = null;
+          saveData();
+          checkEmergencyDispatch();
       }
 
-      if (!is911Emergency && !isPatrolDispatch && sharedData.registry && Object.keys(sharedData.registry).length > 0 && Math.random() < 0.4) { 
-          const regPlates = Object.keys(sharedData.registry); const randomPlate = regPlates[Math.floor(Math.random() * regPlates.length)]; customSpawn = sharedData.registry[randomPlate]; customSpawn.plate = randomPlate; 
-          if(sharedData.forgedAliases && sharedData.forgedAliases[randomPlate]) { isForgedAlias = true; customSpawn.realWantedPlate = sharedData.forgedAliases[randomPlate].realPlate; }
+      // Random chance to pull from existing registry
+      if (!is911Emergency && !isPatrolDispatch && sharedData.registry && Object.keys(sharedData.registry).length > 0 && Math.random() < 0.4) {
+          const regPlates = Object.keys(sharedData.registry);
+          const randomPlate = regPlates[Math.floor(Math.random() * regPlates.length)];
+          customSpawn = sharedData.registry[randomPlate];
+          customSpawn.plate = randomPlate;
+          if(sharedData.forgedAliases && sharedData.forgedAliases[randomPlate]) {
+              isForgedAlias = true;
+              customSpawn.realWantedPlate = sharedData.forgedAliases[randomPlate].realPlate;
+          }
       }
 
-      const prefixes = ["PX","NX","TX","DV","CR","XR","ZK","AV","BN"]; 
+      const prefixes = ["PX","NX","TX","DV","CR","XR","ZK","AV","BN"];
       let isCriminal, plate, isWanted, sex, photo, isForged, expiry, id, hasMissingID, realWantedPlate;
 
       if (customSpawn) {
-          plate = customSpawn.plate; id = customSpawn.id; isWanted = customSpawn.status === 'WANTED'; isCriminal = isWanted; hasMissingID = id === "MISSING" || id === "911_REPORT" || id === "PENDING_ENFORCEMENT" || id === "UNVERIFIED"; isForged = false; realWantedPlate = customSpawn.realWantedPlate || null;
-          sex = Math.random() > 0.5 ? "MALE" : "FEMALE"; photo = sex === "MALE" ? "👨" : "👩"; expiry = isCriminal ? "2023" : "2034";
+          plate = customSpawn.plate;
+          id = customSpawn.id;
+          isWanted = customSpawn.status === 'WANTED';
+          isCriminal = isWanted;
+          hasMissingID = id === "MISSING" || id === "911_REPORT" || id === "PENDING_ENFORCEMENT" || id === "UNVERIFIED";
+          isForged = false;
+          realWantedPlate = customSpawn.realWantedPlate || null;
+          sex = Math.random() > 0.5 ? "MALE" : "FEMALE";
+          photo = sex === "MALE" ? "👨" : "👩";
+          expiry = isCriminal ? "2023" : "2034";
       } else {
-          isCriminal = Math.random() < 0.5; plate = prefixes[Math.floor(Math.random()*prefixes.length)] + "-" + Math.floor(1000+Math.random()*9000); isWanted = false;
+          isCriminal = Math.random() < 0.5;
+          plate = prefixes[Math.floor(Math.random()*prefixes.length)] + "-" + Math.floor(1000+Math.random()*9000);
+          isWanted = false;
           if(Math.random() < 0.3 && wantedPlates.length > 0) { plate = wantedPlates[Math.floor(Math.random()*wantedPlates.length)]; isWanted = true; }
-          sex = Math.random() > 0.5 ? "MALE" : "FEMALE"; photo = sex === "MALE" ? "👨" : "👩"; isForged = false;
+          sex = Math.random() > 0.5 ? "MALE" : "FEMALE";
+          photo = sex === "MALE" ? "👨" : "👩";
+          isForged = false;
           if (isCriminal && Math.random() < 0.4) { isForged = true; photo = sex === "MALE" ? "👩" : "👨"; }
-          id = (isCriminal && Math.random() < 0.3) ? "MISSING" : "DL-" + Math.floor(1000+Math.random()*9000); hasMissingID = (isCriminal && Math.random() < 0.3); expiry = (isCriminal && Math.random() < 0.5) ? "2023" : "2034"; realWantedPlate = null;
+          id = (isCriminal && Math.random() < 0.3) ? "MISSING" : "DL-" + Math.floor(1000+Math.random()*9000);
+          hasMissingID = (isCriminal && Math.random() < 0.3);
+          expiry = (isCriminal && Math.random() < 0.5) ? "2023" : "2034";
+          realWantedPlate = null;
       }
 
+      // Deterministic D-5 test score from plate hash
       let hash = 0;
       for (let i = 0; i < plate.length; i++) { hash = ((hash << 5) - hash) + plate.charCodeAt(i); hash = hash & hash; }
-      const testScore = Math.abs(hash % 100) + 1; 
+      const testScore = Math.abs(hash % 100) + 1;
       const isD5Approved = testScore >= 70 && !isWanted && !isForged && !realWantedPlate;
 
-      car = { plate, id, hasMissingID, expired: expiry === "2023", isWanted, isForged, expiry, photo, sex, realWantedPlate, is911Emergency, isPatrolDispatch, dispatchedAgencies, d5Status: isD5Approved ? 'APPROVED' : 'REJECTED', d5Score: testScore, originDashboard };
+      car = {
+          plate, id, hasMissingID, expired: expiry === "2023", isWanted, isForged, expiry, photo, sex,
+          realWantedPlate, is911Emergency, isPatrolDispatch, dispatchedAgencies,
+          d5Status: isD5Approved ? 'APPROVED' : 'REJECTED',
+          d5Score: testScore,
+          originDashboard
+      };
       
+      // Vehicle sprite class
       let vehicleClass = 'vehicle';
-      if(is911Emergency || isPatrolDispatch){ if(dispatchedAgencies.length >= 2) vehicleClass += ' agency-multi'; else if(dispatchedAgencies.includes('EMS')) vehicleClass += ' agency-ems'; else if(dispatchedAgencies.includes('FIRE')) vehicleClass += ' agency-fire'; else vehicleClass += ' agency-police'; }
-      const sprite = document.getElementById('vSprite'); sprite.className = vehicleClass; sprite.style.transition="none"; sprite.style.left="-250px"; void sprite.offsetWidth; sprite.style.transition="left 1.2s ease-in-out"; sprite.style.left="35%"; sprite.innerText=car.plate;
+      if(is911Emergency || isPatrolDispatch){
+          if(dispatchedAgencies.length >= 2) vehicleClass += ' agency-multi';
+          else if(dispatchedAgencies.includes('EMS')) vehicleClass += ' agency-ems';
+          else if(dispatchedAgencies.includes('FIRE')) vehicleClass += ' agency-fire';
+          else vehicleClass += ' agency-police';
+      }
+      const sprite = document.getElementById('vSprite');
+      sprite.className = vehicleClass;
+      sprite.style.transition = "none";
+      sprite.style.left = "-250px";
+      void sprite.offsetWidth; // force reflow
+      sprite.style.transition = "left 1.2s ease-in-out";
+      sprite.style.left = "35%";
+      sprite.innerText = car.plate;
       
-      document.getElementById('btnNext').disabled=true; document.getElementById('btnScan').disabled=false; document.getElementById('btnDocs').disabled=false;
+      document.getElementById('btnNext').disabled = true;
+      document.getElementById('btnScan').disabled = false;
+      document.getElementById('btnDocs').disabled = false;
       
-      document.getElementById('db16Plate').innerText = "PENDING SCAN"; 
+      document.getElementById('db16Plate').innerText = "PENDING SCAN";
       document.getElementById('db16Status').innerText = "AWAITING VERIFICATION";
       document.getElementById('db16Status').style.color = "#888";
       document.getElementById('btnMechGate').classList.add('disabled-gate');
@@ -751,22 +922,26 @@
       }
   }
 
-  function updateD16Status() { 
-      const s=document.getElementById('db16Status'); const g=document.getElementById('btnMechGate'); 
-      if(!car){s.innerText="NO VEHICLE";s.style.color="#888";g.classList.add('disabled-gate');return;} 
-      const p=car.is911Emergency||car.isPatrolDispatch; const w=car.isWanted||car.isForged||car.realWantedPlate; 
-      if(w){s.innerText="WANTED / FUGITIVE";s.style.color="var(--danger)";g.classList.add('disabled-gate');} 
-      else if(!p){s.innerText="STANDARD CIVILIAN";s.style.color="var(--warning)";g.classList.add('disabled-gate');} 
-      else{s.innerText="GOVT / VIP / EMERGENCY";s.style.color="var(--success)";g.classList.remove('disabled-gate');} 
+  /* ===== D-16 STATUS UPDATE ===== */
+  function updateD16Status() {
+      const s = document.getElementById('db16Status');
+      const g = document.getElementById('btnMechGate');
+      if(!car){ s.innerText="NO VEHICLE"; s.style.color="#888"; g.classList.add('disabled-gate'); return; }
+      const p = car.is911Emergency || car.isPatrolDispatch;
+      const w = car.isWanted || car.isForged || car.realWantedPlate;
+      if(w){ s.innerText="WANTED / FUGITIVE"; s.style.color="var(--danger)"; g.classList.add('disabled-gate'); }
+      else if(!p){ s.innerText="STANDARD CIVILIAN"; s.style.color="var(--warning)"; g.classList.add('disabled-gate'); }
+      else{ s.innerText="GOVT / VIP / EMERGENCY"; s.style.color="var(--success)"; g.classList.remove('disabled-gate'); }
   }
 
-  function toggleDocs() { 
-      const doc = document.getElementById('docOverlay'); 
-      if(doc.style.display === "block") { doc.style.display = "none"; } 
-      else { 
-          if(!car) return; 
+  /* ===== DOCUMENT INSPECTION ===== */
+  function toggleDocs() {
+      const doc = document.getElementById('docOverlay');
+      if(doc.style.display === "block") { doc.style.display = "none"; }
+      else {
+          if(!car) return;
           
-          // TOLL ENFORCEMENT CHECK OVERRIDE
+          // TOLL ENFORCEMENT CHECK OVERRIDE — show specialized toll case layout
           if(car.id === "PENDING_ENFORCEMENT" && car.originDashboard === "D2") {
               document.getElementById('tollCasePlate').innerText = car.plate;
               document.getElementById('tollCaseLayout').classList.add('active');
@@ -774,22 +949,36 @@
               return;
           }
 
-          document.getElementById('dID').innerText=car.id; 
-          document.getElementById('dExp').innerText=car.expiry; 
-          document.getElementById('dName').innerText="SUBJECT_"+car.plate; 
-          document.getElementById('dSex').innerText=car.sex; 
-          document.getElementById('dPhoto').innerText=car.photo; 
-          document.getElementById('forgeryBox').style.display = car.realWantedPlate ? "block" : "none"; 
-          if(car.realWantedPlate) document.getElementById('dRealPlate').innerText = car.realWantedPlate; 
-          const agencyBox = document.getElementById('agencyTagsBox'); 
-          if((car.is911Emergency || car.isPatrolDispatch) && car.dispatchedAgencies && car.dispatchedAgencies.length > 0){ agencyBox.style.display = 'flex'; agencyBox.innerHTML = ''; car.dispatchedAgencies.forEach(u => { const cls = u === 'POLICE' ? 'tag-police' : u === 'EMS' ? 'tag-ems' : 'tag-fire'; agencyBox.innerHTML += `<span class="agency-tag ${cls}">${u}</span>`; }); } else { agencyBox.style.display = 'none'; } 
-          const missingOverlay = document.getElementById('missingIdOverlay'); 
-          if(car.hasMissingID || car.id === "MISSING" || car.id === "UNVERIFIED" || car.id === "PENDING_ENFORCEMENT") { missingOverlay.classList.add('active'); playSound('buzzer'); } else { missingOverlay.classList.remove('active'); } 
-          doc.style.display="block"; addLog(`Credentials visible. Copy to verification unit.`, "var(--accent)"); 
-      } 
+          document.getElementById('dID').innerText = car.id;
+          document.getElementById('dExp').innerText = car.expiry;
+          document.getElementById('dName').innerText = "SUBJECT_" + car.plate;
+          document.getElementById('dSex').innerText = car.sex;
+          document.getElementById('dPhoto').innerText = car.photo;
+          document.getElementById('forgeryBox').style.display = car.realWantedPlate ? "block" : "none";
+          if(car.realWantedPlate) document.getElementById('dRealPlate').innerText = car.realWantedPlate;
+
+          const agencyBox = document.getElementById('agencyTagsBox');
+          if((car.is911Emergency || car.isPatrolDispatch) && car.dispatchedAgencies && car.dispatchedAgencies.length > 0){
+              agencyBox.style.display = 'flex';
+              agencyBox.innerHTML = '';
+              car.dispatchedAgencies.forEach(u => {
+                  const cls = u === 'POLICE' ? 'tag-police' : u === 'EMS' ? 'tag-ems' : 'tag-fire';
+                  agencyBox.innerHTML += `<span class="agency-tag ${cls}">${u}</span>`;
+              });
+          } else { agencyBox.style.display = 'none'; }
+
+          const missingOverlay = document.getElementById('missingIdOverlay');
+          if(car.hasMissingID || car.id === "MISSING" || car.id === "UNVERIFIED" || car.id === "PENDING_ENFORCEMENT") {
+              missingOverlay.classList.add('active');
+              playSound('buzzer');
+          } else { missingOverlay.classList.remove('active'); }
+
+          doc.style.display = "block";
+          addLog(`Credentials visible. Copy to verification unit.`, "var(--accent)");
+      }
   }
 
-  // Resolves the case from the Toll Plaza and syncs back
+  /* ===== TOLL CASE RESOLUTION ===== */
   function resolveTollCase(status) {
       if(!car) return;
       document.getElementById('tollCaseLayout').classList.remove('active');
@@ -813,86 +1002,125 @@
           playSound('buzzer');
       }
       
-      setTimeout(() => {
-          triggerRelease();
-      }, 1500);
+      setTimeout(() => { triggerRelease(); }, 1500);
   }
   
-  function acknowledgeMissingID() { document.getElementById('missingIdOverlay').classList.remove('active'); addLog("OFFICER ACKNOWLEDGED: Missing ID record flagged.", "var(--warning)"); }
+  function acknowledgeMissingID() {
+      document.getElementById('missingIdOverlay').classList.remove('active');
+      addLog("OFFICER ACKNOWLEDGED: Missing ID record flagged.", "var(--warning)");
+  }
 
-  function runSystemScan() { 
-      if(!car || isScanning) return; 
-      const pIn = (document.getElementById('plateIn').value || "").toUpperCase().trim(); 
-      const lIn = (document.getElementById('licenseIn').value || "").toUpperCase().trim(); 
-      document.getElementById('btnScan').disabled = true; isScanning = true; 
-      const scanFx = document.getElementById('scanEffect'); scanFx.classList.remove('active'); void scanFx.offsetWidth; scanFx.classList.add('active'); 
-      addLog("Querying Intelligence Network..."); 
-      setTimeout(() => { 
-          isScanning = false; document.getElementById('btnScan').disabled = false; 
-          if(car.realWantedPlate && pIn === car.realWantedPlate) { 
-              addLog("CRIMINAL ALERT: WANTED FUGITIVE PLATE DETECTED UNDER FORGED ALIAS!", "var(--danger)"); 
-              document.getElementById('vSprite').classList.add('criminal-alert'); 
-              document.getElementById('btnArrest').disabled=false; 
-              document.getElementById('btnRelease').disabled=true; 
-              playSirenSound(); return; 
-          } 
-          if (pIn !== car.plate || lIn !== car.id) { addLog("SCAN ERROR: INPUT DATA DISCREPANCY.", "var(--warning)"); playSound('error'); return; } 
+  /* ===== DATABASE SCAN ===== */
+  function runSystemScan() {
+      if(!car || isScanning) return;
+      const pIn = (document.getElementById('plateIn').value || "").toUpperCase().trim();
+      const lIn = (document.getElementById('licenseIn').value || "").toUpperCase().trim();
+      document.getElementById('btnScan').disabled = true;
+      isScanning = true;
+
+      const scanFx = document.getElementById('scanEffect');
+      scanFx.classList.remove('active');
+      void scanFx.offsetWidth;
+      scanFx.classList.add('active');
+      addLog("Querying Intelligence Network...");
+
+      setTimeout(() => {
+          isScanning = false;
+          document.getElementById('btnScan').disabled = false;
+
+          // Forged alias real-plate check
+          if(car.realWantedPlate && pIn === car.realWantedPlate) {
+              addLog("CRIMINAL ALERT: WANTED FUGITIVE PLATE DETECTED UNDER FORGED ALIAS!", "var(--danger)");
+              document.getElementById('vSprite').classList.add('criminal-alert');
+              document.getElementById('btnArrest').disabled = false;
+              document.getElementById('btnRelease').disabled = true;
+              playSirenSound();
+              return;
+          }
+
+          // Input mismatch
+          if (pIn !== car.plate || lIn !== car.id) {
+              addLog("SCAN ERROR: INPUT DATA DISCREPANCY.", "var(--warning)");
+              playSound('error');
+              return;
+          }
           
+          // Update D-16
           document.getElementById('db16Plate').innerText = car.plate;
           updateD16Status();
+
+          // Protocol sounds for network-origin vehicles
           if(car.originDashboard === "D16") { playSound('protocol_d16'); addLog(`🔔 PROTOCOL D-16: VIP/Govt Fast-Track Verified.`, "var(--accent)"); receiveMail("D16_GOV_OFFICE", "VIP FAST TRACK", `Verified VIP clearance for ${car.plate}. Authorized for Mechanical Gate Override.`); }
           else if(car.originDashboard === "D2") { playSound('protocol_d2'); addLog(`🔔 PROTOCOL D-2: Enforcement Transfer Verified.`, "var(--warning)"); }
           else if(car.originDashboard === "D7") { playSound('protocol_d7'); addLog(`🔔 PROTOCOL D-7: High-Value Jail Target Verified.`, "var(--danger)"); }
 
-          let alertFlags = []; 
-          if (car.isWanted) alertFlags.push("WANTED FUGITIVE"); 
-          if (car.expired) alertFlags.push("EXPIRED CREDENTIALS"); 
-          if (car.hasMissingID) alertFlags.push("NO VERIFIED RECORD"); 
-          if (car.isForged) alertFlags.push("DOCUMENT FORGERY"); 
+          let alertFlags = [];
+          if (car.isWanted) alertFlags.push("WANTED FUGITIVE");
+          if (car.expired) alertFlags.push("EXPIRED CREDENTIALS");
+          if (car.hasMissingID) alertFlags.push("NO VERIFIED RECORD");
+          if (car.isForged) alertFlags.push("DOCUMENT FORGERY");
           
-          if (alertFlags.length > 0) { 
-              const isStrictlyCriminal = car.isWanted || car.isForged || car.realWantedPlate; 
-              if(isStrictlyCriminal) { 
-                  addLog(`CRIMINAL ALERT: ${alertFlags.join(" & ")} DETECTED.`, "var(--danger)"); 
-                  document.getElementById('vSprite').classList.add('criminal-alert'); 
-                  document.getElementById('btnArrest').disabled=false; 
-                  document.getElementById('btnRelease').disabled=true; 
-                  playSirenSound(); 
-              } else { 
-                  addLog(`SECURITY ALERT: ${alertFlags.join(" & ")} DETECTED. Check D-5 for renewal eligibility.`, "var(--warning)"); 
-                  playSound('buzzer'); 
-                  if (!car.isWanted && !car.isForged) document.getElementById('btnPay').disabled = false; 
-              } 
-          } else if (car.d5Status === 'REJECTED') { 
-              addLog("SECURITY ALERT: D-5 REGISTRATION REJECTED. Entry Denied. Subject must be turned away or pay for ID renewal.", "var(--warning)"); 
-              playSound('buzzer'); 
-              document.getElementById('btnPay').disabled = false; 
-              document.getElementById('btnRelease').disabled = true; 
-          } else { 
-              addLog("SCAN SUCCESS: CITIZEN STATUS CLEAR.", "var(--success)"); 
+          if (alertFlags.length > 0) {
+              const isStrictlyCriminal = car.isWanted || car.isForged || car.realWantedPlate;
+              if(isStrictlyCriminal) {
+                  addLog(`CRIMINAL ALERT: ${alertFlags.join(" & ")} DETECTED.`, "var(--danger)");
+                  document.getElementById('vSprite').classList.add('criminal-alert');
+                  document.getElementById('btnArrest').disabled = false;
+                  document.getElementById('btnRelease').disabled = true;
+                  playSirenSound();
+              } else {
+                  addLog(`SECURITY ALERT: ${alertFlags.join(" & ")} DETECTED. Check D-5 for renewal eligibility.`, "var(--warning)");
+                  playSound('buzzer');
+                  if (!car.isWanted && !car.isForged) document.getElementById('btnPay').disabled = false;
+              }
+          } else if (car.d5Status === 'REJECTED') {
+              addLog("SECURITY ALERT: D-5 REGISTRATION REJECTED. Entry Denied. Subject must be turned away or pay for ID renewal.", "var(--warning)");
+              playSound('buzzer');
+              document.getElementById('btnPay').disabled = false;
+              document.getElementById('btnRelease').disabled = true;
+          } else {
+              addLog("SCAN SUCCESS: CITIZEN STATUS CLEAR.", "var(--success)");
               document.getElementById('btnRelease').disabled = false;
-              playSound('success'); 
-          } 
-      }, 600); 
+              playSound('success');
+          }
+      }, 600);
   }
 
-  function issuePaidID() { 
-      if(!car || car.isWanted || car.isForged || car.realWantedPlate) return; 
-      revenue += 150; const newID = "DL-NEW-" + Math.floor(1000+Math.random()*9000); 
-      car.id=newID; car.hasMissingID=false; car.expired=false; car.expiry="2036"; car.d5Status = 'APPROVED'; 
-      document.getElementById('licenseIn').value=newID; document.getElementById('dID').innerText=newID; document.getElementById('dExp').innerText="2036"; 
-      addLog(`ID RE-ISSUED: ${newID}. D-5 Override Applied. Infractions cleared.`, "var(--success)"); 
-      history.push({ plate: car.plate, id: newID, action: "ID RENEWED", timestamp: new Date().toLocaleTimeString() }); 
-      document.getElementById('btnPay').disabled=true; document.getElementById('btnRelease').disabled=false; document.getElementById('btnArrest').disabled=true; 
-      document.getElementById('vSprite').classList.remove('criminal-alert'); stopSirenSound(); playSound('cash'); saveData(); updateStatusUI(); 
+  /* ===== ISSUE PAID ID ===== */
+  function issuePaidID() {
+      if(!car || car.isWanted || car.isForged || car.realWantedPlate) return;
+      revenue += 150;
+      const newID = "DL-NEW-" + Math.floor(1000+Math.random()*9000);
+      car.id = newID;
+      car.hasMissingID = false;
+      car.expired = false;
+      car.expiry = "2036";
+      car.d5Status = 'APPROVED';
+      document.getElementById('licenseIn').value = newID;
+      document.getElementById('dID').innerText = newID;
+      document.getElementById('dExp').innerText = "2036";
+      addLog(`ID RE-ISSUED: ${newID}. D-5 Override Applied. Infractions cleared.`, "var(--success)");
+      history.push({ plate: car.plate, id: newID, action: "ID RENEWED", timestamp: new Date().toLocaleTimeString() });
+      document.getElementById('btnPay').disabled = true;
+      document.getElementById('btnRelease').disabled = false;
+      document.getElementById('btnArrest').disabled = true;
+      document.getElementById('vSprite').classList.remove('criminal-alert');
+      stopSirenSound();
+      playSound('cash');
+      saveData(); updateStatusUI();
   }
 
-  function stampDoc(app) { 
-      if(!car) return; 
-      const s = document.getElementById('stampBox'); s.innerText=app?"APPROVED":"DENIED"; s.style.color=app?"var(--success)":"var(--danger)"; s.style.borderColor=app?"var(--success)":"var(--danger)"; s.style.display="flex"; 
+  /* ===== STAMP DOCUMENT (APPROVE / DENY) ===== */
+  function stampDoc(app) {
+      if(!car) return;
+      const s = document.getElementById('stampBox');
+      s.innerText = app ? "APPROVED" : "DENIED";
+      s.style.color = app ? "var(--success)" : "var(--danger)";
+      s.style.borderColor = app ? "var(--success)" : "var(--danger)";
+      s.style.display = "flex";
       const isSevereCriminal = car.isWanted || car.isForged || car.realWantedPlate;
       
-      if (app) { 
+      if (app) {
           if(isSevereCriminal) {
               addLog("APPROVAL OVERRIDE BLOCKED: Wanted/Forged subjects must be arrested.", "var(--danger)");
               playSound('error');
@@ -906,61 +1134,169 @@
               document.getElementById('btnPay').disabled = true;
               return;
           }
-          
-          addLog("MANUAL APPROVAL ISSUED.", "var(--success)"); 
-          document.getElementById('btnRelease').disabled=false; 
-          document.getElementById('btnArrest').disabled=true; 
-          playSound('stamp'); 
-      } else { 
+          addLog("MANUAL APPROVAL ISSUED.", "var(--success)");
+          document.getElementById('btnRelease').disabled = false;
+          document.getElementById('btnArrest').disabled = true;
+          playSound('stamp');
+      } else {
           if(isSevereCriminal) {
-              addLog("ENTRY DENIED: Criminal subject flagged for arrest.", "var(--danger)"); 
-              document.getElementById('btnArrest').disabled=false; 
-              document.getElementById('btnRelease').disabled=true; 
-              document.getElementById('btnPay').disabled=true;
-              playSound('buzzer'); 
+              addLog("ENTRY DENIED: Criminal subject flagged for arrest.", "var(--danger)");
+              document.getElementById('btnArrest').disabled = false;
+              document.getElementById('btnRelease').disabled = true;
+              document.getElementById('btnPay').disabled = true;
+              playSound('buzzer');
           } else {
-              addLog("ENTRY DENIED: Unverified citizen turned away. (Failed D-5 / Administrative Hold)", "var(--warning)"); 
-              document.getElementById('btnArrest').disabled=true; 
-              document.getElementById('btnRelease').disabled=true; 
-              document.getElementById('btnPay').disabled=true;
-              playSound('buzzer'); 
+              addLog("ENTRY DENIED: Unverified citizen turned away. (Failed D-5 / Administrative Hold)", "var(--warning)");
+              document.getElementById('btnArrest').disabled = true;
+              document.getElementById('btnRelease').disabled = true;
+              document.getElementById('btnPay').disabled = true;
+              playSound('buzzer');
               
               setTimeout(() => {
                   if(car) {
-                      valids++; revenue+=0; rankPoints+=1; 
-                      addLog("SUBJECT TURNED AWAY: Gate secured. [+1 Rank Point]", "var(--success)"); 
-                      history.push({ plate: car.plate, id: car.id, action: "TURNED AWAY (DENIED)", timestamp: new Date().toLocaleTimeString() }); 
+                      valids++;
+                      revenue += 0;
+                      rankPoints += 1;
+                      addLog("SUBJECT TURNED AWAY: Gate secured. [+1 Rank Point]", "var(--success)");
+                      history.push({ plate: car.plate, id: car.id, action: "TURNED AWAY (DENIED)", timestamp: new Date().toLocaleTimeString() });
                       updateLevel(); saveData(); updateStatusUI(); resetStage();
                   }
               }, 1500);
           }
-      } 
+      }
   }
 
-  function triggerRelease() { 
-      if(!car) return; 
-      const isGuilty = car.isWanted || car.isForged || car.realWantedPlate; 
-      playSound('gate'); stopSirenSound(); 
-      if (isGuilty) { 
-          missed++; rankPoints-=3; addLog("SECURITY FAILURE: Invalid subject cleared gate. [-3 Rank Points]", "var(--danger)"); 
-      } else { 
-          valids++; revenue+=50; rankPoints+=2; 
+  /* ===== GATE RELEASE ===== */
+  function triggerRelease() {
+      if(!car) return;
+      const isGuilty = car.isWanted || car.isForged || car.realWantedPlate;
+      playSound('gate'); stopSirenSound();
+      if (isGuilty) {
+          missed++;
+          rankPoints -= 3;
+          addLog("SECURITY FAILURE: Invalid subject cleared gate. [-3 Rank Points]", "var(--danger)");
+      } else {
+          valids++;
+          revenue += 50;
+          rankPoints += 2;
           const actionText = car.expired || car.hasMissingID ? "RELEASED (TURNED AWAY)" : "RELEASED";
-          addLog(`VALID RELEASE: Citizen cleared. +$50 [+2 Rank Points]`, "var(--success)"); 
-          history.push({ plate: car.plate, id: car.id, action: actionText, timestamp: new Date().toLocaleTimeString() }); 
-      } 
-      updateLevel(); saveData(); updateStatusUI(); resetStage(); 
+          addLog(`VALID RELEASE: Citizen cleared. +$50 [+2 Rank Points]`, "var(--success)");
+          history.push({ plate: car.plate, id: car.id, action: actionText, timestamp: new Date().toLocaleTimeString() });
+      }
+      updateLevel(); saveData(); updateStatusUI(); resetStage();
   }
 
-  function triggerArrest() { if(!car) return; const isGuilty = car.isWanted || car.hasMissingID || car.expired || car.isForged || car.realWantedPlate; playSound('arrest'); stopSirenSound(); if (isGuilty) { valids++; revenue+=200; rankPoints+=2; addLog("VALID ARREST: Criminal detained. +$200 Bounty [+2 Rank Points]", "var(--success)"); } else { missed++; rankPoints-=3; addLog("SECURITY BREACH: Wrongful arrest of innocent citizen. [-3 Rank Points]", "var(--danger)"); } let logPlate = car.realWantedPlate ? `${car.plate} (Real: ${car.realWantedPlate})` : car.plate; history.push({ plate: logPlate, id: car.id, action: "ARRESTED", timestamp: new Date().toLocaleTimeString() }); clearWarrantOnArrest(car.plate); if (car.realWantedPlate) clearWarrantOnArrest(car.realWantedPlate); updateLevel(); saveData(); updateStatusUI(); resetStage(); }
+  /* ===== ARREST ===== */
+  function triggerArrest() {
+      if(!car) return;
+      const isGuilty = car.isWanted || car.hasMissingID || car.expired || car.isForged || car.realWantedPlate;
+      playSound('arrest'); stopSirenSound();
+      if (isGuilty) {
+          valids++;
+          revenue += 200;
+          rankPoints += 2;
+          addLog("VALID ARREST: Criminal detained. +$200 Bounty [+2 Rank Points]", "var(--success)");
+      } else {
+          missed++;
+          rankPoints -= 3;
+          addLog("SECURITY BREACH: Wrongful arrest of innocent citizen. [-3 Rank Points]", "var(--danger)");
+      }
+      let logPlate = car.realWantedPlate ? `${car.plate} (Real: ${car.realWantedPlate})` : car.plate;
+      history.push({ plate: logPlate, id: car.id, action: "ARRESTED", timestamp: new Date().toLocaleTimeString() });
+      clearWarrantOnArrest(car.plate);
+      if (car.realWantedPlate) clearWarrantOnArrest(car.realWantedPlate);
+      updateLevel(); saveData(); updateStatusUI(); resetStage();
+  }
 
-  function clearWarrantOnArrest(plate) { let inmateData = null; if (sharedData.forgedAliases && sharedData.forgedAliases[plate]) { inmateData = { plate: plate, realPlate: sharedData.forgedAliases[plate].realPlate, id: sharedData.forgedAliases[plate].fakeId, offense: "FORGERY & FUGITIVE", dateArrested: new Date().toLocaleDateString(), facility: "MAXIMUM SECURITY", status: "ARRESTED", sentenceDays: 90, sentenceRemaining: 90 }; delete sharedData.forgedAliases[plate]; } else if (sharedData.registry[plate]) { const reg = sharedData.registry[plate]; let offense = "WARRANT / ROGUE", facility = "CENTRAL DETENTION", sentence = 60; if(reg.registeredBy === "911_OPERATOR" || reg.source === "911_DISPATCH"){ offense = "911 FELONY"; facility = "FEDERAL HOLD"; sentence = 120; } inmateData = { plate: plate, realPlate: plate, id: reg.id, offense: offense, dateArrested: new Date().toLocaleDateString(), facility: facility, status: "ARRESTED", sentenceDays: sentence, sentenceRemaining: sentence }; } if (inmateData) { if(!sharedData.activeInmates) sharedData.activeInmates = []; sharedData.activeInmates.push(inmateData); } if (sharedData.registry[plate]) delete sharedData.registry[plate]; saveData(); }
+  /* ===== WARRANT CLEARING ===== */
+  function clearWarrantOnArrest(plate) {
+      let inmateData = null;
+      if (sharedData.forgedAliases && sharedData.forgedAliases[plate]) {
+          inmateData = {
+              plate: plate,
+              realPlate: sharedData.forgedAliases[plate].realPlate,
+              id: sharedData.forgedAliases[plate].fakeId,
+              offense: "FORGERY & FUGITIVE",
+              dateArrested: new Date().toLocaleDateString(),
+              facility: "MAXIMUM SECURITY",
+              status: "ARRESTED",
+              sentenceDays: 90,
+              sentenceRemaining: 90
+          };
+          delete sharedData.forgedAliases[plate];
+      } else if (sharedData.registry[plate]) {
+          const reg = sharedData.registry[plate];
+          let offense = "WARRANT / ROGUE", facility = "CENTRAL DETENTION", sentence = 60;
+          if(reg.registeredBy === "911_OPERATOR" || reg.source === "911_DISPATCH"){
+              offense = "911 FELONY"; facility = "FEDERAL HOLD"; sentence = 120;
+          }
+          inmateData = {
+              plate: plate, realPlate: plate, id: reg.id,
+              offense: offense, dateArrested: new Date().toLocaleDateString(),
+              facility: facility, status: "ARRESTED",
+              sentenceDays: sentence, sentenceRemaining: sentence
+          };
+      }
+      if (inmateData) {
+          if(!sharedData.activeInmates) sharedData.activeInmates = [];
+          sharedData.activeInmates.push(inmateData);
+      }
+      if (sharedData.registry[plate]) delete sharedData.registry[plate];
+      saveData();
+  }
 
-  function updateLevel() { rankPoints = Math.max(0, rankPoints); const newLevel = Math.floor(rankPoints / 10) + 1; if (newLevel > level) addLog(`★★★ PROMOTION: STATION RANK INCREASED TO LVL ${newLevel}! ★★★`, "var(--warning)"); else if (newLevel < level) addLog(`DEMOTION: STATION RANK DECREASED TO LVL ${newLevel}.`, "var(--danger)"); level = newLevel; }
-  function updateStatusUI() { document.getElementById('valCount').innerText=valids; document.getElementById('missCount').innerText=missed; document.getElementById('salVal').innerText=revenue; document.getElementById('lvlVal').innerText=level; document.getElementById('ptsVal').innerText = rankPoints % 10; }
+  /* ===== LEVEL / STATUS ===== */
+  function updateLevel() {
+      rankPoints = Math.max(0, rankPoints);
+      const newLevel = Math.floor(rankPoints / 10) + 1;
+      if (newLevel > level) addLog(`★★★ PROMOTION: STATION RANK INCREASED TO LVL ${newLevel}! ★★★`, "var(--warning)");
+      else if (newLevel < level) addLog(`DEMOTION: STATION RANK DECREASED TO LVL ${newLevel}.`, "var(--danger)");
+      level = newLevel;
+  }
 
-  function resetStage() { const sprite = document.getElementById('vSprite'); sprite.style.left="120%"; sprite.classList.remove('criminal-alert','emergency-vehicle','agency-police','agency-ems','agency-fire','agency-multi'); isResetting=true; car=null; document.getElementById('plateIn').value=""; document.getElementById('licenseIn').value=""; document.getElementById('searchPlateIn').value=""; document.getElementById('docOverlay').style.display="none"; document.getElementById('stampBox').style.display="none"; document.getElementById('forgeryBox').style.display="none"; document.getElementById('agencyTagsBox').style.display="none"; document.getElementById('missingIdOverlay').classList.remove('active'); document.getElementById('tollCaseLayout').classList.remove('active'); document.getElementById('btnNext').disabled=true; document.getElementById('btnScan').disabled=true; document.getElementById('btnDocs').disabled=true; document.getElementById('btnArrest').disabled=true; document.getElementById('btnRelease').disabled=true; document.getElementById('btnPay').disabled=true; document.getElementById('db16Plate').innerText = "NONE"; document.getElementById('db16Status').innerText = "---"; document.getElementById('db16Status').style.color = "var(--success)"; document.getElementById('btnMechGate').classList.add('disabled-gate'); setTimeout(() => { sprite.style.transition="none"; sprite.style.left="-250px"; isResetting=false; document.getElementById('btnNext').disabled=false; }, 1300); }
+  function updateStatusUI() {
+      document.getElementById('valCount').innerText = valids;
+      document.getElementById('missCount').innerText = missed;
+      document.getElementById('salVal').innerText = revenue;
+      document.getElementById('lvlVal').innerText = level;
+      document.getElementById('ptsVal').innerText = rankPoints % 10;
+  }
 
+  /* ===== STAGE RESET ===== */
+  function resetStage() {
+      const sprite = document.getElementById('vSprite');
+      sprite.style.left = "120%";
+      sprite.classList.remove('criminal-alert','emergency-vehicle','agency-police','agency-ems','agency-fire','agency-multi');
+      isResetting = true;
+      car = null;
+      document.getElementById('plateIn').value = "";
+      document.getElementById('licenseIn').value = "";
+      document.getElementById('searchPlateIn').value = "";
+      document.getElementById('docOverlay').style.display = "none";
+      document.getElementById('stampBox').style.display = "none";
+      document.getElementById('forgeryBox').style.display = "none";
+      document.getElementById('agencyTagsBox').style.display = "none";
+      document.getElementById('missingIdOverlay').classList.remove('active');
+      document.getElementById('tollCaseLayout').classList.remove('active');
+      document.getElementById('btnNext').disabled = true;
+      document.getElementById('btnScan').disabled = true;
+      document.getElementById('btnDocs').disabled = true;
+      document.getElementById('btnArrest').disabled = true;
+      document.getElementById('btnRelease').disabled = true;
+      document.getElementById('btnPay').disabled = true;
+      document.getElementById('db16Plate').innerText = "NONE";
+      document.getElementById('db16Status').innerText = "---";
+      document.getElementById('db16Status').style.color = "var(--success)";
+      document.getElementById('btnMechGate').classList.add('disabled-gate');
+      setTimeout(() => {
+          sprite.style.transition = "none";
+          sprite.style.left = "-250px";
+          isResetting = false;
+          document.getElementById('btnNext').disabled = false;
+      }, 1300);
+  }
+
+  /* ===== SECONDARY LAYOUT TOGGLE ===== */
   function toggleSecondaryLayout(type) {
       if(type === 'dbs') {
           document.getElementById('dbLayout').classList.toggle('active');
@@ -973,29 +1309,42 @@
       }
   }
 
+  /* ===== DASHBOARD REFRESH ===== */
   function refreshDashboards() {
-      const db2 = document.getElementById('db2Content'); db2.innerHTML = '';
+      // D-2 Enforcement Log
+      const db2 = document.getElementById('db2Content');
+      db2.innerHTML = '';
       const hist = sharedData.history || [];
       if(hist.length === 0) db2.innerHTML = '<div style="color: #555;">No enforcement logs found.</div>';
-      else hist.slice(-20).reverse().forEach(h => { db2.innerHTML += `<div class="data-row"><span>${h.plate}</span><span style="color:${h.action.includes('ARRESTED')?'var(--danger)':'var(--success)'}">${h.action}</span><span style="color:#888">${h.timestamp||'N/A'}</span></div>`; });
+      else hist.slice(-20).reverse().forEach(h => {
+          db2.innerHTML += `<div class="data-row"><span>${h.plate}</span><span style="color:${h.action.includes('ARRESTED')?'var(--danger)':'var(--success)'}">${h.action}</span><span style="color:#888">${h.timestamp||'N/A'}</span></div>`;
+      });
       
-      const db7 = document.getElementById('db7Content'); db7.innerHTML = '';
+      // D-7 Inmate Holding Log
+      const db7 = document.getElementById('db7Content');
+      db7.innerHTML = '';
       const inmates = sharedData.activeInmates || [];
       if(inmates.length === 0) db7.innerHTML = '<div style="color: #555;">Holding cells empty.</div>';
-      else inmates.forEach(inmate => { db7.innerHTML += `<div class="data-row" style="flex-direction:column; align-items:flex-start;"><span style="color:var(--danger); font-weight:bold;">${inmate.plate} (${inmate.id})</span><span style="font-size:0.7rem; color:#aaa;">Offense: ${inmate.offense} | Facility: ${inmate.facility}</span></div>`; });
+      else inmates.forEach(inmate => {
+          db7.innerHTML += `<div class="data-row" style="flex-direction:column; align-items:flex-start;"><span style="color:var(--danger); font-weight:bold;">${inmate.plate} (${inmate.id})</span><span style="font-size:0.7rem; color:#aaa;">Offense: ${inmate.offense} | Facility: ${inmate.facility}</span></div>`;
+      });
   }
 
+  /* ===== D-4 / D-5 SEARCH ===== */
   function searchApplicationHistory() {
       const plateSearch = (document.getElementById('searchPlateIn').value || "").toUpperCase().trim();
       if(!plateSearch) { addLog("SEARCH ERROR: Enter a plate in the Search field.", "var(--warning)"); playSound('error'); return; }
       addLog(`Querying D-4 & D-5 for: ${plateSearch}...`, "var(--accent)");
       
-      const db4 = document.getElementById('db4Content'); db4.innerHTML = '<div style="color: var(--accent);">SEARCHING D-4...</div>';
-      const db5 = document.getElementById('db5Content'); db5.innerHTML = '<div style="color: var(--accent);">SEARCHING D-5...</div>';
+      const db4 = document.getElementById('db4Content');
+      db4.innerHTML = '<div style="color: var(--accent);">SEARCHING D-4...</div>';
+      const db5 = document.getElementById('db5Content');
+      db5.innerHTML = '<div style="color: var(--accent);">SEARCHING D-5...</div>';
       
       setTimeout(() => {
-          let historyHTML = ''; 
-          const regData = sharedData.registry[plateSearch]; 
+          // D-4 History
+          let historyHTML = '';
+          const regData = sharedData.registry[plateSearch];
           const aliasData = sharedData.forgedAliases ? sharedData.forgedAliases[plateSearch] : null;
           
           if (regData) {
@@ -1005,8 +1354,11 @@
               if(regData.status === 'WANTED') historyHTML += `<div style="margin-top:10px; padding:8px; border:1px solid var(--danger); color:var(--danger); text-align:center;">⚠ APPLICATION REJECTED - SUBJECT WANTED ⚠</div>`;
               else if (regData.id === 'MISSING' || regData.id === 'UNVERIFIED') historyHTML += `<div style="margin-top:10px; padding:8px; border:1px solid var(--warning); color:var(--warning); text-align:center;">⚠ APPLICATION PENDING - UNVERIFIED ⚠</div>`;
           }
-          if (aliasData) { historyHTML += `<div class="data-row" style="color:var(--danger); font-weight:bold; margin-top:10px;"><span>FORGERY FLAG</span><span>DETECTED</span></div><div style="margin-top:10px; padding:8px; border:1px solid var(--danger); color:var(--danger); text-align:center;">⚠ APPLICATION REJECTED - FORGERY ⚠</div>`; }
-          const plateHist = (sharedData.history || []).filter(h => h.plate === plateSearch);
+          if (aliasData) {
+              historyHTML += `<div class="data-row" style="color:var(--danger); font-weight:bold; margin-top:10px;"><span>FORGERY FLAG</span><span>DETECTED</span></div><div style="margin-top:10px; padding:8px; border:1px solid var(--danger); color:var(--danger); text-align:center;">⚠ APPLICATION REJECTED - FORGERY ⚠</div>`;
+          }
+
+          const plateHist = (sharedData.history || []).filter(h => h.plate === plateSearch || h.plate.includes(plateSearch));
           if (plateHist.length > 0) {
               historyHTML += `<div style="margin-top:15px; border-top:1px solid #444; padding-top:10px; color:#888;">APPLICATION LOG:</div>`;
               plateHist.forEach(h => {
@@ -1020,6 +1372,7 @@
           if(!regData && !aliasData && plateHist.length === 0) historyHTML = `<div style="color: #555; text-align:center; margin-top:20px;">NO D-4 RECORDS FOUND FOR ${plateSearch}</div>`;
           db4.innerHTML = historyHTML;
 
+          // D-5 Registration Application
           let d5HTML = '';
           const isWantedOrForged = (regData && regData.status === 'WANTED') || aliasData;
           const names = ["JOHN SINGH", "MARIA DIAZ", "ALEX JONES", "SARAH CONNOR", "MICHAEL LEE", "LISA RAY"];
@@ -1032,7 +1385,7 @@
           } else {
               let hash = 0;
               for (let i = 0; i < plateSearch.length; i++) { hash = ((hash << 5) - hash) + plateSearch.charCodeAt(i); hash = hash & hash; }
-              testScore = Math.abs(hash % 100) + 1; 
+              testScore = Math.abs(hash % 100) + 1;
               isApproved = testScore >= 70 && !isWantedOrForged;
           }
           
@@ -1058,86 +1411,92 @@
           }
           
           db5.innerHTML = d5HTML;
-          document.getElementById('dbLayout').classList.add('active'); 
+          document.getElementById('dbLayout').classList.add('active');
           playSound('success');
       }, 800);
   }
 
-  function mechanicalGateOverride() { if(!car) { addLog("GATE ERROR: No vehicle at gate.", "var(--warning)"); playSound('error'); return; } const p=car.is911Emergency||car.isPatrolDispatch; const w=car.isWanted||car.isForged||car.realWantedPlate; if(w){addLog("D-16 GATE LOCKOUT: WANTED FUGITIVE DETECTED. OVERRIDE DENIED.", "var(--danger)");playSound('error');return;} if(!p){addLog("D-16 GATE LOCKOUT: STANDARD CIVILIAN. USE NORMAL PROCESSING.", "var(--warning)");playSound('buzzer');return;} playSound('gate'); addLog(`D-16 MECHANICAL OVERRIDE: Gate opening for ${car.plate}. VIP fast-tracked.`, "var(--success)"); valids++; revenue+=50; rankPoints+=2; history.push({ plate: car.plate, id: car.id, action: "RELEASED (D-16 OVERRIDE)", timestamp: new Date().toLocaleTimeString() }); updateLevel(); saveData(); updateStatusUI(); resetStage(); }
-
-  function updateMailUI() {
-      const unread = (sharedData.inbox || []).filter(m => !m.read).length;
-      document.getElementById('mailCount').innerText = unread;
-      document.getElementById('inboxBadge').innerText = unread;
+  /* ===== MECHANICAL GATE OVERRIDE (D-16 VIP Fast-Track) ===== */
+  function mechanicalGateOverride() {
+      if(!car) { addLog("GATE ERROR: No vehicle at gate.", "var(--warning)"); playSound('error'); return; }
+      const p = car.is911Emergency || car.isPatrolDispatch;
+      const w = car.isWanted || car.isForged || car.realWantedPlate;
+      if(w) {
+          addLog("GATE LOCKOUT: Wanted/forged subject. Mechanical override DENIED.", "var(--danger)");
+          playSound('error');
+          return;
+      }
+      if(!p) {
+          addLog("GATE LOCKOUT: Standard civilian. Use normal release procedure.", "var(--warning)");
+          playSound('buzzer');
+          return;
+      }
+      // VIP / Emergency — override granted
+      playSound('gate');
+      addLog(`⚡ MECHANICAL GATE OVERRIDE: ${car.plate} fast-tracked via D-16 protocol.`, "var(--accent)");
+      valids++;
+      revenue += 50;
+      rankPoints += 3;
+      history.push({ plate: car.plate, id: car.id, action: "FAST-TRACK RELEASED (D-16)", timestamp: new Date().toLocaleTimeString() });
+      stopSirenSound();
+      updateLevel(); saveData(); updateStatusUI(); resetStage();
   }
 
-  function switchMailTab(tab, element) {
-      renderMailList(tab);
-      document.querySelectorAll('.mail-nav-item').forEach(el => el.classList.remove('active'));
-      if(element) element.classList.add('active');
-  }
-
-  function renderMailList(tab) {
-      const list = document.getElementById('mailList'); list.innerHTML = '';
-      const mails = tab === 'sent' ? (sharedData.sentMail || []) : (sharedData.inbox || []);
-      if(mails.length === 0) { list.innerHTML = `<div style="padding: 20px; text-align: center; color: #555;">No mails in ${tab}</div>`; return; }
-      mails.slice().reverse().forEach((m, i) => {
-          const realIndex = mails.length - 1 - i;
-          list.innerHTML += `<div class="mail-item ${m.read ? '' : 'unread'}" onclick="readMail('${tab}', ${realIndex})">
-              <div><div class="mail-from">${tab === 'sent' ? 'To: '+m.to : 'From: '+m.from}</div><div class="mail-subject">${m.subject}</div><div class="mail-snippet">${m.body.substring(0, 50)}...</div></div>
-          </div>`;
+  /* ===== DRAGGABLE DOC OVERLAY ===== */
+  (function() {
+      const doc = document.getElementById('docOverlay');
+      let isDragging = false, startX, startY, origX, origY;
+      doc.addEventListener('pointerdown', (e) => {
+          if(e.target.tagName === 'BUTTON') return; // don't drag on buttons
+          isDragging = true;
+          startX = e.clientX; startY = e.clientY;
+          const rect = doc.getBoundingClientRect();
+          origX = rect.left; origY = rect.top;
+          doc.setPointerCapture(e.pointerId);
       });
-  }
+      doc.addEventListener('pointermove', (e) => {
+          if(!isDragging) return;
+          const dx = e.clientX - startX; const dy = e.clientY - startY;
+          doc.style.left = (origX + dx) + 'px';
+          doc.style.top = (origY + dy) + 'px';
+          doc.style.position = 'fixed';
+      });
+      doc.addEventListener('pointerup', () => { isDragging = false; });
+      doc.addEventListener('pointercancel', () => { isDragging = false; });
+  })();
 
-  function readMail(tab, index) {
-      const mails = tab === 'sent' ? sharedData.sentMail : sharedData.inbox;
-      if(!mails[index]) return;
-      mails[index].read = true; saveData(); updateMailUI();
-      const m = mails[index];
-      const view = document.getElementById('mailBodyView');
-      view.classList.add('active');
-      view.innerHTML = `<div style="border-bottom:1px solid #333; padding-bottom:10px; margin-bottom:10px;"><strong>From:</strong> ${m.from}<br><strong>To:</strong> ${m.to}<br><strong>CC:</strong> ${m.cc || 'None'}<br><strong>Subject:</strong> ${m.subject}<br><strong>Date:</strong> ${m.timestamp}</div><div>${m.body.replace(/\n/g, '<br>')}</div>`;
-  }
+  /* ===== DRAGGABLE COMPOSE WINDOW ===== */
+  (function() {
+      const compose = document.getElementById('composeWindow');
+      const header = document.getElementById('composeHeader');
+      let isDragging = false, startX, startY, origLeft, origTop;
+      header.addEventListener('pointerdown', (e) => {
+          isDragging = true;
+          startX = e.clientX; startY = e.clientY;
+          const rect = compose.getBoundingClientRect();
+          origLeft = rect.left; origTop = rect.top;
+          header.setPointerCapture(e.pointerId);
+      });
+      header.addEventListener('pointermove', (e) => {
+          if(!isDragging) return;
+          const dx = e.clientX - startX; const dy = e.clientY - startY;
+          compose.style.position = 'fixed';
+          compose.style.left = (origLeft + dx) + 'px';
+          compose.style.top = (origTop + dy) + 'px';
+          compose.style.bottom = 'auto';
+          compose.style.right = 'auto';
+      });
+      header.addEventListener('pointerup', () => { isDragging = false; });
+      header.addEventListener('pointercancel', () => { isDragging = false; });
+  })();
 
-  function openCompose() {
-      document.getElementById('composeWindow').classList.add('active');
-      document.getElementById('composeTo').value = ''; document.getElementById('composeCc').value = '';
-      document.getElementById('composeSubject').value = ''; document.getElementById('composeBody').value = '';
-      if(car) document.getElementById('composeBody').value = `VEHICLE DATA ATTACHED:\nPlate: ${car.plate}\nID: ${car.id}\nStatus: ${car.isWanted ? 'WANTED' : 'STANDARD'}`;
-  }
-  function closeCompose() { document.getElementById('composeWindow').classList.remove('active'); }
-
-  function sendMail() {
-      const to = document.getElementById('composeTo').value.toUpperCase().trim();
-      const cc = document.getElementById('composeCc').value.toUpperCase().trim();
-      const subject = document.getElementById('composeSubject').value.trim();
-      const body = document.getElementById('composeBody').value.trim();
-      if(!to || !subject || !body) { addLog("MAIL ERROR: To, Subject, and Body are required.", "var(--danger)"); playSound('error'); return; }
-
-      const mailObj = { to, cc, from: "ENFORCEMENT_D1", subject, body, timestamp: new Date().toLocaleString(), read: false };
-      
-      if(!sharedData.sentMail) sharedData.sentMail = [];
-      sharedData.sentMail.push(mailObj);
-
-      saveData(); closeCompose(); renderMailList('sent'); playSound('mail');
-      addLog(`MAIL SENT: ${subject} -> ${to}`, "var(--accent)");
-  }
-
-  const compWin = document.getElementById("composeWindow"); let isDragComp=false, cStartX=0, cStartY=0;
-  function cDragStart(e) { if(e.target.tagName==='BUTTON'||e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return; isDragComp=true; const cx=e.touches?e.touches[0].clientX:e.clientX; const cy=e.touches?e.touches[0].clientY:e.clientY; const rect=compWin.getBoundingClientRect(); cStartX=cx-rect.left; cStartY=cy-rect.top; compWin.style.bottom = 'auto'; compWin.style.right = 'auto'; }
-  function cDragMove(e) { if (!isDragComp) return; e.preventDefault(); const cx=e.touches?e.touches[0].clientX:e.clientX; const cy=e.touches?e.touches[0].clientY:e.clientY; compWin.style.left=`${cx-cStartX}px`; compWin.style.top=`${cy-cStartY}px`; }
-  function cDragEnd() { isDragComp=false; }
-  document.getElementById('composeHeader').addEventListener('mousedown',cDragStart); document.addEventListener('mousemove',cDragMove); document.addEventListener('mouseup',cDragEnd);
-  document.getElementById('composeHeader').addEventListener('touchstart',cDragStart,{passive:false}); document.addEventListener('touchmove',cDragMove,{passive:false}); document.addEventListener('touchend',cDragEnd);
-
-  const docWin = document.getElementById("docOverlay"); let isDragging=false, startX=0, startY=0;
-  function dragStart(e) { if (e.target.tagName==='BUTTON'||e.target.tagName==='INPUT') return; isDragging=true; const clientX=e.touches?e.touches[0].clientX:e.clientX; const clientY=e.touches?e.touches[0].clientY:e.clientY; const rect=docWin.getBoundingClientRect(); startX=clientX-rect.left; startY=clientY-rect.top; }
-  function dragMove(e) { if (!isDragging) return; e.preventDefault(); const clientX=e.touches?e.touches[0].clientX:e.clientX; const clientY=e.touches?e.touches[0].clientY:e.clientY; let newX=clientX-startX; let newY=clientY-startY; const winW=window.innerWidth-docWin.offsetWidth; const winH=window.innerHeight-docWin.offsetHeight; newX=Math.max(0,Math.min(newX,winW)); newY=Math.max(0,Math.min(newY,winH)); docWin.style.left=`${newX}px`; docWin.style.top=`${newY}px`; }
-  function dragEnd() { isDragging=false; }
-  docWin.addEventListener('mousedown',dragStart); document.addEventListener('mousemove',dragMove); document.addEventListener('mouseup',dragEnd);
-  docWin.addEventListener('touchstart',dragStart,{passive:false}); document.addEventListener('touchmove',dragMove,{passive:false}); docWin.addEventListener('touchend',dragEnd);
-
-  loadData(); refreshAPBList();
+  /* ===== INIT ===== */
+  loadData();
+  refreshAPBList();
+  addLog("ENFORCEMENT TERMINAL v23.2 ONLINE", "var(--accent)");
+  addLog("Network sync: D1 ↔ D2 active. Safe merge enabled.", "var(--success)");
+  addLog("Awaiting vehicle inspection...", "#888");
 </script>
+
 </body>
 </html>
