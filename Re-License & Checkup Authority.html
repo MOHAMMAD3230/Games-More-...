@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DASHBOARD 17 - RE-LICENSE CHECKUP</title>
+<style>
+    :root { --bg: #05050a; --panel: #111118; --accent: #00f2ff; --success: #00ff9d; --danger: #ff0044; --warning: #ffcc00; }
+    body { background-color: var(--bg); color: #eee; font-family: 'Courier New', monospace; margin: 0; height: 100vh; display: flex; flex-direction: column; }
+    .header { background: #000; padding: 20px; border-bottom: 3px solid var(--accent); text-align: center; }
+    .header h1 { margin: 0; color: var(--accent); letter-spacing: 3px; font-size: 1.2rem; }
+    .main { flex: 1; display: flex; justify-content: center; align-items: center; padding: 20px; }
+    .queue-box { background: var(--panel); border: 2px solid #333; padding: 30px; width: 100%; max-width: 600px; text-align: center; border-radius: 8px; min-height: 300px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 20px; }
+    .plate-display { font-size: 3rem; font-weight: 900; color: var(--warning); letter-spacing: 5px; margin: 20px 0; text-shadow: 0 0 15px rgba(255,204,0,0.4); }
+    .status-text { font-size: 1.2rem; color: #aaa; }
+    .controls { display: flex; gap: 20px; margin-top: 30px; }
+    .mech-btn { padding: 20px 40px; border: none; border-radius: 4px; font-weight: 900; text-transform: uppercase; font-size: 1.2rem; font-family: monospace; cursor: pointer; transition: 0.2s; box-shadow: 0 5px #000; }
+    .mech-btn:active { transform: translateY(3px); box-shadow: 0 1px #000; }
+    .btn-approve { background: var(--success); color: #000; }
+    .btn-reject { background: var(--danger); color: #fff; }
+    .btn-idle { background: #333; color: #666; cursor: not-allowed; pointer-events: none; }
+    .log-area { background: #000; border-top: 2px solid #222; padding: 15px; font-size: 0.8rem; color: #0f0; height: 150px; overflow-y: auto; }
+</style>
+</head>
+<body>
+
+<div class="header">
+    <h1>■ DASHBOARD 17: RE-LICENSE & CHECKUP AUTHORITY ■</h1>
+</div>
+
+<div class="main">
+    <div class="queue-box">
+        <div class="status-text" id="statusText">NO VEHICLES IN QUEUE</div>
+        <div class="plate-display" id="plateDisplay">---</div>
+        <div class="controls">
+            <button class="mech-btn btn-idle" id="btnApprove" onclick="processCase('CLEAR')">✓ APPROVE</button>
+            <button class="mech-btn btn-idle" id="btnReject" onclick="processCase('REJECTED')">✗ REJECT</button>
+        </div>
+    </div>
+</div>
+
+<div class="log-area" id="logArea"></div>
+
+<script>
+    const LS_D1_KEY = 'enforcementTerminalV23_D1';
+    const LS_D2_KEY = 'enforcementTerminalV23_TOLL';
+    let sharedData = {};
+    let currentCasePlate = null;
+
+    function log(msg) {
+        const area = document.getElementById('logArea');
+        area.innerHTML += `> ${msg}<br>`;
+        area.scrollTop = area.scrollHeight;
+    }
+
+    function loadData() {
+        try {
+            const d1 = localStorage.getItem(LS_D1_KEY);
+            const d2 = localStorage.getItem(LS_D2_KEY);
+            sharedData = {};
+            if (d1) { const parsed = JSON.parse(d1); Object.assign(sharedData, parsed); }
+            if (d2) { const parsed = JSON.parse(d2); Object.assign(sharedData, parsed); if(parsed.registry) Object.assign(sharedData.registry, parsed.registry); }
+            if(!sharedData.registry) sharedData.registry = {};
+        } catch(e) { sharedData = { registry: {} }; }
+    }
+
+    function saveData() {
+        try {
+            if (sharedData.registry[currentCasePlate]) {
+                sharedData.registry[currentCasePlate].status = sharedData.registry[currentCasePlate].status; 
+            }
+            // Save back to both to ensure sync
+            const d1Str = JSON.stringify(sharedData);
+            localStorage.setItem(LS_D1_KEY, d1Str);
+            localStorage.setItem(LS_D2_KEY, d1Str);
+        } catch(e) {}
+    }
+
+    function processCase(decision) {
+        if (!currentCasePlate) return;
+        loadData();
+        
+        if (sharedData.registry[currentCasePlate]) {
+            sharedData.registry[currentCasePlate].status = decision;
+            sharedData.registry[currentCasePlate].id = decision === 'CLEAR' ? 'LICENSE_VERIFIED' : 'UNVERIFIED';
+            
+            log(`CASE RESOLVED: ${currentCasePlate} -> ${decision}`);
+            saveData();
+        }
+        
+        currentCasePlate = null;
+        updateUI();
+    }
+
+    function updateUI() {
+        loadData();
+        
+        // Find the first PENDING_ENFORCEMENT case
+        const pendingPlate = Object.keys(sharedData.registry).find(p => sharedData.registry[p].status === 'PENDING_ENFORCEMENT');
+        
+        const plateDiv = document.getElementById('plateDisplay');
+        const statusDiv = document.getElementById('statusText');
+        const btnApprove = document.getElementById('btnApprove');
+        const btnReject = document.getElementById('btnReject');
+
+        if (pendingPlate) {
+            currentCasePlate = pendingPlate;
+            plateDiv.innerText = pendingPlate;
+            statusDiv.innerText = "AWAITING LICENSE VERIFICATION";
+            statusDiv.style.color = "var(--warning)";
+            btnApprove.className = "mech-btn btn-approve";
+            btnReject.className = "mech-btn btn-reject";
+        } else {
+            currentCasePlate = null;
+            plateDiv.innerText = "---";
+            statusDiv.innerText = "NO VEHICLES IN QUEUE";
+            statusDiv.style.color = "#aaa";
+            btnApprove.className = "mech-btn btn-idle";
+            btnReject.className = "mech-btn btn-idle";
+        }
+    }
+
+    // Poll for updates every 2 seconds
+    setInterval(updateUI, 2000);
+    updateUI();
+    log("Dashboard 17 Initialized. Monitoring Network...");
+</script>
+</body>
+</html>
