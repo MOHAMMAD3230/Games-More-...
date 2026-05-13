@@ -442,7 +442,7 @@
     SEX: <span id="dSex">---</span><br>
     ID NO: <span id="dID">---</span><br>
     EXPIRY: <span id="dExp" style="font-weight:bold">---</span><br>
-    <div id="forgeryBox" class="forgery-warning">⚠ FORGERY DETECTED: REAL PLATE IS <span id="dRealPlate">---</span></div>
+    <div id="forgeryBox" class="forgery-warning">⚠ FORGERY DETECTED: Real Plate is <span id="dRealPlate">---</span></div>
     <div id="agencyTagsBox" class="agency-tags" style="display:none;"></div>
     <div id="stampBox" class="stamp"></div>
 </div>
@@ -493,6 +493,11 @@
 
   let car=null, revenue=0, valids=0, missed=0, level=1, rankPoints=0, wantedPlates=[], isResetting=false, isScanning=false;
   let history = []; 
+
+  const LS_DATA_KEY = 'enforcementTerminalV23_D1';
+  const LS_SIG_KEY = 'enforcementTerminalV23_D1_sig';
+  const LS_TOLL_KEY = 'enforcementTerminalV23_TOLL';
+
   let sharedData = { revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null, activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [], ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [] };
 
   const HASH_SALT = "ENFORCE_V23_SECURE_SALT";
@@ -508,15 +513,15 @@
   }
 
   function loadData() {
-      const savedData = localStorage.getItem('enforcementTerminalV23');
-      const savedSig = localStorage.getItem('enforcementTerminalV23_sig');
+      const savedData = localStorage.getItem(LS_DATA_KEY);
+      const savedSig = localStorage.getItem(LS_SIG_KEY);
       
       if (savedData) {
           try {
               if (savedSig !== generateSignature(savedData)) {
                   addLog("SECURITY BREACH: Data tampering detected! Wiping corrupted data.", "var(--danger)");
-                  localStorage.removeItem('enforcementTerminalV23');
-                  localStorage.removeItem('enforcementTerminalV23_sig');
+                  localStorage.removeItem(LS_DATA_KEY);
+                  localStorage.removeItem(LS_SIG_KEY);
                   return;
               }
               const data = JSON.parse(savedData);
@@ -539,8 +544,8 @@
               checkEmergencyDispatch();
           } catch (e) { 
               console.error("Corrupted save data, resetting."); 
-              localStorage.removeItem('enforcementTerminalV23');
-              localStorage.removeItem('enforcementTerminalV23_sig');
+              localStorage.removeItem(LS_DATA_KEY);
+              localStorage.removeItem(LS_SIG_KEY);
           }
       }
       updateStatusUI(); updateMailUI();
@@ -548,14 +553,30 @@
   }
 
   function saveData() {
+      syncTollNetworkData();
       const finalData = { revenue, valids, missed, level, rankPoints, history, registry: sharedData.registry, forgedAliases: sharedData.forgedAliases, nextSpawnOverride: sharedData.nextSpawnOverride, activeInmates: sharedData.activeInmates, releasedInmates: sharedData.releasedInmates, inbox: sharedData.inbox, sentMail: sharedData.sentMail, call911Logs: sharedData.call911Logs, ledgerCashouts: sharedData.ledgerCashouts, intelFlags: sharedData.intelFlags, paroleRecords: sharedData.paroleRecords, iaViolations: sharedData.iaViolations, rehabPrograms: sharedData.rehabPrograms };
       const dataStr = JSON.stringify(finalData);
-      localStorage.setItem('enforcementTerminalV23', dataStr);
-      localStorage.setItem('enforcementTerminalV23_sig', generateSignature(dataStr));
+      localStorage.setItem(LS_DATA_KEY, dataStr);
+      localStorage.setItem(LS_SIG_KEY, generateSignature(dataStr));
   }
 
+  function syncTollNetworkData() {
+      try {
+          const tollDataStr = localStorage.getItem(LS_TOLL_KEY);
+          if (tollDataStr) {
+              const tollData = JSON.parse(tollDataStr);
+              if (tollData.registry) Object.assign(sharedData.registry, tollData.registry);
+              if (tollData.forgedAliases) Object.assign(sharedData.forgedAliases, tollData.forgedAliases);
+              if (tollData.activeInmates) sharedData.activeInmates = tollData.activeInmates;
+              if (tollData.releasedInmates) sharedData.releasedInmates = tollData.releasedInmates;
+              if (tollData.history) sharedData.history = sharedData.history.concat(tollData.history).filter((v, i, a) => a.findIndex(t => (t.plate === v.plate && t.timestamp === v.timestamp)) === i);
+          }
+      } catch(e) {}
+  }
+
+  let lastTollPendingState = false;
   setInterval(() => {
-      const savedData = localStorage.getItem('enforcementTerminalV23');
+      const savedData = localStorage.getItem(LS_DATA_KEY);
       if (savedData) {
           try {
               const data = JSON.parse(savedData);
@@ -572,6 +593,23 @@
               }
           } catch(e) {}
       }
+
+      try {
+          const tollDataStr = localStorage.getItem(LS_TOLL_KEY);
+          if (tollDataStr) {
+              const tollData = JSON.parse(tollDataStr);
+              const tollReg = tollData.registry || {};
+              const hasPending = Object.values(tollReg).some(r => r.status === 'PENDING_ENFORCEMENT' && r.registeredBy === "NHAI_TOLL_ENFORCEMENT");
+              
+              if (hasPending && !lastTollPendingState) {
+                  addLog("⚠ NHAI TOLL: ENFORCEMENT CHECK REQUEST RECEIVED", "var(--warning)");
+                  playSound('buzzer');
+                  receiveMail("NHAI_TOLL_ENFORCEMENT", "ID VERIFICATION REQUEST", "A vehicle at the Toll Gate requires ID Verification and clearance.\nPlease inspect documents and run a database scan.");
+              }
+              lastTollPendingState = hasPending;
+          }
+      } catch(e) {}
+
   }, 2000);
 
   let emergencyActive = false;
@@ -606,6 +644,8 @@
       if(car || isResetting) return; playSound('engine');
       if(Math.random() < 0.4 || wantedPlates.length === 0) refreshAPBList();
       let customSpawn = null, isForgedAlias = false, isPatrolDispatch = false, is911Emergency = false, dispatchedAgencies = [], originDashboard = "DEFAULT";
+
+      syncTollNetworkData();
 
       if (sharedData.nextSpawnOverride) {
           customSpawn = sharedData.registry[sharedData.nextSpawnOverride];
@@ -1014,7 +1054,7 @@
   function dragMove(e) { if (!isDragging) return; e.preventDefault(); const clientX=e.touches?e.touches[0].clientX:e.clientX; const clientY=e.touches?e.touches[0].clientY:e.clientY; let newX=clientX-startX; let newY=clientY-startY; const winW=window.innerWidth-docWin.offsetWidth; const winH=window.innerHeight-docWin.offsetHeight; newX=Math.max(0,Math.min(newX,winW)); newY=Math.max(0,Math.min(newY,winH)); docWin.style.left=`${newX}px`; docWin.style.top=`${newY}px`; }
   function dragEnd() { isDragging=false; }
   docWin.addEventListener('mousedown',dragStart); document.addEventListener('mousemove',dragMove); document.addEventListener('mouseup',dragEnd);
-  docWin.addEventListener('touchstart',dragStart,{passive:false}); document.addEventListener('touchmove',dragMove,{passive:false}); document.addEventListener('touchend',dragEnd);
+  docWin.addEventListener('touchstart',dragStart,{passive:false}); document.addEventListener('touchmove',dragMove,{passive:false}); docWin.addEventListener('touchend',dragEnd);
 
   loadData(); refreshAPBList();
 </script>
