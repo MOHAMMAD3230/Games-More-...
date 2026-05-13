@@ -10,50 +10,64 @@
   gtag('config', 'GT-NC6T5LRJ');
 </script>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#080810">
 <title>NHAI - Licensing Authority Terminal</title>
 <style>
     :root {
         --bg: #080810; --panel: #10101a; --accent: #00d9ff; --success: #2ed573;
         --danger: #ff0044; --warning: #ffa502; --border: #2a2a3a; --paper: #f0f0e8;
+        --safe-bottom: env(safe-area-inset-bottom, 0px);
+        --safe-top: env(safe-area-inset-top, 0px);
     }
+
+    *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
     body {
         background-color: var(--bg); color: #ccc; font-family: 'Courier New', monospace;
-        margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+        margin: 0; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden;
+        -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
     }
 
     .top-bar {
-        background: #000; padding: 12px 30px; border-bottom: 2px solid var(--success);
-        display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+        background: #000; padding: 12px 16px; padding-top: calc(12px + var(--safe-top));
+        border-bottom: 2px solid var(--success); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+        flex-wrap: wrap; gap: 6px; z-index: 10;
     }
 
-    .top-bar h1 { margin: 0; font-size: 1.1rem; color: var(--success); letter-spacing: 2px; }
-    .top-bar .time { color: var(--accent); font-size: 0.9rem; }
+    .top-bar h1 { margin: 0; font-size: clamp(0.65rem, 2.5vw, 1.1rem); color: var(--success); letter-spacing: 1px; white-space: nowrap; }
+    .top-bar-right { display: flex; align-items: center; gap: 10px; }
+    .top-bar .time { color: var(--accent); font-size: clamp(0.65rem, 2vw, 0.9rem); font-variant-numeric: tabular-nums; }
 
-    .main-layout {
-        display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px; padding: 20px;
-        flex-grow: 1; min-height: 0; overflow: hidden;
+    .sync-badge {
+        font-size: 0.55rem; padding: 3px 8px; border-radius: 3px; letter-spacing: 1px; font-weight: bold; text-transform: uppercase; white-space: nowrap;
+    }
+    .sync-badge.online { background: rgba(0,255,157,0.1); color: var(--success); border: 1px solid var(--success); }
+    .sync-badge.offline { background: rgba(255,0,68,0.1); color: var(--danger); border: 1px solid var(--danger); }
+    .sync-badge.waiting { background: rgba(255,204,0,0.1); color: var(--warning); border: 1px solid var(--warning); }
+
+    .main-grid {
+        display: grid; grid-template-columns: 360px 1fr; gap: 16px; padding: 16px; flex-grow: 1; min-height: 0; overflow: hidden;
     }
 
-    .call-panel { 
-        display: flex; flex-direction: column; justify-content: center; align-items: center; 
-        border-right: 1px solid var(--border); padding-right: 20px; gap: 30px;
+    .call-panel, .detail-panel {
+        background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; overflow: hidden;
     }
-    .terminal-art {
-        font-size: 0.8rem; color: #555; text-align: center; line-height: 1.5;
-    }
+
+    .call-panel { justify-content: center; align-items: center; gap: 20px; }
+    .terminal-art { font-size: 0.75rem; color: #555; text-align: center; line-height: 1.6; }
 
     .btn-next-mega {
         background: linear-gradient(145deg, #00d9ff, #009aa8); color: #000; border: none;
-        padding: 40px; font-weight: 900; text-transform: uppercase; font-size: 1.5rem;
+        padding: 30px 20px; font-weight: 900; text-transform: uppercase; font-size: 1.2rem;
         cursor: pointer; box-shadow: 0 8px 0 #005f6b, 0 15px 30px rgba(0,0,0,0.5);
-        transition: all 0.1s; font-family: monospace; width: 100%; border-radius: 4px;
+        transition: all 0.1s; font-family: monospace; width: 100%; border-radius: 4px; min-height: 48px;
     }
     .btn-next-mega:active { transform: translateY(6px); box-shadow: 0 2px 0 #005f6b; }
     .btn-next-mega.ready-glow {
-        box-shadow: 0 8px 0 #005f6b, 0 0 25px rgba(0, 217, 255, 0.6);
-        animation: readyPulse 2s infinite;
+        box-shadow: 0 8px 0 #005f6b, 0 0 25px rgba(0, 217, 255, 0.6); animation: readyPulse 2s infinite;
     }
     @keyframes readyPulse {
         0% { box-shadow: 0 8px 0 #005f6b, 0 0 15px rgba(0, 217, 255, 0.4); }
@@ -61,65 +75,51 @@
         100% { box-shadow: 0 8px 0 #005f6b, 0 0 15px rgba(0, 217, 255, 0.4); }
     }
 
-    .detail-panel { display: flex; flex-direction: column; gap: 15px; min-height: 0; overflow: hidden; }
-    
-    .form-container {
-        position: relative; flex-grow: 1; border: 1px solid var(--border); background: #050508;
-        overflow: hidden; 
+    .detail-panel { gap: 15px; min-height: 0; overflow: hidden; }
+    .panel-title {
+        color: var(--accent); font-size: clamp(0.7rem, 2vw, 0.9rem); border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 12px;
+        text-transform: uppercase; letter-spacing: 1px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center;
     }
+
+    .form-container { position: relative; flex-grow: 1; border: 1px solid var(--border); background: #050508; overflow: hidden; border-radius: 4px; }
 
     .application-form {
         background: var(--paper); color: #111; padding: 20px 30px; font-size: 0.9rem;
         position: absolute; top: 0; left: 0; width: 100%; height: 100%; box-sizing: border-box;
         opacity: 0; pointer-events: none; transform: translateY(30px);
-        transition: opacity 0.4s ease, transform 0.4s ease;
+        transition: opacity 0.4s ease, transform 0.4s ease; overflow-y: auto;
         display: flex; flex-direction: column; justify-content: space-around;
+        -webkit-overflow-scrolling: touch;
     }
     .application-form.active { opacity: 1; pointer-events: auto; transform: translateY(0); }
-    
-    .application-form.archive-left {
-        opacity: 0; pointer-events: none; transform: translateX(-150%) rotate(-10deg);
-        transition: opacity 0.3s ease, transform 0.3s ease;
-    }
-    .application-form.archive-right {
-        opacity: 0; pointer-events: none; transform: translateX(150%) rotate(10deg);
-        transition: opacity 0.3s ease, transform 0.3s ease;
-    }
+    .application-form.archive-left { opacity: 0; pointer-events: none; transform: translateX(-150%) rotate(-10deg); transition: opacity 0.3s ease, transform 0.3s ease; }
+    .application-form.archive-right { opacity: 0; pointer-events: none; transform: translateX(150%) rotate(10deg); transition: opacity 0.3s ease, transform 0.3s ease; }
 
     .form-header { border-bottom: 2px solid #111; padding-bottom: 8px; text-align: center; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; font-size: 1rem; }
     .form-row { display: flex; justify-content: space-between; margin-bottom: 5px; border-bottom: 1px dashed #aaa; padding-bottom: 5px; }
     .form-label { font-weight: bold; }
-    
-    .score-box { 
-        padding: 10px; border: 3px solid #111; text-align: center; 
-        font-size: 2rem; font-weight: 900; background: #e0e0d8; 
-    }
-    .score-pass { color: #006400; border-color: #006400; } /* Darker green for paper */
+
+    .score-box { padding: 10px; border: 3px solid #111; text-align: center; font-size: 2rem; font-weight: 900; background: #e0e0d8; }
+    .score-pass { color: #006400; border-color: #006400; }
     .score-fail { color: var(--danger); border-color: var(--danger); }
 
-    .bg-check { 
-        padding: 8px; background: #111; color: #fff; font-size: 0.8rem; 
-        text-align: center; border: 1px solid #333;
-    }
+    .bg-check { padding: 8px; background: #111; color: #fff; font-size: 0.8rem; text-align: center; border: 1px solid #333; }
     .bg-clean { color: #009900; border-color: #009900; background: #0a1a0a; }
     .bg-flag { color: var(--danger); border-color: var(--danger); background: #1a0a0a; animation: pulse 1s infinite; }
 
     .stamp-overlay {
         position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg);
-        font-size: 4rem; font-weight: 900; border: 8px solid; padding: 10px 30px;
-        opacity: 0; z-index: 5; pointer-events: none; transition: opacity 0.2s;
+        font-size: 4rem; font-weight: 900; border: 8px solid; padding: 10px 30px; opacity: 0; z-index: 5; pointer-events: none; transition: opacity 0.2s;
     }
-    .stamp-approved { color: #008000; border-color: #008000; } /* Darker for paper */
+    .stamp-approved { color: #008000; border-color: #008000; }
     .stamp-rejected { color: #cc0000; border-color: #cc0000; }
 
-    .action-panel {
-        display: flex; gap: 15px; flex-shrink: 0; padding-top: 5px; border-top: 1px solid var(--border);
-    }
+    .action-panel { display: flex; gap: 15px; flex-shrink: 0; padding-top: 15px; }
 
     .mech-btn {
-        padding: 12px; border: 2px solid #000; cursor: pointer; font-weight: bold;
-        text-transform: uppercase; font-size: 0.9rem; box-shadow: 0 3px 0 #000;
-        transition: all 0.1s; font-family: monospace; background: #333; color: #fff; flex: 1;
+        padding: 14px; border: 2px solid #000; cursor: pointer; font-weight: bold; text-transform: uppercase;
+        font-size: 0.85rem; box-shadow: 0 3px 0 #000; transition: all 0.1s; font-family: monospace; background: #333; color: #fff; flex: 1;
+        border-radius: 4px; min-height: 48px; display: flex; align-items: center; justify-content: center;
     }
     .mech-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #000; }
     .mech-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; background: #222; }
@@ -128,18 +128,82 @@
 
     @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
 
-    @media (max-width: 1200px) {
+    /* ===== MOBILE TAB SWITCHER ===== */
+    .mobile-tabs {
+        display: none; background: var(--panel); border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .mobile-tabs button {
+        flex: 1; background: none; border: none; color: #666; padding: 12px; font-family: monospace;
+        font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s;
+    }
+    .mobile-tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .mobile-tabs button:active { background: rgba(0,217,255,0.05); }
+
+    /* ===== RESPONSIVE: TABLET ===== */
+    @media (max-width: 1024px) and (min-width: 769px) {
+        .main-grid { grid-template-columns: 320px 1fr; gap: 12px; padding: 12px; }
         .application-form { padding: 15px 20px; font-size: 0.85rem; }
         .form-header { font-size: 0.9rem; }
         .score-box { font-size: 1.8rem; padding: 8px; }
         .stamp-overlay { font-size: 3rem; }
     }
 
-    @media (max-width: 1024px) {
-        .main-layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr; overflow-y: auto; }
-        .call-panel { border-right: none; border-bottom: 1px solid var(--border); padding-right: 0; padding-bottom: 20px; }
-        .btn-next-mega { padding: 20px; font-size: 1.2rem; }
-        .detail-panel { min-height: 500px; }
+    /* ===== RESPONSIVE: MOBILE ===== */
+    @media (max-width: 768px) {
+        .top-bar { padding: 10px 12px; padding-top: calc(10px + var(--safe-top)); }
+        .top-bar h1 { font-size: 0.7rem; letter-spacing: 0.5px; }
+
+        .main-grid { grid-template-columns: 1fr; gap: 0; padding: 0; overflow: hidden; }
+        .mobile-tabs { display: flex; }
+
+        .call-panel, .detail-panel { border-radius: 0; border: none; border-bottom: 1px solid var(--border); }
+
+        .call-panel { display: none; padding: 20px 16px; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+        .call-panel.tab-active { display: flex; }
+
+        .detail-panel { display: none; padding: 16px; height: 100%; overflow: hidden; }
+        .detail-panel.tab-active { display: flex; }
+
+        .application-form { padding: 20px 16px; font-size: 0.85rem; }
+        .form-header { font-size: 0.85rem; letter-spacing: 1px; }
+        .score-box { font-size: 1.6rem; padding: 8px; }
+        .stamp-overlay { font-size: 2.5rem; border-width: 5px; padding: 8px 20px; }
+
+        .btn-next-mega { padding: 24px 16px; font-size: 1.1rem; }
+        .mech-btn { min-height: 52px; font-size: 0.9rem; padding: 14px; }
+    }
+
+    /* ===== RESPONSIVE: VERY SMALL PHONES ===== */
+    @media (max-width: 380px) {
+        .top-bar h1 { font-size: 0.6rem; }
+        .sync-badge { font-size: 0.5rem; padding: 2px 6px; }
+        .call-panel, .detail-panel { padding: 12px; }
+        .application-form { padding: 15px 12px; font-size: 0.8rem; }
+        .stamp-overlay { font-size: 2rem; border-width: 4px; padding: 6px 15px; }
+        .mech-btn { padding: 12px; font-size: 0.8rem; min-height: 48px; }
+    }
+
+    /* ===== LANDSCAPE PHONE ===== */
+    @media (max-height: 500px) and (orientation: landscape) {
+        .call-panel { padding: 10px; gap: 10px; }
+        .terminal-art { display: none; }
+        .btn-next-mega { padding: 15px; font-size: 1rem; }
+        .detail-panel { gap: 10px; }
+        .application-form { padding: 10px 15px; }
+        .action-panel { gap: 10px; padding-top: 10px; }
+        .mech-btn { min-height: 36px; padding: 8px; }
+        .mobile-tabs button { padding: 6px; font-size: 0.65rem; }
+    }
+
+    /* ===== FOCUS VISIBLE ===== */
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+    /* ===== REDUCED MOTION ===== */
+    @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+            animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important;
+        }
     }
 </style>
 </head>
@@ -147,22 +211,32 @@
 
 <div class="top-bar">
     <h1>▸ NHAI_LICENSING_AUTH // REVIEW_TERMINAL_v5.0</h1>
-    <div class="time" id="clock">00:00:00</div>
+    <div class="top-bar-right">
+        <span class="sync-badge waiting" id="syncBadge">● SYNCING</span>
+        <div class="time" id="clock">00:00:00</div>
+    </div>
 </div>
 
-<div class="main-layout">
-    <div class="call-panel">
+<!-- Mobile Tab Switcher -->
+<div class="mobile-tabs" id="mobileTabs">
+    <button class="active" onclick="switchTab('queue')" id="tabQueue">⊕ Queue</button>
+    <button onclick="switchTab('review')" id="tabReview">▮ Review</button>
+</div>
+
+<div class="main-grid">
+    <div class="call-panel tab-active" id="callPanel">
+        <div class="panel-title">■ Application Queue</div>
         <div class="terminal-art">
             ► SYSTEM READY<br>
             ► AWAITING OFFICER INPUT<br>
             ► DATABASE SYNC: ACTIVE
         </div>
         <button class="btn-next-mega ready-glow" id="btnCallNext" onclick="callNextApplicant()">CALL NEXT APPLICANT</button>
-        <div style="font-size: 0.7rem; color: #555;">Press button to pull next random application</div>
+        <div style="font-size: 0.7rem; color: #555; text-align: center;">Press button to pull next random application</div>
     </div>
 
-    <div class="detail-panel">
-        <div class="panel-title" style="color: var(--accent); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 5px;">■ Document Review</div>
+    <div class="detail-panel" id="detailPanel">
+        <div class="panel-title">■ Document Review</div>
         
         <div class="form-container">
             <div class="application-form" id="app-form">
@@ -189,86 +263,208 @@
 </div>
 
 <script>
-    let sharedData = { revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null, activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [], ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [] };
+    let sharedData = {
+        revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0,
+        history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null,
+        activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [],
+        ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: []
+    };
+
     let currentApplicant = null;
     let currentApplicantStatus = null; 
+    let currentTab = 'queue';
 
     const firstNames = ["JOHN", "MARIA", "ALEX", "SANJI", "LEILA", "OMAR", "CHEN", "RYUK", "PRIYA", "JINX"];
     const lastNames = ["WICK", "SOTO", "CHEN", "CARTER", "VALENCIA", "NAKAMURA", "PETROV", "SINGH", "MERCER", "DIAZ"];
     const prefixes = ["PX","NX","TX","DV","CR","XR","ZK","AV","BN"];
 
-    function updateClock() { document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB'); }
-    setInterval(updateClock, 1000);
+    /* ===== SYNC KEYS ===== */
+    const LS_D1_KEY = 'enforcementTerminalV23_D1';
+    const LS_D2_KEY = 'enforcementTerminalV23_TOLL';
 
-    const HASH_SALT = "ENFORCE_V23_SECURE_SALT";
-    function generateSignature(dataStr) {
-        let hash = 0;
-        const str = HASH_SALT + dataStr;
-        for (let i = 0; i < str.length; i++) {
-            const char = str.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash; 
+    /* ===== CLOCK ===== */
+    function updateClock() {
+        document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB');
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    /* ===== MOBILE TAB SWITCHING ===== */
+    function switchTab(tab) {
+        currentTab = tab;
+        const callPanel = document.getElementById('callPanel');
+        const detailPanel = document.getElementById('detailPanel');
+        const tabQ = document.getElementById('tabQueue');
+        const tabR = document.getElementById('tabReview');
+
+        if (tab === 'queue') {
+            callPanel.classList.add('tab-active');
+            detailPanel.classList.remove('tab-active');
+            tabQ.classList.add('active');
+            tabR.classList.remove('active');
+        } else {
+            callPanel.classList.remove('tab-active');
+            detailPanel.classList.add('tab-active');
+            tabQ.classList.remove('active');
+            tabR.classList.add('active');
         }
-        return hash.toString(16);
     }
 
+    /* ===== DATA LOAD ===== */
     function loadData() {
-        const savedData = localStorage.getItem('enforcementTerminalV23');
-        const savedSig = localStorage.getItem('enforcementTerminalV23_sig');
-        
-        if (savedData) {
-            try {
-                if (savedSig !== generateSignature(savedData)) {
-                    console.error("SECURITY BREACH: Data tampering detected! Wiping corrupted data.");
-                    localStorage.removeItem('enforcementTerminalV23');
-                    localStorage.removeItem('enforcementTerminalV23_sig');
-                    return;
-                }
-                const parsed = JSON.parse(savedData);
-                sharedData = parsed;
-                
-                // Compatibility checks for older save data
-                if(!sharedData.registry) sharedData.registry = {};
-                if(!sharedData.forgedAliases) sharedData.forgedAliases = {};
-                if(sharedData.nextSpawnOverride === undefined) sharedData.nextSpawnOverride = null;
-                if(!sharedData.activeInmates) sharedData.activeInmates = [];
-                if(!sharedData.releasedInmates) sharedData.releasedInmates = [];
-                if(!sharedData.inbox) sharedData.inbox = [];
-                if(!sharedData.sentMail) sharedData.sentMail = [];
-                if(!sharedData.call911Logs) sharedData.call911Logs = [];
-                if(!sharedData.ledgerCashouts) sharedData.ledgerCashouts = [];
-                if(!sharedData.intelFlags) sharedData.intelFlags = [];
-                if(!sharedData.paroleRecords) sharedData.paroleRecords = [];
-                if(!sharedData.iaViolations) sharedData.iaViolations = [];
-                if(!sharedData.rehabPrograms) sharedData.rehabPrograms = [];
-                if(!sharedData.history) sharedData.history = [];
-            } catch(e) {
-                console.error("Corrupted save data, resetting."); 
-                localStorage.removeItem('enforcementTerminalV23');
-                localStorage.removeItem('enforcementTerminalV23_sig');
+        try {
+            const d1 = localStorage.getItem(LS_D1_KEY);
+            const d2 = localStorage.getItem(LS_D2_KEY);
+
+            let d1Data = null, d2Data = null;
+            if (d1) { try { d1Data = JSON.parse(d1); } catch(e) { d1Data = null; } }
+            if (d2) { try { d2Data = JSON.parse(d2); } catch(e) { d2Data = null; } }
+
+            let mergedData = {
+                revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0,
+                registry: {}, history: [], activeInmates: [], releasedInmates: [],
+                inbox: [], sentMail: [], call911Logs: [], forgedAliases: {},
+                nextSpawnOverride: null, ledgerCashouts: [], intelFlags: [],
+                paroleRecords: [], iaViolations: [], rehabPrograms: []
+            };
+
+            if (d1Data) {
+                Object.assign(mergedData, d1Data);
+                if (d1Data.registry) Object.assign(mergedData.registry, d1Data.registry);
+                if (d1Data.activeInmates) mergedData.activeInmates = d1Data.activeInmates;
+                if (d1Data.releasedInmates) mergedData.releasedInmates = d1Data.releasedInmates;
             }
+
+            if (d2Data) {
+                mergedData.revenue = Math.max(mergedData.revenue || 0, d2Data.revenue || 0);
+                mergedData.valids = Math.max(mergedData.valids || 0, d2Data.valids || 0);
+                mergedData.missed = Math.max(mergedData.missed || 0, d2Data.missed || 0);
+                mergedData.level = Math.max(mergedData.level || 1, d2Data.level || 1);
+                mergedData.rankPoints = Math.max(mergedData.rankPoints || 0, d2Data.rankPoints || 0);
+
+                if (d2Data.registry) Object.assign(mergedData.registry, d2Data.registry);
+
+                if (d2Data.history) {
+                    mergedData.history = d2Data.history.concat(mergedData.history).filter((v, i, a) =>
+                        a.findIndex(t => (t.plate === v.plate && t.timestamp === v.timestamp)) === i
+                    );
+                }
+
+                if (d2Data.activeInmates && d2Data.activeInmates.length > mergedData.activeInmates.length) {
+                    mergedData.activeInmates = d2Data.activeInmates;
+                }
+                if (d2Data.releasedInmates && d2Data.releasedInmates.length > (mergedData.releasedInmates || []).length) {
+                    mergedData.releasedInmates = d2Data.releasedInmates;
+                }
+
+                if (!mergedData.call911Logs && d2Data.call911Logs) mergedData.call911Logs = d2Data.call911Logs;
+                if (!mergedData.paroleRecords && d2Data.paroleRecords) mergedData.paroleRecords = d2Data.paroleRecords;
+                if (!mergedData.rehabPrograms && d2Data.rehabPrograms) mergedData.rehabPrograms = d2Data.rehabPrograms;
+                if (!mergedData.forgedAliases && d2Data.forgedAliases) mergedData.forgedAliases = d2Data.forgedAliases;
+            }
+
+            // Ensure sub-keys
+            if (!mergedData.registry) mergedData.registry = {};
+            if (!mergedData.forgedAliases) mergedData.forgedAliases = {};
+            if (mergedData.nextSpawnOverride === undefined) mergedData.nextSpawnOverride = null;
+            if (!mergedData.activeInmates) mergedData.activeInmates = [];
+            if (!mergedData.releasedInmates) mergedData.releasedInmates = [];
+            if (!mergedData.inbox) mergedData.inbox = [];
+            if (!mergedData.sentMail) mergedData.sentMail = [];
+            if (!mergedData.call911Logs) mergedData.call911Logs = [];
+            if (!mergedData.ledgerCashouts) mergedData.ledgerCashouts = [];
+            if (!mergedData.intelFlags) mergedData.intelFlags = [];
+            if (!mergedData.paroleRecords) mergedData.paroleRecords = [];
+            if (!mergedData.iaViolations) mergedData.iaViolations = [];
+            if (!mergedData.rehabPrograms) mergedData.rehabPrograms = [];
+            if (!mergedData.history) mergedData.history = [];
+
+            sharedData = mergedData;
+            updateSyncBadge(d1Data, d2Data);
+
+        } catch(e) {
+            console.error("Licensing Terminal load error:", e);
         }
     }
 
     function saveData() {
-        const dataStr = JSON.stringify(sharedData);
-        localStorage.setItem('enforcementTerminalV23', dataStr);
-        localStorage.setItem('enforcementTerminalV23_sig', generateSignature(dataStr));
+        try {
+            const dataStr = JSON.stringify(sharedData);
+            localStorage.setItem(LS_D1_KEY, dataStr);
+            localStorage.setItem(LS_D2_KEY, dataStr);
+        } catch(e) {
+            console.error("Licensing Terminal save error:", e);
+        }
     }
 
-    // Keep data synced with Enforcement Terminal
-    setInterval(() => {
-        const savedData = localStorage.getItem('enforcementTerminalV23');
-        if (savedData) {
-            try {
-                const data = JSON.parse(savedData);
-                if(JSON.stringify(data) !== JSON.stringify(sharedData)) {
-                    sharedData = data;
-                }
-            } catch(e) {}
+    function updateSyncBadge(d1Data, d2Data) {
+        const badge = document.getElementById('syncBadge');
+        if (d1Data && d2Data) {
+            badge.innerText = "● DUAL SYNC";
+            badge.className = "sync-badge online";
+        } else if (d1Data || d2Data) {
+            badge.innerText = "● PARTIAL";
+            badge.className = "sync-badge waiting";
+        } else {
+            badge.innerText = "● OFFLINE";
+            badge.className = "sync-badge offline";
         }
-    }, 2000);
+    }
 
+    /* ===== AUDIO ===== */
+    let audioCtx = null;
+    function getAudioCtx() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        return audioCtx;
+    }
+
+    function playSound(type) {
+        try {
+            const ctx = getAudioCtx();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            const t = ctx.currentTime;
+            switch(type) {
+                case 'call':
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(600, t);
+                    osc.frequency.setValueAtTime(800, t + 0.1);
+                    osc.frequency.setValueAtTime(1000, t + 0.2);
+                    gain.gain.setValueAtTime(0.15, t);
+                    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+                    osc.start(t); osc.stop(t + 0.3);
+                    break;
+                case 'approve':
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(800, t);
+                    osc.frequency.setValueAtTime(1100, t + 0.1);
+                    osc.frequency.setValueAtTime(1400, t + 0.2);
+                    gain.gain.setValueAtTime(0.15, t);
+                    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+                    osc.start(t); osc.stop(t + 0.3);
+                    break;
+                case 'reject':
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(400, t);
+                    osc.frequency.exponentialRampToValueAtTime(100, t + 0.3);
+                    gain.gain.setValueAtTime(0.15, t);
+                    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.35);
+                    osc.start(t); osc.stop(t + 0.35);
+                    break;
+                case 'stamp':
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(150, t);
+                    gain.gain.setValueAtTime(0.3, t);
+                    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+                    osc.start(t); osc.stop(t + 0.1);
+                    break;
+            }
+        } catch(e) { /* Audio not available */ }
+    }
+
+    /* ===== APPLICANT LOGIC ===== */
     function generateRandomApplicant() {
         const fName = firstNames[Math.floor(Math.random()*firstNames.length)];
         const lName = lastNames[Math.floor(Math.random()*lastNames.length)];
@@ -333,6 +529,8 @@
         const form = document.getElementById('app-form');
         const stampBox = document.getElementById('stamp-box');
         
+        playSound('call');
+
         if (currentApplicant && currentApplicantStatus) {
             stampBox.style.opacity = '0';
 
@@ -351,10 +549,18 @@
             setTimeout(() => {
                 const newApplicant = generateRandomApplicant();
                 loadIntoForm(newApplicant);
+                // Auto-switch to review tab on mobile
+                if (window.innerWidth <= 768) {
+                    setTimeout(() => switchTab('review'), 200);
+                }
             }, 400);
         } else {
             const newApplicant = generateRandomApplicant();
             loadIntoForm(newApplicant);
+            // Auto-switch to review tab on mobile
+            if (window.innerWidth <= 768) {
+                setTimeout(() => switchTab('review'), 200);
+            }
         }
     }
 
@@ -363,6 +569,7 @@
 
         loadData(); // Fetch latest before modifying
         const stampBox = document.getElementById('stamp-box');
+        playSound('stamp');
 
         if (isApproved) {
             const newID = "DL-AUTH-" + Math.floor(1000+Math.random()*9000);
@@ -375,7 +582,6 @@
                 d5Status: currentApplicant.score >= 70 ? 'APPROVED' : 'REJECTED'
             };
             
-            // Add to cross-terminal history and update stats
             sharedData.history.push({ 
                 plate: currentApplicant.plate, 
                 id: newID, 
@@ -392,9 +598,10 @@
             stampBox.className = "stamp-overlay stamp-approved";
             stampBox.style.opacity = "1";
             currentApplicantStatus = 'approved';
+            
+            setTimeout(() => playSound('approve'), 150);
 
         } else {
-            // Rejections add them to the network as pending enforcement
             let offenseStatus = "PENDING_ENFORCEMENT";
             if (currentApplicant.isFlagged) offenseStatus = "WANTED";
 
@@ -423,6 +630,8 @@
             stampBox.className = "stamp-overlay stamp-rejected";
             stampBox.style.opacity = "1";
             currentApplicantStatus = 'rejected';
+            
+            setTimeout(() => playSound('reject'), 150);
         }
 
         document.getElementById('btn-approve').disabled = true;
@@ -430,8 +639,27 @@
         document.getElementById('btnCallNext').classList.add('ready-glow');
     }
 
-    // Initial Load
+    /* ===== HANDLE RESIZE ===== */
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            if (window.innerWidth > 768) {
+                document.getElementById('callPanel').classList.add('tab-active');
+                document.getElementById('detailPanel').classList.add('tab-active');
+            } else {
+                switchTab(currentTab);
+            }
+        }, 150);
+    });
+
+    /* ===== INIT ===== */
     loadData();
+    setInterval(loadData, 2000);
+
+    if (window.innerWidth <= 768) {
+        switchTab('queue');
+    }
 </script>
 </body>
 </html>
