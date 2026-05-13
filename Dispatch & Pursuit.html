@@ -78,61 +78,50 @@ let isRogueDetected = false;
 function updateClock() { document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB'); }
 setInterval(updateClock, 1000);
 
-const HASH_SALT = "ENFORCE_V23_SECURE_SALT";
-function generateSignature(dataStr) {
-    let hash = 0;
-    const str = HASH_SALT + dataStr;
-    for (let i = 0; i < str.length; i++) {
-        const char = str.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; 
-    }
-    return hash.toString(16);
-}
+// FIX: Sync Keys matching the Toll terminal
+const LS_D1_KEY = 'enforcementTerminalV23_D1';
+const LS_D2_KEY = 'enforcementTerminalV23_TOLL';
 
 function loadData() {
-    const savedData = localStorage.getItem('enforcementTerminalV23');
-    const savedSig = localStorage.getItem('enforcementTerminalV23_sig');
-    if (savedData) {
-        try {
-            if (savedSig !== generateSignature(savedData)) {
-                console.error("SECURITY BREACH: Data tampering detected! Wiping corrupted data.");
-                localStorage.removeItem('enforcementTerminalV23');
-                localStorage.removeItem('enforcementTerminalV23_sig');
-                return;
-            }
-            const parsed = JSON.parse(savedData);
-            sharedData = parsed;
-            
-            // Compatibility checks
-            if(!sharedData.registry) sharedData.registry = {};
-            if(!sharedData.forgedAliases) sharedData.forgedAliases = {};
-            if(sharedData.nextSpawnOverride === undefined) sharedData.nextSpawnOverride = null;
-            if(!sharedData.activeInmates) sharedData.activeInmates = [];
-            if(!sharedData.releasedInmates) sharedData.releasedInmates = [];
-            if(!sharedData.inbox) sharedData.inbox = [];
-            if(!sharedData.sentMail) sharedData.sentMail = [];
-            if(!sharedData.call911Logs) sharedData.call911Logs = [];
-            if(!sharedData.ledgerCashouts) sharedData.ledgerCashouts = [];
-            if(!sharedData.intelFlags) sharedData.intelFlags = [];
-            if(!sharedData.paroleRecords) sharedData.paroleRecords = [];
-            if(!sharedData.iaViolations) sharedData.iaViolations = [];
-            if(!sharedData.rehabPrograms) sharedData.rehabPrograms = [];
-            if(!sharedData.history) sharedData.history = [];
-        } catch(e) {
-            console.error("Corrupted save data, resetting."); 
-            localStorage.removeItem('enforcementTerminalV23');
-            localStorage.removeItem('enforcementTerminalV23_sig');
+    try {
+        const d1 = localStorage.getItem(LS_D1_KEY);
+        const d2 = localStorage.getItem(LS_D2_KEY);
+        sharedData = { registry: {}, history: [] };
+        
+        // Merge D1 and D2 data safely without wiping due to signature mismatch
+        if (d1) { 
+            const parsed = JSON.parse(d1); 
+            Object.assign(sharedData, parsed); 
+            if(parsed.registry) Object.assign(sharedData.registry, parsed.registry);
         }
+        if (d2) { 
+            const parsed = JSON.parse(d2); 
+            Object.assign(sharedData, parsed); 
+            if(parsed.registry) Object.assign(sharedData.registry, parsed.registry);
+            if(parsed.history) sharedData.history = parsed.history.concat(sharedData.history).filter((v, i, a) => a.findIndex(t => (t.plate === v.plate && t.timestamp === v.timestamp)) === i);
+        }
+        
+        if(!sharedData.registry) sharedData.registry = {};
+        if(!sharedData.forgedAliases) sharedData.forgedAliases = {};
+        if(sharedData.nextSpawnOverride === undefined) sharedData.nextSpawnOverride = null;
+        if(!sharedData.activeInmates) sharedData.activeInmates = [];
+        if(!sharedData.releasedInmates) sharedData.releasedInmates = [];
+        if(!sharedData.history) sharedData.history = [];
+        if(!sharedData.call911Logs) sharedData.call911Logs = [];
+    } catch(e) {
+        console.error("Data sync error", e);
     }
     checkRogueStatus();
     renderAPBList();
 }
 
 function saveData() {
-    const dataStr = JSON.stringify(sharedData);
-    localStorage.setItem('enforcementTerminalV23', dataStr);
-    localStorage.setItem('enforcementTerminalV23_sig', generateSignature(dataStr));
+    try {
+        const d1Str = JSON.stringify(sharedData);
+        // Save to both keys to ensure network propagation
+        localStorage.setItem(LS_D1_KEY, d1Str);
+        localStorage.setItem(LS_D2_KEY, d1Str);
+    } catch(e) {}
 }
 
 function checkRogueStatus() {
@@ -198,12 +187,16 @@ function dispatchRoguePatrol() {
     if (!isRogueDetected) return;
     loadData();
     let holdPlate = "HOLD-" + Math.floor(1000 + Math.random() * 9000);
+    
+    // FIXED: Tagged specifically for Dashboard 17/Enforcement sync
     sharedData.registry[holdPlate] = {
         id: "MISSING", 
         vClass: "ROGUE_CLASS", 
         status: "WANTED", 
-        registeredBy: "NHAI_PATROL_DISPATCH" // Synced Tag for Enforcement Terminal
+        registeredBy: "NHAI_PATROL_DISPATCH",
+        source: "D17_RELICENSE" 
     };
+    
     sharedData.nextSpawnOverride = holdPlate;
     sharedData.history.push({plate: holdPlate, id: "PATROL", action: "PATROL DISPATCHED", timestamp: new Date().toLocaleTimeString()});
     saveData();
