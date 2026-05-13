@@ -102,7 +102,6 @@
 
         .printer-slot { height: 70px; background: #050505; border: 2px solid #222; position: relative; overflow: hidden; margin-top: auto; }
         
-        /* --- POPUP RECEIPT MODAL --- */
         .receipt-modal {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.85); z-index: 100; display: none;
@@ -152,20 +151,10 @@
         .stamp-m-reject { background: var(--gold); color: #000; }
         .stamp-m-arrest { background: var(--error); color: #fff; }
 
-        /* Evidence Receipt Specifics */
-        .evidence-paper {
-            border: 3px double #000;
-            background: #fff;
-        }
-        .evidence-badge {
-            background: #000; color: #fff; padding: 5px 10px; 
-            display: inline-block; font-size: 12px; font-weight: bold; margin-bottom: 10px;
-        }
-        .evidence-disclaimer {
-            font-size: 10px; color: #555; text-align: center; margin-top: 15px; font-style: italic;
-        }
+        .evidence-paper { border: 3px double #000; background: #fff; }
+        .evidence-badge { background: #000; color: #fff; padding: 5px 10px; display: inline-block; font-size: 12px; font-weight: bold; margin-bottom: 10px; }
+        .evidence-disclaimer { font-size: 10px; color: #555; text-align: center; margin-top: 15px; font-style: italic; }
 
-        /* Database Panel */
         .db-panel { 
             width: 240px; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; border: 1px solid #444;
             display: flex; flex-direction: column; gap: 10px; flex-shrink: 0;
@@ -189,7 +178,6 @@
         @keyframes pulsePolice { 0% { background-color: #ff0044; } 50% { background-color: #cc2233; } 100% { background-color: #ff0044; } }
         @keyframes pulseNeon { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
 
-        /* --- RESPONSIVE DESIGN --- */
         @media (max-width: 1024px) {
             body { align-items: flex-start; }
             .console-unit { height: auto; min-height: 100vh; border: none; border-radius: 0; padding: 10px; }
@@ -293,7 +281,6 @@
             <div class="printer-slot"></div>
         </div>
 
-        <!-- Security Re-Verification Database -->
         <div class="db-panel">
             <div class="db-title">■ Security Re-Verification</div>
             <div class="db-box" id="db-box">
@@ -302,7 +289,6 @@
         </div>
     </div>
 
-    <!-- POPUP RECEIPT MODAL (STAMP) -->
     <div class="receipt-modal" id="receiptModal">
         <div class="receipt-paper" id="mainReceipt">
             <div class="rcp-header">
@@ -336,7 +322,6 @@
         </div>
     </div>
 
-    <!-- POPUP EVIDENCE RECEIPT MODAL (DRIVER COPY) -->
     <div class="receipt-modal" id="evidenceModal">
         <div class="receipt-paper evidence-paper">
             <div class="rcp-header">
@@ -372,7 +357,6 @@
 
     let currentVehicleData = { name: 'UNKNOWN', sex: 'UNKNOWN', lic: 'N/A' };
 
-    // Isolated shared data node specifically for NHAI Toll to avoid overwriting D1 properties
     let sharedData = { revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null, activeInmates: [], releasedInmates: [], ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [] };
 
     const LS_DATA_KEY = 'enforcementTerminalV23_TOLL';
@@ -439,9 +423,10 @@
         }
     }
 
+    // Checks if D17 approved or rejected the case
     function checkEnforcementResponse() {
         if (mode === 'PENDING_ENFORCEMENT' && pendingCheckPlate) {
-            loadSharedData(); // Pull latest
+            loadSharedData(); 
             let record = sharedData.registry[pendingCheckPlate];
             
             if (record && record.status === 'CLEAR') {
@@ -455,7 +440,7 @@
                 document.getElementById('db-box').innerHTML = `
                     <div class="db-status db-clear">✓ CLEAR</div>
                     <div class="db-plate-display">${currentPlate}</div>
-                    <div class="db-details">ID: ${record.id}<br>LICENSE VERIFIED BY DASHBOARD 1</div>
+                    <div class="db-details">ID: ${record.id}<br>LICENSE VERIFIED BY D-17</div>
                 `;
                 updateScr(`<span style="color:var(--success)">ENFORCEMENT CONFIRMED</span><br>PLATE: ${currentPlate}<br>LICENSE VALID - SELECT DESTINATION`);
                 
@@ -472,7 +457,7 @@
                     <div class="db-plate-display">${pendingCheckPlate}</div>
                     <div class="db-details" style="color:var(--error)">ENFORCEMENT REJECTED<br>INVALID ID / WARRANT ACTIVE</div>
                 `;
-                updateScr(`<span style="color:var(--error)">ENFORCEMENT REJECTED</span><br>VEHICLE NOT CLEARED<br>DISPATCH PATROL OR ARREST`);
+                updateScr(`<span style="color:var(--error)">ENFORCEMENT REJECTED</span><br>VEHICLE NOT CLEARED<br>DISPATCH PATROL OR CASH ONLY`);
                 
                 document.getElementById('btn-patrol').disabled = false; 
                 pendingCheckPlate = null;
@@ -565,7 +550,7 @@
         if(currentVehicleStatus !== 'UNKNOWN') return;
 
         document.getElementById('scanner').style.display = 'block';
-        updateScr("ROUTING TO ENFORCEMENT DASHBOARD 1...<br>INITIATING ID CHECK");
+        updateScr("ROUTING TO DASHBOARD 17 (RE-LICENSE)...<br>INITIATING ID CHECK");
 
         setTimeout(() => {
             document.getElementById('scanner').style.display = 'none';
@@ -581,6 +566,7 @@
                 registeredBy: "NHAI_TOLL_ENFORCEMENT"
             };
 
+            // THIS IS THE FIX: Force D1/D17 to spawn this specific case
             sharedData.nextSpawnOverride = checkPlate; 
 
             sharedData.history.push({
@@ -600,9 +586,9 @@
             document.getElementById('db-box').innerHTML = `
                 <div class="db-status db-pending">⏳ PENDING</div>
                 <div class="db-plate-display">${checkPlate}</div>
-                <div class="db-details" style="color:var(--neon)">WAITING FOR DASHBOARD 1<br>ID VERIFICATION / RENEWAL</div>
+                <div class="db-details" style="color:var(--neon)">WAITING FOR DASHBOARD 17<br>ID VERIFICATION / RENEWAL</div>
             `;
-            updateScr(`<span style="color:var(--neon)">ENFORCEMENT CHECK PENDING</span><br>PLATE: ${checkPlate}<br>AWAITING DASHBOARD 1 ACTION`);
+            updateScr(`<span style="color:var(--neon)">ENFORCEMENT CHECK PENDING</span><br>PLATE: ${checkPlate}<br>AWAITING DASHBOARD 17 ACTION`);
             
         }, 1800);
     }
@@ -750,7 +736,6 @@
         stampBox.className = 'stamp-box'; 
         stampBox.innerText = '';
         
-        // Show stamp controls again
         document.getElementById('stampControls').style.display = 'flex';
         
         document.getElementById('receiptModal').classList.add('active');
@@ -761,7 +746,6 @@
     function stampAction(action) {
         if(mode !== 'AWAITING_STAMP') return;
 
-        // Hide stamp controls immediately
         document.getElementById('stampControls').style.display = 'none';
 
         let stampBox = document.getElementById('stampBox');
@@ -786,7 +770,7 @@
             stampBox.classList.add('rejected');
             stampBox.innerText = "REJECTED";
             document.getElementById('screen').className = 'warning-mode';
-            updateScr(`<span style="color:var(--gold)">✗ STAMP REJECTED</span><br>ROUTING TO DASHBOARD 1`);
+            updateScr(`<span style="color:var(--gold)">✗ STAMP REJECTED</span><br>ROUTING TO DASHBOARD 17`);
             
             let rejectPlate = "REJ-" + Math.floor(10000+Math.random()*90000);
             sharedData.registry[rejectPlate] = { id: "UNVERIFIED", vClass: vType, status: "PENDING_ENFORCEMENT", registeredBy: "NHAI_REJECTION" };
@@ -809,7 +793,6 @@
             saveSharedData();
         }
 
-        // Close Admin Receipt and trigger Evidence Receipt for the driver
         setTimeout(() => { 
             document.getElementById('receiptModal').classList.remove('active'); 
             triggerEvidenceReceipt(action, txnId);
@@ -837,7 +820,6 @@
 
         document.getElementById('evidenceModal').classList.add('active');
         
-        // Auto dismiss evidence receipt and reset console
         setTimeout(() => {
             document.getElementById('evidenceModal').classList.remove('active');
             resetConsole();
@@ -861,7 +843,6 @@
         document.getElementById('db-box').innerHTML = `<div style="color:#555; font-size: 0.8rem;">NO VEHICLE DETECTED</div>`;
     }
 
-    // Initialize only once on load
     loadSharedData();
     updateSharedUI();
 </script>
