@@ -360,35 +360,14 @@
     let sharedData = { revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null, activeInmates: [], releasedInmates: [], ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [] };
 
     const LS_DATA_KEY = 'enforcementTerminalV23_TOLL';
-    const LS_SIG_KEY = 'enforcementTerminalV23_TOLL_sig';
     
-    const HASH_SALT = "ENFORCE_V23_SECURE_SALT";
-    function generateSignature(dataStr) {
-        let hash = 0;
-        const str = HASH_SALT + dataStr;
-        for (let i = 0; i < str.length; i++) {
-            const char = str.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash; 
-        }
-        return hash.toString(16);
-    }
-
     function updateClock() { document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB'); }
     setInterval(updateClock, 1000);
 
     function loadSharedData() {
         const savedData = localStorage.getItem(LS_DATA_KEY);
-        const savedSig = localStorage.getItem(LS_SIG_KEY);
-        
         if (savedData) {
             try {
-                if (savedSig !== generateSignature(savedData)) {
-                    updateScr("<span style='color:var(--error)'>SECURITY BREACH: Data tampering detected!</span><br>Wiping corrupted data.");
-                    localStorage.removeItem(LS_DATA_KEY);
-                    localStorage.removeItem(LS_SIG_KEY);
-                    return;
-                }
                 const parsed = JSON.parse(savedData);
                 sharedData = parsed;
                 if(!sharedData.registry) sharedData.registry = {};
@@ -408,7 +387,6 @@
     function saveSharedData() {
         const dataStr = JSON.stringify(sharedData);
         localStorage.setItem(LS_DATA_KEY, dataStr);
-        localStorage.setItem(LS_SIG_KEY, generateSignature(dataStr));
         updateSharedUI();
     }
 
@@ -459,6 +437,7 @@
                 updateScr(`<span style="color:var(--error)">ENFORCEMENT REJECTED</span><br>VEHICLE NOT CLEARED<br>DISPATCH PATROL OR CASH ONLY`);
                 
                 document.getElementById('btn-patrol').disabled = false; 
+                document.getElementById('btn-cash').disabled = false; // Allow cash payment for rejected
                 pendingCheckPlate = null;
             }
         }
@@ -558,13 +537,12 @@
             let checkPlate = "ENF-" + Math.floor(10000+Math.random()*90000);
             pendingCheckPlate = checkPlate; 
             
-            // FIXED: Tagged specifically for Dashboard 17
             sharedData.registry[checkPlate] = {
                 id: "PENDING_ENFORCEMENT",
                 vClass: "LVM_CLASS_1",
                 status: "PENDING_ENFORCEMENT", 
                 registeredBy: "NHAI_TOLL_ENFORCEMENT",
-                source: "D17_RELICENSE" // Unique identifier so D17 knows it's for them
+                source: "D17_RELICENSE"
             };
 
             sharedData.nextSpawnOverride = checkPlate; 
