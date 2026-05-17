@@ -61,6 +61,8 @@ body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:
 </div>
 </div>
 <script>
+const LS_MASTER_KEY = 'enforcementTerminalV23_D1'; // Universal Sync Key
+
 let sharedData = { 
     revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, 
     history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null,
@@ -71,31 +73,26 @@ let sharedData = {
 function updateClock(){document.getElementById('clock').innerText=new Date().toLocaleTimeString('en-GB');}
 setInterval(updateClock,1000);
 
-const HASH_SALT = "ENFORCE_V23_SECURE_SALT";
-function generateSignature(dataStr) {
-    let hash = 0;
-    const str = HASH_SALT + dataStr;
-    for (let i = 0; i < str.length; i++) {
-        const char = str.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; 
+// Universal Deep Merge
+function deepMerge(target, source) {
+    for (const key in source) {
+        if (source[key] instanceof Array) {
+            target[key] = source[key];
+        } else if (source[key] instanceof Object && target[key] instanceof Object) {
+            deepMerge(target[key], source[key]);
+        } else {
+            target[key] = source[key];
+        }
     }
-    return hash.toString(16);
+    return target;
 }
 
 function loadData(){
-    const savedData = localStorage.getItem('enforcementTerminalV23');
-    const savedSig = localStorage.getItem('enforcementTerminalV23_sig');
-    if(savedData){
+    const savedStr = localStorage.getItem(LS_MASTER_KEY);
+    if(savedStr){
         try{
-            if(savedSig !== generateSignature(savedData)){
-                console.error("PAROLE BREACH: Data tampering detected! Wiping corrupted data.");
-                localStorage.removeItem('enforcementTerminalV23');
-                localStorage.removeItem('enforcementTerminalV23_sig');
-                return;
-            }
-            const p = JSON.parse(savedData);
-            sharedData = p;
+            const p = JSON.parse(savedStr);
+            deepMerge(sharedData, p); // Safe merge
             
             if(!sharedData.activeInmates)sharedData.activeInmates=[];
             if(!sharedData.releasedInmates)sharedData.releasedInmates=[];
@@ -120,9 +117,7 @@ function loadData(){
 }
 
 function saveData(){
-    const dataStr = JSON.stringify(sharedData);
-    localStorage.setItem('enforcementTerminalV23', dataStr);
-    localStorage.setItem('enforcementTerminalV23_sig', generateSignature(dataStr));
+    localStorage.setItem(LS_MASTER_KEY, JSON.stringify(sharedData));
 }
 
 function addLog(msg,color){
@@ -133,7 +128,6 @@ function addLog(msg,color){
     e.innerText='> '+msg;
     l.prepend(e);
 
-    // Persist logs to cross-terminal storage
     if(!sharedData.iaViolations) sharedData.iaViolations = [];
     sharedData.iaViolations.push({
         plate: "PAROLE_BOARD",
@@ -164,7 +158,7 @@ function renderLogs(){
 }
 
 function grantParole(index){
-    loadData(); // Fetch latest
+    loadData(); 
     const inmates=sharedData.activeInmates;
     if(index<0||index>=inmates.length)return;
     const inmate=inmates[index];
@@ -213,13 +207,13 @@ function grantParole(index){
 }
 
 function denyParole(index){
-    loadData(); // Fetch latest
+    loadData(); 
     const inmates=sharedData.activeInmates;
     if(index<0||index>=inmates.length)return;
     const inmate=inmates[index];
     if(inmate.sentenceRemaining>0)return;
     
-    inmate.sentenceRemaining=30; // Extend sentence by 30 days
+    inmate.sentenceRemaining=30; 
     
     if(!sharedData.paroleRecords)sharedData.paroleRecords=[];
     sharedData.paroleRecords.push({plate:inmate.plate,decision:'DENIED',date:new Date().toLocaleString()});
