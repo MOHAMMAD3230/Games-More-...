@@ -123,7 +123,6 @@
     .facility-max { background: rgba(255,0,68,0.1); color: var(--accent); }
     .facility-federal { background: rgba(255,71,87,0.15); color: var(--ems); border: 1px solid var(--ems); }
 
-    /* Notification toast for new arrivals */
     .arrival-toast {
         position: fixed; bottom: 20px; right: 20px; background: #1a0a0a; border: 2px solid var(--accent);
         padding: 15px 20px; border-radius: 4px; z-index: 100; display: none;
@@ -196,7 +195,6 @@
     </div>
 </div>
 
-<!-- Arrival notification toast -->
 <div class="arrival-toast" id="arrivalToast">
     <div class="toast-title">⚠ NEW INTAKE RECEIVED</div>
     <div class="toast-plate" id="toastPlate">---</div>
@@ -204,9 +202,7 @@
 </div>
 
 <script>
-    /* ===== SYNC KEYS — matched to D1 and Toll/Dispatch terminals ===== */
-    const LS_D1_KEY = 'enforcementTerminalV23_D1';
-    const LS_D2_KEY = 'enforcementTerminalV23_TOLL';
+    const LS_MASTER_KEY = 'enforcementTerminalV23_D1'; // Universal Sync Key
 
     let sharedData = { 
         revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, 
@@ -215,14 +211,11 @@
         ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: []
     };
 
-    /* Track known inmates to detect new arrivals */
     let knownInmatePlates = new Set();
-    let lastInmateCount = 0;
 
     function updateClock() { document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB'); }
     setInterval(updateClock, 1000);
 
-    /* ===== SAFE DATA MERGE — no signature check, merge instead of overwrite ===== */
     function repairInmateData(inmate) {
         if (!inmate) return inmate;
         if (inmate.sentenceDays === undefined || inmate.sentenceDays === null) {
@@ -242,127 +235,87 @@
         return inmate;
     }
 
+    // Universal Deep Merge to prevent data loss across tabs
+    function deepMerge(target, source) {
+        for (const key in source) {
+            if (source[key] instanceof Array) {
+                target[key] = source[key]; // Arrays are replaced wholesale (like activeInmates)
+            } else if (source[key] instanceof Object && target[key] instanceof Object) {
+                deepMerge(target[key], source[key]); // Objects merge recursively (like registry)
+            } else {
+                target[key] = source[key]; // Primitives overwrite
+            }
+        }
+        return target;
+    }
+
     function loadData() {
         try {
-            const d1 = localStorage.getItem(LS_D1_KEY);
-            const d2 = localStorage.getItem(LS_D2_KEY);
-            
-            // Start with defaults
-            let mergedData = {
-                registry: {}, history: [], activeInmates: [], releasedInmates: [],
-                inbox: [], sentMail: [], call911Logs: []
-            };
-            
-            // Merge D1 (Enforcement Gate)
-            if (d1) {
-                const parsed = JSON.parse(d1);
-                Object.assign(mergedData, parsed);
-                if (parsed.registry) Object.assign(mergedData.registry, parsed.registry);
-                if (parsed.activeInmates) mergedData.activeInmates = parsed.activeInmates;
-                if (parsed.releasedInmates) mergedData.releasedInmates = parsed.releasedInmates;
-            }
-            
-            // Merge D2 (Toll/Dispatch) — overlay registry, concatenate history, keep D1 inmates as source of truth
-            if (d2) {
-                const parsed = JSON.parse(d2);
-                // Registry: overlay (D2 may have newer status)
-                if (parsed.registry) Object.assign(mergedData.registry, parsed.registry);
-                // History: concatenate and deduplicate
-                if (parsed.history && mergedData.history) {
-                    mergedData.history = parsed.history.concat(mergedData.history).filter((v, i, a) => a.findIndex(t => (t.plate === v.plate && t.timestamp === v.timestamp)) === i);
-                }
-                // Inmates: use whichever has more data (D1 is primary for active inmates)
-                if (parsed.activeInmates && parsed.activeInmates.length > mergedData.activeInmates.length) {
-                    mergedData.activeInmates = parsed.activeInmates;
-                }
-                if (parsed.releasedInmates && parsed.releasedInmates.length > (mergedData.releasedInmates || []).length) {
-                    mergedData.releasedInmates = parsed.releasedInmates;
-                }
-                // Pull in other fields if D1 didn't have them
-                if (!mergedData.call911Logs && parsed.call911Logs) mergedData.call911Logs = parsed.call911Logs;
-                if (!mergedData.paroleRecords && parsed.paroleRecords) mergedData.paroleRecords = parsed.paroleRecords;
-                if (!mergedData.rehabPrograms && parsed.rehabPrograms) mergedData.rehabPrograms = parsed.rehabPrograms;
-            }
-            
-            // Ensure all sub-keys exist
-            if (!mergedData.registry) mergedData.registry = {};
-            if (!mergedData.forgedAliases) mergedData.forgedAliases = {};
-            if (mergedData.nextSpawnOverride === undefined) mergedData.nextSpawnOverride = null;
-            if (!mergedData.activeInmates) mergedData.activeInmates = [];
-            if (!mergedData.releasedInmates) mergedData.releasedInmates = [];
-            if (!mergedData.inbox) mergedData.inbox = [];
-            if (!mergedData.sentMail) mergedData.sentMail = [];
-            if (!mergedData.call911Logs) mergedData.call911Logs = [];
-            if (!mergedData.ledgerCashouts) mergedData.ledgerCashouts = [];
-            if (!mergedData.intelFlags) mergedData.intelFlags = [];
-            if (!mergedData.paroleRecords) mergedData.paroleRecords = [];
-            if (!mergedData.iaViolations) mergedData.iaViolations = [];
-            if (!mergedData.rehabPrograms) mergedData.rehabPrograms = [];
-            if (!mergedData.history) mergedData.history = [];
-
-            // Before overwriting sharedData, detect new arrivals
-            const previousPlates = new Set((sharedData.activeInmates || []).map(i => i.plate));
-            
-            sharedData = mergedData;
-            
-            // Repair any broken inmate data
-            let needsSave = false;
-            sharedData.activeInmates.forEach((inmate, i) => {
-                const before = JSON.stringify(inmate);
-                sharedData.activeInmates[i] = repairInmateData(inmate);
-                if (JSON.stringify(sharedData.activeInmates[i]) !== before) needsSave = true;
-            });
-            
-            // Detect new arrivals (inmates that weren't here before)
-            sharedData.activeInmates.forEach(inmate => {
-                if (!previousPlates.has(inmate.plate) && !knownInmatePlates.has(inmate.plate)) {
-                    showArrivalToast(inmate);
+            const savedStr = localStorage.getItem(LS_MASTER_KEY);
+            if (savedStr) {
+                const parsed = JSON.parse(savedStr);
+                
+                const previousPlates = new Set((sharedData.activeInmates || []).map(i => i.plate));
+                
+                // Deep Merge instead of overwrite to keep other tabs' updates safe
+                deepMerge(sharedData, parsed);
+                
+                // Ensure arrays exist
+                if (!sharedData.history) sharedData.history = [];
+                if (!sharedData.activeInmates) sharedData.activeInmates = [];
+                if (!sharedData.releasedInmates) sharedData.releasedInmates = [];
+                if (!sharedData.rehabPrograms) sharedData.rehabPrograms = [];
+                if (!sharedData.paroleRecords) sharedData.paroleRecords = [];
+                if (!sharedData.iaViolations) sharedData.iaViolations = [];
+                
+                let needsSave = false;
+                sharedData.activeInmates.forEach((inmate, i) => {
+                    const before = JSON.stringify(inmate);
+                    sharedData.activeInmates[i] = repairInmateData(inmate);
+                    if (JSON.stringify(sharedData.activeInmates[i]) !== before) needsSave = true;
+                });
+                
+                // Detect new arrivals
+                sharedData.activeInmates.forEach(inmate => {
+                    if (!previousPlates.has(inmate.plate) && !knownInmatePlates.has(inmate.plate)) {
+                        showArrivalToast(inmate);
+                    }
                     knownInmatePlates.add(inmate.plate);
-                }
-            });
-            
-            // Clean up known plates for released inmates
-            const currentPlates = new Set(sharedData.activeInmates.map(i => i.plate));
-            knownInmatePlates.forEach(plate => {
-                if (!currentPlates.has(plate)) knownInmatePlates.delete(plate);
-            });
-            
-            if (needsSave) saveData();
-
+                });
+                
+                // Clean up known plates for released inmates
+                const currentPlates = new Set(sharedData.activeInmates.map(i => i.plate));
+                knownInmatePlates.forEach(plate => {
+                    if (!currentPlates.has(plate)) knownInmatePlates.delete(plate);
+                });
+                
+                if (needsSave) saveData();
+            }
         } catch(e) {
             console.error("Prison load error:", e);
-            // Don't wipe data on error — just keep current state
         }
-        
         renderDashboard();
     }
 
     function saveData() {
         try {
-            const dataStr = JSON.stringify(sharedData);
-            localStorage.setItem(LS_D1_KEY, dataStr);
-            localStorage.setItem(LS_D2_KEY, dataStr);
+            localStorage.setItem(LS_MASTER_KEY, JSON.stringify(sharedData));
         } catch(e) {
             console.error("Prison save error:", e);
         }
     }
 
-    /* ===== ARRIVAL NOTIFICATIONS ===== */
     let toastTimeout = null;
     function showArrivalToast(inmate) {
         const toast = document.getElementById('arrivalToast');
         document.getElementById('toastPlate').innerText = inmate.plate;
         document.getElementById('toastOffense').innerText = `${inmate.offense || 'UNKNOWN'} — ${inmate.facility || 'CENTRAL DETENTION'}`;
         toast.classList.add('active');
-        
-        // Play alert sound
         playAlertSound();
-        
         if (toastTimeout) clearTimeout(toastTimeout);
         toastTimeout = setTimeout(() => { toast.classList.remove('active'); }, 4000);
     }
 
-    /* ===== AUDIO ===== */
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     function playAlertSound() {
         if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -396,39 +349,29 @@
         osc.stop(t + 0.3);
     }
 
-    /* ===== INMATE RELEASE ===== */
     function releaseInmate(index) {
         if (index < 0 || index >= sharedData.activeInmates.length) return;
-        
-        loadData(); // Fetch latest before modifying
+        loadData(); 
         let inmate = sharedData.activeInmates.splice(index, 1)[0];
         inmate.dateReleased = new Date().toLocaleDateString();
         inmate.status = "RELEASED";
         
         sharedData.releasedInmates.push(inmate);
-        
-        // Cross-terminal history & system tracking
         sharedData.history.push({ plate: inmate.plate, id: inmate.id, action: "PAROLE / RELEASED", timestamp: new Date().toLocaleTimeString() });
         if (!sharedData.paroleRecords) sharedData.paroleRecords = [];
         sharedData.paroleRecords.push({ plate: inmate.plate, id: inmate.id, releaseDate: inmate.dateReleased });
-        if (!sharedData.rehabPrograms) sharedData.rehabPrograms = [];
-        sharedData.rehabPrograms.push({ plate: inmate.plate, id: inmate.id, program: "STANDARD PAROLE", status: "ACTIVE" });
         
-        // Clear from registry if still listed as wanted
         if (sharedData.registry[inmate.plate]) {
             sharedData.registry[inmate.plate].status = "CLEAR";
             sharedData.registry[inmate.plate].registeredBy = "NHAI_PAROLE_BOARD";
         }
         
-        // Remove from known plates tracker
         knownInmatePlates.delete(inmate.plate);
-        
         playReleaseSound();
         saveData();
         renderDashboard();
     }
 
-    /* ===== RENDERING HELPERS ===== */
     function getOffenseBadgeClass(offense) {
         if (!offense) return 'offense-default';
         if (offense.includes('911') || offense.includes('FELONY')) return 'offense-911';
@@ -457,12 +400,10 @@
         document.getElementById('stat-released').innerText = releasedCount;
         document.getElementById('stat-parole').innerText = paroleCount;
 
-        // Sync indicator
         const syncEl = document.getElementById('syncStatus');
         syncEl.innerText = activeCount > 0 ? `● SYNC: ${activeCount} INMATES TRACKED` : '● SYNC: ACTIVE';
         syncEl.style.color = activeCount > 0 ? 'var(--warning)' : '#2ed573';
 
-        // Cell grid
         const cellGrid = document.getElementById('cellGrid');
         cellGrid.innerHTML = '';
         for (let i = 0; i < 12; i++) {
@@ -476,7 +417,6 @@
                 else if (isServed) cellClass += ' served';
                 else cellClass += ' occupied';
                 cell.className = cellClass;
-                
                 const remaining = inmate.sentenceRemaining || 0;
                 cell.innerHTML = `<span>${inmate.plate}</span><span class="cell-day">${isServed ? 'DONE' : remaining + 'd left'}</span>`;
             } else {
@@ -486,7 +426,6 @@
             cellGrid.appendChild(cell);
         }
 
-        // Inmate roster
         const listContainer = document.getElementById('inmate-list');
         listContainer.innerHTML = '';
 
@@ -495,7 +434,6 @@
             return;
         }
 
-        // Sort: federal first, then by sentence remaining (soonest release first)
         const sortedInmates = [...sharedData.activeInmates].sort((a, b) => {
             const aFed = isFederalInmate(a) ? 0 : 1;
             const bFed = isFederalInmate(b) ? 0 : 1;
@@ -540,7 +478,6 @@
             listContainer.appendChild(item);
         });
 
-        // Show last 3 released inmates
         (sharedData.releasedInmates || []).slice(-3).reverse().forEach(inmate => {
             const item = document.createElement('div');
             item.className = 'inmate-item released';
@@ -555,7 +492,6 @@
         });
     }
 
-    /* ===== SENTENCE TIMER ENGINE ===== */
     setInterval(() => {
         let needsRender = false;
         let needsSave = false;
@@ -571,27 +507,14 @@
             }
         });
 
-        if (needsRender) {
-            renderDashboard();
-            if (needsSave) {
-                saveData(); // Sync sentence countdown to other terminals
-            }
-        }
+        if (needsRender) renderDashboard();
+        if (needsSave) saveData();
     }, 1000);
 
-    /* ===== NETWORK SYNC POLL ===== */
-    setInterval(() => {
-        loadData(); // Safe merge from D1/D2 storage
-    }, 2000);
+    setInterval(() => { loadData(); }, 2000);
 
-    /* ===== INIT ===== */
     loadData();
-    
-    // Populate known plates on first load so we don't toast for existing inmates
-    sharedData.activeInmates.forEach(inmate => {
-        knownInmatePlates.add(inmate.plate);
-    });
-    lastInmateCount = sharedData.activeInmates.length;
+    sharedData.activeInmates.forEach(inmate => knownInmatePlates.add(inmate.plate));
 </script>
 </body>
 </html>
