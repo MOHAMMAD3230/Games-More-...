@@ -20,6 +20,10 @@
         -webkit-font-smoothing: antialiased;
     }
 
+    .app-container {
+        max-width: 1400px; margin: 0 auto; width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden;
+    }
+
     /* TOP BAR */
     .top-bar {
         background: #000; padding: 16px 24px; border-bottom: 2px solid var(--accent); 
@@ -30,7 +34,7 @@
 
     /* STATS ROW */
     .stats-row {
-        display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;
+        display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
         padding: 20px 24px; border-bottom: 1px solid var(--border); flex-shrink: 0; background: var(--panel);
     }
     .stat-box {
@@ -70,6 +74,7 @@
     /* MAIN TABLE */
     .table-container {
         flex-grow: 1; overflow-y: auto; padding: 0 24px 24px 24px; background: var(--bg);
+        -webkit-overflow-scrolling: touch;
     }
     .data-table {
         width: 100%; border-collapse: collapse; font-size: 0.85rem;
@@ -133,69 +138,96 @@
     .btn-save { background: var(--accent); color: #000; border: none; padding: 12px 24px; font-family: monospace; font-weight: bold; text-transform: uppercase; cursor: pointer; border-radius: 4px; box-shadow: 0 4px 0 #009db8; transition: 0.1s; }
     .btn-save:active { transform: translateY(3px); box-shadow: 0 1px 0 #009db8; }
 
+    /* Responsive Overrides */
+    @media (max-width: 1024px) {
+        .stats-row { grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 16px; }
+        .stat-box { padding: 12px; }
+        .stat-value { font-size: 1.4rem; }
+        .controls { padding: 16px; gap: 10px; }
+        .table-container { padding: 0 16px 16px 16px; }
+    }
     @media (max-width: 768px) {
-        .stats-row { padding: 12px; gap: 10px; }
-        .stat-value { font-size: 1.3rem; }
-        .controls { padding: 12px; }
+        .top-bar { padding: 12px 16px; }
+        .stats-row { padding: 12px; gap: 8px; }
+        .stat-label { font-size: 0.6rem; }
+        .stat-value { font-size: 1.2rem; }
+        .stat-box { padding: 10px; }
+        .controls { padding: 12px; gap: 8px; }
+        .search-box, select.filter-select, .btn-add { font-size: 0.8rem; padding: 10px 12px; }
         .table-container { padding: 0 12px 12px 12px; }
         .data-table th, .data-table td { padding: 10px 8px; font-size: 0.75rem; }
         .hide-mobile { display: none; }
+        .btn-sm { padding: 8px 10px; font-size: 0.75rem; }
+        .modal-body { padding: 16px; }
+    }
+    @media (max-width: 380px) {
+        .stats-row { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+        .stat-value { font-size: 1rem; }
+        .search-box { min-width: 100%; order: 2; }
+    }
+    @media (max-height: 500px) and (orientation: landscape) {
+        .stats-row { padding: 8px 16px; gap: 8px; }
+        .stat-box { padding: 8px; flex-direction: row; align-items: center; justify-content: space-between; }
+        .stat-value { font-size: 1.2rem; }
+        .controls { padding: 8px 16px; }
     }
 </style>
 </head>
 <body>
 
-<div class="top-bar">
-    <h1>▸ NHAI_CITIZEN_ARCHIVE // MAINFRAME_v1.0</h1>
-    <div class="time" id="clock">00:00:00</div>
-</div>
+<div class="app-container">
+    <div class="top-bar">
+        <h1>▸ NHAI_CITIZEN_ARCHIVE // MAINFRAME_v1.0</h1>
+        <div class="time" id="clock">00:00:00</div>
+    </div>
 
-<div class="stats-row">
-    <div class="stat-box s-total">
-        <div class="stat-label">Total Records</div>
-        <div class="stat-value" id="statTotal">0</div>
+    <div class="stats-row">
+        <div class="stat-box s-total">
+            <div class="stat-label">Total Records</div>
+            <div class="stat-value" id="statTotal">0</div>
+        </div>
+        <div class="stat-box s-valid">
+            <div class="stat-label">Valid Cards</div>
+            <div class="stat-value" id="statValid">0</div>
+        </div>
+        <div class="stat-box s-expired">
+            <div class="stat-label">Expired</div>
+            <div class="stat-value" id="statExpired">0</div>
+        </div>
+        <div class="stat-box s-flagged">
+            <div class="stat-label">Flagged</div>
+            <div class="stat-value" id="statFlagged">0</div>
+        </div>
     </div>
-    <div class="stat-box s-valid">
-        <div class="stat-label">Valid Cards</div>
-        <div class="stat-value" id="statValid">0</div>
-    </div>
-    <div class="stat-box s-expired">
-        <div class="stat-label">Expired</div>
-        <div class="stat-value" id="statExpired">0</div>
-    </div>
-    <div class="stat-box s-flagged">
-        <div class="stat-label">Flagged</div>
-        <div class="stat-value" id="statFlagged">0</div>
-    </div>
-</div>
 
-<div class="controls">
-    <input type="text" class="search-box" id="searchInput" placeholder="Search Name, Plate, DL..." oninput="renderTable()">
-    <select class="filter-select" id="filterSelect" onchange="renderTable()">
-        <option value="ALL">All Status</option>
-        <option value="VALID">Valid</option>
-        <option value="EXPIRED">Expired</option>
-        <option value="FLAGGED">Flagged</option>
-    </select>
-    <button class="btn-add" onclick="openModal()">+ Add Record</button>
-</div>
+    <div class="controls">
+        <input type="text" class="search-box" id="searchInput" placeholder="Search Name, Plate, DL..." oninput="renderTable()">
+        <select class="filter-select" id="filterSelect" onchange="renderTable()">
+            <option value="ALL">All Status</option>
+            <option value="VALID">Valid</option>
+            <option value="EXPIRED">Expired</option>
+            <option value="FLAGGED">Flagged</option>
+        </select>
+        <button class="btn-add" onclick="openModal()">+ Add Record</button>
+    </div>
 
-<div class="table-container" id="tableContainer">
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th>Plate ID</th>
-                <th>Citizen Name</th>
-                <th class="hide-mobile">DL ID</th>
-                <th>Status</th>
-                <th class="hide-mobile">Expiry</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-    </table>
-    <div class="empty-state" id="emptyState" style="display:none;">
-        DATABASE EMPTY // NO RECORDS FOUND
+    <div class="table-container" id="tableContainer">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Plate ID</th>
+                    <th>Citizen Name</th>
+                    <th class="hide-mobile">DL ID</th>
+                    <th>Status</th>
+                    <th class="hide-mobile">Expiry</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+        <div class="empty-state" id="emptyState" style="display:none;">
+            DATABASE EMPTY // NO RECORDS FOUND
+        </div>
     </div>
 </div>
 
@@ -241,26 +273,41 @@
 </div>
 
 <script>
-    // Completely separate database key
-    const DB_KEY = 'nhai_archive_mainframe_v1';
-    let archiveData = { registry: {}, citizenCards: {} };
+    // SYNC FIX: Use the EXACT same keys as Dashboard 1
+    const LS_D1_KEY = 'enforcementTerminalV23_D1';
+    const LS_D2_KEY = 'enforcementTerminalV23_TOLL';
+    
+    let archiveData = { revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, registry: {}, history: [], activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [], forgedAliases: {}, nextSpawnOverride: null, ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [], citizenCards: {} };
 
     function updateClock() { document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB'); }
     setInterval(updateClock, 1000); updateClock();
 
     function loadData() {
         try {
-            const raw = localStorage.getItem(DB_KEY);
-            if (raw) {
-                archiveData = JSON.parse(raw);
-                if (!archiveData.registry) archiveData.registry = {};
-                if (!archiveData.citizenCards) archiveData.citizenCards = {};
-            }
+            const d1 = localStorage.getItem(LS_D1_KEY);
+            const d2 = localStorage.getItem(LS_D2_KEY);
+            let d1Data = null, d2Data = null;
+            if (d1) { try { d1Data = JSON.parse(d1); } catch(e) {} }
+            if (d2) { try { d2Data = JSON.parse(d2); } catch(e) {} }
+
+            let mergedData = { revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, registry: {}, history: [], activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [], forgedAliases: {}, nextSpawnOverride: null, ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [], citizenCards: {} };
+
+            if (d1Data) { Object.assign(mergedData, d1Data); if (d1Data.registry) Object.assign(mergedData.registry, d1Data.registry); if (d1Data.citizenCards) Object.assign(mergedData.citizenCards, d1Data.citizenCards); }
+            if (d2Data) { mergedData.revenue = Math.max(mergedData.revenue || 0, d2Data.revenue || 0); mergedData.valids = Math.max(mergedData.valids || 0, d2Data.valids || 0); mergedData.missed = Math.max(mergedData.missed || 0, d2Data.missed || 0); if (d2Data.registry) Object.assign(mergedData.registry, d2Data.registry); if (d2Data.citizenCards) Object.assign(mergedData.citizenCards, d2Data.citizenCards); }
+
+            if (!mergedData.registry) mergedData.registry = {};
+            if (!mergedData.citizenCards) mergedData.citizenCards = {};
+
+            archiveData = mergedData;
         } catch(e) { console.error("Load error:", e); }
     }
 
     function saveData() {
-        try { localStorage.setItem(DB_KEY, JSON.stringify(archiveData)); } catch(e) { console.error("Save error:", e); }
+        try { 
+            const dataStr = JSON.stringify(archiveData); 
+            localStorage.setItem(LS_D1_KEY, dataStr); 
+            localStorage.setItem(LS_D2_KEY, dataStr); 
+        } catch(e) { console.error("Save error:", e); }
     }
 
     function updateStats() {
@@ -269,14 +316,11 @@
         plates.forEach(plate => {
             const reg = archiveData.registry[plate];
             const card = archiveData.citizenCards[plate];
-            
-            // Internal logic to determine status for stats
             if (reg.status === 'WANTED') flagged++;
-            else if (!card) expired++; // Treat no card as expired/invalid for stats
+            else if (!card) expired++; 
             else if (new Date(card.expiry) < new Date()) expired++;
             else valid++;
         });
-
         document.getElementById('statTotal').innerText = plates.length;
         document.getElementById('statValid').innerText = valid;
         document.getElementById('statExpired').innerText = expired;
@@ -297,10 +341,8 @@
         const filterVal = document.getElementById('filterSelect').value;
         const tbody = document.getElementById('tableBody');
         const emptyState = document.getElementById('emptyState');
-        
         const plates = Object.keys(archiveData.registry);
-        let html = '';
-        let count = 0;
+        let html = '', count = 0;
 
         plates.forEach(plate => {
             const reg = archiveData.registry[plate];
@@ -308,85 +350,55 @@
             const status = getDisplayStatus(plate);
 
             if (filterVal !== 'ALL' && status !== filterVal) return;
-
-            const name = reg.name || 'UNKNOWN';
-            const dlId = reg.dlId || 'N/A';
-            
-            if (searchVal) {
-                const combinedString = `${plate} ${name} ${dlId}`.toUpperCase();
-                if (!combinedString.includes(searchVal)) return;
-            }
+            const name = reg.name || 'UNKNOWN', dlId = reg.dlId || 'N/A';
+            if (searchVal) { const combinedString = `${plate} ${name} ${dlId}`.toUpperCase(); if (!combinedString.includes(searchVal)) return; }
 
             count++;
             let statusHtml = `<span class="status-badge s-${status.toLowerCase()}">${status}</span>`;
             const expiryStr = card ? new Date(card.expiry).toLocaleDateString('en-GB') : 'N/A';
 
-            html += `
-                <tr>
-                    <td style="color:var(--accent); font-weight:bold;">${plate}</td>
-                    <td>${name}</td>
-                    <td class="hide-mobile">${dlId}</td>
-                    <td>${statusHtml}</td>
-                    <td class="hide-mobile">${expiryStr}</td>
-                    <td>
-                        <button class="btn-sm" onclick="openModal('${plate}')">Edit</button>
-                        <button class="btn-sm del" onclick="deleteRecord('${plate}')">Del</button>
-                    </td>
-                </tr>
-            `;
+            html += `<tr>
+                <td style="color:var(--accent); font-weight:bold;">${plate}</td>
+                <td>${name}</td>
+                <td class="hide-mobile">${dlId}</td>
+                <td>${statusHtml}</td>
+                <td class="hide-mobile">${expiryStr}</td>
+                <td>
+                    <button class="btn-sm" onclick="openModal('${plate}')">Edit</button>
+                    <button class="btn-sm del" onclick="deleteRecord('${plate}')">Del</button>
+                </td>
+            </tr>`;
         });
-
         tbody.innerHTML = html;
         emptyState.style.display = count === 0 ? 'block' : 'none';
     }
 
     function openModal(plate = null) {
         document.getElementById('editPlateOriginal').value = plate || '';
-        
         if (plate) {
-            // EDIT MODE
             document.getElementById('modalTitle').innerText = '■ Edit Record';
             document.getElementById('formPlate').value = plate;
-            document.getElementById('formPlate').disabled = true; // Can't change primary key
-            
-            const reg = archiveData.registry[plate] || {};
-            const card = archiveData.citizenCards[plate] || {};
-            
+            document.getElementById('formPlate').disabled = true; 
+            const reg = archiveData.registry[plate] || {}, card = archiveData.citizenCards[plate] || {};
             document.getElementById('formName').value = reg.name || '';
             document.getElementById('formDl').value = reg.dlId || '';
-            
-            const status = getDisplayStatus(plate);
-            document.getElementById('formStatus').value = status;
-            
+            document.getElementById('formStatus').value = getDisplayStatus(plate);
             if (card && card.expiry) {
-                // Format date for input type="date"
                 const d = new Date(card.expiry);
-                const dateStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-                document.getElementById('formExpiry').value = dateStr;
-            } else {
-                document.getElementById('formExpiry').value = '';
-            }
+                document.getElementById('formExpiry').value = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+            } else { document.getElementById('formExpiry').value = ''; }
         } else {
-            // ADD MODE
             document.getElementById('modalTitle').innerText = '■ New Record';
-            document.getElementById('formPlate').value = '';
-            document.getElementById('formPlate').disabled = false;
-            document.getElementById('formName').value = '';
-            document.getElementById('formDl').value = '';
+            document.getElementById('formPlate').value = ''; document.getElementById('formPlate').disabled = false;
+            document.getElementById('formName').value = ''; document.getElementById('formDl').value = '';
             document.getElementById('formStatus').value = 'VALID';
-            
-            // Auto set expiry to 1 year from now
             const nextYear = new Date(); nextYear.setFullYear(nextYear.getFullYear() + 1);
-            const dateStr = nextYear.getFullYear() + '-' + String(nextYear.getMonth()+1).padStart(2,'0') + '-' + String(nextYear.getDate()).padStart(2,'0');
-            document.getElementById('formExpiry').value = dateStr;
+            document.getElementById('formExpiry').value = nextYear.getFullYear() + '-' + String(nextYear.getMonth()+1).padStart(2,'0') + '-' + String(nextYear.getDate()).padStart(2,'0');
         }
-
         document.getElementById('modalOverlay').classList.add('open');
     }
 
-    function closeModal() {
-        document.getElementById('modalOverlay').classList.remove('open');
-    }
+    function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
 
     function saveRecord() {
         const originalPlate = document.getElementById('editPlateOriginal').value;
@@ -396,64 +408,40 @@
         const status = document.getElementById('formStatus').value;
         const expiry = document.getElementById('formExpiry').value;
 
-        if (!plate || !name) {
-            alert("Plate ID and Name are required.");
-            return;
-        }
+        if (!plate || !name) { alert("Plate ID and Name are required."); return; }
+        if (!originalPlate && archiveData.registry[plate]) { alert("Plate ID already exists in database."); return; }
 
-        // If adding new, check if plate exists
-        if (!originalPlate && archiveData.registry[plate]) {
-            alert("Plate ID already exists in database.");
-            return;
-        }
-
-        // Build Registry Record
         archiveData.registry[plate] = { name, dlId, status: status === 'FLAGGED' ? 'WANTED' : 'CLEAR' };
 
-        // Build Card Record
         if (status !== 'FLAGGED' && expiry) {
+            const existingCard = archiveData.citizenCards[plate] || {};
             archiveData.citizenCards[plate] = {
-                uid: `ARCH-${Math.floor(1000+Math.random()*9000)}`,
-                name: name,
-                dlId: dlId,
-                expiry: new Date(expiry).toISOString(),
-                type: "ARCHIVE CARD",
-                city: "MAINFRAME"
+                uid: existingCard.uid || `ARCH-${Math.floor(1000+Math.random()*9000)}`, name: name, dlId: dlId, expiry: new Date(expiry).toISOString(), type: existingCard.type || "ARCHIVE CARD", city: existingCard.city || "MAINFRAME"
             };
         } else if (status === 'FLAGGED') {
-            // Remove card if flagged
             delete archiveData.citizenCards[plate];
         } else {
-            // Keep existing card if not changing expiry
             if (!archiveData.citizenCards[plate]) {
                 const nextYear = new Date(); nextYear.setFullYear(nextYear.getFullYear() + 1);
-                archiveData.citizenCards[plate] = {
-                    uid: `ARCH-${Math.floor(1000+Math.random()*9000)}`,
-                    name: name, dlId: dlId, expiry: nextYear.toISOString(), type: "ARCHIVE CARD", city: "MAINFRAME"
-                };
+                archiveData.citizenCards[plate] = { uid: `ARCH-${Math.floor(1000+Math.random()*9000)}`, name: name, dlId: dlId, expiry: nextYear.toISOString(), type: "ARCHIVE CARD", city: "MAINFRAME" };
             }
         }
-
-        saveData();
-        updateStats();
-        renderTable();
-        closeModal();
+        saveData(); updateStats(); renderTable(); closeModal();
     }
 
     function deleteRecord(plate) {
         if (confirm(`PERMANENTLY DELETE RECORD: ${plate}?`)) {
-            delete archiveData.registry[plate];
-            delete archiveData.citizenCards[plate];
-            saveData();
-            updateStats();
-            renderTable();
+            delete archiveData.registry[plate]; delete archiveData.citizenCards[plate];
+            saveData(); updateStats(); renderTable();
         }
     }
 
-    // --- INIT ---
-    loadData();
-    updateStats();
-    renderTable();
+    // Real-time cross-tab sync
+    window.addEventListener('storage', (event) => {
+        if (event.key === LS_D1_KEY || event.key === LS_D2_KEY) { loadData(); updateStats(); renderTable(); }
+    });
+
+    loadData(); updateStats(); renderTable();
 </script>
 </body>
 </html>
