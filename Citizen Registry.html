@@ -122,10 +122,12 @@
     }
     .card-visual.expired { border-color: #cc0000; background: #ffebee; }
     .card-visual.premium { border-color: var(--gold); background: #fffacd; }
+    .card-visual.transferred { border-color: #00d9ff; background: #e0f7fa; } /* Cyan style for transferred */
     .card-title { font-weight: bold; letter-spacing: 2px; border-bottom: 1px solid #999; margin-bottom: 8px; padding-bottom: 4px; }
     .card-id { font-size: 1.2rem; color: #006400; font-weight: 900; font-variant-numeric: tabular-nums; }
     .card-visual.expired .card-id { color: #cc0000; }
     .card-visual.premium .card-id { color: #b8860b; }
+    .card-visual.transferred .card-id { color: #00838f; }
 
     .fee-box { padding: 10px; border: 3px solid #111; text-align: center; font-size: 2rem; font-weight: 900; background: #e0e0d8; }
     .fee-due { color: #b8860b; border-color: #b8860b; }
@@ -339,10 +341,10 @@
             el.style.color = '#555';
         } else if (status === 'processing') {
             el.innerHTML = '► PROCESSING RECORD...<br>► BILLING MODULE: STANDBY<br>► VERIFICATION PENDING';
-            el.style.color = '#00d9ff'; // Fixed JS syntax error
+            el.style.color = '#00d9ff';
         } else if (status === 'syncing') {
             el.innerHTML = '► SYNCING LOCAL CACHE...<br>► REGISTRY CONNECTED<br>► DB INTEGRITY CHECK: PASS';
-            el.style.color = '#2ed573'; // Fixed JS syntax error
+            el.style.color = '#2ed573';
         }
     }
 
@@ -451,12 +453,14 @@
         const fallbackDlId = "DL-" + Math.floor(1000+Math.random()*9000);
         let isRenewal = false, plate = null, existingCard = null;
         
+        // Prioritize pulling plates that already have cards (Renewals)
         const cityPlates = Object.keys(sharedData.citizenCards).filter(k => sharedData.citizenCards[k].city === selectedCity);
         if (cityPlates.length > 0 && Math.random() < 0.4) {
             isRenewal = true; 
             plate = cityPlates[Math.floor(Math.random() * cityPlates.length)];
             existingCard = sharedData.citizenCards[plate];
         } else {
+            // Look for plates that are in registry but DON'T have cards yet and are CLEAR (not WANTED)
             const newPlates = Object.keys(sharedData.registry).filter(k => !sharedData.citizenCards[k] && sharedData.registry[k].status === 'CLEAR');
             if (newPlates.length > 0 && Math.random() < 0.8) plate = newPlates[Math.floor(Math.random() * newPlates.length)];
         }
@@ -473,7 +477,10 @@
             expiryDate = new Date(existingCard.expiry || expiryDate);
         } else if (regData) {
             citizenName = regData.name || citizenName;
-            citizenDlId = regData.dlId || citizenDlId;
+            // If registry has an official DL-AUTH ID, use it instead of fallback
+            if (regData.id && regData.id.startsWith("DL-AUTH-")) {
+                citizenDlId = regData.id;
+            }
         }
 
         return { 
@@ -538,9 +545,21 @@
                     feeBox.innerText = `$ ${cityConfig[selectedCity].renew}`; feeBox.className = 'fee-box fee-due';
                     feeStatus.innerText = "RENEWAL FEE DUE"; feeStatus.style.color = "#b8860b";
                 } else {
-                    document.getElementById('f-reqtype').innerText = "NEW CARD ISSUANCE";
-                    cardVisual.className = `card-visual ${cityConfig[selectedCity].style}`;
-                    document.getElementById('f-uid').innerText = "PENDING ISSUANCE"; document.getElementById('f-expiry').innerText = "N/A";
+                    // Check if this is a transferred application from the Licensing Terminal
+                    const isTransferred = currentCitizen.existingCard && currentCitizen.existingCard.city === 'LICENSING_AUTH_TRANSFER';
+                    
+                    if (isTransferred) {
+                        document.getElementById('f-reqtype').innerText = "REGISTRY TRANSFER (PENDING DL)";
+                        cardVisual.className = 'card-visual transferred'; // Cyan visual
+                        document.getElementById('f-uid').innerText = currentCitizen.existingCard.uid;
+                        document.getElementById('f-expiry').innerText = "REQUIRES PAYMENT";
+                    } else {
+                        document.getElementById('f-reqtype').innerText = "NEW CARD ISSUANCE";
+                        cardVisual.className = `card-visual ${cityConfig[selectedCity].style}`;
+                        document.getElementById('f-uid').innerText = "PENDING ISSUANCE"; 
+                        document.getElementById('f-expiry').innerText = "N/A";
+                    }
+
                     feeBox.innerText = `$ ${cityConfig[selectedCity].issue}`; feeBox.className = 'fee-box fee-due';
                     feeStatus.innerText = "ISSUANCE FEE DUE"; feeStatus.style.color = "#b8860b";
                 }
