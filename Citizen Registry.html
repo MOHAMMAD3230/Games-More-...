@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" href="https://mohammad3230.github.io/PROJECT/favicon.png" type="image/png" sizes="32x32" />
+<script async src="https://www.googletagmanager.com/gtag/js?id=GT-NC6T5LRJ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'GT-NC6T5LRJ');
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#080810">
+<title>NHAI - Citizen Registry & Revenue Terminal</title>
+<style>
+    :root {
+        --bg: #080810; --panel: #10101a; --accent: #00d9ff; --success: #2ed573;
+        --danger: #ff0044; --warning: #ffa502; --border: #2a2a3a; --paper: #f0f0e8;
+        --gold: #ffd700;
+        --safe-bottom: env(safe-area-inset-bottom, 0px);
+        --safe-top: env(safe-area-inset-top, 0px);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+        background-color: var(--bg); color: #ccc; font-family: 'Courier New', monospace;
+        margin: 0; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden;
+        -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+    }
+
+    .top-bar {
+        background: #000; padding: 12px 16px; padding-top: calc(12px + var(--safe-top));
+        border-bottom: 2px solid var(--gold); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+        flex-wrap: wrap; gap: 6px; z-index: 10;
+    }
+
+    .top-bar h1 { margin: 0; font-size: clamp(0.65rem, 2.5vw, 1.1rem); color: var(--gold); letter-spacing: 1px; white-space: nowrap; }
+    .top-bar-right { display: flex; align-items: center; gap: 10px; }
+    .top-bar .time { color: var(--accent); font-size: clamp(0.65rem, 2vw, 0.9rem); font-variant-numeric: tabular-nums; }
+
+    .sync-badge {
+        font-size: 0.55rem; padding: 3px 8px; border-radius: 3px; letter-spacing: 1px; font-weight: bold; text-transform: uppercase; white-space: nowrap;
+    }
+    .sync-badge.online { background: rgba(0,255,157,0.1); color: var(--success); border: 1px solid var(--success); }
+    .sync-badge.offline { background: rgba(255,0,68,0.1); color: var(--danger); border: 1px solid var(--danger); }
+    .sync-badge.waiting { background: rgba(255,204,0,0.1); color: var(--warning); border: 1px solid var(--warning); }
+
+    .city-selector {
+        background: #000; padding: 16px; border-bottom: 1px solid var(--border); display: flex; gap: 16px; align-items: center; flex-shrink: 0;
+    }
+    .city-selector label { font-size: 0.8rem; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; }
+    .city-selector select {
+        flex: 1; background: #050508; border: 1px solid var(--accent); color: var(--gold); padding: 12px;
+        font-family: monospace; font-size: 1rem; outline: none; border-radius: 4px; -webkit-appearance: none; appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2300d9ff' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+        background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px;
+    }
+
+    .main-grid {
+        display: grid; grid-template-columns: 360px 1fr; gap: 16px; padding: 16px; flex-grow: 1; min-height: 0; overflow: hidden;
+    }
+
+    .call-panel, .detail-panel {
+        background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; overflow: hidden;
+    }
+
+    .call-panel { justify-content: center; align-items: center; gap: 20px; }
+    .terminal-art { font-size: 0.75rem; color: #555; text-align: center; line-height: 1.6; }
+    .city-info-box { background: #000; border: 1px solid var(--border); border-radius: 4px; padding: 12px; width: 100%; font-size: 0.8rem; color: var(--gold); text-align: center; }
+
+    .btn-next-mega {
+        background: linear-gradient(145deg, var(--gold), #b8960f); color: #000; border: none;
+        padding: 30px 20px; font-weight: 900; text-transform: uppercase; font-size: 1.2rem;
+        cursor: pointer; box-shadow: 0 8px 0 #6b5600, 0 15px 30px rgba(0,0,0,0.5);
+        transition: all 0.1s; font-family: monospace; width: 100%; border-radius: 4px; min-height: 48px;
+    }
+    .btn-next-mega:active { transform: translateY(6px); box-shadow: 0 2px 0 #6b5600; }
+    .btn-next-mega.ready-glow {
+        box-shadow: 0 8px 0 #6b5600, 0 0 25px rgba(255, 215, 0, 0.6); animation: readyPulse 2s infinite;
+    }
+    .btn-next-mega:disabled { background: #333; color: #666; box-shadow: 0 8px 0 #111; cursor: not-allowed; animation: none; }
+    @keyframes readyPulse {
+        0% { box-shadow: 0 8px 0 #6b5600, 0 0 15px rgba(255, 215, 0, 0.4); }
+        50% { box-shadow: 0 8px 0 #6b5600, 0 0 30px rgba(255, 215, 0, 0.8); }
+        100% { box-shadow: 0 8px 0 #6b5600, 0 0 15px rgba(255, 215, 0, 0.4); }
+    }
+
+    .detail-panel { gap: 15px; min-height: 0; overflow: hidden; }
+    .panel-title {
+        color: var(--accent); font-size: clamp(0.7rem, 2vw, 0.9rem); border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 12px;
+        text-transform: uppercase; letter-spacing: 1px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center;
+    }
+
+    .form-container { position: relative; flex-grow: 1; border: 1px solid var(--border); background: #050508; overflow: hidden; border-radius: 4px; }
+
+    .application-form {
+        background: var(--paper); color: #111; padding: 20px 30px; font-size: 0.9rem;
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%; box-sizing: border-box;
+        opacity: 0; pointer-events: none; transform: translateY(30px);
+        transition: opacity 0.4s ease, transform 0.4s ease; overflow-y: auto;
+        display: flex; flex-direction: column; justify-content: space-around;
+        -webkit-overflow-scrolling: touch;
+    }
+    .application-form.active { opacity: 1; pointer-events: auto; transform: translateY(0); }
+    .application-form.archive-left { opacity: 0; pointer-events: none; transform: translateX(-150%) rotate(-10deg); transition: opacity 0.3s ease, transform 0.3s ease; }
+    .application-form.archive-right { opacity: 0; pointer-events: none; transform: translateX(150%) rotate(10deg); transition: opacity 0.3s ease, transform 0.3s ease; }
+
+    .form-header { border-bottom: 2px solid #111; padding-bottom: 8px; text-align: center; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; font-size: 1rem; }
+    .form-row { display: flex; justify-content: space-between; margin-bottom: 5px; border-bottom: 1px dashed #aaa; padding-bottom: 5px; }
+    .form-label { font-weight: bold; }
+
+    .card-visual {
+        margin: 10px 0; padding: 15px; border: 2px solid #006400; background: #e8f5e9; border-radius: 4px; text-align: center;
+    }
+    .card-visual.expired { border-color: #cc0000; background: #ffebee; }
+    .card-visual.premium { border-color: var(--gold); background: #fffacd; }
+    .card-title { font-weight: bold; letter-spacing: 2px; border-bottom: 1px solid #999; margin-bottom: 8px; padding-bottom: 4px; }
+    .card-id { font-size: 1.2rem; color: #006400; font-weight: 900; font-variant-numeric: tabular-nums; }
+    .card-visual.expired .card-id { color: #cc0000; }
+    .card-visual.premium .card-id { color: #b8860b; }
+
+    .fee-box { padding: 10px; border: 3px solid #111; text-align: center; font-size: 2rem; font-weight: 900; background: #e0e0d8; }
+    .fee-due { color: #b8860b; border-color: #b8860b; }
+    .fee-paid { color: #006400; border-color: #006400; }
+    .fee-rejected { color: #cc0000; border-color: #cc0000; }
+
+    .stamp-overlay {
+        position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg);
+        font-size: 4rem; font-weight: 900; border: 8px solid; padding: 10px 30px; opacity: 0; z-index: 5; pointer-events: none; transition: opacity 0.2s;
+    }
+    .stamp-approved { color: #008000; border-color: #008000; }
+    .stamp-rejected { color: #cc0000; border-color: #cc0000; }
+
+    .action-panel { display: flex; gap: 15px; flex-shrink: 0; padding-top: 15px; }
+
+    .mech-btn {
+        padding: 14px; border: 2px solid #000; cursor: pointer; font-weight: bold; text-transform: uppercase;
+        font-size: 0.85rem; box-shadow: 0 3px 0 #000; transition: all 0.1s; font-family: monospace; background: #333; color: #fff; flex: 1;
+        border-radius: 4px; min-height: 48px; display: flex; align-items: center; justify-content: center;
+    }
+    .mech-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #000; }
+    .mech-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; background: #222; }
+    .btn-approve { background: var(--gold); color: #000; box-shadow: 0 3px 0 #6b5600; }
+    .btn-reject { background: var(--danger); color: #fff; box-shadow: 0 3px 0 #cc2233; }
+
+    .bg-check { padding: 8px; background: #111; color: #fff; font-size: 0.8rem; text-align: center; border: 1px solid #333; margin-top: 5px; }
+    .bg-clean { color: #009900; border-color: #009900; background: #0a1a0a; }
+    .bg-flag { color: var(--danger); border-color: var(--danger); background: #1a0a0a; }
+
+    /* ===== MOBILE TAB SWITCHER ===== */
+    .mobile-tabs { display: none; background: var(--panel); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .mobile-tabs button {
+        flex: 1; background: none; border: none; color: #666; padding: 12px; font-family: monospace;
+        font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s;
+    }
+    .mobile-tabs button.active { color: var(--gold); border-bottom-color: var(--gold); }
+    .mobile-tabs button:active { background: rgba(255,215,0,0.05); }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 1024px) and (min-width: 769px) {
+        .main-grid { grid-template-columns: 320px 1fr; gap: 12px; padding: 12px; }
+        .application-form { padding: 15px 20px; font-size: 0.85rem; }
+    }
+    @media (max-width: 768px) {
+        .top-bar h1 { font-size: 0.7rem; }
+        .main-grid { grid-template-columns: 1fr; gap: 0; padding: 0; overflow: hidden; }
+        .mobile-tabs { display: flex; }
+        .call-panel, .detail-panel { border-radius: 0; border: none; border-bottom: 1px solid var(--border); }
+        .call-panel { display: none; padding: 20px 16px; height: 100%; overflow-y: auto; }
+        .call-panel.tab-active { display: flex; }
+        .detail-panel { display: none; padding: 16px; height: 100%; overflow: hidden; }
+        .detail-panel.tab-active { display: flex; }
+        .application-form { padding: 20px 16px; font-size: 0.85rem; }
+        .btn-next-mega { padding: 24px 16px; font-size: 1.1rem; }
+        .mech-btn { min-height: 52px; font-size: 0.9rem; padding: 14px; }
+    }
+    @media (max-width: 380px) {
+        .top-bar h1 { font-size: 0.6rem; }
+        .application-form { padding: 15px 12px; font-size: 0.8rem; }
+        .stamp-overlay { font-size: 2rem; border-width: 4px; padding: 6px 15px; }
+    }
+    @media (max-height: 500px) and (orientation: landscape) {
+        .city-selector { padding: 8px 16px; }
+        .call-panel { padding: 10px; gap: 10px; }
+        .terminal-art { display: none; }
+        .btn-next-mega { padding: 15px; font-size: 1rem; }
+        .mech-btn { min-height: 36px; padding: 8px; }
+    }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+    @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+    <h1>▸ NHAI_CITIZEN_REGISTRY // REVENUE_TERMINAL_v6.2</h1>
+    <div class="top-bar-right">
+        <span class="sync-badge waiting" id="syncBadge">● SYNCING</span>
+        <div class="time" id="clock">00:00:00</div>
+    </div>
+</div>
+
+<div class="city-selector">
+    <label>SELECT JURISDICTION:</label>
+    <select id="citySelect" onchange="changeCity()">
+        <option value="METRO_CITY">METRO CITY (Standard $500 / $750)</option>
+        <option value="NEO_TOKYO">NEO-TOKYO (Premium $800 / $1200)</option>
+        <option value="OUTLANDS">THE OUTLANDS (Basic $200 / $350)</option>
+    </select>
+</div>
+
+<!-- Mobile Tab Switcher -->
+<div class="mobile-tabs" id="mobileTabs">
+    <button class="active" onclick="switchTab('queue')" id="tabQueue">⊕ Queue</button>
+    <button onclick="switchTab('review')" id="tabReview">▮ Billing</button>
+</div>
+
+<div class="main-grid">
+    <div class="call-panel tab-active" id="callPanel">
+        <div class="panel-title">■ Revenue & Card Queue</div>
+        <div class="city-info-box" id="cityInfoBox">
+            JURISDICTION: METRO CITY<br>
+            ISSUE FEE: $500 | RENEW FEE: $750<br>
+            CARD TYPE: GREEN CARD
+        </div>
+        <div class="terminal-art">
+            ► SYSTEM READY<br>
+            ► CITIZEN DATABASE: ACTIVE<br>
+            ► AWAITING OFFICER INPUT
+        </div>
+        <button class="btn-next-mega ready-glow" id="btnCallNext" onclick="callNextCitizen()">CALL NEXT CITIZEN</button>
+        <div style="font-size: 0.7rem; color: #555; text-align: center;">Press button to pull pending citizen record</div>
+    </div>
+
+    <div class="detail-panel" id="detailPanel">
+        <div class="panel-title">■ Document & Billing Review</div>
+        
+        <div class="form-container">
+            <div class="application-form" id="app-form">
+                <div id="stamp-box" class="stamp-overlay"></div>
+                <div class="form-header" id="formHeader">Official Metro City Citizen Document</div>
+                
+                <div class="form-row"><span class="form-label">CITIZEN NAME:</span> <span id="f-name">---</span></div>
+                <div class="form-row"><span class="form-label">DL / VEHICLE ID:</span> <span id="f-id">---</span></div>
+                <div class="form-row"><span class="form-label">CITY ZONE:</span> <span id="f-city">---</span></div>
+                <div class="form-row"><span class="form-label">REQ. TYPE:</span> <span id="f-reqtype">---</span></div>
+                
+                <div class="card-visual" id="f-card-visual">
+                    <div class="card-title" id="cardTitle">METRO GREEN CARD</div>
+                    <div class="card-id" id="f-uid">0000-0000</div>
+                    <div style="font-size:0.8rem; margin-top:5px;">VALID THRU: <span id="f-expiry">N/A</span></div>
+                </div>
+
+                <div class="bg-check" id="f-bgcheck">BACKGROUND CHECK: PENDING</div>
+
+                <div style="margin-top:5px; font-weight:bold; text-decoration:underline;">BILLING AMOUNT:</div>
+                <div class="fee-box fee-due" id="f-fee">$ 0</div>
+                <div style="text-align:center; font-size:0.8rem; margin-top:2px;" id="f-fee-status">AWAITING PAYMENT</div>
+            </div>
+        </div>
+
+        <div class="action-panel">
+            <button class="mech-btn btn-approve" id="btn-approve" onclick="processAction(true)" disabled>PROCESS PAYMENT</button>
+            <button class="mech-btn btn-reject" id="btn-reject" onclick="processAction(false)" disabled>REJECT / DENY</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let sharedData = {
+        revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0,
+        history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null,
+        activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [],
+        ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [],
+        citizenCards: {}
+    };
+
+    let currentCitizen = null;
+    let currentActionStatus = null;
+    let currentTab = 'queue';
+
+    const cityConfig = {
+        'METRO_CITY': { issue: 500, renew: 750, name: "METRO CITY", card: "GREEN CARD", style: "" },
+        'NEO_TOKYO': { issue: 800, renew: 1200, name: "NEO-TOKYO", card: "PLATINUM CARD", style: "premium" },
+        'OUTLANDS': { issue: 200, renew: 350, name: "THE OUTLANDS", card: "BASIC CARD", style: "expired" }
+    };
+    let selectedCity = 'METRO_CITY';
+
+    const firstNames = ["JOHN", "MARIA", "ALEX", "SANJI", "LEILA", "OMAR", "CHEN", "RYUK", "PRIYA", "JINX"];
+    const lastNames = ["WICK", "SOTO", "CHEN", "CARTER", "VALENCIA", "NAKAMURA", "PETROV", "SINGH", "MERCER", "DIAZ"];
+
+    const LS_D1_KEY = 'enforcementTerminalV23_D1';
+    const LS_D2_KEY = 'enforcementTerminalV23_TOLL';
+
+    function updateClock() { document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB'); }
+    setInterval(updateClock, 1000); updateClock();
+
+    function switchTab(tab) {
+        currentTab = tab;
+        document.getElementById('callPanel').classList.toggle('tab-active', tab === 'queue');
+        document.getElementById('detailPanel').classList.toggle('tab-active', tab === 'review');
+        document.getElementById('tabQueue').classList.toggle('active', tab === 'queue');
+        document.getElementById('tabReview').classList.toggle('active', tab === 'review');
+    }
+
+    function changeCity() {
+        selectedCity = document.getElementById('citySelect').value;
+        const config = cityConfig[selectedCity];
+        document.getElementById('cityInfoBox').innerHTML = `
+            JURISDICTION: ${config.name}<br>
+            ISSUE FEE: $${config.issue} | RENEW FEE: $${config.renew}<br>
+            CARD TYPE: ${config.card}
+        `;
+        document.getElementById('formHeader').innerText = `Official ${config.name} Citizen Document`;
+        document.getElementById('cardTitle').innerText = `${config.name.toUpperCase()} ${config.card}`;
+        currentCitizen = null; 
+        document.getElementById('app-form').className = 'application-form';
+    }
+
+    function loadData() {
+        try {
+            const d1 = localStorage.getItem(LS_D1_KEY);
+            const d2 = localStorage.getItem(LS_D2_KEY);
+            let d1Data = null, d2Data = null;
+            if (d1) { try { d1Data = JSON.parse(d1); } catch(e) {} }
+            if (d2) { try { d2Data = JSON.parse(d2); } catch(e) {} }
+
+            let mergedData = { revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, registry: {}, history: [], activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [], forgedAliases: {}, nextSpawnOverride: null, ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [], citizenCards: {} };
+
+            if (d1Data) { Object.assign(mergedData, d1Data); if (d1Data.registry) Object.assign(mergedData.registry, d1Data.registry); if (d1Data.citizenCards) Object.assign(mergedData.citizenCards, d1Data.citizenCards); if (d1Data.activeInmates) mergedData.activeInmates = d1Data.activeInmates; if (d1Data.releasedInmates) mergedData.releasedInmates = d1Data.releasedInmates; }
+            if (d2Data) { mergedData.revenue = Math.max(mergedData.revenue || 0, d2Data.revenue || 0); mergedData.valids = Math.max(mergedData.valids || 0, d2Data.valids || 0); mergedData.missed = Math.max(mergedData.missed || 0, d2Data.missed || 0); if (d2Data.registry) Object.assign(mergedData.registry, d2Data.registry); if (d2Data.citizenCards) Object.assign(mergedData.citizenCards, d2Data.citizenCards); if (d2Data.history) { mergedData.history = d2Data.history.concat(mergedData.history).filter((v, i, a) => a.findIndex(t => (t.plate === v.plate && t.timestamp === v.timestamp)) === i); } if (d2Data.activeInmates && d2Data.activeInmates.length > mergedData.activeInmates.length) mergedData.activeInmates = d2Data.activeInmates; if (d2Data.releasedInmates && d2Data.releasedInmates.length > (mergedData.releasedInmates || []).length) mergedData.releasedInmates = d2Data.releasedInmates; }
+
+            if (!mergedData.registry) mergedData.registry = {};
+            if (!mergedData.citizenCards) mergedData.citizenCards = {};
+            if (!mergedData.history) mergedData.history = [];
+
+            sharedData = mergedData;
+            updateSyncBadge(d1Data, d2Data);
+        } catch(e) { console.error("Load error:", e); }
+    }
+
+    function saveData() {
+        try { 
+            const dataStr = JSON.stringify(sharedData); 
+            localStorage.setItem(LS_D1_KEY, dataStr); 
+            localStorage.setItem(LS_D2_KEY, dataStr); 
+        } catch(e) { 
+            console.error("Save error (LocalStorage might be full):", e); 
+        }
+    }
+
+    function updateSyncBadge(d1Data, d2Data) {
+        const badge = document.getElementById('syncBadge');
+        if (d1Data && d2Data) { badge.innerText = "● DUAL SYNC"; badge.className = "sync-badge online"; }
+        else if (d1Data || d2Data) { badge.innerText = "● PARTIAL"; badge.className = "sync-badge waiting"; }
+        else { badge.innerText = "● OFFLINE"; badge.className = "sync-badge offline"; }
+    }
+
+    let audioCtx = null;
+    function getAudioCtx() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === 'suspended') audioCtx.resume(); return audioCtx; }
+    function playSound(type) {
+        try { const ctx = getAudioCtx(); const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.connect(gain); gain.connect(ctx.destination); const t = ctx.currentTime;
+            if(type==='call'){osc.type='sine';osc.frequency.setValueAtTime(600,t);osc.frequency.setValueAtTime(800,t+0.1);osc.frequency.setValueAtTime(1000,t+0.2);gain.gain.setValueAtTime(0.15,t);gain.gain.exponentialRampToValueAtTime(0.01,t+0.3);osc.start(t);osc.stop(t+0.3);}
+            else if(type==='approve'){osc.type='sine';osc.frequency.setValueAtTime(800,t);osc.frequency.setValueAtTime(1100,t+0.1);osc.frequency.setValueAtTime(1400,t+0.2);gain.gain.setValueAtTime(0.15,t);gain.gain.exponentialRampToValueAtTime(0.01,t+0.3);osc.start(t);osc.stop(t+0.3);}
+            else if(type==='reject'){osc.type='sawtooth';osc.frequency.setValueAtTime(400,t);osc.frequency.exponentialRampToValueAtTime(100,t+0.3);gain.gain.setValueAtTime(0.15,t);gain.gain.exponentialRampToValueAtTime(0.01,t+0.35);osc.start(t);osc.stop(t+0.35);}
+            else if(type==='stamp'){osc.type='triangle';osc.frequency.setValueAtTime(150,t);gain.gain.setValueAtTime(0.3,t);gain.gain.exponentialRampToValueAtTime(0.01,t+0.1);osc.start(t);osc.stop(t+0.1);}
+        } catch(e) {}
+    }
+
+    function generateRandomCitizen() {
+        const fName = firstNames[Math.floor(Math.random()*firstNames.length)];
+        const lName = lastNames[Math.floor(Math.random()*lastNames.length)];
+        const fallbackDlId = "DL-" + Math.floor(1000+Math.random()*9000);
+        let isRenewal = false, plate = null, existingCard = null;
+        
+        const cityPlates = Object.keys(sharedData.citizenCards).filter(k => sharedData.citizenCards[k].city === selectedCity);
+        if (cityPlates.length > 0 && Math.random() < 0.4) {
+            isRenewal = true; 
+            plate = cityPlates[Math.floor(Math.random() * cityPlates.length)];
+            existingCard = sharedData.citizenCards[plate];
+        } else {
+            const newPlates = Object.keys(sharedData.registry).filter(k => !sharedData.citizenCards[k] && sharedData.registry[k].status === 'CLEAR');
+            if (newPlates.length > 0 && Math.random() < 0.8) plate = newPlates[Math.floor(Math.random() * newPlates.length)];
+        }
+        
+        const regData = plate ? sharedData.registry[plate] : null;
+        let citizenName = `${fName} ${lName}`;
+        let citizenDlId = fallbackDlId;
+        let expiryDate = new Date(); 
+        expiryDate.setFullYear(expiryDate.getFullYear() - 1);
+
+        if (existingCard) {
+            citizenName = existingCard.name || citizenName;
+            citizenDlId = existingCard.dlId || citizenDlId;
+            expiryDate = new Date(existingCard.expiry || expiryDate);
+        } else if (regData) {
+            citizenName = regData.name || citizenName;
+            citizenDlId = regData.dlId || citizenDlId;
+        }
+
+        return { 
+            name: citizenName, 
+            dlId: citizenDlId, 
+            plate, 
+            isRenewal, 
+            existingCard, 
+            expiry: expiryDate.toISOString() 
+        };
+    }
+
+    function loadIntoForm(citizen) {
+        currentCitizen = citizen; 
+        currentActionStatus = null;
+        const form = document.getElementById('app-form'); 
+        form.className = 'application-form active'; 
+        
+        document.getElementById('stamp-box').style.opacity = '0';
+        document.getElementById('f-name').innerText = currentCitizen.name;
+        document.getElementById('f-city').innerText = cityConfig[selectedCity].name;
+
+        const cardVisual = document.getElementById('f-card-visual');
+        const feeBox = document.getElementById('f-fee');
+        const feeStatus = document.getElementById('f-fee-status');
+        const bgCheck = document.getElementById('f-bgcheck');
+        
+        document.getElementById('btnCallNext').classList.remove('ready-glow');
+
+        if (!currentCitizen.plate) {
+            document.getElementById('f-id').innerText = "UNREGISTERED";
+            document.getElementById('f-reqtype').innerText = "NEW APPLICATION (NO VEHICLE)";
+            cardVisual.className = 'card-visual expired'; 
+            document.getElementById('f-uid').innerText = "N/A"; 
+            document.getElementById('f-expiry').innerText = "N/A";
+            feeBox.innerText = "$ 0"; feeBox.className = 'fee-box fee-rejected'; 
+            feeStatus.innerText = "CANNOT PROCESS - NO VEHICLE"; feeStatus.style.color = "#cc0000";
+            bgCheck.className = "bg-check bg-flag"; bgCheck.innerText = "DB CHECK: NO REGISTRY RECORD";
+            
+            // FIX: Enable the REJECT button so the user can officially deny the application and move on
+            document.getElementById('btn-approve').disabled = true; 
+            document.getElementById('btn-reject').disabled = false;
+        } else {
+            document.getElementById('f-id').innerText = currentCitizen.plate;
+            const regData = sharedData.registry[currentCitizen.plate];
+            const isWanted = regData && regData.status === 'WANTED';
+            
+            if (isWanted) {
+                bgCheck.className = "bg-check bg-flag"; bgCheck.innerText = "DB CHECK: ⚠ FLAGGED BY ENFORCEMENT";
+                document.getElementById('btn-approve').disabled = true; document.getElementById('btn-reject').disabled = false;
+                document.getElementById('f-reqtype').innerText = "APPLICANT FLAGGED";
+                feeBox.innerText = "$ 0"; feeBox.className = 'fee-box fee-rejected'; feeStatus.innerText = "ACCOUNT FROZEN"; feeStatus.style.color = "#cc0000";
+                cardVisual.className = 'card-visual expired';
+            } else {
+                bgCheck.className = "bg-check bg-clean"; bgCheck.innerText = "DB CHECK: ✓ RECORD CLEAN";
+                document.getElementById('btn-approve').disabled = false; document.getElementById('btn-reject').disabled = false;
+                
+                if (currentCitizen.isRenewal) {
+                    document.getElementById('f-reqtype').innerText = "CARD RENEWAL";
+                    cardVisual.className = `card-visual expired ${cityConfig[selectedCity].style}`;
+                    document.getElementById('f-uid').innerText = currentCitizen.existingCard.uid;
+                    document.getElementById('f-expiry').innerText = new Date(currentCitizen.expiry).toLocaleDateString('en-GB');
+                    feeBox.innerText = `$ ${cityConfig[selectedCity].renew}`; feeBox.className = 'fee-box fee-due';
+                    feeStatus.innerText = "RENEWAL FEE DUE"; feeStatus.style.color = "#b8860b";
+                } else {
+                    document.getElementById('f-reqtype').innerText = "NEW CARD ISSUANCE";
+                    cardVisual.className = `card-visual ${cityConfig[selectedCity].style}`;
+                    document.getElementById('f-uid').innerText = "PENDING ISSUANCE"; document.getElementById('f-expiry').innerText = "N/A";
+                    feeBox.innerText = `$ ${cityConfig[selectedCity].issue}`; feeBox.className = 'fee-box fee-due';
+                    feeStatus.innerText = "ISSUANCE FEE DUE"; feeStatus.style.color = "#b8860b";
+                }
+            }
+        }
+    }
+
+    function callNextCitizen() {
+        const form = document.getElementById('app-form'); 
+        const stampBox = document.getElementById('stamp-box'); 
+        playSound('call');
+        
+        if (currentCitizen && currentActionStatus) {
+            stampBox.style.opacity = '0';
+            form.className = currentActionStatus === 'approved' ? 'application-form archive-left' : 'application-form archive-right';
+            currentCitizen = null; 
+            currentActionStatus = null;
+            document.getElementById('btn-approve').disabled = true; document.getElementById('btn-reject').disabled = true;
+            setTimeout(() => { 
+                loadIntoForm(generateRandomCitizen()); 
+                if (window.innerWidth <= 768) setTimeout(() => switchTab('review'), 200); 
+            }, 400);
+        } else {
+            loadIntoForm(generateRandomCitizen());
+            if (window.innerWidth <= 768) setTimeout(() => switchTab('review'), 200);
+        }
+    }
+
+    function processAction(isApproved) {
+        if (!currentCitizen) return;
+        loadData(); 
+        const stampBox = document.getElementById('stamp-box'); 
+        playSound('stamp'); 
+
+        // Case 1: Deny / Reject Application
+        if (!isApproved) {
+            // If they had a plate, remove their card specifically for this city jurisdiction
+            const plate = currentCitizen.plate;
+            if (plate && sharedData.citizenCards[plate] && sharedData.citizenCards[plate].city === selectedCity) {
+                delete sharedData.citizenCards[plate];
+            }
+            
+            sharedData.missed = (sharedData.missed || 0) + 1; 
+            sharedData.rankPoints = Math.max(0, (sharedData.rankPoints || 0) - 2);
+            sharedData.history.push({ plate: plate || 'N/A', id: currentCitizen.dlId, action: "APPLICATION REJECTED", timestamp: new Date().toLocaleTimeString() });
+            saveData(); 
+
+            stampBox.innerText = "REJECTED"; stampBox.className = "stamp-overlay stamp-rejected"; stampBox.style.opacity = "1"; currentActionStatus = 'rejected';
+            document.getElementById('f-fee').className = 'fee-box fee-rejected'; 
+            document.getElementById('f-fee-status').innerText = "APPLICATION REJECTED"; 
+            document.getElementById('f-fee-status').style.color = "#cc0000";
+            document.getElementById('f-card-visual').className = 'card-visual expired';
+            
+            setTimeout(() => playSound('reject'), 150);
+        } 
+        // Case 2: Approve Application
+        else {
+            const plate = currentCitizen.plate;
+            // Prevent approval if there's no vehicle plate attached
+            if (!plate) return; 
+
+            const uid = currentCitizen.isRenewal ? currentCitizen.existingCard.uid : `${selectedCity.substring(0,2)}-${Math.floor(1000+Math.random()*9000)}-${Math.floor(1000+Math.random()*9000)}`;
+            const expDate = new Date(); expDate.setFullYear(expDate.getFullYear() + 1);
+            const feeAmount = currentCitizen.isRenewal ? cityConfig[selectedCity].renew : cityConfig[selectedCity].issue;
+
+            sharedData.citizenCards[plate] = { uid, name: currentCitizen.name, dlId: currentCitizen.dlId, expiry: expDate.toISOString(), type: cityConfig[selectedCity].card, city: selectedCity };
+            
+            sharedData.revenue = Math.floor((sharedData.revenue || 0) + feeAmount);
+            sharedData.valids = (sharedData.valids || 0) + 1;
+            sharedData.rankPoints = (sharedData.rankPoints || 0) + 5;
+            sharedData.history.push({ plate, id: uid, action: `CARD ${currentCitizen.isRenewal ? 'RENEWED' : 'ISSUED'} ($${feeAmount})`, timestamp: new Date().toLocaleTimeString() });
+            saveData(); 
+
+            stampBox.innerText = "PAID"; stampBox.className = "stamp-overlay stamp-approved"; stampBox.style.opacity = "1"; currentActionStatus = 'approved';
+            document.getElementById('f-fee').className = 'fee-box fee-paid'; document.getElementById('f-fee-status').innerText = "PAYMENT PROCESSED"; document.getElementById('f-fee-status').style.color = "#006400";
+            document.getElementById('f-card-visual').className = `card-visual ${cityConfig[selectedCity].style}`; document.getElementById('f-expiry').innerText = expDate.toLocaleDateString('en-GB'); document.getElementById('f-uid').innerText = uid;
+            setTimeout(() => playSound('approve'), 150);
+        }
+
+        document.getElementById('btn-approve').disabled = true; 
+        document.getElementById('btn-reject').disabled = true;
+        document.getElementById('btnCallNext').classList.add('ready-glow');
+    }
+
+    let resizeTimer; 
+    window.addEventListener('resize', () => { 
+        clearTimeout(resizeTimer); 
+        resizeTimer = setTimeout(() => { 
+            if (window.innerWidth > 768) { 
+                document.getElementById('callPanel').style.display = ''; 
+                document.getElementById('detailPanel').style.display = '';
+                document.getElementById('callPanel').classList.add('tab-active');
+                document.getElementById('detailPanel').classList.add('tab-active');
+            } else { 
+                switchTab(currentTab); 
+            } 
+        }, 150); 
+    });
+
+    loadData(); 
+    setInterval(loadData, 2000); 
+    if (window.innerWidth <= 768) switchTab('queue');
+</script>
+</body>
+</html>
