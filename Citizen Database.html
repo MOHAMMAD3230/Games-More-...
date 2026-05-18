@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#080810">
+<title>NHAI - Citizen Archival Mainframe</title>
+<style>
+    :root {
+        --bg: #080810; --panel: #0c0c18; --accent: #00d9ff; --success: #2ed573;
+        --danger: #ff0044; --warning: #ffa502; --border: #1e1e30; --gold: #ffd700;
+        --paper: #f0f0e8;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+        background-color: var(--bg); color: #ccc; font-family: 'Courier New', monospace;
+        height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    /* TOP BAR */
+    .top-bar {
+        background: #000; padding: 16px 24px; border-bottom: 2px solid var(--accent); 
+        display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; z-index: 10;
+    }
+    .top-bar h1 { font-size: clamp(0.7rem, 2.5vw, 1rem); color: var(--accent); letter-spacing: 1px; }
+    .top-bar .time { color: var(--gold); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+
+    /* STATS ROW */
+    .stats-row {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;
+        padding: 20px 24px; border-bottom: 1px solid var(--border); flex-shrink: 0; background: var(--panel);
+    }
+    .stat-box {
+        background: #000; border: 1px solid var(--border); border-radius: 6px; padding: 16px;
+        display: flex; flex-direction: column; gap: 6px; border-left: 3px solid var(--border);
+    }
+    .stat-box.s-total { border-left-color: var(--accent); }
+    .stat-box.s-valid { border-left-color: var(--success); }
+    .stat-box.s-expired { border-left-color: var(--warning); }
+    .stat-box.s-flagged { border-left-color: var(--danger); }
+    .stat-label { font-size: 0.7rem; color: #555; text-transform: uppercase; letter-spacing: 1px; }
+    .stat-value { font-size: 1.8rem; font-weight: 900; color: #fff; font-variant-numeric: tabular-nums; }
+
+    /* CONTROLS */
+    .controls {
+        display: flex; gap: 16px; padding: 20px 24px; background: var(--bg); border-bottom: 1px solid var(--border); flex-shrink: 0;
+        flex-wrap: wrap; align-items: center;
+    }
+    .search-box {
+        flex: 1; min-width: 200px; background: #000; border: 1px solid var(--border); color: #fff; padding: 12px 16px;
+        font-family: monospace; font-size: 0.9rem; outline: none; border-radius: 4px; transition: border-color 0.2s;
+    }
+    .search-box:focus { border-color: var(--accent); }
+    .search-box::placeholder { color: #333; }
+    
+    select.filter-select {
+        background: #000; border: 1px solid var(--border); color: var(--accent); padding: 12px 16px;
+        font-family: monospace; font-size: 0.9rem; outline: none; border-radius: 4px; cursor: pointer;
+    }
+
+    .btn-add {
+        background: var(--accent); color: #000; border: none; padding: 12px 24px; font-weight: bold; text-transform: uppercase;
+        font-family: monospace; font-size: 0.9rem; cursor: pointer; border-radius: 4px; transition: all 0.1s; box-shadow: 0 4px 0 #009db8;
+    }
+    .btn-add:active { transform: translateY(3px); box-shadow: 0 1px 0 #009db8; }
+
+    /* MAIN TABLE */
+    .table-container {
+        flex-grow: 1; overflow-y: auto; padding: 0 24px 24px 24px; background: var(--bg);
+    }
+    .data-table {
+        width: 100%; border-collapse: collapse; font-size: 0.85rem;
+    }
+    .data-table thead { position: sticky; top: 0; z-index: 2; background: var(--bg); }
+    .data-table th {
+        text-align: left; padding: 16px 12px; color: #555; border-bottom: 2px solid var(--border);
+        text-transform: uppercase; letter-spacing: 1px; font-size: 0.7rem;
+    }
+    .data-table td {
+        padding: 14px 12px; border-bottom: 1px solid #111; vertical-align: middle;
+    }
+    .data-table tbody tr { transition: background 0.2s; }
+    .data-table tbody tr:hover { background: rgba(0, 217, 255, 0.05); }
+
+    .status-badge {
+        padding: 4px 8px; border-radius: 3px; font-size: 0.65rem; font-weight: bold; text-transform: uppercase; display: inline-block; letter-spacing: 0.5px;
+    }
+    .s-valid { background: rgba(46,213,115,0.15); color: var(--success); border: 1px solid rgba(46,213,115,0.3); }
+    .s-expired { background: rgba(255,165,2,0.15); color: var(--warning); border: 1px solid rgba(255,165,2,0.3); }
+    .s-flagged { background: rgba(255,0,68,0.15); color: var(--danger); border: 1px solid rgba(255,0,68,0.3); }
+
+    .btn-sm {
+        background: #222; border: 1px solid #333; color: #888; padding: 6px 12px; font-family: monospace; font-size: 0.7rem; cursor: pointer; border-radius: 3px; text-transform: uppercase; margin-right: 5px; transition: 0.2s;
+    }
+    .btn-sm:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-sm.del:hover { border-color: var(--danger); color: var(--danger); }
+
+    .empty-state { text-align: center; padding: 60px 20px; color: #333; font-size: 0.9rem; }
+
+    /* MODAL */
+    .modal-overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 50;
+        display: none; justify-content: center; align-items: center; padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal-box {
+        background: var(--panel); border: 1px solid var(--accent); border-radius: 8px; width: 100%; max-width: 500px;
+        display: flex; flex-direction: column; max-height: 90vh; box-shadow: 0 0 30px rgba(0,217,255,0.1);
+    }
+    .modal-header {
+        padding: 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;
+    }
+    .modal-title { color: var(--accent); text-transform: uppercase; letter-spacing: 1px; font-size: 0.9rem; }
+    .btn-close-modal { background: none; border: 1px solid #333; color: #555; width: 30px; height: 30px; cursor: pointer; font-family: monospace; font-size: 1.2rem; transition: 0.2s; }
+    .btn-close-modal:hover { border-color: var(--danger); color: var(--danger); }
+
+    .modal-body { padding: 20px; overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; gap: 15px; }
+    
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-label { font-size: 0.75rem; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+    .form-input {
+        background: #000; border: 1px solid var(--border); color: #fff; padding: 12px; font-family: monospace; font-size: 0.9rem; border-radius: 4px; outline: none;
+    }
+    .form-input:focus { border-color: var(--accent); }
+    select.form-input { cursor: pointer; }
+
+    .modal-footer { padding: 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 15px; }
+    .btn-cancel { background: #222; border: 1px solid #333; color: #888; padding: 12px 24px; font-family: monospace; font-weight: bold; text-transform: uppercase; cursor: pointer; border-radius: 4px; }
+    .btn-save { background: var(--accent); color: #000; border: none; padding: 12px 24px; font-family: monospace; font-weight: bold; text-transform: uppercase; cursor: pointer; border-radius: 4px; box-shadow: 0 4px 0 #009db8; transition: 0.1s; }
+    .btn-save:active { transform: translateY(3px); box-shadow: 0 1px 0 #009db8; }
+
+    @media (max-width: 768px) {
+        .stats-row { padding: 12px; gap: 10px; }
+        .stat-value { font-size: 1.3rem; }
+        .controls { padding: 12px; }
+        .table-container { padding: 0 12px 12px 12px; }
+        .data-table th, .data-table td { padding: 10px 8px; font-size: 0.75rem; }
+        .hide-mobile { display: none; }
+    }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+    <h1>▸ NHAI_CITIZEN_ARCHIVE // MAINFRAME_v1.0</h1>
+    <div class="time" id="clock">00:00:00</div>
+</div>
+
+<div class="stats-row">
+    <div class="stat-box s-total">
+        <div class="stat-label">Total Records</div>
+        <div class="stat-value" id="statTotal">0</div>
+    </div>
+    <div class="stat-box s-valid">
+        <div class="stat-label">Valid Cards</div>
+        <div class="stat-value" id="statValid">0</div>
+    </div>
+    <div class="stat-box s-expired">
+        <div class="stat-label">Expired</div>
+        <div class="stat-value" id="statExpired">0</div>
+    </div>
+    <div class="stat-box s-flagged">
+        <div class="stat-label">Flagged</div>
+        <div class="stat-value" id="statFlagged">0</div>
+    </div>
+</div>
+
+<div class="controls">
+    <input type="text" class="search-box" id="searchInput" placeholder="Search Name, Plate, DL..." oninput="renderTable()">
+    <select class="filter-select" id="filterSelect" onchange="renderTable()">
+        <option value="ALL">All Status</option>
+        <option value="VALID">Valid</option>
+        <option value="EXPIRED">Expired</option>
+        <option value="FLAGGED">Flagged</option>
+    </select>
+    <button class="btn-add" onclick="openModal()">+ Add Record</button>
+</div>
+
+<div class="table-container" id="tableContainer">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Plate ID</th>
+                <th>Citizen Name</th>
+                <th class="hide-mobile">DL ID</th>
+                <th>Status</th>
+                <th class="hide-mobile">Expiry</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+    <div class="empty-state" id="emptyState" style="display:none;">
+        DATABASE EMPTY // NO RECORDS FOUND
+    </div>
+</div>
+
+<!-- ADD/EDIT MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal-box">
+        <div class="modal-header">
+            <div class="modal-title" id="modalTitle">■ New Record</div>
+            <button class="btn-close-modal" onclick="closeModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="editPlateOriginal">
+            <div class="form-group">
+                <label class="form-label">Vehicle Plate ID</label>
+                <input type="text" class="form-input" id="formPlate" placeholder="e.g. XYZ-1234" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Citizen Full Name</label>
+                <input type="text" class="form-input" id="formName" placeholder="e.g. JOHN WICK" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">DL / ID Number</label>
+                <input type="text" class="form-input" id="formDl" placeholder="e.g. DL-9982">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Card Status</label>
+                <select class="form-input" id="formStatus">
+                    <option value="VALID">VALID</option>
+                    <option value="EXPIRED">EXPIRED</option>
+                    <option value="FLAGGED">FLAGGED (WANTED)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Expiry Date</label>
+                <input type="date" class="form-input" id="formExpiry">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+            <button class="btn-save" onclick="saveRecord()">Save Record</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Completely separate database key
+    const DB_KEY = 'nhai_archive_mainframe_v1';
+    let archiveData = { registry: {}, citizenCards: {} };
+
+    function updateClock() { document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB'); }
+    setInterval(updateClock, 1000); updateClock();
+
+    function loadData() {
+        try {
+            const raw = localStorage.getItem(DB_KEY);
+            if (raw) {
+                archiveData = JSON.parse(raw);
+                if (!archiveData.registry) archiveData.registry = {};
+                if (!archiveData.citizenCards) archiveData.citizenCards = {};
+            }
+        } catch(e) { console.error("Load error:", e); }
+    }
+
+    function saveData() {
+        try { localStorage.setItem(DB_KEY, JSON.stringify(archiveData)); } catch(e) { console.error("Save error:", e); }
+    }
+
+    function updateStats() {
+        let valid = 0, expired = 0, flagged = 0;
+        const plates = Object.keys(archiveData.registry);
+        plates.forEach(plate => {
+            const reg = archiveData.registry[plate];
+            const card = archiveData.citizenCards[plate];
+            
+            // Internal logic to determine status for stats
+            if (reg.status === 'WANTED') flagged++;
+            else if (!card) expired++; // Treat no card as expired/invalid for stats
+            else if (new Date(card.expiry) < new Date()) expired++;
+            else valid++;
+        });
+
+        document.getElementById('statTotal').innerText = plates.length;
+        document.getElementById('statValid').innerText = valid;
+        document.getElementById('statExpired').innerText = expired;
+        document.getElementById('statFlagged').innerText = flagged;
+    }
+
+    function getDisplayStatus(plate) {
+        const reg = archiveData.registry[plate];
+        const card = archiveData.citizenCards[plate];
+        if (reg.status === 'WANTED') return 'FLAGGED';
+        if (!card) return 'EXPIRED';
+        if (new Date(card.expiry) < new Date()) return 'EXPIRED';
+        return 'VALID';
+    }
+
+    function renderTable() {
+        const searchVal = document.getElementById('searchInput').value.toUpperCase();
+        const filterVal = document.getElementById('filterSelect').value;
+        const tbody = document.getElementById('tableBody');
+        const emptyState = document.getElementById('emptyState');
+        
+        const plates = Object.keys(archiveData.registry);
+        let html = '';
+        let count = 0;
+
+        plates.forEach(plate => {
+            const reg = archiveData.registry[plate];
+            const card = archiveData.citizenCards[plate];
+            const status = getDisplayStatus(plate);
+
+            if (filterVal !== 'ALL' && status !== filterVal) return;
+
+            const name = reg.name || 'UNKNOWN';
+            const dlId = reg.dlId || 'N/A';
+            
+            if (searchVal) {
+                const combinedString = `${plate} ${name} ${dlId}`.toUpperCase();
+                if (!combinedString.includes(searchVal)) return;
+            }
+
+            count++;
+            let statusHtml = `<span class="status-badge s-${status.toLowerCase()}">${status}</span>`;
+            const expiryStr = card ? new Date(card.expiry).toLocaleDateString('en-GB') : 'N/A';
+
+            html += `
+                <tr>
+                    <td style="color:var(--accent); font-weight:bold;">${plate}</td>
+                    <td>${name}</td>
+                    <td class="hide-mobile">${dlId}</td>
+                    <td>${statusHtml}</td>
+                    <td class="hide-mobile">${expiryStr}</td>
+                    <td>
+                        <button class="btn-sm" onclick="openModal('${plate}')">Edit</button>
+                        <button class="btn-sm del" onclick="deleteRecord('${plate}')">Del</button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html;
+        emptyState.style.display = count === 0 ? 'block' : 'none';
+    }
+
+    function openModal(plate = null) {
+        document.getElementById('editPlateOriginal').value = plate || '';
+        
+        if (plate) {
+            // EDIT MODE
+            document.getElementById('modalTitle').innerText = '■ Edit Record';
+            document.getElementById('formPlate').value = plate;
+            document.getElementById('formPlate').disabled = true; // Can't change primary key
+            
+            const reg = archiveData.registry[plate] || {};
+            const card = archiveData.citizenCards[plate] || {};
+            
+            document.getElementById('formName').value = reg.name || '';
+            document.getElementById('formDl').value = reg.dlId || '';
+            
+            const status = getDisplayStatus(plate);
+            document.getElementById('formStatus').value = status;
+            
+            if (card && card.expiry) {
+                // Format date for input type="date"
+                const d = new Date(card.expiry);
+                const dateStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+                document.getElementById('formExpiry').value = dateStr;
+            } else {
+                document.getElementById('formExpiry').value = '';
+            }
+        } else {
+            // ADD MODE
+            document.getElementById('modalTitle').innerText = '■ New Record';
+            document.getElementById('formPlate').value = '';
+            document.getElementById('formPlate').disabled = false;
+            document.getElementById('formName').value = '';
+            document.getElementById('formDl').value = '';
+            document.getElementById('formStatus').value = 'VALID';
+            
+            // Auto set expiry to 1 year from now
+            const nextYear = new Date(); nextYear.setFullYear(nextYear.getFullYear() + 1);
+            const dateStr = nextYear.getFullYear() + '-' + String(nextYear.getMonth()+1).padStart(2,'0') + '-' + String(nextYear.getDate()).padStart(2,'0');
+            document.getElementById('formExpiry').value = dateStr;
+        }
+
+        document.getElementById('modalOverlay').classList.add('open');
+    }
+
+    function closeModal() {
+        document.getElementById('modalOverlay').classList.remove('open');
+    }
+
+    function saveRecord() {
+        const originalPlate = document.getElementById('editPlateOriginal').value;
+        const plate = document.getElementById('formPlate').value.toUpperCase().trim();
+        const name = document.getElementById('formName').value.toUpperCase().trim();
+        const dlId = document.getElementById('formDl').value.toUpperCase().trim();
+        const status = document.getElementById('formStatus').value;
+        const expiry = document.getElementById('formExpiry').value;
+
+        if (!plate || !name) {
+            alert("Plate ID and Name are required.");
+            return;
+        }
+
+        // If adding new, check if plate exists
+        if (!originalPlate && archiveData.registry[plate]) {
+            alert("Plate ID already exists in database.");
+            return;
+        }
+
+        // Build Registry Record
+        archiveData.registry[plate] = { name, dlId, status: status === 'FLAGGED' ? 'WANTED' : 'CLEAR' };
+
+        // Build Card Record
+        if (status !== 'FLAGGED' && expiry) {
+            archiveData.citizenCards[plate] = {
+                uid: `ARCH-${Math.floor(1000+Math.random()*9000)}`,
+                name: name,
+                dlId: dlId,
+                expiry: new Date(expiry).toISOString(),
+                type: "ARCHIVE CARD",
+                city: "MAINFRAME"
+            };
+        } else if (status === 'FLAGGED') {
+            // Remove card if flagged
+            delete archiveData.citizenCards[plate];
+        } else {
+            // Keep existing card if not changing expiry
+            if (!archiveData.citizenCards[plate]) {
+                const nextYear = new Date(); nextYear.setFullYear(nextYear.getFullYear() + 1);
+                archiveData.citizenCards[plate] = {
+                    uid: `ARCH-${Math.floor(1000+Math.random()*9000)}`,
+                    name: name, dlId: dlId, expiry: nextYear.toISOString(), type: "ARCHIVE CARD", city: "MAINFRAME"
+                };
+            }
+        }
+
+        saveData();
+        updateStats();
+        renderTable();
+        closeModal();
+    }
+
+    function deleteRecord(plate) {
+        if (confirm(`PERMANENTLY DELETE RECORD: ${plate}?`)) {
+            delete archiveData.registry[plate];
+            delete archiveData.citizenCards[plate];
+            saveData();
+            updateStats();
+            renderTable();
+        }
+    }
+
+    // --- INIT ---
+    loadData();
+    updateStats();
+    renderTable();
+</script>
+</body>
+</html>
