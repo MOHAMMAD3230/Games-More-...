@@ -69,20 +69,24 @@
     }
 
     .call-panel { justify-content: center; align-items: center; gap: 20px; }
-    .terminal-art { font-size: 0.75rem; color: #555; text-align: center; line-height: 1.6; }
+    .terminal-art { font-size: 0.75rem; color: #555; text-align: center; line-height: 1.6; transition: color 0.3s; }
     .city-info-box { background: #000; border: 1px solid var(--border); border-radius: 4px; padding: 12px; width: 100%; font-size: 0.8rem; color: var(--gold); text-align: center; }
 
     .btn-next-mega {
         background: linear-gradient(145deg, var(--gold), #b8960f); color: #000; border: none;
         padding: 30px 20px; font-weight: 900; text-transform: uppercase; font-size: 1.2rem;
         cursor: pointer; box-shadow: 0 8px 0 #6b5600, 0 15px 30px rgba(0,0,0,0.5);
-        transition: all 0.1s; font-family: monospace; width: 100%; border-radius: 4px; min-height: 48px;
+        transition: all 0.1s; font-family: monospace; width: 100%; border-radius: 4px; min-height: 48px; position: relative; overflow: hidden;
     }
-    .btn-next-mega:active { transform: translateY(6px); box-shadow: 0 2px 0 #6b5600; }
+    .btn-next-mega:active:not(:disabled) { transform: translateY(6px); box-shadow: 0 2px 0 #6b5600; }
     .btn-next-mega.ready-glow {
         box-shadow: 0 8px 0 #6b5600, 0 0 25px rgba(255, 215, 0, 0.6); animation: readyPulse 2s infinite;
     }
     .btn-next-mega:disabled { background: #333; color: #666; box-shadow: 0 8px 0 #111; cursor: not-allowed; animation: none; }
+    .queue-badge {
+        position: absolute; top: 8px; right: 8px; background: var(--danger); color: #fff; width: 24px; height: 24px;
+        border-radius: 50%; font-size: 0.8rem; display: none; align-items: center; justify-content: center;
+    }
     @keyframes readyPulse {
         0% { box-shadow: 0 8px 0 #6b5600, 0 0 15px rgba(255, 215, 0, 0.4); }
         50% { box-shadow: 0 8px 0 #6b5600, 0 0 30px rgba(255, 215, 0, 0.8); }
@@ -128,6 +132,12 @@
     .fee-paid { color: #006400; border-color: #006400; }
     .fee-rejected { color: #cc0000; border-color: #cc0000; }
 
+    .receipt-box {
+        margin-top: 10px; padding: 10px; border: 2px dashed #006400; background: #f0fff0; font-size: 0.85rem;
+        display: none; animation: fadeSlideUp 0.4s ease forwards;
+    }
+    .receipt-row { display: flex; justify-content: space-between; margin-bottom: 4px; border-bottom: 1px dotted #ccc; padding-bottom: 2px; }
+
     .stamp-overlay {
         position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg);
         font-size: 4rem; font-weight: 900; border: 8px solid; padding: 10px 30px; opacity: 0; z-index: 5; pointer-events: none; transition: opacity 0.2s;
@@ -142,7 +152,7 @@
         font-size: 0.85rem; box-shadow: 0 3px 0 #000; transition: all 0.1s; font-family: monospace; background: #333; color: #fff; flex: 1;
         border-radius: 4px; min-height: 48px; display: flex; align-items: center; justify-content: center;
     }
-    .mech-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #000; }
+    .mech-btn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 #000; }
     .mech-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; background: #222; }
     .btn-approve { background: var(--gold); color: #000; box-shadow: 0 3px 0 #6b5600; }
     .btn-reject { background: var(--danger); color: #fff; box-shadow: 0 3px 0 #cc2233; }
@@ -151,14 +161,24 @@
     .bg-clean { color: #009900; border-color: #009900; background: #0a1a0a; }
     .bg-flag { color: var(--danger); border-color: var(--danger); background: #1a0a0a; }
 
+    @keyframes fadeSlideUp {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
     /* ===== MOBILE TAB SWITCHER ===== */
     .mobile-tabs { display: none; background: var(--panel); border-bottom: 1px solid var(--border); flex-shrink: 0; }
     .mobile-tabs button {
         flex: 1; background: none; border: none; color: #666; padding: 12px; font-family: monospace;
-        font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s;
+        font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; position: relative;
     }
     .mobile-tabs button.active { color: var(--gold); border-bottom-color: var(--gold); }
     .mobile-tabs button:active { background: rgba(255,215,0,0.05); }
+    .tab-dot { 
+        position: absolute; top: 8px; right: 20px; width: 6px; height: 6px; background: var(--success); border-radius: 50%; display: none;
+    }
+    .tab-dot.active { display: block; animation: dotPulse 2s infinite; }
+    @keyframes dotPulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
 
     /* ===== RESPONSIVE ===== */
     @media (max-width: 1024px) and (min-width: 769px) {
@@ -216,10 +236,9 @@
     </select>
 </div>
 
-<!-- Mobile Tab Switcher -->
 <div class="mobile-tabs" id="mobileTabs">
-    <button class="active" onclick="switchTab('queue')" id="tabQueue">⊕ Queue</button>
-    <button onclick="switchTab('review')" id="tabReview">▮ Billing</button>
+    <button class="active" onclick="switchTab('queue')" id="tabQueue">⊕ Queue <span class="tab-dot" id="dotQueue"></span></button>
+    <button onclick="switchTab('review')" id="tabReview">▮ Billing <span class="tab-dot" id="dotReview"></span></button>
 </div>
 
 <div class="main-grid">
@@ -230,12 +249,15 @@
             ISSUE FEE: $500 | RENEW FEE: $750<br>
             CARD TYPE: GREEN CARD
         </div>
-        <div class="terminal-art">
+        <div class="terminal-art" id="terminalArt">
             ► SYSTEM READY<br>
             ► CITIZEN DATABASE: ACTIVE<br>
             ► AWAITING OFFICER INPUT
         </div>
-        <button class="btn-next-mega ready-glow" id="btnCallNext" onclick="callNextCitizen()">CALL NEXT CITIZEN</button>
+        <button class="btn-next-mega ready-glow" id="btnCallNext" onclick="callNextCitizen()">
+            CALL NEXT CITIZEN
+            <div class="queue-badge" id="queueBadge">0</div>
+        </button>
         <div style="font-size: 0.7rem; color: #555; text-align: center;">Press button to pull pending citizen record</div>
     </div>
 
@@ -263,6 +285,13 @@
                 <div style="margin-top:5px; font-weight:bold; text-decoration:underline;">BILLING AMOUNT:</div>
                 <div class="fee-box fee-due" id="f-fee">$ 0</div>
                 <div style="text-align:center; font-size:0.8rem; margin-top:2px;" id="f-fee-status">AWAITING PAYMENT</div>
+                
+                <div class="receipt-box" id="f-receipt">
+                    <div style="text-align:center; font-weight:bold; margin-bottom:8px; text-transform:uppercase; letter-spacing:1px;">♦ Receipt Confirmed ♦</div>
+                    <div class="receipt-row"><span>Transaction ID:</span> <span id="rcpt-txid">---</span></div>
+                    <div class="receipt-row"><span>Amount Paid:</span> <span id="rcpt-amount">$0</span></div>
+                    <div class="receipt-row"><span>Timestamp:</span> <span id="rcpt-time">---</span></div>
+                </div>
             </div>
         </div>
 
@@ -285,6 +314,7 @@
     let currentCitizen = null;
     let currentActionStatus = null;
     let currentTab = 'queue';
+    let pendingQueue = 0;
 
     const cityConfig = {
         'METRO_CITY': { issue: 500, renew: 750, name: "METRO CITY", card: "GREEN CARD", style: "" },
@@ -293,8 +323,8 @@
     };
     let selectedCity = 'METRO_CITY';
 
-    const firstNames = ["JOHN", "MARIA", "ALEX", "SANJI", "LEILA", "OMAR", "CHEN", "RYUK", "PRIYA", "JINX"];
-    const lastNames = ["WICK", "SOTO", "CHEN", "CARTER", "VALENCIA", "NAKAMURA", "PETROV", "SINGH", "MERCER", "DIAZ"];
+    const firstNames = ["JOHN", "MARIA", "ALEX", "SANJI", "LEILA", "OMAR", "CHEN", "RYUK", "PRIYA", "JINX", "KAI", "SARA"];
+    const lastNames = ["WICK", "SOTO", "CHEN", "CARTER", "VALENCIA", "NAKAMURA", "PETROV", "SINGH", "MERCER", "DIAZ", "O'NEIL", "KOJO"];
 
     const LS_D1_KEY = 'enforcementTerminalV23_D1';
     const LS_D2_KEY = 'enforcementTerminalV23_TOLL';
@@ -302,12 +332,29 @@
     function updateClock() { document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB'); }
     setInterval(updateClock, 1000); updateClock();
 
+    function updateTerminalArt(status) {
+        const el = document.getElementById('terminalArt');
+        if (status === 'ready') {
+            el.innerHTML = '► SYSTEM READY<br>► CITIZEN DATABASE: ACTIVE<br>► AWAITING OFFICER INPUT';
+            el.style.color = '#555';
+        } else if (status === 'processing') {
+            el.innerHTML = '► PROCESSING RECORD...<br>► BILLING MODULE: STANDBY<br>► VERIFICATION PENDING';
+            el.style.color = '#00d9ff'; // Fixed JS syntax error
+        } else if (status === 'syncing') {
+            el.innerHTML = '► SYNCING LOCAL CACHE...<br>► REGISTRY CONNECTED<br>► DB INTEGRITY CHECK: PASS';
+            el.style.color = '#2ed573'; // Fixed JS syntax error
+        }
+    }
+
     function switchTab(tab) {
         currentTab = tab;
         document.getElementById('callPanel').classList.toggle('tab-active', tab === 'queue');
         document.getElementById('detailPanel').classList.toggle('tab-active', tab === 'review');
         document.getElementById('tabQueue').classList.toggle('active', tab === 'queue');
         document.getElementById('tabReview').classList.toggle('active', tab === 'review');
+        
+        document.getElementById('dotQueue').classList.toggle('active', tab === 'queue' && currentCitizen && !currentActionStatus);
+        document.getElementById('dotReview').classList.toggle('active', tab === 'review' && currentCitizen && !currentActionStatus);
     }
 
     function changeCity() {
@@ -363,16 +410,40 @@
         else { badge.innerText = "● OFFLINE"; badge.className = "sync-badge offline"; }
     }
 
+    // Audio Context 
     let audioCtx = null;
-    function getAudioCtx() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === 'suspended') audioCtx.resume(); return audioCtx; }
+    function getAudioCtx() { 
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); 
+        if (audioCtx.state === 'suspended') audioCtx.resume(); 
+        return audioCtx; 
+    }
+    
     function playSound(type) {
-        try { const ctx = getAudioCtx(); const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.connect(gain); gain.connect(ctx.destination); const t = ctx.currentTime;
-            if(type==='call'){osc.type='sine';osc.frequency.setValueAtTime(600,t);osc.frequency.setValueAtTime(800,t+0.1);osc.frequency.setValueAtTime(1000,t+0.2);gain.gain.setValueAtTime(0.15,t);gain.gain.exponentialRampToValueAtTime(0.01,t+0.3);osc.start(t);osc.stop(t+0.3);}
-            else if(type==='approve'){osc.type='sine';osc.frequency.setValueAtTime(800,t);osc.frequency.setValueAtTime(1100,t+0.1);osc.frequency.setValueAtTime(1400,t+0.2);gain.gain.setValueAtTime(0.15,t);gain.gain.exponentialRampToValueAtTime(0.01,t+0.3);osc.start(t);osc.stop(t+0.3);}
-            else if(type==='reject'){osc.type='sawtooth';osc.frequency.setValueAtTime(400,t);osc.frequency.exponentialRampToValueAtTime(100,t+0.3);gain.gain.setValueAtTime(0.15,t);gain.gain.exponentialRampToValueAtTime(0.01,t+0.35);osc.start(t);osc.stop(t+0.35);}
-            else if(type==='stamp'){osc.type='triangle';osc.frequency.setValueAtTime(150,t);gain.gain.setValueAtTime(0.3,t);gain.gain.exponentialRampToValueAtTime(0.01,t+0.1);osc.start(t);osc.stop(t+0.1);}
+        try { 
+            const ctx = getAudioCtx(); 
+            const osc = ctx.createOscillator(); 
+            const gain = ctx.createGain(); 
+            osc.connect(gain); gain.connect(ctx.destination); 
+            const t = ctx.currentTime;
+            if(type==='call'){
+                osc.type='sine';osc.frequency.setValueAtTime(600,t);osc.frequency.setValueAtTime(800,t+0.1);osc.frequency.setValueAtTime(1000,t+0.2);
+                gain.gain.setValueAtTime(0.15,t);gain.gain.exponentialRampToValueAtTime(0.01,t+0.3);osc.start(t);osc.stop(t+0.3);
+            } else if(type==='approve'){
+                osc.type='sine';osc.frequency.setValueAtTime(800,t);osc.frequency.setValueAtTime(1100,t+0.1);osc.frequency.setValueAtTime(1400,t+0.2);
+                gain.gain.setValueAtTime(0.15,t);gain.gain.exponentialRampToValueAtTime(0.01,t+0.3);osc.start(t);osc.stop(t+0.3);
+            } else if(type==='reject'){
+                osc.type='sawtooth';osc.frequency.setValueAtTime(400,t);osc.frequency.exponentialRampToValueAtTime(100,t+0.3);
+                gain.gain.setValueAtTime(0.15,t);gain.gain.exponentialRampToValueAtTime(0.01,t+0.35);osc.start(t);osc.stop(t+0.35);
+            } else if(type==='stamp'){
+                osc.type='triangle';osc.frequency.setValueAtTime(150,t);
+                gain.gain.setValueAtTime(0.3,t);gain.gain.exponentialRampToValueAtTime(0.01,t+0.1);osc.start(t);osc.stop(t+0.1);
+            }
         } catch(e) {}
     }
+
+    // Initialize audio on first touch/click to bypass browser autoplay restrictions
+    document.body.addEventListener('touchstart', function() { getAudioCtx(); }, { once: true });
+    document.body.addEventListener('click', function() { getAudioCtx(); }, { once: true });
 
     function generateRandomCitizen() {
         const fName = firstNames[Math.floor(Math.random()*firstNames.length)];
@@ -406,12 +477,7 @@
         }
 
         return { 
-            name: citizenName, 
-            dlId: citizenDlId, 
-            plate, 
-            isRenewal, 
-            existingCard, 
-            expiry: expiryDate.toISOString() 
+            name: citizenName, dlId: citizenDlId, plate, isRenewal, existingCard, expiry: expiryDate.toISOString() 
         };
     }
 
@@ -422,6 +488,8 @@
         form.className = 'application-form active'; 
         
         document.getElementById('stamp-box').style.opacity = '0';
+        document.getElementById('f-receipt').style.display = 'none'; 
+        
         document.getElementById('f-name').innerText = currentCitizen.name;
         document.getElementById('f-city').innerText = cityConfig[selectedCity].name;
 
@@ -429,8 +497,11 @@
         const feeBox = document.getElementById('f-fee');
         const feeStatus = document.getElementById('f-fee-status');
         const bgCheck = document.getElementById('f-bgcheck');
+        const btnNext = document.getElementById('btnCallNext');
         
-        document.getElementById('btnCallNext').classList.remove('ready-glow');
+        btnNext.classList.remove('ready-glow');
+        btnNext.disabled = true; 
+        updateTerminalArt('processing');
 
         if (!currentCitizen.plate) {
             document.getElementById('f-id').innerText = "UNREGISTERED";
@@ -442,7 +513,6 @@
             feeStatus.innerText = "CANNOT PROCESS - NO VEHICLE"; feeStatus.style.color = "#cc0000";
             bgCheck.className = "bg-check bg-flag"; bgCheck.innerText = "DB CHECK: NO REGISTRY RECORD";
             
-            // FIX: Enable the REJECT button so the user can officially deny the application and move on
             document.getElementById('btn-approve').disabled = true; 
             document.getElementById('btn-reject').disabled = false;
         } else {
@@ -476,6 +546,7 @@
                 }
             }
         }
+        switchTab(currentTab); 
     }
 
     function callNextCitizen() {
@@ -489,11 +560,12 @@
             currentCitizen = null; 
             currentActionStatus = null;
             document.getElementById('btn-approve').disabled = true; document.getElementById('btn-reject').disabled = true;
+            
             setTimeout(() => { 
                 loadIntoForm(generateRandomCitizen()); 
                 if (window.innerWidth <= 768) setTimeout(() => switchTab('review'), 200); 
             }, 400);
-        } else {
+        } else if (!currentCitizen) {
             loadIntoForm(generateRandomCitizen());
             if (window.innerWidth <= 768) setTimeout(() => switchTab('review'), 200);
         }
@@ -505,9 +577,7 @@
         const stampBox = document.getElementById('stamp-box'); 
         playSound('stamp'); 
 
-        // Case 1: Deny / Reject Application
         if (!isApproved) {
-            // If they had a plate, remove their card specifically for this city jurisdiction
             const plate = currentCitizen.plate;
             if (plate && sharedData.citizenCards[plate] && sharedData.citizenCards[plate].city === selectedCity) {
                 delete sharedData.citizenCards[plate];
@@ -525,16 +595,14 @@
             document.getElementById('f-card-visual').className = 'card-visual expired';
             
             setTimeout(() => playSound('reject'), 150);
-        } 
-        // Case 2: Approve Application
-        else {
+        } else {
             const plate = currentCitizen.plate;
-            // Prevent approval if there's no vehicle plate attached
             if (!plate) return; 
 
             const uid = currentCitizen.isRenewal ? currentCitizen.existingCard.uid : `${selectedCity.substring(0,2)}-${Math.floor(1000+Math.random()*9000)}-${Math.floor(1000+Math.random()*9000)}`;
             const expDate = new Date(); expDate.setFullYear(expDate.getFullYear() + 1);
             const feeAmount = currentCitizen.isRenewal ? cityConfig[selectedCity].renew : cityConfig[selectedCity].issue;
+            const txId = `TX-${Math.floor(Math.random()*90000) + 10000}`;
 
             sharedData.citizenCards[plate] = { uid, name: currentCitizen.name, dlId: currentCitizen.dlId, expiry: expDate.toISOString(), type: cityConfig[selectedCity].card, city: selectedCity };
             
@@ -545,15 +613,42 @@
             saveData(); 
 
             stampBox.innerText = "PAID"; stampBox.className = "stamp-overlay stamp-approved"; stampBox.style.opacity = "1"; currentActionStatus = 'approved';
-            document.getElementById('f-fee').className = 'fee-box fee-paid'; document.getElementById('f-fee-status').innerText = "PAYMENT PROCESSED"; document.getElementById('f-fee-status').style.color = "#006400";
-            document.getElementById('f-card-visual').className = `card-visual ${cityConfig[selectedCity].style}`; document.getElementById('f-expiry').innerText = expDate.toLocaleDateString('en-GB'); document.getElementById('f-uid').innerText = uid;
+            document.getElementById('f-fee').className = 'fee-box fee-paid'; 
+            document.getElementById('f-fee-status').innerText = "PAYMENT PROCESSED"; document.getElementById('f-fee-status').style.color = "#006400";
+            document.getElementById('f-card-visual').className = `card-visual ${cityConfig[selectedCity].style}`; 
+            document.getElementById('f-expiry').innerText = expDate.toLocaleDateString('en-GB'); 
+            document.getElementById('f-uid').innerText = uid;
+            
+            // Generate Receipt
+            const receiptBox = document.getElementById('f-receipt');
+            document.getElementById('rcpt-txid').innerText = txId;
+            document.getElementById('rcpt-amount').innerText = `$${feeAmount}`;
+            document.getElementById('rcpt-time').innerText = new Date().toLocaleTimeString('en-GB');
+            receiptBox.style.display = 'block';
+            
             setTimeout(() => playSound('approve'), 150);
         }
 
         document.getElementById('btn-approve').disabled = true; 
         document.getElementById('btn-reject').disabled = true;
-        document.getElementById('btnCallNext').classList.add('ready-glow');
+        
+        const btnNext = document.getElementById('btnCallNext');
+        btnNext.disabled = false; 
+        btnNext.classList.add('ready-glow');
+        updateTerminalArt('ready');
+        switchTab(currentTab);
     }
+
+    // Simulate random queue arrivals for immersion
+    setInterval(() => {
+        if (Math.random() > 0.7) {
+            pendingQueue++;
+            const badge = document.getElementById('queueBadge');
+            badge.innerText = pendingQueue;
+            badge.style.display = 'flex';
+            setTimeout(() => { badge.style.display = 'none'; }, 3000);
+        }
+    }, 8000);
 
     let resizeTimer; 
     window.addEventListener('resize', () => { 
@@ -573,6 +668,8 @@
     loadData(); 
     setInterval(loadData, 2000); 
     if (window.innerWidth <= 768) switchTab('queue');
+    
+    updateTerminalArt('ready');
 </script>
 </body>
 </html>
