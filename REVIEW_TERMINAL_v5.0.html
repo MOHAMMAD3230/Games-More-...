@@ -103,7 +103,7 @@
     .score-pass { color: #006400; border-color: #006400; }
     .score-fail { color: var(--danger); border-color: var(--danger); }
 
-    .bg-check { padding: 8px; background: #111; color: #fff; font-size: 0.8rem; text-align: center; border: 1px solid #333; }
+    .bg-check { padding: 8px; background: #111; color: #fff; font-size: 0.8rem; text-align: center; border: 1px solid #333; margin-top: 5px; }
     .bg-clean { color: #009900; border-color: #009900; background: #0a1a0a; }
     .bg-flag { color: var(--danger); border-color: var(--danger); background: #1a0a0a; animation: pulse 1s infinite; }
 
@@ -114,7 +114,8 @@
     .stamp-approved { color: #008000; border-color: #008000; }
     .stamp-rejected { color: #cc0000; border-color: #cc0000; }
 
-    .action-panel { display: flex; gap: 15px; flex-shrink: 0; padding-top: 15px; }
+    .action-panel { display: flex; gap: 10px; flex-shrink: 0; padding-top: 15px; flex-wrap: wrap; }
+    .action-group { display: flex; gap: 15px; flex: 1; min-width: 200px; }
 
     .mech-btn {
         padding: 14px; border: 2px solid #000; cursor: pointer; font-weight: bold; text-transform: uppercase;
@@ -125,6 +126,7 @@
     .mech-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; background: #222; }
     .btn-approve { background: var(--success); color: #000; box-shadow: 0 3px 0 #1e9e55; }
     .btn-reject { background: var(--danger); color: #fff; box-shadow: 0 3px 0 #cc2233; }
+    .btn-transfer { background: var(--accent); color: #000; box-shadow: 0 3px 0 #007a8a; flex: 1.5; }
 
     @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
 
@@ -246,6 +248,7 @@
                 <div class="form-row"><span class="form-label">APPLICANT NAME:</span> <span id="f-name">---</span></div>
                 <div class="form-row"><span class="form-label">VEHICLE CLASS:</span> <span id="f-class">---</span></div>
                 <div class="form-row"><span class="form-label">REQUESTED PLATE:</span> <span id="f-plate" style="color:#cc0000; font-weight:bold;">---</span></div>
+                <div class="form-row" id="card-row"><span class="form-label">CITIZEN CARD #:</span> <span id="f-card-uid" style="font-weight:bold;">---</span></div>
                 
                 <div style="margin-top:5px; font-weight:bold; text-decoration:underline;">TEST RESULTS:</div>
                 <div class="score-box" id="f-score">-- / 100</div>
@@ -256,8 +259,11 @@
         </div>
 
         <div class="action-panel">
-            <button class="mech-btn btn-approve" id="btn-approve" onclick="processApplication(true)" disabled>APPROVE REGISTRY</button>
-            <button class="mech-btn btn-reject" id="btn-reject" onclick="processApplication(false)" disabled>REJECT APPLICATION</button>
+            <div class="action-group">
+                <button class="mech-btn btn-approve" id="btn-approve" onclick="processApplication(true)" disabled>APPROVE REGISTRY</button>
+                <button class="mech-btn btn-reject" id="btn-reject" onclick="processApplication(false)" disabled>REJECT APPLICATION</button>
+            </div>
+            <button class="mech-btn btn-transfer" id="btn-transfer" onclick="transferToCitizenRegistry()" disabled>⬇ TRANSFER TO CITIZEN REGISTRY</button>
         </div>
     </div>
 </div>
@@ -267,7 +273,8 @@
         revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0,
         history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null,
         activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [],
-        ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: []
+        ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [],
+        citizenCards: {}
     };
 
     let currentApplicant = null;
@@ -325,7 +332,7 @@
                 registry: {}, history: [], activeInmates: [], releasedInmates: [],
                 inbox: [], sentMail: [], call911Logs: [], forgedAliases: {},
                 nextSpawnOverride: null, ledgerCashouts: [], intelFlags: [],
-                paroleRecords: [], iaViolations: [], rehabPrograms: []
+                paroleRecords: [], iaViolations: [], rehabPrograms: [], citizenCards: {}
             };
 
             if (d1Data) {
@@ -333,6 +340,7 @@
                 if (d1Data.registry) Object.assign(mergedData.registry, d1Data.registry);
                 if (d1Data.activeInmates) mergedData.activeInmates = d1Data.activeInmates;
                 if (d1Data.releasedInmates) mergedData.releasedInmates = d1Data.releasedInmates;
+                if (d1Data.citizenCards) Object.assign(mergedData.citizenCards, d1Data.citizenCards);
             }
 
             if (d2Data) {
@@ -343,6 +351,7 @@
                 mergedData.rankPoints = Math.max(mergedData.rankPoints || 0, d2Data.rankPoints || 0);
 
                 if (d2Data.registry) Object.assign(mergedData.registry, d2Data.registry);
+                if (d2Data.citizenCards) Object.assign(mergedData.citizenCards, d2Data.citizenCards);
 
                 if (d2Data.history) {
                     mergedData.history = d2Data.history.concat(mergedData.history).filter((v, i, a) =>
@@ -365,6 +374,7 @@
 
             // Ensure sub-keys
             if (!mergedData.registry) mergedData.registry = {};
+            if (!mergedData.citizenCards) mergedData.citizenCards = {};
             if (!mergedData.forgedAliases) mergedData.forgedAliases = {};
             if (mergedData.nextSpawnOverride === undefined) mergedData.nextSpawnOverride = null;
             if (!mergedData.activeInmates) mergedData.activeInmates = [];
@@ -460,6 +470,14 @@
                     gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
                     osc.start(t); osc.stop(t + 0.1);
                     break;
+                case 'transfer':
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(900, t);
+                    osc.frequency.setValueAtTime(1200, t + 0.15);
+                    gain.gain.setValueAtTime(0.2, t);
+                    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+                    osc.start(t); osc.stop(t + 0.3);
+                    break;
             }
         } catch(e) { /* Audio not available */ }
     }
@@ -468,11 +486,20 @@
     function generateRandomApplicant() {
         const fName = firstNames[Math.floor(Math.random()*firstNames.length)];
         const lName = lastNames[Math.floor(Math.random()*lastNames.length)];
-        const plate = prefixes[Math.floor(Math.random()*prefixes.length)] + "-" + Math.floor(1000+Math.random()*9000);
         const classes = ["LVM_CLASS_1", "HVM_CLASS_2", "GOV_CLASS_0"];
         const vClass = classes[Math.floor(Math.random()*classes.length)];
         const score = Math.floor(Math.random() * 101); 
         const isFlagged = Math.random() < 0.2; 
+        
+        let plate;
+        const cardsPlates = Object.keys(sharedData.citizenCards || {});
+        
+        // 40% chance to use a plate that has an existing Citizen Card (if any exist)
+        if (cardsPlates.length > 0 && Math.random() < 0.4) {
+            plate = cardsPlates[Math.floor(Math.random() * cardsPlates.length)];
+        } else {
+            plate = prefixes[Math.floor(Math.random()*prefixes.length)] + "-" + Math.floor(1000+Math.random()*9000);
+        }
 
         return {
             name: `${fName} ${lName}`,
@@ -496,6 +523,28 @@
         document.getElementById('f-name').innerText = currentApplicant.name;
         document.getElementById('f-class').innerText = currentApplicant.vClass;
         document.getElementById('f-plate').innerText = currentApplicant.plate;
+
+        // --- SYNCED CITIZEN CARD DATA & BUTTON LOGIC ---
+        const cardUidSpan = document.getElementById('f-card-uid');
+        const btnTransfer = document.getElementById('btn-transfer');
+        
+        const citizenCards = sharedData.citizenCards || {};
+        const cardData = citizenCards[currentApplicant.plate];
+        
+        if (cardData && cardData.uid) {
+            // Applicant has an existing synced Citizen Card
+            cardUidSpan.innerText = cardData.uid;
+            cardUidSpan.style.color = '#006400'; // Green for existing
+            btnTransfer.disabled = true;
+            btnTransfer.innerText = "✓ REGISTRY SYNCED";
+        } else {
+            // Applicant is new, no Card ID yet
+            cardUidSpan.innerText = "PENDING ISSUANCE";
+            cardUidSpan.style.color = '#666'; // Grey for pending
+            btnTransfer.disabled = false;
+            btnTransfer.innerText = "⬇ TRANSFER TO CITIZEN REGISTRY";
+        }
+        // ---------------------------------
         
         const scoreBox = document.getElementById('f-score');
         const scoreStatus = document.getElementById('f-score-status');
@@ -549,7 +598,6 @@
             setTimeout(() => {
                 const newApplicant = generateRandomApplicant();
                 loadIntoForm(newApplicant);
-                // Auto-switch to review tab on mobile
                 if (window.innerWidth <= 768) {
                     setTimeout(() => switchTab('review'), 200);
                 }
@@ -557,10 +605,51 @@
         } else {
             const newApplicant = generateRandomApplicant();
             loadIntoForm(newApplicant);
-            // Auto-switch to review tab on mobile
             if (window.innerWidth <= 768) {
                 setTimeout(() => switchTab('review'), 200);
             }
+        }
+    }
+
+    /* ===== TRANSFER TO CITIZEN REGISTRY ===== */
+    function transferToCitizenRegistry() {
+        if (!currentApplicant) return;
+        loadData();
+
+        const citizenCards = sharedData.citizenCards || {};
+        
+        // Only transfer if they don't already have a card
+        if (!citizenCards[currentApplicant.plate]) {
+            const newUid = `LIC-${Math.floor(1000+Math.random()*9000)}-${Math.floor(1000+Math.random()*9000)}`;
+            const expDate = new Date(); 
+            expDate.setFullYear(expDate.getFullYear() + 1);
+            
+            sharedData.citizenCards[currentApplicant.plate] = {
+                uid: newUid,
+                name: currentApplicant.name,
+                dlId: "DL-AUTH-PENDING", // Will be updated to real DL-AUTH-XXXX if Approved
+                expiry: expDate.toISOString(),
+                type: "STANDARD REGISTRY CARD",
+                city: "LICENSING_AUTH_TRANSFER"
+            };
+            
+            sharedData.history.push({ 
+                plate: currentApplicant.plate, 
+                id: newUid, 
+                action: "TRANSFERRED TO CITIZEN REGISTRY", 
+                timestamp: new Date().toLocaleTimeString() 
+            });
+
+            saveData();
+            playSound('transfer');
+
+            // Update Form UI
+            document.getElementById('f-card-uid').innerText = newUid;
+            document.getElementById('f-card-uid').style.color = '#006400';
+            
+            const btnTransfer = document.getElementById('btn-transfer');
+            btnTransfer.disabled = true;
+            btnTransfer.innerText = "✓ TRANSFERRED SUCCESSFULLY";
         }
     }
 
@@ -573,6 +662,7 @@
 
         if (isApproved) {
             const newID = "DL-AUTH-" + Math.floor(1000+Math.random()*9000);
+            
             sharedData.registry[currentApplicant.plate] = {
                 id: newID,
                 vClass: currentApplicant.vClass,
@@ -581,6 +671,12 @@
                 d5Score: currentApplicant.score,
                 d5Status: currentApplicant.score >= 70 ? 'APPROVED' : 'REJECTED'
             };
+
+            // If they were transferred earlier, update their DL ID in the citizenCards database
+            const citizenCards = sharedData.citizenCards || {};
+            if (citizenCards[currentApplicant.plate]) {
+                sharedData.citizenCards[currentApplicant.plate].dlId = newID;
+            }
             
             sharedData.history.push({ 
                 plate: currentApplicant.plate, 
