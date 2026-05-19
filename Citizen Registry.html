@@ -415,14 +415,12 @@
                 if (d2Data.activeInmates && d2Data.activeInmates.length > mergedData.activeInmates.length) mergedData.activeInmates = d2Data.activeInmates; 
                 if (d2Data.releasedInmates && d2Data.releasedInmates.length > (mergedData.releasedInmates || []).length) mergedData.releasedInmates = d2Data.releasedInmates; 
                 
-                // Ensure D2 sub-arrays exist if D1 didn't have them
                 if (!mergedData.call911Logs && d2Data.call911Logs) mergedData.call911Logs = d2Data.call911Logs;
                 if (!mergedData.paroleRecords && d2Data.paroleRecords) mergedData.paroleRecords = d2Data.paroleRecords;
                 if (!mergedData.rehabPrograms && d2Data.rehabPrograms) mergedData.rehabPrograms = d2Data.rehabPrograms;
                 if (!mergedData.forgedAliases && d2Data.forgedAliases) mergedData.forgedAliases = d2Data.forgedAliases;
             }
 
-            // Ensure all sub-keys exist to prevent undefined errors
             if (!mergedData.registry) mergedData.registry = {};
             if (!mergedData.citizenCards) mergedData.citizenCards = {};
             if (!mergedData.history) mergedData.history = [];
@@ -460,7 +458,15 @@
         else { badge.innerText = "● OFFLINE"; badge.className = "sync-badge offline"; }
     }
 
-    // Audio Context 
+    /* ===== CROSS-TAB REAL-TIME SYNC ===== */
+    window.addEventListener('storage', (event) => {
+        if (event.key === LS_D1_KEY || event.key === LS_D2_KEY) {
+            loadData();
+            updateTerminalArt('syncing');
+            setTimeout(() => updateTerminalArt(currentCitizen ? 'processing' : 'ready'), 1200);
+        }
+    });
+
     let audioCtx = null;
     function getAudioCtx() { 
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); 
@@ -500,14 +506,12 @@
         const fallbackDlId = "DL-" + Math.floor(1000+Math.random()*9000);
         let isRenewal = false, plate = null, existingCard = null;
         
-        // Prioritize pulling plates that already have cards (Renewals)
         const cityPlates = Object.keys(sharedData.citizenCards).filter(k => sharedData.citizenCards[k].city === selectedCity);
         if (cityPlates.length > 0 && Math.random() < 0.4) {
             isRenewal = true; 
             plate = cityPlates[Math.floor(Math.random() * cityPlates.length)];
             existingCard = sharedData.citizenCards[plate];
         } else {
-            // Look for plates that are in registry but DON'T have cards yet and are CLEAR
             const newPlates = Object.keys(sharedData.registry).filter(k => !sharedData.citizenCards[k] && sharedData.registry[k].status === 'CLEAR');
             if (newPlates.length > 0 && Math.random() < 0.8) plate = newPlates[Math.floor(Math.random() * newPlates.length)];
         }
@@ -591,7 +595,6 @@
                     feeBox.innerText = `$ ${cityConfig[selectedCity].renew}`; feeBox.className = 'fee-box fee-due';
                     feeStatus.innerText = "RENEWAL FEE DUE"; feeStatus.style.color = "#b8860b";
                 } else {
-                    // Check if this is a transferred application from the Licensing Terminal
                     const isTransferred = currentCitizen.existingCard && currentCitizen.existingCard.city === 'LICENSING_AUTH_TRANSFER';
                     
                     if (isTransferred) {
@@ -638,7 +641,7 @@
 
     function processAction(isApproved) {
         if (!currentCitizen) return;
-        loadData(); // Refresh data before mutating to prevent race conditions
+        loadData();
         const stampBox = document.getElementById('stamp-box'); 
         playSound('stamp'); 
 
@@ -684,7 +687,6 @@
             document.getElementById('f-expiry').innerText = expDate.toLocaleDateString('en-GB'); 
             document.getElementById('f-uid').innerText = uid;
             
-            // Generate Receipt
             const receiptBox = document.getElementById('f-receipt');
             document.getElementById('rcpt-txid').innerText = txId;
             document.getElementById('rcpt-amount').innerText = `$${feeAmount}`;
@@ -704,7 +706,6 @@
         switchTab(currentTab);
     }
 
-    // Simulate random queue arrivals for immersion
     setInterval(() => {
         if (Math.random() > 0.7) {
             pendingQueue++;
