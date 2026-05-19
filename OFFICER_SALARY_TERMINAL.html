@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" href="https://mohammad3230.github.io/PROJECT/favicon.png" type="image/png" sizes="32x32" />
+<script async src="https://www.googletagmanager.com/gtag/js?id=GT-NC6T5LRJ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'GT-NC6T5LRJ');
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NHAI - Officer Salary Terminal</title>
+<style>
+    :root {
+        --bg: #08060e; --panel: #0f0c1a; --accent: #00f2ff; --success: #2ed573;
+        --danger: #ff0044; --warning: #ffa502; --border: #1e1735; --purple: #c56cf0;
+        --card-bg: #140f24;
+    }
+    body {
+        background-color: var(--bg); color: #ccc; font-family: 'Courier New', monospace;
+        margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+        background-image: radial-gradient(circle at 50% 0%, #1a1230 0%, var(--bg) 70%);
+    }
+    .top-bar {
+        background: rgba(0,0,0,0.7); padding: 15px 20px; border-bottom: 2px solid var(--purple);
+        display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+        backdrop-filter: blur(10px);
+    }
+    .top-bar h1 { margin: 0; font-size: 1rem; color: var(--purple); letter-spacing: 2px; text-shadow: 0 0 10px rgba(197,108,240,0.4); }
+    .top-bar .time { color: var(--accent); font-size: 0.9rem; }
+    .main-layout {
+        display: grid; grid-template-columns: 1.2fr 1fr; gap: 25px; padding: 25px;
+        flex-grow: 1; min-height: 0; overflow: hidden;
+    }
+    .panel {
+        background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+        padding: 20px; display: flex; flex-direction: column; overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    .panel-title {
+        color: var(--accent); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 2px;
+        margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 12px; flex-shrink: 0;
+        display: flex; align-items: center; gap: 10px;
+    }
+    .panel-title::before { content: '◆'; color: var(--purple); }
+    
+    /* Account Header */
+    .account-header {
+        background: linear-gradient(135deg, #1e1230 0%, #0d0915 100%);
+        border: 1px solid var(--purple); border-radius: 8px; padding: 20px;
+        display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-shrink: 0;
+        position: relative; overflow: hidden;
+    }
+    .officer-info h2 { margin: 0 0 5px 0; color: #fff; font-size: 1.2rem; }
+    .officer-info .rank-text { color: var(--purple); font-weight: bold; letter-spacing: 1px; font-size: 0.9rem; }
+    .officer-info .lifetime-rev { color: #666; font-size: 0.75rem; margin-top: 5px; }
+    .bank-balance { text-align: right; }
+    .bank-balance .label { font-size: 0.7rem; color: #666; text-transform: uppercase; }
+    .bank-balance .amount { font-size: 2rem; font-weight: bold; color: var(--success); text-shadow: 0 0 15px rgba(46,213,115,0.3); }
+
+    /* Salary Math Grid */
+    .math-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; flex-shrink: 0; }
+    .math-box { background: var(--card-bg); border: 1px solid var(--border); padding: 15px; border-radius: 6px; }
+    .math-label { color: #555; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+    .math-value { font-size: 1.4rem; font-weight: bold; }
+    .math-value.base { color: #fff; }
+    .math-value.comm { color: var(--warning); }
+    .math-value.deduct { color: var(--danger); }
+    .math-value.net { color: var(--success); font-size: 1.8rem; text-shadow: 0 0 10px rgba(46,213,115,0.3); }
+    .math-box.net-box { grid-column: span 2; border: 1px solid var(--success); background: rgba(46,213,115,0.05); text-align: center; padding: 20px; }
+
+    .transfer-btn {
+        width: 100%; padding: 18px; border: none; cursor: pointer; font-weight: bold;
+        text-transform: uppercase; font-size: 1rem; font-family: monospace; border-radius: 6px;
+        margin-top: auto; flex-shrink: 0; letter-spacing: 2px; transition: all 0.2s;
+        background: linear-gradient(90deg, #c56cf0, #8854d0); color: #fff;
+        box-shadow: 0 4px 15px rgba(197,108,240,0.3);
+    }
+    .transfer-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(197,108,240,0.5); }
+    .transfer-btn:active:not(:disabled) { transform: translateY(1px); }
+    .transfer-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .history-list { flex-grow: 1; overflow-y: auto; padding-right: 8px; min-height: 0; }
+    .payslip-item {
+        background: var(--card-bg); border: 1px solid var(--border); padding: 15px; margin-bottom: 10px;
+        border-left: 4px solid var(--purple); border-radius: 4px; font-size: 0.8rem;
+    }
+    .payslip-header { display: flex; justify-content: space-between; color: #fff; margin-bottom: 8px; font-weight: bold; }
+    .payslip-details { display: flex; justify-content: space-between; color: #666; font-size: 0.7rem; margin-bottom: 5px; }
+    .payslip-auth { color: var(--accent); font-size: 0.7rem; margin-top: 8px; border-top: 1px dashed var(--border); padding-top: 8px; }
+    .history-list::-webkit-scrollbar { width: 6px; }
+    .history-list::-webkit-scrollbar-track { background: var(--bg); }
+    .history-list::-webkit-scrollbar-thumb { background: var(--purple); border-radius: 3px; }
+
+    /* Overlay */
+    .overlay {
+        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.9); z-index: 100; justify-content: center; align-items: center;
+        flex-direction: column; text-align: center; backdrop-filter: blur(5px);
+    }
+    .overlay.active { display: flex; }
+    .terminal-window {
+        background: #000; border: 2px solid var(--purple); padding: 30px; width: 400px;
+        max-width: 90%; border-radius: 8px; box-shadow: 0 0 50px rgba(197,108,240,0.2);
+    }
+    .auth-code { color: var(--accent); font-size: 1.8rem; letter-spacing: 3px; margin: 20px 0; font-weight: bold; }
+    .status-text { color: var(--success); font-size: 0.9rem; min-height: 20px; }
+    @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+    .blinker { animation: blink 1s infinite; color: #fff; }
+
+    @media (max-width: 1024px) { .main-layout { grid-template-columns: 1fr; overflow-y: auto; } }
+    @media (max-width: 600px) { .top-bar h1 { font-size: 0.7rem; } .main-layout { padding: 15px; gap: 15px; } .math-grid { grid-template-columns: 1fr; } .math-box.net-box { grid-column: span 1; } }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+    <h1>▸ FEDERAL_RESERVE // OFFICER_SALARY_TERMINAL</h1>
+    <div class="time" id="clock">00:00:00</div>
+</div>
+
+<div class="main-layout">
+    <!-- LEFT: CALCULATION & TRANSFER -->
+    <div class="panel">
+        <div class="panel-title">Officer Account</div>
+        
+        <div class="account-header">
+            <div class="officer-info">
+                <h2>OPERATOR-774</h2>
+                <div class="rank-text" id="rank-title">RANK: CADET</div>
+                <div class="lifetime-rev">LIFETIME CONTRIBUTION: $<span id="lifetime-rev">0</span></div>
+            </div>
+            <div class="bank-balance">
+                <div class="label">Personal Bank Balance</div>
+                <div class="amount" id="bank-bal">$0</div>
+            </div>
+        </div>
+
+        <div class="math-grid">
+            <div class="math-box">
+                <div class="math-label">Available in Central Pool</div>
+                <div class="math-value" style="color:var(--accent);" id="val-pool">$0</div>
+            </div>
+            <div class="math-box">
+                <div class="math-label">Base Pay (Rank)</div>
+                <div class="math-value base" id="val-base">$0</div>
+            </div>
+            <div class="math-box">
+                <div class="math-label">Commission (Pool %)</div>
+                <div class="math-value comm" id="val-comm">$0</div>
+            </div>
+            <div class="math-box">
+                <div class="math-label">Tax & Pension Deductions</div>
+                <div class="math-value deduct" id="val-deduct">-$0</div>
+            </div>
+            <div class="math-box net-box">
+                <div class="math-label">Net Salary Transfer</div>
+                <div class="math-value net" id="val-net">$0</div>
+            </div>
+        </div>
+
+        <button class="transfer-btn" id="btn-transfer" onclick="initiateTransfer()">CLAIM SALARY FROM POOL</button>
+    </div>
+
+    <!-- RIGHT: PAYSLIP HISTORY -->
+    <div class="panel">
+        <div class="panel-title">Payslip Archive</div>
+        <div class="history-list" id="payslip-list">
+            <div style="color:#444; text-align:center; padding:40px 0;">NO PAYSLIPS ON RECORD</div>
+        </div>
+    </div>
+</div>
+
+<!-- Transfer Animation Overlay -->
+<div class="overlay" id="transfer-overlay">
+    <div class="terminal-window">
+        <div style="color: var(--purple); font-size: 0.8rem; letter-spacing: 2px;">FEDERAL RESERVE ROUTING</div>
+        <div class="auth-code" id="auth-code">AUTH-XXXX-XXXX</div>
+        <div class="status-text" id="status-text">INITIATING SECURE CONNECTION <span class="blinker">_</span></div>
+    </div>
+</div>
+
+<script>
+    const LS_D1_KEY = 'enforcementTerminalV23_D1';
+    const LS_D2_KEY = 'enforcementTerminalV23_TOLL';
+
+    let sharedData = { revenuePool: 0, history: [], payslips: [], lifetimeRevenue: 0, officerBalance: 0 };
+
+    function updateClock() { document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB'); }
+    setInterval(updateClock, 1000);
+
+    function loadData() {
+        try {
+            const d1 = localStorage.getItem(LS_D1_KEY);
+            const d2 = localStorage.getItem(LS_D2_KEY);
+            let d1Data = d1 ? JSON.parse(d1) : {};
+            let d2Data = d2 ? JSON.parse(d2) : {};
+
+            let merged = { revenuePool: 0, history: [], payslips: [], lifetimeRevenue: 0, officerBalance: 0 };
+            
+            if (d1Data) {
+                merged.revenuePool = d1Data.revenuePool || 0;
+                merged.lifetimeRevenue = d1Data.lifetimeRevenue || 0;
+                merged.officerBalance = d1Data.officerBalance || 0;
+                merged.history = d1Data.history || [];
+                merged.payslips = d1Data.payslips || [];
+            }
+            if (d2Data) {
+                merged.revenuePool = Math.max(merged.revenuePool, d2Data.revenuePool || 0);
+                merged.lifetimeRevenue = Math.max(merged.lifetimeRevenue, d2Data.lifetimeRevenue || 0);
+                merged.officerBalance = Math.max(merged.officerBalance, d2Data.officerBalance || 0);
+                if (d2Data.payslips && d2Data.payslips.length > merged.payslips.length) merged.payslips = d2Data.payslips;
+            }
+            sharedData = merged;
+        } catch(e) { console.error("Load error:", e); }
+        renderDashboard();
+    }
+
+    function saveData() {
+        try { 
+            const dataStr = JSON.stringify(sharedData); 
+            localStorage.setItem(LS_D1_KEY, dataStr); 
+            localStorage.setItem(LS_D2_KEY, dataStr); 
+        } catch(e) { console.error("Save error:", e); }
+    }
+
+    const RANKS = [
+        { title: "CADET", minRev: 0, base: 500, comm: 0.05 },
+        { title: "CONSTABLE", minRev: 3000, base: 1000, comm: 0.06 },
+        { title: "SERGEANT", minRev: 10000, base: 2000, comm: 0.08 },
+        { title: "CAPTAIN", minRev: 25000, base: 3500, comm: 0.10 },
+        { title: "COMMISSIONER", minRev: 50000, base: 5000, comm: 0.12 }
+    ];
+
+    function getRank(lifetimeRev) {
+        let currentRank = RANKS[0];
+        for (let i = 0; i < RANKS.length; i++) { if (lifetimeRev >= RANKS[i].minRev) currentRank = RANKS[i]; }
+        return currentRank;
+    }
+
+    function calculateSalary() {
+        const rank = getRank(sharedData.lifetimeRevenue || 0);
+        const currentPool = sharedData.revenuePool || 0;
+        
+        const basePay = rank.base;
+        const commission = Math.floor(currentPool * rank.comm);
+        const grossPay = basePay + commission;
+        const deductions = Math.floor(grossPay * 0.20); // 20% Total Deductions
+        const netPay = grossPay - deductions;
+
+        return { rank, basePay, commission, grossPay, deductions, netPay, currentPool };
+    }
+
+    function initiateTransfer() {
+        const salary = calculateSalary();
+        if (salary.currentPool <= 0) {
+            alert("CENTRAL POOL IS EMPTY. DEPOSIT REVENUE FIRST.");
+            return;
+        }
+
+        const overlay = document.getElementById('transfer-overlay');
+        const btn = document.getElementById('btn-transfer');
+        btn.disabled = true;
+        overlay.classList.add('active');
+
+        const authCode = `FED-${Math.random().toString(36).substr(2, 4).toUpperCase()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+        document.getElementById('auth-code').innerText = authCode;
+        const statusText = document.getElementById('status-text');
+
+        setTimeout(() => { statusText.innerHTML = "VERIFYING BIOMETRICS <span class='blinker'>_</span>"; }, 500);
+        setTimeout(() => { statusText.innerHTML = "CALCULATING COMMISSION & TAXES <span class='blinker'>_</span>"; }, 2000);
+        setTimeout(() => { statusText.innerHTML = `TRANSFERRING $${salary.netPay} TO ACCOUNT <span class='blinker'>_</span>`; statusText.style.color = "var(--success)"; }, 3500);
+        
+        setTimeout(() => {
+            statusText.innerHTML = "TRANSFER COMPLETE ✓"; 
+            
+            sharedData.payslips.push({
+                date: new Date().toLocaleString(),
+                rank: salary.rank.title,
+                gross: salary.grossPay,
+                deductions: salary.deductions,
+                net: salary.netPay,
+                poolAtTime: salary.currentPool,
+                authCode: authCode
+            });
+
+            // Move money from Pool to Officer Balance
+            sharedData.officerBalance = (sharedData.officerBalance || 0) + salary.netPay;
+            sharedData.revenuePool = 0; // Empty the pool
+            
+            saveData();
+            loadData();
+
+            setTimeout(() => {
+                overlay.classList.remove('active');
+                btn.disabled = false;
+                statusText.style.color = "var(--success)";
+                statusText.innerHTML = "INITIATING SECURE CONNECTION <span class='blinker'>_</span>";
+            }, 2500);
+        }, 5000);
+    }
+
+    function renderDashboard() {
+        const salary = calculateSalary();
+        const lifetime = sharedData.lifetimeRevenue || 0;
+        const rank = salary.rank;
+
+        document.getElementById('lifetime-rev').innerText = lifetime.toLocaleString();
+        document.getElementById('rank-title').innerText = `RANK: ${rank.title}`;
+        document.getElementById('bank-bal').innerText = `$${(sharedData.officerBalance || 0).toLocaleString()}`;
+
+        document.getElementById('val-pool').innerText = `$${salary.currentPool.toLocaleString()}`;
+        document.getElementById('val-base').innerText = `$${salary.basePay}`;
+        document.getElementById('val-comm').innerText = `$${salary.commission} (${rank.comm*100}%)`;
+        document.getElementById('val-deduct').innerText = `-$${salary.deductions}`;
+        document.getElementById('val-net').innerText = `$${salary.netPay}`;
+
+        // Payslips
+        const listContainer = document.getElementById('payslip-list');
+        listContainer.innerHTML = '';
+        const slips = (sharedData.payslips || []).slice(-20).reverse();
+        
+        if (slips.length === 0) {
+            listContainer.innerHTML = '<div style="color:#444; text-align:center; padding:40px 0;">NO PAYSLIPS ON RECORD</div>';
+        } else {
+            slips.forEach(ps => {
+                const item = document.createElement('div');
+                item.className = 'payslip-item';
+                item.innerHTML = `
+                    <div class="payslip-header"><span style="color:var(--purple);">SALARY PAYOUT</span><span style="color:var(--success);">$${ps.net}</span></div>
+                    <div class="payslip-details"><span>RANK: ${ps.rank}</span><span>GROSS: $${ps.gross} | TAX: -$${ps.deductions}</span></div>
+                    <div class="payslip-details"><span>POOL CLEARED: $${ps.poolAtTime}</span><span>${ps.date}</span></div>
+                    <div class="payslip-auth">AUTH_CODE: ${ps.authCode}</div>
+                `;
+                listContainer.appendChild(item);
+            });
+        }
+    }
+
+    window.addEventListener('storage', (event) => { if (event.key === LS_D1_KEY || event.key === LS_D2_KEY) { loadData(); } });
+    loadData(); setInterval(loadData, 2000);
+</script>
+</body>
+</html>
