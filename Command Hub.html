@@ -189,7 +189,8 @@
         </div>
     </div>
 
-    <div class="panel" style="grid-row: 1 / 3;">
+    <!-- Fixed grid-row to span properly instead of using 1/3 which breaks implicit rows -->
+    <div class="panel" style="grid-row: span 2;">
         <div class="scan-line"></div>
         <div class="panel-header">
             <span>■ Live Network Feed [ALL TERMINALS]</span>
@@ -218,8 +219,9 @@
             </div>
         </div>
 
+        <!-- Fixed duplicate ID from dot-d1 to dot-cache -->
         <div class="health-row">
-            <span><span class="health-dot online" id="dot-d1"></span>CACHE MEMORY:</span>
+            <span><span class="health-dot online" id="dot-cache"></span>CACHE MEMORY:</span>
             <span class="health-status online" id="cmd-cache">SYNCED</span>
         </div>
         <div class="health-row">
@@ -359,7 +361,7 @@
     function updateHealthStatus(d1Data, d2Data) {
         const badge = document.getElementById('syncBadge');
         const cache = document.getElementById('cmd-cache');
-        const cacheDot = document.getElementById('dot-d1');
+        const cacheDot = document.getElementById('dot-cache'); // Fixed reference from dot-d1 to dot-cache
 
         const d1Live = d1Data !== null;
         const d2Live = d2Data !== null;
@@ -399,10 +401,11 @@
     }
 
     function renderDashboard() {
-        const prevRev = parseInt(document.getElementById('cmd-rev').innerText.replace('$', ''));
-        const prevArrests = parseInt(document.getElementById('cmd-arrests').innerText);
-        const prevValids = parseInt(document.getElementById('cmd-valids').innerText);
-        const prevLevel = parseInt(document.getElementById('cmd-level').innerText);
+        // Safely parse out numbers from commas and the $ sign to properly track prev values
+        const prevRev = parseInt((document.getElementById('cmd-rev').innerText || '$0').replace(/[^0-9\-]/g, ''), 10) || 0;
+        const prevArrests = parseInt(document.getElementById('cmd-arrests').innerText) || 0;
+        const prevValids = parseInt(document.getElementById('cmd-valids').innerText) || 0;
+        const prevLevel = parseInt(document.getElementById('cmd-level').innerText) || 1;
 
         document.getElementById('cmd-rev').innerText = `$${sharedData.revenue || 0}`;
         document.getElementById('cmd-valids').innerText = sharedData.valids || 0;
