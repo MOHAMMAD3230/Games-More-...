@@ -11,109 +11,215 @@
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NHAI - Audit & Revenue Terminal</title>
+<title>NHAI - Audit & Revenue Terminal v9.2</title>
 <style>
     :root {
-        --bg: #0a0508; --panel: #101018; --accent: #00f2ff; --success: #2ed573;
-        --danger: #ff0044; --warning: #ffa502; --border: #2a1a2a;
+        --bg: #0a0508; 
+        --panel: #0d0b14; 
+        --accent: #00f2ff; 
+        --success: #2ed573;
+        --danger: #ff0044; 
+        --warning: #ffa502; 
+        --border: #1e1735;
+        --purple: #c56cf0;
+        --card-bg: #140f24;
     }
+
+    * { box-sizing: border-box; }
 
     body {
         background-color: var(--bg); color: #ccc; font-family: 'Courier New', monospace;
         margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+        background-image: radial-gradient(circle at 50% 0%, #1a1230 0%, var(--bg) 70%);
     }
 
+    /* TOP BAR */
     .top-bar {
-        background: #000; padding: 15px 20px; border-bottom: 2px solid var(--success);
+        background: rgba(0,0,0,0.8); padding: 15px 20px; border-bottom: 2px solid var(--success);
         display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+        backdrop-filter: blur(10px); z-index: 10;
     }
+    .top-bar h1 { 
+        margin: 0; font-size: 1rem; color: var(--success); letter-spacing: 2px; 
+        text-shadow: 0 0 10px rgba(46,213,115,0.4); display: flex; align-items: center; gap: 10px;
+    }
+    .top-bar .time { color: var(--warning); font-size: 0.9rem; letter-spacing: 1px; }
+    .system-status {
+        display: flex; gap: 15px; font-size: 0.7rem; color: #555;
+    }
+    .status-dot {
+        width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px;
+        animation: pulse-dot 2s infinite;
+    }
+    .status-dot.online { background: var(--success); box-shadow: 0 0 8px var(--success); }
+    .status-dot.warning { background: var(--warning); box-shadow: 0 0 8px var(--warning); }
+    
+    @keyframes pulse-dot { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
 
-    .top-bar h1 { margin: 0; font-size: 1rem; color: var(--success); letter-spacing: 1px; text-shadow: 0 0 10px rgba(46,213,115,0.5); }
-    .top-bar .time { color: var(--warning); font-size: 0.9rem; }
-
+    /* MAIN LAYOUT */
     .main-layout {
-        display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 20px;
+        display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; padding: 20px;
         flex-grow: 1; min-height: 0; overflow: hidden;
     }
 
+    /* PANELS */
     .panel {
-        background: var(--panel); border: 1px solid var(--border); border-radius: 4px;
+        background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
         padding: 20px; display: flex; flex-direction: column; overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     }
-
     .panel-title {
-        color: var(--success); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;
+        color: var(--accent); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 2px;
         margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; flex-shrink: 0;
+        display: flex; justify-content: space-between; align-items: center;
     }
+    .panel-title .sub-title { color: #555; font-size: 0.7rem; letter-spacing: 1px; }
 
-    .stat-row {
-        display: flex; gap: 15px; margin-bottom: 20px; flex-shrink: 0;
-    }
-
+    /* STAT ROWS & BOXES */
+    .stat-row { display: flex; gap: 15px; margin-bottom: 15px; flex-shrink: 0; }
     .stat-box {
-        flex: 1; background: #000; border: 1px solid var(--border); padding: 15px; border-radius: 4px; text-align: center;
-        border-top: 3px solid var(--success);
+        flex: 1; background: var(--card-bg); border: 1px solid var(--border); padding: 15px; border-radius: 6px; text-align: center;
+        position: relative; overflow: hidden; transition: transform 0.2s;
     }
-    .stat-box.toll-rev { border-top-color: var(--warning); }
-    .stat-box.arrest-rev { border-top-color: var(--danger); }
+    .stat-box:hover { transform: translateY(-2px); border-color: #333; }
+    .stat-box::before {
+        content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 3px;
+    }
+    .stat-box.total-rev::before { background: var(--success); box-shadow: 0 0 10px var(--success); }
+    .stat-box.toll-rev::before { background: var(--warning); box-shadow: 0 0 10px var(--warning); }
+    .stat-box.arrest-rev::before { background: var(--danger); box-shadow: 0 0 10px var(--danger); }
+    .stat-box.pool-rev::before { background: var(--purple); box-shadow: 0 0 10px var(--purple); }
+    .stat-box.audit-stat::before { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
 
-    .stat-num { font-size: 2rem; font-weight: 900; margin-bottom: 5px; }
-    .stat-label { font-size: 0.75rem; color: #888; text-transform: uppercase; }
+    .stat-num { font-size: 1.8rem; font-weight: 900; margin-bottom: 5px; line-height: 1; }
+    .stat-label { font-size: 0.7rem; color: #666; text-transform: uppercase; letter-spacing: 1px; }
 
-    .breakdown-list { flex-grow: 1; overflow-y: auto; padding-right: 5px; }
+    /* BREAKDOWN LIST */
+    .section-title {
+        color: #444; font-size: 0.75rem; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;
+        display: flex; justify-content: space-between; border-top: 1px dashed var(--border); padding-top: 10px; flex-shrink: 0;
+    }
+    .breakdown-list { flex-grow: 1; overflow-y: auto; padding-right: 5px; min-height: 0; }
     .breakdown-item {
-        background: #000; border: 1px solid var(--border); padding: 12px; margin-bottom: 8px;
-        border-left: 4px solid var(--success); border-radius: 4px; font-size: 0.85rem;
+        background: #000; border: 1px solid #1a1a1a; padding: 12px; margin-bottom: 8px;
+        border-left: 4px solid var(--success); border-radius: 4px; font-size: 0.8rem;
+        transition: background 0.2s;
     }
+    .breakdown-item:hover { background: #0a0a0a; }
     .breakdown-item.toll { border-left-color: var(--warning); }
     .breakdown-item.arrest { border-left-color: var(--danger); }
     .breakdown-item.penalty { border-left-color: var(--accent); }
     .breakdown-item.card-rev { border-left-color: var(--accent); }
+    .breakdown-item.pool-deposit { border-left-color: var(--purple); background: rgba(197,108,240,0.05); }
+    
+    .item-header { display: flex; justify-content: space-between; margin-bottom: 4px; font-weight: bold; }
+    .item-meta { font-size: 0.7rem; color: #555; display: flex; justify-content: space-between; }
 
+    /* BUTTONS */
     .mech-btn {
-        width: 100%; padding: 15px; border: 2px solid #000; cursor: pointer; font-weight: bold;
-        text-transform: uppercase; font-size: 0.9rem; box-shadow: 0 4px 0 #000;
-        transition: all 0.1s; font-family: monospace; border-radius: 4px; margin-top: 15px; flex-shrink: 0;
+        width: 100%; padding: 16px; border: none; cursor: pointer; font-weight: bold;
+        text-transform: uppercase; font-size: 0.9rem; font-family: monospace; border-radius: 6px;
+        margin-top: 15px; flex-shrink: 0; letter-spacing: 1px; transition: all 0.2s;
     }
-    .mech-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #000; }
-    .btn-cashout { background: linear-gradient(145deg, #2ed573, #1e9e55); color: #fff; }
-    .btn-reset { background: #333; color: #fff; }
+    .mech-btn:active { transform: translateY(2px); }
+    .btn-cashout { 
+        background: linear-gradient(145deg, #2ed573, #1e9e55); color: #fff; 
+        box-shadow: 0 4px 15px rgba(46,213,115,0.3);
+    }
+    .btn-cashout:hover { box-shadow: 0 6px 20px rgba(46,213,115,0.5); }
+    .btn-reset { background: #222; color: #888; border: 1px solid #333; }
+    .btn-reset:hover { background: #2a2a2a; color: #aaa; }
 
-    .breakdown-list::-webkit-scrollbar { width: 6px; }
-    .breakdown-list::-webkit-scrollbar-track { background: #000; border: 1px solid var(--border); }
-    .breakdown-list::-webkit-scrollbar-thumb { background: var(--success); border: 1px solid #000; }
-
+    /* AUDIT LOG */
     .log-box { 
-        flex: 1; background: #000; border: 1px solid #222; padding: 10px; font-size: 0.7rem; 
-        color: var(--success); overflow-y: auto; border-radius: 4px; min-height: 0;
+        flex: 1; background: #000; border: 1px solid #1a1a1a; padding: 12px; font-size: 0.75rem; 
+        color: var(--success); overflow-y: auto; border-radius: 6px; min-height: 0;
+        font-family: 'Courier New', monospace;
     }
+    .log-entry { margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid #111; }
+    .log-entry:last-child { border-bottom: none; }
+    .log-time { color: #444; margin-right: 8px; }
 
-    @media (max-width: 1024px) {
-        .main-layout { grid-template-columns: 1fr; overflow-y: auto; }
+    /* BUDGET BARS */
+    .budget-row {
+        display: flex; align-items: center; gap: 15px; margin-bottom: 12px; font-size: 0.8rem;
     }
+    .budget-label { width: 100px; color: #666; text-align: right; }
+    .budget-bar-bg {
+        flex-grow: 1; height: 8px; background: #000; border-radius: 4px; overflow: hidden;
+        border: 1px solid #1a1a1a;
+    }
+    .budget-bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+    .fill-infrastructure { background: var(--accent); }
+    .fill-security { background: var(--danger); }
+    .fill-admin { background: var(--warning); }
+    .budget-val { width: 80px; color: #aaa; }
+
+    /* SCROLLBARS */
+    .breakdown-list::-webkit-scrollbar, .log-box::-webkit-scrollbar { width: 6px; }
+    .breakdown-list::-webkit-scrollbar-track, .log-box::-webkit-scrollbar-track { background: #000; }
+    .breakdown-list::-webkit-scrollbar-thumb, .log-box::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    .breakdown-list::-webkit-scrollbar-thumb:hover, .log-box::-webkit-scrollbar-thumb:hover { background: #444; }
+
+    /* OVERLAY */
+    .overlay {
+        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.9); z-index: 100; justify-content: center; align-items: center;
+        flex-direction: column; text-align: center; backdrop-filter: blur(5px);
+    }
+    .overlay.active { display: flex; }
+    .terminal-window {
+        background: #000; border: 2px solid var(--success); padding: 40px; width: 450px;
+        max-width: 90%; border-radius: 8px; box-shadow: 0 0 40px rgba(46,213,115,0.2);
+    }
+    .overlay-auth { color: var(--accent); font-size: 1.5rem; letter-spacing: 3px; margin: 20px 0; font-weight: bold; }
+    .overlay-status { color: var(--success); font-size: 0.9rem; }
+    @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+    .blinker { animation: blink 1s infinite; color: #fff; }
+
+    /* RESPONSIVE */
+    @media (max-width: 1200px) { .main-layout { grid-template-columns: 1fr; overflow-y: auto; } }
     @media (max-width: 600px) {
         .top-bar h1 { font-size: 0.7rem; }
         .main-layout { padding: 10px; gap: 15px; }
         .stat-row { flex-direction: column; }
+        .stat-num { font-size: 1.5rem; }
+        .system-status { display: none; }
     }
 </style>
 </head>
 <body>
 
 <div class="top-bar">
-    <h1>▸ NHAI_AUDIT // REVENUE_TERMINAL_v9.1</h1>
+    <h1>▸ NHAI_AUDIT // REVENUE_TERMINAL_v9.2</h1>
+    <div class="system-status">
+        <div><span class="status-dot online"></span>MAINFRAME LINK</div>
+        <div><span class="status-dot online"></span>FEDERAL RESERVE</div>
+        <div><span class="status-dot warning"></span>SALARY SYNC</div>
+    </div>
     <div class="time" id="clock">00:00:00</div>
 </div>
 
 <div class="main-layout">
+    <!-- COLUMN 1: FINANCIAL OVERVIEW -->
     <div class="panel">
-        <div class="panel-title">■ Financial Overview</div>
+        <div class="panel-title>
+            <span>■ Financial Overview</span>
+            <span class="sub-title">FISCAL QUARTER 3</span>
+        </div>
         
         <div class="stat-row">
-            <div class="stat-box">
+            <div class="stat-box total-rev">
                 <div class="stat-num" style="color:var(--success);" id="stat-total">$0</div>
-                <div class="stat-label">Total Network Rev</div>
+                <div class="stat-label">Pending Network Rev</div>
             </div>
+            <div class="stat-box pool-rev">
+                <div class="stat-num" style="color:var(--purple);" id="stat-pool">$0</div>
+                <div class="stat-label">Salary Pool Fund</div>
+            </div>
+        </div>
+
+        <div class="stat-row">
             <div class="stat-box toll-rev">
                 <div class="stat-num" style="color:var(--warning);" id="stat-tolls">$0</div>
                 <div class="stat-label">Toll & NHAI Rev</div>
@@ -122,162 +228,224 @@
                 <div class="stat-num" style="color:var(--danger);" id="stat-bounties">$0</div>
                 <div class="stat-label">Bounty & Fee Rev</div>
             </div>
+            <div class="stat-box audit-stat">
+                <div class="stat-num" style="color:var(--accent);" id="stat-cards">$0</div>
+                <div class="stat-label">Registry Rev</div>
+            </div>
         </div>
 
-        <div style="color: #555; font-size: 0.75rem; margin-bottom: 10px;">
-            Recent Transactions
+        <!-- Department Budget Allocation -->
+        <div class="section-title">
+            <span>Department Budget Allocation</span>
+            <span id="budget-total-label">TOTAL: $0</span>
+        </div>
+        <div style="margin-bottom: 15px; flex-shrink: 0;">
+            <div class="budget-row">
+                <div class="budget-label">Infrastructure</div>
+                <div class="budget-bar-bg"><div class="budget-bar-fill fill-infrastructure" id="bar-infra" style="width: 0%"></div></div>
+                <div class="budget-val" id="val-infra">$0</div>
+            </div>
+            <div class="budget-row">
+                <div class="budget-label">Security</div>
+                <div class="budget-bar-bg"><div class="budget-bar-fill fill-security" id="bar-sec" style="width: 0%"></div></div>
+                <div class="budget-val" id="val-sec">$0</div>
+            </div>
+            <div class="budget-row">
+                <div class="budget-label">Admin/Pension</div>
+                <div class="budget-bar-bg"><div class="budget-bar-fill fill-admin" id="bar-admin" style="width: 0%"></div></div>
+                <div class="budget-val" id="val-admin">$0</div>
+            </div>
+        </div>
+
+        <div class="section-title">
+            <span>Recent Transactions</span>
+            <span id="trans-count">0 Records</span>
         </div>
         <div class="breakdown-list" id="trans-list">
-            <div style="color:#555; text-align:center; padding:20px;">NO TRANSACTIONS</div>
+            <div style="color:#444; text-align:center; padding:30px 0;">NO TRANSACTIONS</div>
         </div>
 
-        <button class="mech-btn btn-cashout" onclick="cashOut()">END OF DAY CASH OUT</button>
+        <button class="mech-btn btn-cashout" onclick="cashOut()">DEPOSIT TO SALARY POOL</button>
     </div>
 
+    <!-- COLUMN 2: AUDIT & PERFORMANCE -->
     <div class="panel">
-        <div class="panel-title">■ Officer Performance Audit</div>
+        <div class="panel-title">
+            <span>■ Officer Performance Audit</span>
+            <span class="sub-title" id="leak-rate-text">LEAK RATE: 0%</span>
+        </div>
         
         <div class="stat-row">
-            <div class="stat-box">
+            <div class="stat-box audit-stat">
                 <div class="stat-num" style="color:var(--accent);" id="stat-valids">0</div>
                 <div class="stat-label">Valid Actions</div>
             </div>
-            <div class="stat-box">
+            <div class="stat-box" style="position: relative;">
                 <div class="stat-num" style="color:var(--danger);" id="stat-misses">0</div>
                 <div class="stat-label">Security Breaches</div>
+                <div style="position: absolute; top: 5px; right: 5px; font-size: 0.6rem; color: #555;">LEAKAGE</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-num" style="color:var(--warning);" id="stat-pnl">$0</div>
+                <div class="stat-label">Net Profit/Loss</div>
             </div>
         </div>
 
-        <div style="color: #555; font-size: 0.75rem; margin-bottom: 10px;">
-            Audit Log
+        <div class="section-title">
+            <span>Live Audit Log</span>
+            <span>Auto-Refresh: ON</span>
         </div>
-        <div class="log-box" id="audit-log"></div>
+        <div class="log-box" id="audit-log">
+            <div style="color:#444;">System initialized. Awaiting commands...</div>
+        </div>
 
-        <button class="mech-btn btn-reset" onclick="resetLedger()">RESET LEDGER</button>
+        <button class="mech-btn btn-reset" onclick="resetLedger()">RESET AUDIT LEDGER</button>
+    </div>
+</div>
+
+<!-- CASH OUT ANIMATION OVERLAY -->
+<div class="overlay" id="cashout-overlay">
+    <div class="terminal-window">
+        <div style="color: var(--success); font-size: 0.8rem; letter-spacing: 2px;">FEDERAL RESERVE ROUTING</div>
+        <div class="overlay-auth" id="overlay-auth-code">AUTH-0000-0000</div>
+        <div class="overlay-status" id="overlay-status">INITIATING SECURE TRANSFER <span class="blinker">_</span></div>
     </div>
 </div>
 
 <script>
-    // SYNC FIX: Use the EXACT same keys as Dashboard 1 & 2
     const LS_D1_KEY = 'enforcementTerminalV23_D1';
     const LS_D2_KEY = 'enforcementTerminalV23_TOLL';
 
-    let sharedData = { 
+    const defaultData = { 
         revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, 
         history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null,
         activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [],
         ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [],
-        citizenCards: {}
+        citizenCards: {}, revenuePool: 0, lifetimeRevenue: 0, officerBalance: 0, payslips: []
     };
 
-    function updateClock() { document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB'); }
+    let sharedData = JSON.parse(JSON.stringify(defaultData));
+
+    function updateClock() { 
+        document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB'); 
+    }
     setInterval(updateClock, 1000);
 
     function loadData() {
         try {
             const d1 = localStorage.getItem(LS_D1_KEY);
             const d2 = localStorage.getItem(LS_D2_KEY);
-            let d1Data = null, d2Data = null;
-            if (d1) { try { d1Data = JSON.parse(d1); } catch(e) {} }
-            if (d2) { try { d2Data = JSON.parse(d2); } catch(e) {} }
+            let d1Data = d1 ? JSON.parse(d1) : {};
+            let d2Data = d2 ? JSON.parse(d2) : {};
 
-            let mergedData = { 
-                revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, registry: {}, history: [], 
-                activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [], 
-                forgedAliases: {}, nextSpawnOverride: null, ledgerCashouts: [], intelFlags: [], 
-                paroleRecords: [], iaViolations: [], rehabPrograms: [], citizenCards: {} 
-            };
+            let m = JSON.parse(JSON.stringify(defaultData));
 
             if (d1Data) { 
-                Object.assign(mergedData, d1Data); 
-                if (d1Data.registry) Object.assign(mergedData.registry, d1Data.registry); 
-                if (d1Data.citizenCards) Object.assign(mergedData.citizenCards, d1Data.citizenCards); 
-                if (d1Data.ledgerCashouts) mergedData.ledgerCashouts = d1Data.ledgerCashouts;
-                if (d1Data.iaViolations) mergedData.iaViolations = d1Data.iaViolations;
+                Object.assign(m, d1Data); 
+                if (d1Data.registry) Object.assign(m.registry, d1Data.registry); 
+                if (d1Data.citizenCards) Object.assign(m.citizenCards, d1Data.citizenCards); 
             }
             if (d2Data) { 
-                mergedData.revenue = Math.max(mergedData.revenue || 0, d2Data.revenue || 0); 
-                mergedData.valids = Math.max(mergedData.valids || 0, d2Data.valids || 0); 
-                mergedData.missed = Math.max(mergedData.missed || 0, d2Data.missed || 0);
-                mergedData.rankPoints = Math.max(mergedData.rankPoints || 0, d2Data.rankPoints || 0);
-                if (d2Data.registry) Object.assign(mergedData.registry, d2Data.registry); 
-                if (d2Data.citizenCards) Object.assign(mergedData.citizenCards, d2Data.citizenCards); 
+                m.revenue = Math.max(m.revenue || 0, d2Data.revenue || 0); 
+                m.valids = Math.max(m.valids || 0, d2Data.valids || 0); 
+                m.missed = Math.max(m.missed || 0, d2Data.missed || 0);
+                m.rankPoints = Math.max(m.rankPoints || 0, d2Data.rankPoints || 0);
+                m.revenuePool = Math.max(m.revenuePool || 0, d2Data.revenuePool || 0);
+                m.lifetimeRevenue = Math.max(m.lifetimeRevenue || 0, d2Data.lifetimeRevenue || 0);
+                m.officerBalance = Math.max(m.officerBalance || 0, d2Data.officerBalance || 0);
+                
+                if (d2Data.registry) Object.assign(m.registry, d2Data.registry); 
+                if (d2Data.citizenCards) Object.assign(m.citizenCards, d2Data.citizenCards); 
                 if (d2Data.history) { 
-                    mergedData.history = d2Data.history.concat(mergedData.history).filter((v, i, a) => 
+                    m.history = d2Data.history.concat(m.history).filter((v, i, a) => 
                         a.findIndex(t => (t.plate === v.plate && t.timestamp === v.timestamp)) === i
                     ); 
                 }
-                if (d2Data.ledgerCashouts && d2Data.ledgerCashouts.length > mergedData.ledgerCashouts.length) mergedData.ledgerCashouts = d2Data.ledgerCashouts;
-                if (d2Data.iaViolations && d2Data.iaViolations.length > mergedData.iaViolations.length) mergedData.iaViolations = d2Data.iaViolations;
+                if (d2Data.ledgerCashouts && d2Data.ledgerCashouts.length > m.ledgerCashouts.length) m.ledgerCashouts = d2Data.ledgerCashouts;
+                if (d2Data.iaViolations && d2Data.iaViolations.length > m.iaViolations.length) m.iaViolations = d2Data.iaViolations;
+                if (d2Data.payslips && d2Data.payslips.length > m.payslips.length) m.payslips = d2Data.payslips;
             }
 
-            // Ensure all sub-keys exist to prevent undefined errors
-            if (!mergedData.registry) mergedData.registry = {};
-            if (!mergedData.citizenCards) mergedData.citizenCards = {};
-            if (!mergedData.history) mergedData.history = [];
-            if (!mergedData.forgedAliases) mergedData.forgedAliases = {};
-            if (!mergedData.activeInmates) mergedData.activeInmates = [];
-            if (!mergedData.releasedInmates) mergedData.releasedInmates = [];
-            if (!mergedData.inbox) mergedData.inbox = [];
-            if (!mergedData.sentMail) mergedData.sentMail = [];
-            if (!mergedData.call911Logs) mergedData.call911Logs = [];
-            if (!mergedData.ledgerCashouts) mergedData.ledgerCashouts = [];
-            if (!mergedData.intelFlags) mergedData.intelFlags = [];
-            if (!mergedData.paroleRecords) mergedData.paroleRecords = [];
-            if (!mergedData.iaViolations) mergedData.iaViolations = [];
-            if (!mergedData.rehabPrograms) mergedData.rehabPrograms = [];
+            ['history', 'ledgerCashouts', 'iaViolations', 'activeInmates', 'releasedInmates', 'payslips'].forEach(k => {
+                if (!Array.isArray(m[k])) m[k] = [];
+            });
 
-            sharedData = mergedData;
+            sharedData = m;
         } catch(e) { console.error("Load error:", e); }
-        
         renderDashboard();
     }
 
     function saveData() {
         try { 
-            const dataStr = JSON.stringify(sharedData); 
-            localStorage.setItem(LS_D1_KEY, dataStr); 
-            localStorage.setItem(LS_D2_KEY, dataStr); 
+            localStorage.setItem(LS_D1_KEY, JSON.stringify(sharedData)); 
+            localStorage.setItem(LS_D2_KEY, JSON.stringify(sharedData)); 
         } catch(e) { console.error("Save error:", e); }
     }
 
     function addAuditLog(msg, color) {
-        const log = document.getElementById('audit-log'); 
-        const entry = document.createElement('div');
-        entry.style.color = color || "var(--success)"; 
-        entry.style.marginBottom = "5px";
-        entry.innerText = `> ${msg}`; 
-        log.prepend(entry);
-
-        // Persist to cross-terminal storage
         if(!sharedData.iaViolations) sharedData.iaViolations = [];
-        sharedData.iaViolations.push({ message: msg, color: color, timestamp: new Date().toLocaleString() });
+        sharedData.iaViolations.push({ 
+            message: msg, 
+            color: color || "var(--success)", 
+            timestamp: new Date().toLocaleTimeString('en-GB')
+        });
         saveData();
     }
 
     function cashOut() {
-        loadData(); // Sync before modifying
+        loadData(); 
         if(sharedData.revenue === 0) return;
         
         const currentRev = sharedData.revenue;
-        const breakdown = calculateBreakdown();
+        const authCode = `FED-${Math.random().toString(36).substr(2, 4).toUpperCase()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+        
+        // Animation Sequence
+        const overlay = document.getElementById('cashout-overlay');
+        const btn = document.querySelector('.btn-cashout');
+        btn.disabled = true;
+        overlay.classList.add('active');
+        
+        document.getElementById('overlay-auth-code').innerText = authCode;
+        const statusText = document.getElementById('overlay-status');
 
-        sharedData.ledgerCashouts.push({
-            date: new Date().toLocaleString(),
-            totalCashOut: currentRev,
-            breakdown: breakdown
-        });
+        setTimeout(() => { statusText.innerHTML = "VERIFYING REVENUE STREAMS <span class='blinker'>_</span>"; }, 500);
+        setTimeout(() => { statusText.innerHTML = "CALCULATING DEPARTMENT BUDGETS <span class='blinker'>_</span>"; statusText.style.color = "var(--warning)"; }, 2000);
+        setTimeout(() => { 
+            statusText.innerHTML = `DEPOSITING $${currentRev} TO POOL <span class='blinker'>_</span>`; 
+            statusText.style.color = "var(--purple)";
+            
+            // Actual Data Operation
+            sharedData.revenuePool = (sharedData.revenuePool || 0) + currentRev;
+            sharedData.lifetimeRevenue = (sharedData.lifetimeRevenue || 0) + currentRev;
+            
+            sharedData.ledgerCashouts.push({
+                date: new Date().toLocaleString(),
+                totalCashOut: currentRev,
+                authCode: authCode
+            });
 
-        sharedData.revenue = 0;
-        saveData();
-        loadData(); // Refresh UI
-        addAuditLog(`CASH OUT: $${currentRev} deposited to Federal Reserve.`, "var(--success)");
+            sharedData.revenue = 0;
+            saveData();
+            addAuditLog(`DEPOSIT: $${currentRev} moved to Central Pool. Auth: ${authCode}`, "var(--purple)");
+        }, 3500);
+
+        setTimeout(() => { 
+            statusText.innerHTML = "TRANSFER COMPLETE ✓"; 
+            statusText.style.color = "var(--success)";
+            
+            setTimeout(() => {
+                overlay.classList.remove('active');
+                btn.disabled = false;
+                loadData();
+            }, 1500);
+        }, 4500);
     }
 
     function resetLedger() {
-        loadData(); // Sync before modifying
+        loadData(); 
         if(sharedData.revenue > 0) {
-            addAuditLog("ERROR: Must Cash Out before resetting ledger.", "var(--danger)");
+            addAuditLog("ERROR: Must deposit revenue before resetting ledger.", "var(--danger)");
+            loadData();
             return;
         }
         sharedData.valids = 0;
@@ -285,17 +453,12 @@
         sharedData.rankPoints = 0;
         sharedData.level = 1;
         saveData();
-        loadData(); // Refresh UI
+        loadData(); 
         addAuditLog("AUDIT: Performance Ledger Reset.", "var(--warning)");
     }
 
     function calculateBreakdown() {
-        let tollRev = 0;
-        let arrestRev = 0;
-        let penaltyRev = 0;
-        let rehabRev = 0;
-        let cardRev = 0;
-        
+        let tollRev = 0, arrestRev = 0, rehabRev = 0, cardRev = 0;
         (sharedData.history || []).forEach(h => {
             if(h.action.includes("TOLL PAID")) tollRev += 500; 
             else if(h.action.includes("ROGUE TOLL")) tollRev += 1000;
@@ -304,110 +467,128 @@
             else if(h.action === "ID RENEWED") arrestRev += 150;
             else if(h.action === "REHAB GRADUATED") rehabRev += 100;
             else if(h.action === "PAROLE GRANTED" || h.action.includes("PAROLE / RELEASED")) rehabRev += 50;
-            // Add Revenue tracking from the Citizen Registry Terminal
-            else if(h.action.includes("CARD ISSUED")) {
-                const match = h.action.match(/\$(\d+)/);
-                cardRev += match ? parseInt(match[1]) : 0;
-            }
-            else if(h.action.includes("CARD RENEWED")) {
-                const match = h.action.match(/\$(\d+)/);
-                cardRev += match ? parseInt(match[1]) : 0;
-            }
+            else if(h.action.includes("CARD ISSUED")) { const match = h.action.match(/\$(\d+)/); cardRev += match ? parseInt(match[1]) : 0; }
+            else if(h.action.includes("CARD RENEWED")) { const match = h.action.match(/\$(\d+)/); cardRev += match ? parseInt(match[1]) : 0; }
         });
-
-        return { tolls: tollRev, arrests: arrestRev, penalties: penaltyRev, rehab: rehabRev, cards: cardRev };
+        return { tolls: tollRev, arrests: arrestRev, rehab: rehabRev, cards: cardRev };
     }
 
     function renderDashboard() {
+        // Top Stats
         document.getElementById('stat-total').innerText = `$${sharedData.revenue || 0}`;
+        document.getElementById('stat-pool').innerText = `$${sharedData.revenuePool || 0}`;
         document.getElementById('stat-valids').innerText = sharedData.valids || 0;
         document.getElementById('stat-misses').innerText = sharedData.missed || 0;
 
         const breakdown = calculateBreakdown();
-        document.getElementById('stat-tolls').innerText = `$${breakdown.tolls + breakdown.cards}`; // Card revenue counts toward NHAI Rev
+        const totalGross = breakdown.tolls + breakdown.arrests + breakdown.rehab + breakdown.cards;
+        
+        document.getElementById('stat-tolls').innerText = `$${breakdown.tolls}`;
         document.getElementById('stat-bounties').innerText = `$${breakdown.arrests + breakdown.rehab}`;
+        document.getElementById('stat-cards').innerText = `$${breakdown.cards}`;
+        
+        // PnL & Leakage
+        const missPenalty = (sharedData.missed || 0) * 100;
+        const netPnl = totalGross - missPenalty;
+        document.getElementById('stat-pnl').innerText = `$${netPnl}`;
+        document.getElementById('stat-pnl').style.color = netPnl >= 0 ? 'var(--success)' : 'var(--danger)';
+        
+        const leakRate = totalGross > 0 ? Math.round((missPenalty / totalGross) * 100) : 0;
+        document.getElementById('leak-rate-text').innerText = `LEAK RATE: ${leakRate}%`;
+
+        // Budgets (Simulated Allocation from Lifetime Revenue)
+        const lifetime = sharedData.lifetimeRevenue || 0;
+        const infraSpend = Math.floor(lifetime * 0.40);
+        const secSpend = Math.floor(lifetime * 0.35);
+        const adminSpend = Math.floor(lifetime * 0.25);
+        
+        document.getElementById('budget-total-label').innerText = `TOTAL: $${lifetime}`;
+        
+        document.getElementById('val-infra').innerText = `$${infraSpend.toLocaleString()}`;
+        document.getElementById('bar-infra').style.width = lifetime > 0 ? '40%' : '0%';
+        
+        document.getElementById('val-sec').innerText = `$${secSpend.toLocaleString()}`;
+        document.getElementById('bar-sec').style.width = lifetime > 0 ? '35%' : '0%';
+        
+        document.getElementById('val-admin').innerText = `$${adminSpend.toLocaleString()}`;
+        document.getElementById('bar-admin').style.width = lifetime > 0 ? '25%' : '0%';
 
         // Transaction List
         const listContainer = document.getElementById('trans-list');
         listContainer.innerHTML = '';
-
-        const recentHistory = (sharedData.history || []).slice(-15).reverse();
+        const recentHistory = (sharedData.history || []).slice(-20).reverse();
+        document.getElementById('trans-count').innerText = `${(sharedData.history || []).length} Records`;
         
         if (recentHistory.length === 0 && (sharedData.ledgerCashouts || []).length === 0) {
-            listContainer.innerHTML = '<div style="color:#555; text-align:center; padding:20px;">NO TRANSACTIONS</div>';
+            listContainer.innerHTML = '<div style="color:#444; text-align:center; padding:30px 0;">NO TRANSACTIONS</div>';
         } else {
-            // Show Cashouts
             (sharedData.ledgerCashouts || []).slice(-3).reverse().forEach(co => {
                 const item = document.createElement('div');
-                item.className = 'breakdown-item';
+                item.className = 'breakdown-item pool-deposit';
                 item.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; font-weight:bold; color:var(--success);">
-                        <span>CASH OUT DEPOSIT</span> <span>$${co.totalCashOut}</span>
+                    <div class="item-header">
+                        <span style="color:var(--purple);">POOL DEPOSIT</span> 
+                        <span style="color:var(--success);">$${co.totalCashOut}</span>
                     </div>
-                    <div style="font-size:0.7rem; color:#555; margin-top:4px;">${co.date}</div>
+                    <div class="item-meta">
+                        <span>AUTH: ${co.authCode || 'N/A'}</span>
+                        <span>${co.date}</span>
+                    </div>
                 `;
                 listContainer.appendChild(item);
             });
 
-            // Show recent actions
             recentHistory.forEach(h => {
                 const item = document.createElement('div');
-                let cssClass = 'penalty';
-                let amountText = '$0';
+                let cssClass = 'penalty', amountText = '$0', actionColor = '#ccc';
                 
-                if(h.action.includes("TOLL PAID")) { cssClass = 'toll'; amountText = 'Toll Paid'; }
-                else if(h.action.includes("ROGUE TOLL")) { cssClass = 'toll'; amountText = 'Rogue Fine'; }
-                else if(h.action.includes("LICENSE APPROVED") || h.action === "RELEASED") { cssClass = 'toll'; amountText = '+$50 Fee'; }
-                else if(h.action === "ARRESTED" || h.action.includes("ARREST STAMPED")) { cssClass = 'arrest'; amountText = '+$200 Bounty'; }
-                else if(h.action === "ID RENEWED") { cssClass = 'penalty'; amountText = '+$150 ID Fee'; }
-                else if(h.action === "REHAB GRADUATED") { cssClass = 'penalty'; amountText = '+$100 Rehab Fee'; }
-                else if(h.action === "PAROLE GRANTED" || h.action.includes("PAROLE / RELEASED")) { cssClass = 'penalty'; amountText = '+$50 Parole Fee'; }
-                else if(h.action.includes("CARD ISSUED")) { 
-                    cssClass = 'card-rev'; 
-                    const match = h.action.match(/\$(\d+)/);
-                    amountText = `+$${match ? match[1] : '0'} Card Fee`; 
-                }
-                else if(h.action.includes("CARD RENEWED")) { 
-                    cssClass = 'card-rev'; 
-                    const match = h.action.match(/\$(\d+)/);
-                    amountText = `+$${match ? match[1] : '0'} Renewal Fee`; 
-                }
+                if(h.action.includes("TOLL PAID")) { cssClass = 'toll'; amountText = '+$500'; actionColor = 'var(--warning)'; }
+                else if(h.action.includes("ROGUE TOLL")) { cssClass = 'toll'; amountText = '+$1000'; actionColor = 'var(--warning)'; }
+                else if(h.action.includes("LICENSE APPROVED") || h.action === "RELEASED") { cssClass = 'toll'; amountText = '+$50 Fee'; actionColor = 'var(--success)'; }
+                else if(h.action === "ARRESTED" || h.action.includes("ARREST STAMPED")) { cssClass = 'arrest'; amountText = '+$200 Bounty'; actionColor = 'var(--danger)'; }
+                else if(h.action === "ID RENEWED") { cssClass = 'penalty'; amountText = '+$150 ID Fee'; actionColor = 'var(--accent)'; }
+                else if(h.action === "REHAB GRADUATED") { cssClass = 'penalty'; amountText = '+$100 Rehab Fee'; actionColor = 'var(--success)'; }
+                else if(h.action === "PAROLE GRANTED" || h.action.includes("PAROLE / RELEASED")) { cssClass = 'penalty'; amountText = '+$50 Parole Fee'; actionColor = 'var(--success)'; }
+                else if(h.action.includes("CARD ISSUED")) { cssClass = 'card-rev'; const match = h.action.match(/\$(\d+)/); amountText = `+$${match ? match[1] : '0'} Card Fee`; actionColor = 'var(--accent)'; }
+                else if(h.action.includes("CARD RENEWED")) { cssClass = 'card-rev'; const match = h.action.match(/\$(\d+)/); amountText = `+$${match ? match[1] : '0'} Renewal Fee`; actionColor = 'var(--accent)'; }
 
                 item.className = `breakdown-item ${cssClass}`;
                 item.innerHTML = `
-                    <div style="display:flex; justify-content:space-between;">
-                        <span style="color:var(--warning); font-weight:bold;">${h.plate}</span>
-                        <span style="font-weight:bold;">${amountText}</span>
+                    <div class="item-header">
+                        <span style="color:var(--warning);">${h.plate}</span>
+                        <span style="color:${actionColor}; font-weight:bold;">${amountText}</span>
                     </div>
-                    <div style="font-size:0.7rem; color:#555; margin-top:4px;">${h.action} @ ${h.timestamp || 'N/A'}</div>
+                    <div class="item-meta">
+                        <span>${h.action}</span>
+                        <span>${h.timestamp || 'N/A'}</span>
+                    </div>
                 `;
                 listContainer.appendChild(item);
             });
         }
 
-        // Render Persistent Audit Logs
+        // Audit Log Render
         const auditLog = document.getElementById('audit-log');
         auditLog.innerHTML = '';
-        const violations = (sharedData.iaViolations || []).slice(-30).reverse();
+        const violations = (sharedData.iaViolations || []).slice(-40).reverse();
         if (violations.length === 0) {
-            auditLog.innerHTML = '<div style="color:#555;">No audits recorded yet.</div>';
+            auditLog.innerHTML = '<div style="color:#444;">System initialized. Awaiting commands...</div>';
         } else {
             violations.forEach(v => {
                 const entry = document.createElement('div');
-                entry.style.color = v.color || "var(--success)"; 
-                entry.style.marginBottom = "5px";
-                entry.innerText = `> ${v.message}`; 
+                entry.className = 'log-entry';
+                entry.style.color = v.color || "var(--success)";
+                const time = v.timestamp || new Date().toLocaleTimeString('en-GB');
+                entry.innerHTML = `<span class="log-time">[${time}]</span>> ${v.message}`; 
                 auditLog.appendChild(entry);
             });
         }
     }
 
-    // Real-time cross-tab sync listener
     window.addEventListener('storage', (event) => {
         if (event.key === LS_D1_KEY || event.key === LS_D2_KEY) { loadData(); }
     });
 
-    // Initial load and live sync
     loadData();
     setInterval(loadData, 2000);
 </script>
