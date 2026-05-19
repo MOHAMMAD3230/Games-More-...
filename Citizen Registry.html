@@ -36,18 +36,19 @@
         background: #000; padding: 12px 16px; padding-top: calc(12px + var(--safe-top));
         border-bottom: 2px solid var(--gold); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
         flex-wrap: wrap; gap: 6px; z-index: 10;
+        box-shadow: 0 5px 15px rgba(255, 215, 0, 0.1);
     }
 
-    .top-bar h1 { margin: 0; font-size: clamp(0.65rem, 2.5vw, 1.1rem); color: var(--gold); letter-spacing: 1px; white-space: nowrap; }
+    .top-bar h1 { margin: 0; font-size: clamp(0.65rem, 2.5vw, 1.1rem); color: var(--gold); letter-spacing: 1px; white-space: nowrap; text-shadow: 0 0 8px rgba(255,215,0,0.4); }
     .top-bar-right { display: flex; align-items: center; gap: 10px; }
     .top-bar .time { color: var(--accent); font-size: clamp(0.65rem, 2vw, 0.9rem); font-variant-numeric: tabular-nums; }
 
     .sync-badge {
-        font-size: 0.55rem; padding: 3px 8px; border-radius: 3px; letter-spacing: 1px; font-weight: bold; text-transform: uppercase; white-space: nowrap;
+        font-size: 0.55rem; padding: 3px 8px; border-radius: 3px; letter-spacing: 1px; font-weight: bold; text-transform: uppercase; white-space: nowrap; transition: all 0.3s;
     }
-    .sync-badge.online { background: rgba(0,255,157,0.1); color: var(--success); border: 1px solid var(--success); }
-    .sync-badge.offline { background: rgba(255,0,68,0.1); color: var(--danger); border: 1px solid var(--danger); }
-    .sync-badge.waiting { background: rgba(255,204,0,0.1); color: var(--warning); border: 1px solid var(--warning); }
+    .sync-badge.online { background: rgba(0,255,157,0.1); color: var(--success); border: 1px solid var(--success); box-shadow: 0 0 8px rgba(46,213,115,0.2); }
+    .sync-badge.offline { background: rgba(255,0,68,0.1); color: var(--danger); border: 1px solid var(--danger); box-shadow: 0 0 8px rgba(255,0,68,0.2); }
+    .sync-badge.waiting { background: rgba(255,204,0,0.1); color: var(--warning); border: 1px solid var(--warning); box-shadow: 0 0 8px rgba(255,165,2,0.2); }
 
     .city-selector {
         background: #000; padding: 16px; border-bottom: 1px solid var(--border); display: flex; gap: 16px; align-items: center; flex-shrink: 0;
@@ -66,7 +67,9 @@
 
     .call-panel, .detail-panel {
         background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; overflow: hidden;
+        transition: border-color 0.3s ease;
     }
+    .call-panel:hover, .detail-panel:hover { border-color: rgba(0, 217, 255, 0.3); }
 
     .call-panel { justify-content: center; align-items: center; gap: 20px; }
     .terminal-art { font-size: 0.75rem; color: #555; text-align: center; line-height: 1.6; transition: color 0.3s; }
@@ -122,7 +125,7 @@
     }
     .card-visual.expired { border-color: #cc0000; background: #ffebee; }
     .card-visual.premium { border-color: var(--gold); background: #fffacd; }
-    .card-visual.transferred { border-color: #00acc1; background: #e0f7fa; } /* Cyan style for transferred */
+    .card-visual.transferred { border-color: #00acc1; background: #e0f7fa; }
     .card-title { font-weight: bold; letter-spacing: 2px; border-bottom: 1px solid #999; margin-bottom: 8px; padding-bottom: 4px; }
     .card-id { font-size: 1.2rem; color: #006400; font-weight: 900; font-variant-numeric: tabular-nums; }
     .card-visual.expired .card-id { color: #cc0000; }
@@ -381,14 +384,59 @@
             if (d1) { try { d1Data = JSON.parse(d1); } catch(e) {} }
             if (d2) { try { d2Data = JSON.parse(d2); } catch(e) {} }
 
-            let mergedData = { revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, registry: {}, history: [], activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [], forgedAliases: {}, nextSpawnOverride: null, ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [], citizenCards: {} };
+            let mergedData = { 
+                revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, registry: {}, history: [], 
+                activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [], 
+                forgedAliases: {}, nextSpawnOverride: null, ledgerCashouts: [], intelFlags: [], 
+                paroleRecords: [], iaViolations: [], rehabPrograms: [], citizenCards: {} 
+            };
 
-            if (d1Data) { Object.assign(mergedData, d1Data); if (d1Data.registry) Object.assign(mergedData.registry, d1Data.registry); if (d1Data.citizenCards) Object.assign(mergedData.citizenCards, d1Data.citizenCards); if (d1Data.activeInmates) mergedData.activeInmates = d1Data.activeInmates; if (d1Data.releasedInmates) mergedData.releasedInmates = d1Data.releasedInmates; }
-            if (d2Data) { mergedData.revenue = Math.max(mergedData.revenue || 0, d2Data.revenue || 0); mergedData.valids = Math.max(mergedData.valids || 0, d2Data.valids || 0); mergedData.missed = Math.max(mergedData.missed || 0, d2Data.missed || 0); if (d2Data.registry) Object.assign(mergedData.registry, d2Data.registry); if (d2Data.citizenCards) Object.assign(mergedData.citizenCards, d2Data.citizenCards); if (d2Data.history) { mergedData.history = d2Data.history.concat(mergedData.history).filter((v, i, a) => a.findIndex(t => (t.plate === v.plate && t.timestamp === v.timestamp)) === i); } if (d2Data.activeInmates && d2Data.activeInmates.length > mergedData.activeInmates.length) mergedData.activeInmates = d2Data.activeInmates; if (d2Data.releasedInmates && d2Data.releasedInmates.length > (mergedData.releasedInmates || []).length) mergedData.releasedInmates = d2Data.releasedInmates; }
+            if (d1Data) { 
+                Object.assign(mergedData, d1Data); 
+                if (d1Data.registry) Object.assign(mergedData.registry, d1Data.registry); 
+                if (d1Data.citizenCards) Object.assign(mergedData.citizenCards, d1Data.citizenCards); 
+                if (d1Data.activeInmates) mergedData.activeInmates = d1Data.activeInmates; 
+                if (d1Data.releasedInmates) mergedData.releasedInmates = d1Data.releasedInmates; 
+            }
+            
+            if (d2Data) { 
+                mergedData.revenue = Math.max(mergedData.revenue || 0, d2Data.revenue || 0); 
+                mergedData.valids = Math.max(mergedData.valids || 0, d2Data.valids || 0); 
+                mergedData.missed = Math.max(mergedData.missed || 0, d2Data.missed || 0); 
+                mergedData.level = Math.max(mergedData.level || 1, d2Data.level || 1);
+                mergedData.rankPoints = Math.max(mergedData.rankPoints || 0, d2Data.rankPoints || 0);
+                if (d2Data.registry) Object.assign(mergedData.registry, d2Data.registry); 
+                if (d2Data.citizenCards) Object.assign(mergedData.citizenCards, d2Data.citizenCards); 
+                if (d2Data.history) { 
+                    mergedData.history = d2Data.history.concat(mergedData.history).filter((v, i, a) => 
+                        a.findIndex(t => (t.plate === v.plate && t.timestamp === v.timestamp)) === i
+                    ); 
+                } 
+                if (d2Data.activeInmates && d2Data.activeInmates.length > mergedData.activeInmates.length) mergedData.activeInmates = d2Data.activeInmates; 
+                if (d2Data.releasedInmates && d2Data.releasedInmates.length > (mergedData.releasedInmates || []).length) mergedData.releasedInmates = d2Data.releasedInmates; 
+                
+                // Ensure D2 sub-arrays exist if D1 didn't have them
+                if (!mergedData.call911Logs && d2Data.call911Logs) mergedData.call911Logs = d2Data.call911Logs;
+                if (!mergedData.paroleRecords && d2Data.paroleRecords) mergedData.paroleRecords = d2Data.paroleRecords;
+                if (!mergedData.rehabPrograms && d2Data.rehabPrograms) mergedData.rehabPrograms = d2Data.rehabPrograms;
+                if (!mergedData.forgedAliases && d2Data.forgedAliases) mergedData.forgedAliases = d2Data.forgedAliases;
+            }
 
+            // Ensure all sub-keys exist to prevent undefined errors
             if (!mergedData.registry) mergedData.registry = {};
             if (!mergedData.citizenCards) mergedData.citizenCards = {};
             if (!mergedData.history) mergedData.history = [];
+            if (!mergedData.forgedAliases) mergedData.forgedAliases = {};
+            if (!mergedData.activeInmates) mergedData.activeInmates = [];
+            if (!mergedData.releasedInmates) mergedData.releasedInmates = [];
+            if (!mergedData.inbox) mergedData.inbox = [];
+            if (!mergedData.sentMail) mergedData.sentMail = [];
+            if (!mergedData.call911Logs) mergedData.call911Logs = [];
+            if (!mergedData.ledgerCashouts) mergedData.ledgerCashouts = [];
+            if (!mergedData.intelFlags) mergedData.intelFlags = [];
+            if (!mergedData.paroleRecords) mergedData.paroleRecords = [];
+            if (!mergedData.iaViolations) mergedData.iaViolations = [];
+            if (!mergedData.rehabPrograms) mergedData.rehabPrograms = [];
 
             sharedData = mergedData;
             updateSyncBadge(d1Data, d2Data);
@@ -443,7 +491,6 @@
         } catch(e) {}
     }
 
-    // Initialize audio on first touch/click to bypass browser autoplay restrictions
     document.body.addEventListener('touchstart', function() { getAudioCtx(); }, { once: true });
     document.body.addEventListener('click', function() { getAudioCtx(); }, { once: true });
 
@@ -460,7 +507,7 @@
             plate = cityPlates[Math.floor(Math.random() * cityPlates.length)];
             existingCard = sharedData.citizenCards[plate];
         } else {
-            // Look for plates that are in registry but DON'T have cards yet and are CLEAR (not WANTED)
+            // Look for plates that are in registry but DON'T have cards yet and are CLEAR
             const newPlates = Object.keys(sharedData.registry).filter(k => !sharedData.citizenCards[k] && sharedData.registry[k].status === 'CLEAR');
             if (newPlates.length > 0 && Math.random() < 0.8) plate = newPlates[Math.floor(Math.random() * newPlates.length)];
         }
@@ -477,7 +524,6 @@
             expiryDate = new Date(existingCard.expiry || expiryDate);
         } else if (regData) {
             citizenName = regData.name || citizenName;
-            // If registry has an official DL-AUTH ID, use it instead of fallback
             if (regData.id && regData.id.startsWith("DL-AUTH-")) {
                 citizenDlId = regData.id;
             }
@@ -545,12 +591,12 @@
                     feeBox.innerText = `$ ${cityConfig[selectedCity].renew}`; feeBox.className = 'fee-box fee-due';
                     feeStatus.innerText = "RENEWAL FEE DUE"; feeStatus.style.color = "#b8860b";
                 } else {
-                    // Check if this is a transferred application from the Licensing Terminal (Bug fix: ensure existingCard exists)
+                    // Check if this is a transferred application from the Licensing Terminal
                     const isTransferred = currentCitizen.existingCard && currentCitizen.existingCard.city === 'LICENSING_AUTH_TRANSFER';
                     
                     if (isTransferred) {
                         document.getElementById('f-reqtype').innerText = "REGISTRY TRANSFER (PENDING DL)";
-                        cardVisual.className = 'card-visual transferred'; // Cyan visual
+                        cardVisual.className = 'card-visual transferred'; 
                         document.getElementById('f-uid').innerText = currentCitizen.existingCard.uid;
                         document.getElementById('f-expiry').innerText = "REQUIRES PAYMENT";
                     } else {
@@ -592,7 +638,7 @@
 
     function processAction(isApproved) {
         if (!currentCitizen) return;
-        loadData(); 
+        loadData(); // Refresh data before mutating to prevent race conditions
         const stampBox = document.getElementById('stamp-box'); 
         playSound('stamp'); 
 
