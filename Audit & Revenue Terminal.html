@@ -68,6 +68,7 @@
     .breakdown-item.toll { border-left-color: var(--warning); }
     .breakdown-item.arrest { border-left-color: var(--danger); }
     .breakdown-item.penalty { border-left-color: var(--accent); }
+    .breakdown-item.card-rev { border-left-color: var(--accent); }
 
     .mech-btn {
         width: 100%; padding: 15px; border: 2px solid #000; cursor: pointer; font-weight: bold;
@@ -100,7 +101,7 @@
 <body>
 
 <div class="top-bar">
-    <h1>▸ NHAI_AUDIT // REVENUE_TERMINAL_v9.0</h1>
+    <h1>▸ NHAI_AUDIT // REVENUE_TERMINAL_v9.1</h1>
     <div class="time" id="clock">00:00:00</div>
 </div>
 
@@ -157,65 +158,87 @@
 </div>
 
 <script>
+    // SYNC FIX: Use the EXACT same keys as Dashboard 1 & 2
+    const LS_D1_KEY = 'enforcementTerminalV23_D1';
+    const LS_D2_KEY = 'enforcementTerminalV23_TOLL';
+
     let sharedData = { 
         revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, 
         history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null,
         activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [],
-        ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: []
+        ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [],
+        citizenCards: {}
     };
 
     function updateClock() { document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB'); }
     setInterval(updateClock, 1000);
 
-    const HASH_SALT = "ENFORCE_V23_SECURE_SALT";
-    function generateSignature(dataStr) {
-        let hash = 0;
-        const str = HASH_SALT + dataStr;
-        for (let i = 0; i < str.length; i++) {
-            const char = str.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash; 
-        }
-        return hash.toString(16);
-    }
-
     function loadData() {
-        const savedData = localStorage.getItem('enforcementTerminalV23');
-        const savedSig = localStorage.getItem('enforcementTerminalV23_sig');
-        if (savedData) {
-            try {
-                if (savedSig !== generateSignature(savedData)) {
-                    console.error("AUDIT SECURITY BREACH: Data tampering detected! Wiping corrupted data.");
-                    localStorage.removeItem('enforcementTerminalV23');
-                    localStorage.removeItem('enforcementTerminalV23_sig');
-                    return;
+        try {
+            const d1 = localStorage.getItem(LS_D1_KEY);
+            const d2 = localStorage.getItem(LS_D2_KEY);
+            let d1Data = null, d2Data = null;
+            if (d1) { try { d1Data = JSON.parse(d1); } catch(e) {} }
+            if (d2) { try { d2Data = JSON.parse(d2); } catch(e) {} }
+
+            let mergedData = { 
+                revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, registry: {}, history: [], 
+                activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [], 
+                forgedAliases: {}, nextSpawnOverride: null, ledgerCashouts: [], intelFlags: [], 
+                paroleRecords: [], iaViolations: [], rehabPrograms: [], citizenCards: {} 
+            };
+
+            if (d1Data) { 
+                Object.assign(mergedData, d1Data); 
+                if (d1Data.registry) Object.assign(mergedData.registry, d1Data.registry); 
+                if (d1Data.citizenCards) Object.assign(mergedData.citizenCards, d1Data.citizenCards); 
+                if (d1Data.ledgerCashouts) mergedData.ledgerCashouts = d1Data.ledgerCashouts;
+                if (d1Data.iaViolations) mergedData.iaViolations = d1Data.iaViolations;
+            }
+            if (d2Data) { 
+                mergedData.revenue = Math.max(mergedData.revenue || 0, d2Data.revenue || 0); 
+                mergedData.valids = Math.max(mergedData.valids || 0, d2Data.valids || 0); 
+                mergedData.missed = Math.max(mergedData.missed || 0, d2Data.missed || 0);
+                mergedData.rankPoints = Math.max(mergedData.rankPoints || 0, d2Data.rankPoints || 0);
+                if (d2Data.registry) Object.assign(mergedData.registry, d2Data.registry); 
+                if (d2Data.citizenCards) Object.assign(mergedData.citizenCards, d2Data.citizenCards); 
+                if (d2Data.history) { 
+                    mergedData.history = d2Data.history.concat(mergedData.history).filter((v, i, a) => 
+                        a.findIndex(t => (t.plate === v.plate && t.timestamp === v.timestamp)) === i
+                    ); 
                 }
-                const parsed = JSON.parse(savedData);
-                sharedData = parsed;
-                
-                if(!sharedData.registry) sharedData.registry = {};
-                if(!sharedData.forgedAliases) sharedData.forgedAliases = {};
-                if(sharedData.nextSpawnOverride === undefined) sharedData.nextSpawnOverride = null;
-                if(!sharedData.activeInmates) sharedData.activeInmates = [];
-                if(!sharedData.releasedInmates) sharedData.releasedInmates = [];
-                if(!sharedData.inbox) sharedData.inbox = [];
-                if(!sharedData.sentMail) sharedData.sentMail = [];
-                if(!sharedData.call911Logs) sharedData.call911Logs = [];
-                if(!sharedData.ledgerCashouts) sharedData.ledgerCashouts = [];
-                if(!sharedData.intelFlags) sharedData.intelFlags = [];
-                if(!sharedData.paroleRecords) sharedData.paroleRecords = [];
-                if(!sharedData.iaViolations) sharedData.iaViolations = [];
-                if(!sharedData.rehabPrograms) sharedData.rehabPrograms = [];
-                if(!sharedData.history) sharedData.history = [];
-            } catch(e) { console.error("Load error:", e); }
-        }
+                if (d2Data.ledgerCashouts && d2Data.ledgerCashouts.length > mergedData.ledgerCashouts.length) mergedData.ledgerCashouts = d2Data.ledgerCashouts;
+                if (d2Data.iaViolations && d2Data.iaViolations.length > mergedData.iaViolations.length) mergedData.iaViolations = d2Data.iaViolations;
+            }
+
+            // Ensure all sub-keys exist to prevent undefined errors
+            if (!mergedData.registry) mergedData.registry = {};
+            if (!mergedData.citizenCards) mergedData.citizenCards = {};
+            if (!mergedData.history) mergedData.history = [];
+            if (!mergedData.forgedAliases) mergedData.forgedAliases = {};
+            if (!mergedData.activeInmates) mergedData.activeInmates = [];
+            if (!mergedData.releasedInmates) mergedData.releasedInmates = [];
+            if (!mergedData.inbox) mergedData.inbox = [];
+            if (!mergedData.sentMail) mergedData.sentMail = [];
+            if (!mergedData.call911Logs) mergedData.call911Logs = [];
+            if (!mergedData.ledgerCashouts) mergedData.ledgerCashouts = [];
+            if (!mergedData.intelFlags) mergedData.intelFlags = [];
+            if (!mergedData.paroleRecords) mergedData.paroleRecords = [];
+            if (!mergedData.iaViolations) mergedData.iaViolations = [];
+            if (!mergedData.rehabPrograms) mergedData.rehabPrograms = [];
+
+            sharedData = mergedData;
+        } catch(e) { console.error("Load error:", e); }
+        
         renderDashboard();
     }
 
     function saveData() {
-        const dataStr = JSON.stringify(sharedData);
-        localStorage.setItem('enforcementTerminalV23', dataStr);
-        localStorage.setItem('enforcementTerminalV23_sig', generateSignature(dataStr));
+        try { 
+            const dataStr = JSON.stringify(sharedData); 
+            localStorage.setItem(LS_D1_KEY, dataStr); 
+            localStorage.setItem(LS_D2_KEY, dataStr); 
+        } catch(e) { console.error("Save error:", e); }
     }
 
     function addAuditLog(msg, color) {
@@ -271,18 +294,28 @@
         let arrestRev = 0;
         let penaltyRev = 0;
         let rehabRev = 0;
+        let cardRev = 0;
         
         (sharedData.history || []).forEach(h => {
             if(h.action.includes("TOLL PAID")) tollRev += 500; 
             else if(h.action.includes("ROGUE TOLL")) tollRev += 1000;
-            else if(h.action.includes("LICENSE APPROVED") || h.action.includes("RELEASED")) tollRev += 50;
+            else if(h.action.includes("LICENSE APPROVED") || h.action === "RELEASED") tollRev += 50;
             else if(h.action === "ARRESTED" || h.action.includes("ARREST STAMPED")) arrestRev += 200;
             else if(h.action === "ID RENEWED") arrestRev += 150;
             else if(h.action === "REHAB GRADUATED") rehabRev += 100;
             else if(h.action === "PAROLE GRANTED" || h.action.includes("PAROLE / RELEASED")) rehabRev += 50;
+            // Add Revenue tracking from the Citizen Registry Terminal
+            else if(h.action.includes("CARD ISSUED")) {
+                const match = h.action.match(/\$(\d+)/);
+                cardRev += match ? parseInt(match[1]) : 0;
+            }
+            else if(h.action.includes("CARD RENEWED")) {
+                const match = h.action.match(/\$(\d+)/);
+                cardRev += match ? parseInt(match[1]) : 0;
+            }
         });
 
-        return { tolls: tollRev, arrests: arrestRev, penalties: penaltyRev, rehab: rehabRev };
+        return { tolls: tollRev, arrests: arrestRev, penalties: penaltyRev, rehab: rehabRev, cards: cardRev };
     }
 
     function renderDashboard() {
@@ -291,7 +324,7 @@
         document.getElementById('stat-misses').innerText = sharedData.missed || 0;
 
         const breakdown = calculateBreakdown();
-        document.getElementById('stat-tolls').innerText = `$${breakdown.tolls}`;
+        document.getElementById('stat-tolls').innerText = `$${breakdown.tolls + breakdown.cards}`; // Card revenue counts toward NHAI Rev
         document.getElementById('stat-bounties').innerText = `$${breakdown.arrests + breakdown.rehab}`;
 
         // Transaction List
@@ -329,6 +362,16 @@
                 else if(h.action === "ID RENEWED") { cssClass = 'penalty'; amountText = '+$150 ID Fee'; }
                 else if(h.action === "REHAB GRADUATED") { cssClass = 'penalty'; amountText = '+$100 Rehab Fee'; }
                 else if(h.action === "PAROLE GRANTED" || h.action.includes("PAROLE / RELEASED")) { cssClass = 'penalty'; amountText = '+$50 Parole Fee'; }
+                else if(h.action.includes("CARD ISSUED")) { 
+                    cssClass = 'card-rev'; 
+                    const match = h.action.match(/\$(\d+)/);
+                    amountText = `+$${match ? match[1] : '0'} Card Fee`; 
+                }
+                else if(h.action.includes("CARD RENEWED")) { 
+                    cssClass = 'card-rev'; 
+                    const match = h.action.match(/\$(\d+)/);
+                    amountText = `+$${match ? match[1] : '0'} Renewal Fee`; 
+                }
 
                 item.className = `breakdown-item ${cssClass}`;
                 item.innerHTML = `
@@ -358,6 +401,11 @@
             });
         }
     }
+
+    // Real-time cross-tab sync listener
+    window.addEventListener('storage', (event) => {
+        if (event.key === LS_D1_KEY || event.key === LS_D2_KEY) { loadData(); }
+    });
 
     // Initial load and live sync
     loadData();
