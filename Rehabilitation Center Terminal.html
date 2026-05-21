@@ -35,6 +35,7 @@ body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:
 .mech-btn:disabled{opacity:.3;cursor:not-allowed;}
 .btn-enroll{background:var(--accent);color:#000;}
 .btn-graduate{background:var(--success);color:#000;}
+.btn-purge{background:var(--danger);color:#fff;box-shadow:0 3px 0 #800022;margin-top:10px;width:100%;}
 .log-box{flex:1;background:#000;border:1px solid #222;padding:10px;font-size:.7rem;color:var(--accent);overflow-y:auto;border-radius:4px;min-height:0;}
 .rehab-list::-webkit-scrollbar,.log-box::-webkit-scrollbar{width:6px;}
 .rehab-list::-webkit-scrollbar-track,.log-box::-webkit-scrollbar-track{background:#000;border:1px solid var(--border);}
@@ -64,6 +65,7 @@ body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:
 <div class="panel-title">■ Processing Log</div>
 <div class="log-box" id="rehab-log"></div>
 <button class="mech-btn btn-enroll" onclick="enrollFromReleased()" style="margin-top:15px;width:100%;">ENROLL RELEASED INMATES</button>
+<button class="mech-btn btn-purge" onclick="purgeCorruptData()">⚠ PURGE CORRUPTED REHAB DATA</button>
 </div>
 </div>
 <script>
@@ -120,28 +122,14 @@ function loadData(){
         }
     }
     
-    // FIX: Force repair broken data types on load so the timer math actually works
+    // Auto-repair broken types on load
     let needsSave = false;
     (sharedData.rehabPrograms || []).forEach(p => {
-        if (!p.realPlate || p.realPlate === 'N/A' || p.realPlate === p.plate) {
-            p.realPlate = 'TEMP-' + Math.floor(1000 + Math.random() * 9000);
-            needsSave = true;
-        }
-        if (!p.id || p.id === 'MISSING' || p.id === 'ARREST_TARGET') {
-            p.id = 'DL-REHAB-' + Math.floor(1000 + Math.random() * 9000);
-            needsSave = true;
-        }
-        if (!p.offense || p.offense === 'UNKNOWN') {
-            p.offense = 'PENDING REVIEW';
-            needsSave = true;
-        }
-        
-        // CRITICAL FIX: Force progress and programDays to be valid integers
         let prog = parseInt(p.progress);
         let days = parseInt(p.programDays);
         
-        if (isNaN(prog) || prog < 0) prog = 0;
-        if (isNaN(days) || days <= 0) days = 15;
+        if (isNaN(prog) || prog < 0) { prog = 0; needsSave = true; }
+        if (isNaN(days) || days <= 0) { days = 15; needsSave = true; }
         
         if (p.progress !== prog || p.programDays !== days) {
             p.progress = prog;
@@ -213,7 +201,6 @@ function renderLogs(){
 function enrollFromReleased(){
     const graduatedPlates = new Set((sharedData.rehabGraduations || []).map(g => g.oldPlate));
     
-    // Accept released inmates
     const released = sharedData.releasedInmates.filter(i =>
         (i.status==='RELEASED' || i.status==='PAROLED') && 
         !graduatedPlates.has(i.plate)
@@ -227,7 +214,7 @@ function enrollFromReleased(){
                 ? inmate.realPlate 
                 : 'TEMP-' + Math.floor(1000 + Math.random() * 9000);
                 
-            const validId = (inmate.id && inmate.id !== 'MISSING' && inmate.id !== 'ARREST_TARGET') 
+            const validId = (inmate.id && inmate.id !== 'MISSING' && inmate.id !== 'ARREST_TARGET' && inmate.id !== 'WANTED') 
                 ? inmate.id 
                 : 'DL-REHAB-' + Math.floor(1000 + Math.random() * 9000);
 
@@ -236,8 +223,8 @@ function enrollFromReleased(){
                 realPlate: validRealPlate,
                 id: validId,
                 offense: inmate.offense || 'PENDING REVIEW',
-                progress: 0, // Ensure this is an integer
-                programDays: 15 + Math.floor(Math.random() * 16), // Ensure this is an integer
+                progress: 0,
+                programDays: 15 + Math.floor(Math.random() * 16),
                 status: 'ENROLLED',
                 dateEnrolled: new Date().toLocaleDateString()
             });
@@ -250,6 +237,15 @@ function enrollFromReleased(){
         addLog(`ENROLLED: ${enrolled} released inmates into rehabilitation.`, 'var(--accent)');
     } else {
         addLog('No new released inmates to enroll.', 'var(--warning)');
+    }
+}
+
+function purgeCorruptData() {
+    if(confirm("⚠ WARNING: This will delete all current rehabilitation programs, clearing stuck/corrupted inmates. Proceed?")) {
+        sharedData.rehabPrograms = [];
+        saveData();
+        renderDashboard();
+        addLog('SYSTEM: Corrupted rehabilitation data purged.', 'var(--danger)');
     }
 }
 
@@ -320,7 +316,6 @@ function renderDashboard(){
     }
     
     programs.forEach(inmate => {
-        // CRITICAL FIX: Parse as Integers strictly for rendering
         const safeProgramDays = parseInt(inmate.programDays) || 15;
         const safeProgress = parseInt(inmate.progress) || 0;
         
@@ -361,7 +356,7 @@ function renderDashboard(){
     });
 }
 
-// CRITICAL FIX: Force Integer Parsing in the 1-Second Timer Loop
+// Timer loop strictly enforcing integers
 setInterval(() => {
     let needsSave = false;
     (sharedData.rehabPrograms || []).forEach(p => {
@@ -372,7 +367,7 @@ setInterval(() => {
         if (isNaN(days)) days = 15;
         
         if(p.status === 'ENROLLED' && prog < days){
-            p.progress = prog + 1; // Increment safely
+            p.progress = prog + 1;
             needsSave = true;
         }
     });
