@@ -99,37 +99,36 @@ function ensureDataStructure() {
 
 function repairInmateData(inmate) {
     if (!inmate) return inmate;
-    
-    // FIX: Use the ID/Case Number (e.g., AV-8992) as the plate if no plate is assigned
     if (!inmate.plate && (inmate.id || inmate.caseNumber)) {
         inmate.plate = inmate.id || inmate.caseNumber;
     }
-    
     if (inmate.sentenceDays === undefined || inmate.sentenceDays === null) {
-        // FIX: Check for common alternate property names from the enforcement terminal
         const days = inmate.days || inmate.sentence || inmate.time || 0;
-        
         if (inmate.offense === "911 FELONY" || inmate.facility === "FEDERAL HOLD") inmate.sentenceDays = 120;
         else if (inmate.offense === "FORGERY & FUGITIVE" || inmate.facility === "MAXIMUM SECURITY") inmate.sentenceDays = 90;
         else if (days > 0) inmate.sentenceDays = days;
-        else inmate.sentenceDays = 60; // Default fallback
+        else inmate.sentenceDays = 60;
     }
-    
     if (inmate.sentenceRemaining === undefined || inmate.sentenceRemaining === null) inmate.sentenceRemaining = inmate.sentenceDays;
     inmate.sentenceRemaining = Math.max(0, inmate.sentenceRemaining);
     inmate.sentenceDays = Math.max(1, inmate.sentenceDays);
-    
     if (!inmate.offense) inmate.offense = "WARRANT / ROGUE";
     if (!inmate.facility) inmate.facility = "CENTRAL DETENTION";
     if (!inmate.realPlate) inmate.realPlate = inmate.plate || "UNKNOWN";
     if (!inmate.id) inmate.id = inmate.plate || "MISSING";
     if (!inmate.dateArrested) inmate.dateArrested = new Date().toLocaleDateString();
     if (!inmate.status) inmate.status = "ARRESTED";
-    
     return inmate;
 }
 
-/* ===== RACE-SAFE LOAD ===== */
+const mergeByKey = (localArr, parsedArr, keyGen) => {
+    if (!parsedArr) return localArr;
+    if (!localArr) return parsedArr;
+    const keys = new Set(localArr.map(keyGen));
+    parsedArr.forEach(item => { if (!keys.has(keyGen(item))) localArr.push(item); });
+    return localArr;
+};
+
 function loadData(){
     try {
         const savedStr = localStorage.getItem(LS_MASTER_KEY);
@@ -140,16 +139,13 @@ function loadData(){
             const previousLocalInmateMap = {};
             (sharedData.activeInmates || []).forEach(i => { previousLocalInmateMap[i.plate] = i; });
 
-            // ---- SMART MERGE: activeInmates (plate-by-plate) ----
             const mergedInmates = [];
             const seenPlates = new Set();
 
             (parsed.activeInmates || []).forEach(inmate => {
                 const repaired = repairInmateData(inmate);
                 const localVersion = previousLocalInmateMap[inmate.plate];
-
                 if (localVersion) {
-                    // Prison countdown is authoritative — take lower sentenceRemaining
                     if (localVersion.sentenceRemaining !== undefined && localVersion.sentenceRemaining !== null) {
                         repaired.sentenceRemaining = Math.min(
                             localVersion.sentenceRemaining,
@@ -161,7 +157,6 @@ function loadData(){
                 seenPlates.add(inmate.plate);
             });
 
-            // Preserve local inmates not yet in storage
             (sharedData.activeInmates || []).forEach(inmate => {
                 if (!seenPlates.has(inmate.plate)) {
                     mergedInmates.push(repairInmateData(inmate));
@@ -171,35 +166,19 @@ function loadData(){
 
             sharedData.activeInmates = mergedInmates;
 
-            // ---- releasedInmates: take longer list ----
-            if ((parsed.releasedInmates || []).length > (sharedData.releasedInmates || []).length) {
-                sharedData.releasedInmates = parsed.releasedInmates;
-            }
-
-            // ---- Merge keyed arrays ----
-            const mergeByKey = (localArr, parsedArr, keyGen) => {
-                if (!parsedArr) return localArr;
-                if (!localArr) return parsedArr;
-                const keys = new Set(localArr.map(keyGen));
-                parsedArr.forEach(item => { if (!keys.has(keyGen(item))) localArr.push(item); });
-                return localArr;
-            };
-
+            sharedData.releasedInmates = mergeByKey(sharedData.releasedInmates, parsed.releasedInmates, r => r.plate + r.dateReleased);
             sharedData.paroleRecords = mergeByKey(sharedData.paroleRecords, parsed.paroleRecords, r => r.plate + r.date);
             sharedData.rehabPrograms = mergeByKey(sharedData.rehabPrograms, parsed.rehabPrograms, r => r.plate + r.program);
             sharedData.rehabGraduations = mergeByKey(sharedData.rehabGraduations, parsed.rehabGraduations, r => r.oldPlate + r.newPlate);
             sharedData.iaViolations = mergeByKey(sharedData.iaViolations, parsed.iaViolations, r => r.time + r.message);
             sharedData.history = mergeByKey(sharedData.history, parsed.history, h => h.plate + h.timestamp);
 
-            // ---- Object overlays ----
             if (parsed.registry) Object.assign(sharedData.registry || {}, parsed.registry);
             if (parsed.forgedAliases) Object.assign(sharedData.forgedAliases || {}, parsed.forgedAliases);
 
-            // ---- Scalars ----
             const scalarFields = ['revenue','valids','missed','level','rankPoints','nextSpawnOverride'];
             scalarFields.forEach(key => { if (parsed[key] !== undefined) sharedData[key] = parsed[key]; });
 
-            // ---- Full replace arrays (non-critical) ----
             const replaceArrays = ['inbox','sentMail','call911Logs','ledgerCashouts','intelFlags'];
             replaceArrays.forEach(key => { if (parsed[key] !== undefined && parsed[key] !== null) sharedData[key] = parsed[key]; });
 
@@ -209,7 +188,6 @@ function loadData(){
         console.error("Rehab load error:", e);
     }
 
-    // Repair rehab program data
     let needsSave = false;
     (sharedData.rehabPrograms || []).forEach(p => {
         let prog = parseInt(p.progress);
@@ -233,59 +211,14 @@ function loadData(){
     renderLogs();
 }
 
-/* ===== RACE-SAFE SAVE ===== */
 function saveData(){
     try {
-        // Re-read storage to catch concurrent changes from other terminals
-        try {
-            const currentStr = localStorage.getItem(LS_MASTER_KEY);
-            if (currentStr) {
-                const currentData = JSON.parse(currentStr);
-                // Merge any inmates from storage that we don't have locally
-                if (currentData.activeInmates) {
-                    currentData.activeInmates.forEach(storageInmate => {
-                        const existsLocally = sharedData.activeInmates.some(i => i.plate === storageInmate.plate);
-                        if (!existsLocally) {
-                            sharedData.activeInmates.push(repairInmateData(storageInmate));
-                        }
-                    });
-                }
-                // Take releasedInmates if storage has more
-                if ((currentData.releasedInmates || []).length > (sharedData.releasedInmates || []).length) {
-                    sharedData.releasedInmates = currentData.releasedInmates;
-                }
-                // Merge history entries
-                if (currentData.history) {
-                    const existingKeys = new Set((sharedData.history || []).map(h => h.plate + h.timestamp));
-                    currentData.history.forEach(h => {
-                        if (!existingKeys.has(h.plate + h.timestamp)) {
-                            sharedData.history.push(h);
-                        }
-                    });
-                }
-                // Merge rehabGraduations from storage
-                if (currentData.rehabGraduations) {
-                    const existingKeys = new Set((sharedData.rehabGraduations || []).map(g => g.oldPlate + g.newPlate));
-                    currentData.rehabGraduations.forEach(g => {
-                        if (!existingKeys.has(g.oldPlate + g.newPlate)) {
-                            sharedData.rehabGraduations.push(g);
-                        }
-                    });
-                }
-                // Merge registry entries
-                if (currentData.registry) {
-                    Object.assign(sharedData.registry || {}, currentData.registry);
-                }
-            }
-        } catch(e) {}
-
         localStorage.setItem(LS_MASTER_KEY, JSON.stringify(sharedData));
     } catch(e) {
         console.error("Rehab save error:", e);
     }
 }
 
-// Internal save — used for repair operations where we know sharedData is fresh
 function saveDataInternal(){
     try {
         localStorage.setItem(LS_MASTER_KEY, JSON.stringify(sharedData));
@@ -294,7 +227,6 @@ function saveDataInternal(){
     }
 }
 
-// syncData now just calls loadData (which is already race-safe)
 function syncData() {
     loadData();
 }
@@ -369,6 +301,11 @@ function enrollFromReleased(){
                 status: 'ENROLLED',
                 dateEnrolled: new Date().toLocaleDateString()
             });
+            
+            // BUG FIX: Remove from releasedInmates queue to prevent infinite array growth
+            const rIndex = sharedData.releasedInmates.findIndex(r => r.plate === inmate.plate && r.dateReleased === inmate.dateReleased);
+            if(rIndex !== -1) sharedData.releasedInmates.splice(rIndex, 1);
+            
             enrolled++;
         }
     });
@@ -501,7 +438,6 @@ function renderDashboard(){
     });
 }
 
-// Progress countdown: 1 second = 1 day
 setInterval(() => {
     let needsSave = false;
     (sharedData.rehabPrograms || []).forEach(p => {
@@ -522,7 +458,6 @@ setInterval(() => {
     }
 }, 1000);
 
-// Cross-tab sync
 setInterval(() => {
     syncData();
 }, 2000);
