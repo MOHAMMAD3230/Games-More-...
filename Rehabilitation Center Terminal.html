@@ -39,7 +39,7 @@ body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:
 .rehab-list::-webkit-scrollbar,.log-box::-webkit-scrollbar{width:6px;}
 .rehab-list::-webkit-scrollbar-track,.log-box::-webkit-scrollbar-track{background:#000;border:1px solid var(--border);}
 .rehab-list::-webkit-scrollbar-thumb,.log-box::-webkit-scrollbar-thumb{background:var(--accent);}
-.graduated-item{background:#000;border:1px solid var(--border);padding:12px;margin-bottom:8px;border-left:4px solid var(--success);border-radius:4px;opacity:0.6;}
+.graduated-item{background:#000;border:1px solid var(--border);padding:12px;margin-bottom:8px;border-left:4px solid var(--success);border-radius:4px;opacity:0.85;}
 .graduated-badge{display:inline-block;padding:2px 8px;border-radius:3px;font-size:.6rem;font-weight:bold;background:rgba(46,213,115,.15);color:var(--success);border:1px solid var(--success);}
 @media(max-width:1024px){.main-layout{grid-template-columns:1fr;overflow-y:auto;}}
 @media(max-width:600px){.top-bar h1{font-size:.7rem;}.rehab-item{padding:10px;}.mech-btn{font-size:.6rem;padding:8px 10px;}}
@@ -47,7 +47,7 @@ body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:
 </head>
 <body>
 <div class="top-bar">
-<h1>▸ NHAI_REHAB // CENTER_TERMINAL_v15.0</h1>
+<h1>▸ NHAI_REHAB // CENTER_TERMINAL_v15.1</h1>
 <div class="time" id="clock">00:00:00</div>
 </div>
 <div class="main-layout">
@@ -58,7 +58,7 @@ body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:
 <div class="stat-box"><div class="stat-num" style="color:var(--success)" id="stat-graduated">0</div><div class="stat-label">Graduated</div></div>
 <div class="stat-box"><div class="stat-num" style="color:var(--warning)" id="stat-awaiting">0</div><div class="stat-label">Awaiting</div></div>
 </div>
-<div class="rehab-list" id="rehab-list"><div style="color:#555;text-align:center;padding:40px;">NO INMATES IN REHAB</div></div>
+<div class="rehab-list" id="rehab-list"><div style="color:#555;text-align:center;padding:40px;">NO INMATES IN REHABILITATION</div></div>
 </div>
 <div class="panel">
 <div class="panel-title">■ Processing Log</div>
@@ -73,7 +73,8 @@ let sharedData = {
     revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, 
     history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null,
     activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [],
-    ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: []
+    ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [],
+    rehabGraduations: [] // Added dedicated list to prevent cross-terminal sync conflicts
 };
 
 function updateClock(){document.getElementById('clock').innerText=new Date().toLocaleTimeString('en-GB');}
@@ -97,7 +98,8 @@ function ensureDataStructure() {
         revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, 
         history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null,
         activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [],
-        ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: []
+        ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [],
+        rehabGraduations: []
     };
     for (const key in defaults) {
         if (sharedData[key] === undefined || sharedData[key] === null) {
@@ -125,7 +127,6 @@ function saveData(){
     localStorage.setItem(LS_MASTER_KEY, JSON.stringify(sharedData));
 }
 
-// Syncs local memory with localStorage to prevent race conditions across intervals
 function syncData() {
     const savedStr = localStorage.getItem(LS_MASTER_KEY);
     if (savedStr) {
@@ -175,9 +176,12 @@ function renderLogs(){
 }
 
 function enrollFromReleased(){
+    const graduatedPlates = new Set((sharedData.rehabGraduations || []).map(g => g.oldPlate));
+    
     const released = sharedData.releasedInmates.filter(i =>
-        (i.status==='RELEASED' || i.status==='PAROLED') && i.status !== 'GRADUATED'
+        (i.status==='RELEASED' || i.status==='PAROLED') && !graduatedPlates.has(i.plate)
     );
+    
     let enrolled = 0;
     released.forEach(inmate => {
         const already = sharedData.rehabPrograms.find(r => r.plate === inmate.plate);
@@ -222,13 +226,13 @@ function graduateInmate(plate){
         registeredBy: 'REHAB_CENTER'
     };
     
-    const releasedRecord = sharedData.releasedInmates.find(r => r.plate === inmate.plate);
-    if(releasedRecord){
-        releasedRecord.status = 'GRADUATED';
-        releasedRecord.graduatedPlate = newPlate;
-        releasedRecord.graduatedId = newId;
-        releasedRecord.dateGraduated = new Date().toLocaleDateString();
-    }
+    // Record in dedicated rehab graduation list to prevent sync conflicts with main terminal
+    sharedData.rehabGraduations.push({
+        oldPlate: inmate.plate,
+        newPlate: newPlate,
+        newId: newId,
+        dateGraduated: new Date().toLocaleDateString()
+    });
     
     sharedData.history.push({
         plate: newPlate,
@@ -245,10 +249,14 @@ function graduateInmate(plate){
 
 function renderDashboard(){
     const programs = sharedData.rehabPrograms || [];
+    const graduatedPlates = new Set((sharedData.rehabGraduations || []).map(g => g.oldPlate));
+    
     const enrolled = programs.filter(p => p.status === 'ENROLLED').length;
-    const graduatedCount = (sharedData.releasedInmates || []).filter(i => i.status === 'GRADUATED').length;
+    const graduatedCount = (sharedData.rehabGraduations || []).length;
+    
     const awaiting = (sharedData.releasedInmates || []).filter(i =>
         (i.status === 'RELEASED' || i.status === 'PAROLED') && 
+        !graduatedPlates.has(i.plate) &&
         !programs.find(p => p.plate === i.plate)
     ).length;
     
@@ -285,15 +293,15 @@ function renderDashboard(){
         list.appendChild(item);
     });
     
-    const graduatedList = (sharedData.releasedInmates || []).filter(i => i.status === 'GRADUATED').slice(-5).reverse();
-    graduatedList.forEach(inmate => {
+    const graduatedList = (sharedData.rehabGraduations || []).slice(-5).reverse();
+    graduatedList.forEach(record => {
         const item = document.createElement('div');
         item.className = 'graduated-item';
         item.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;">
             <div>
-                <div class="plate-tag" style="color:#555;">${inmate.plate} <span style="font-size:.7rem;color:var(--success);">→ ${inmate.graduatedPlate || 'N/A'}</span></div>
-                <div class="meta-tag">New ID: ${inmate.graduatedId || 'N/A'} | Graduated: ${inmate.dateGraduated || 'N/A'}</div>
+                <div class="plate-tag" style="color:#555;">${record.oldPlate} <span style="font-size:.8rem;color:var(--success);">→ ${record.newPlate}</span></div>
+                <div class="meta-tag" style="color:#888;">New Clean ID: ${record.newId} | Graduated: ${record.dateGraduated || 'N/A'}</div>
             </div>
             <span class="graduated-badge">REHABILITATED</span>
         </div>`;
