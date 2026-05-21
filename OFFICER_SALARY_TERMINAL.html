@@ -11,336 +11,611 @@
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NHAI - Officer Salary Terminal</title>
+<title>NHAI - Advanced Officer Economy Terminal v6.0</title>
 <style>
     :root {
         --bg: #08060e; --panel: #0f0c1a; --accent: #00f2ff; --success: #2ed573;
         --danger: #ff0044; --warning: #ffa502; --border: #1e1735; --purple: #c56cf0;
-        --card-bg: #140f24;
+        --card-bg: #140f24; --scanline-opacity: 0.03;
     }
+    body.theme-green { --accent: #00ff66; --purple: #00aa33; --border: #003311; --panel: #051105; --card-bg: #081a08; --bg: #020602; }
+    body.theme-amber { --accent: #ffb300; --purple: #b35900; --border: #331a00; --panel: #140a00; --card-bg: #1f1000; --bg: #0a0500; }
+    body.theme-red { --accent: #ff3333; --purple: #990000; --border: #330000; --panel: #140000; --card-bg: #1f0000; --bg: #0a0000; }
+
     body {
         background-color: var(--bg); color: #ccc; font-family: 'Courier New', monospace;
         margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden;
         background-image: radial-gradient(circle at 50% 0%, #1a1230 0%, var(--bg) 70%);
     }
+    body::after {
+        content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0; z-index: 9999;
+        background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, var(--scanline-opacity)) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+        background-size: 100% 3px, 6px 100%; pointer-events: none;
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); border: 1px solid var(--border); }
+    ::-webkit-scrollbar-thumb { background: var(--purple); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
     .top-bar {
-        background: rgba(0,0,0,0.7); padding: 15px 20px; border-bottom: 2px solid var(--purple);
+        background: rgba(0,0,0,0.8); padding: 12px 20px; border-bottom: 2px solid var(--purple);
         display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
-        backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px); z-index: 10; flex-wrap: wrap; gap: 10px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.5);
     }
-    .top-bar h1 { margin: 0; font-size: 1rem; color: var(--purple); letter-spacing: 2px; text-shadow: 0 0 10px rgba(197,108,240,0.4); }
-    .top-bar .time { color: var(--accent); font-size: 0.9rem; }
-    .main-layout {
-        display: grid; grid-template-columns: 1.2fr 1fr; gap: 25px; padding: 25px;
-        flex-grow: 1; min-height: 0; overflow: hidden;
-    }
-    .panel {
-        background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
-        padding: 20px; display: flex; flex-direction: column; overflow: hidden;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    }
-    .panel-title {
-        color: var(--accent); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 2px;
-        margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 12px; flex-shrink: 0;
-        display: flex; align-items: center; gap: 10px;
-    }
-    .panel-title::before { content: '◆'; color: var(--purple); }
-    
-    /* Account Header */
-    .account-header {
-        background: linear-gradient(135deg, #1e1230 0%, #0d0915 100%);
-        border: 1px solid var(--purple); border-radius: 8px; padding: 20px;
-        display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-shrink: 0;
-        position: relative; overflow: hidden;
-    }
-    .officer-info h2 { margin: 0 0 5px 0; color: #fff; font-size: 1.2rem; }
-    .officer-info .rank-text { color: var(--purple); font-weight: bold; letter-spacing: 1px; font-size: 0.9rem; }
-    .officer-info .lifetime-rev { color: #666; font-size: 0.75rem; margin-top: 5px; }
+    .top-bar h1 { margin: 0; font-size: 0.9rem; color: var(--purple); letter-spacing: 2px; text-shadow: 0 0 10px rgba(197,108,240,0.6); }
+    .top-controls { display: flex; align-items: center; gap: 15px; }
+    .top-bar .time { color: var(--accent); font-size: 0.9rem; text-shadow: 0 0 8px rgba(0,242,255,0.4); }
+    .month-timer { color: var(--warning); font-size: 0.85rem; letter-spacing: 1px; font-weight: bold; text-shadow: 0 0 8px rgba(255,165,2,0.4); }
+    .theme-select { background: #000; color: var(--accent); border: 1px solid var(--border); font-family: monospace; font-size: 0.8rem; padding: 3px 5px; outline: none; cursor: pointer; }
+
+    .main-layout { display: grid; grid-template-columns: 1fr 1.1fr 0.9fr; gap: 15px; padding: 15px; flex-grow: 1; min-height: 0; overflow: hidden; }
+    .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 15px; display: flex; flex-direction: column; overflow-y: auto; min-height: 0; box-shadow: 0 10px 30px rgba(0,0,0,0.5); position: relative; }
+    .panel-title { color: var(--accent); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 8px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; }
+    .panel-title-text::before { content: '◆ '; color: var(--purple); text-shadow: 0 0 5px var(--purple); }
+
+    .account-header { background: linear-gradient(135deg, #1e1230 0%, #0d0915 100%); border: 1px solid var(--purple); border-radius: 8px; padding: 15px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-shrink: 0; position: relative; overflow: hidden; }
+    .account-header::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: linear-gradient(90deg, transparent, var(--accent), transparent); animation: headerPulse 3s infinite; }
+    @keyframes headerPulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+    .officer-info h2 { margin: 0 0 3px 0; color: #fff; font-size: 1.1rem; }
+    .officer-info .rank-text { color: var(--purple); font-weight: bold; letter-spacing: 1px; font-size: 0.85rem; }
+    .officer-info .lifetime-rev { color: #888; font-size: 0.7rem; margin-top: 3px; }
     .bank-balance { text-align: right; }
-    .bank-balance .label { font-size: 0.7rem; color: #666; text-transform: uppercase; }
-    .bank-balance .amount { font-size: 2rem; font-weight: bold; color: var(--success); text-shadow: 0 0 15px rgba(46,213,115,0.3); }
+    .bank-balance .label { font-size: 0.65rem; color: #888; text-transform: uppercase; }
+    .bank-balance .amount { font-size: 1.6rem; font-weight: bold; color: var(--success); text-shadow: 0 0 15px rgba(46,213,115,0.3); transition: all 0.3s; }
+    .bank-balance .amount.low-balance { color: var(--danger); text-shadow: 0 0 15px rgba(255,0,68,0.5); animation: balancePulse 1s infinite; }
+    @keyframes balancePulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
 
-    /* Salary Math Grid */
-    .math-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; flex-shrink: 0; }
-    .math-box { background: var(--card-bg); border: 1px solid var(--border); padding: 15px; border-radius: 6px; }
-    .math-label { color: #555; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
-    .math-value { font-size: 1.4rem; font-weight: bold; }
-    .math-value.base { color: #fff; }
-    .math-value.comm { color: var(--warning); }
-    .math-value.deduct { color: var(--danger); }
-    .math-value.net { color: var(--success); font-size: 1.8rem; text-shadow: 0 0 10px rgba(46,213,115,0.3); }
-    .math-box.net-box { grid-column: span 2; border: 1px solid var(--success); background: rgba(46,213,115,0.05); text-align: center; padding: 20px; }
+    .debuff-text { color: var(--danger); font-size: 0.6rem; font-weight: bold; margin-top: 4px; display: none; text-shadow: 0 0 5px rgba(255,0,68,0.5); }
 
-    .transfer-btn {
-        width: 100%; padding: 18px; border: none; cursor: pointer; font-weight: bold;
-        text-transform: uppercase; font-size: 1rem; font-family: monospace; border-radius: 6px;
-        margin-top: auto; flex-shrink: 0; letter-spacing: 2px; transition: all 0.2s;
-        background: linear-gradient(90deg, #c56cf0, #8854d0); color: #fff;
-        box-shadow: 0 4px 15px rgba(197,108,240,0.3);
+    .progress-container { background: #000; border: 1px solid var(--border); height: 8px; border-radius: 4px; margin-bottom: 15px; overflow: hidden; flex-shrink: 0; }
+    .progress-bar { background: var(--purple); height: 100%; width: 0%; transition: width 0.4s; box-shadow: 0 0 10px rgba(197,108,240,0.3); }
+    .math-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; flex-shrink: 0; }
+    .math-box { background: var(--card-bg); border: 1px solid var(--border); padding: 10px; border-radius: 6px; }
+    .math-label { color: #777; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+    .math-value { font-size: 1.1rem; font-weight: bold; }
+    .math-value.base { color: #fff; } .math-value.comm { color: var(--warning); } .math-value.deduct { color: var(--danger); }
+    .math-value.net { color: var(--success); font-size: 1.4rem; text-shadow: 0 0 10px rgba(46,213,115,0.3); }
+    .math-box.pool-box { grid-column: span 2; border: 1px solid var(--accent); background: rgba(0,242,255,0.05); text-align: center; padding: 12px; }
+    .math-box.net-box { grid-column: span 2; border: 1px solid var(--success); background: rgba(46,213,115,0.05); text-align: center; padding: 12px; }
+    .meter-container { margin-bottom: 10px; font-size: 0.7rem; flex-shrink: 0; }
+    .meter-label { display: flex; justify-content: space-between; margin-bottom: 3px; color: #888; }
+    .meter-bg { background: #000; border: 1px solid var(--border); height: 6px; border-radius: 3px; overflow: hidden; }
+    .meter-fill { height: 100%; width: 0%; transition: width 0.3s; }
+    .meter-fill.audit-fill { background: linear-gradient(90deg, var(--warning), var(--danger)); }
+
+    .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: auto; flex-shrink: 0; padding-top: 15px; }
+    .transfer-btn { padding: 12px; border: none; cursor: pointer; font-weight: bold; text-transform: uppercase; font-size: 0.8rem; font-family: monospace; border-radius: 6px; letter-spacing: 1px; transition: all 0.2s; background: linear-gradient(90deg, #c56cf0, #8854d0); color: #fff; box-shadow: 0 4px 15px rgba(197,108,240,0.3); }
+    .transfer-btn.clean-method { background: linear-gradient(90deg, #00f2ff, #00a2ff); box-shadow: 0 4px 15px rgba(0,242,255,0.2); }
+    .transfer-btn:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.1); }
+    .transfer-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+
+    .market-grid { display: flex; flex-direction: column; gap: 8px; }
+    .market-item { background: var(--card-bg); border: 1px solid var(--border); padding: 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; transition: all 0.2s; }
+    .market-item:hover { border-color: #333; }
+    .item-desc { color: #777; font-size: 0.65rem; margin-top: 2px; }
+    .action-btn { background: #000; border: 1px solid var(--purple); color: var(--purple); padding: 4px 8px; font-family: monospace; font-size: 0.7rem; cursor: pointer; border-radius: 4px; transition: all 0.2s; flex-shrink: 0; }
+    .action-btn:hover:not(:disabled) { background: var(--purple); color: #000; }
+    .action-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    
+    /* Active Glow & Tags */
+    .active-tier { border-color: var(--success) !important; box-shadow: inset 0 0 15px rgba(46,213,115,0.1), 0 0 10px rgba(46,213,115,0.2); }
+    .active-tag { 
+        color: var(--success); font-weight: bold; font-size: 0.7rem; 
+        text-shadow: 0 0 8px var(--success); 
+        animation: neonPulse 1.5s infinite; 
+        margin-left: 8px;
     }
-    .transfer-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(197,108,240,0.5); }
-    .transfer-btn:active:not(:disabled) { transform: translateY(1px); }
-    .transfer-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+    @keyframes neonPulse { 0%, 100% { opacity: 1; text-shadow: 0 0 8px var(--success); } 50% { opacity: 0.7; text-shadow: 0 0 15px var(--success); } }
+    
+    .expired-tag { color: #555; font-size: 0.65rem; margin-left: 8px; }
+    .bill-due { border-color: var(--danger) !important; animation: pulseBill 1.5s infinite; }
+    .bill-due .action-btn { border-color: var(--danger); color: var(--danger); } 
+    @keyframes pulseBill { 0%,100% { box-shadow: none; } 50% { box-shadow: 0 0 15px rgba(255,0,68,0.3); } }
+    .loan-item { border-left: 3px solid var(--warning) !important; }
 
-    .history-list { flex-grow: 1; overflow-y: auto; padding-right: 8px; min-height: 0; }
-    .payslip-item {
-        background: var(--card-bg); border: 1px solid var(--border); padding: 15px; margin-bottom: 10px;
-        border-left: 4px solid var(--purple); border-radius: 4px; font-size: 0.8rem;
-    }
-    .payslip-header { display: flex; justify-content: space-between; color: #fff; margin-bottom: 8px; font-weight: bold; }
-    .payslip-details { display: flex; justify-content: space-between; color: #666; font-size: 0.7rem; margin-bottom: 5px; }
-    .payslip-auth { color: var(--accent); font-size: 0.7rem; margin-top: 8px; border-top: 1px dashed var(--border); padding-top: 8px; }
-    .history-list::-webkit-scrollbar { width: 6px; }
-    .history-list::-webkit-scrollbar-track { background: var(--bg); }
-    .history-list::-webkit-scrollbar-thumb { background: var(--purple); border-radius: 3px; }
+    .history-list { flex-grow: 1; overflow-y: auto; min-height: 0; padding-right: 4px; }
+    .payslip-item { background: var(--card-bg); border: 1px solid var(--border); padding: 10px; margin-bottom: 8px; border-left: 4px solid var(--purple); border-radius: 4px; font-size: 0.75rem; }
+    .payslip-header { display: flex; justify-content: space-between; color: #fff; margin-bottom: 4px; font-weight: bold; }
+    .payslip-details { display: flex; justify-content: space-between; color: #777; font-size: 0.65rem; margin-bottom: 3px; }
+    .payslip-auth { color: var(--accent); font-size: 0.65rem; margin-top: 5px; border-top: 1px dashed var(--border); padding-top: 5px; }
+    .archive-filters { display: flex; gap: 5px; margin-bottom: 10px; flex-shrink: 0; }
+    .filter-btn { background: #000; border: 1px solid var(--border); color: #666; font-size: 0.65rem; padding: 3px 6px; cursor: pointer; font-family: monospace; }
+    .filter-btn.active { border-color: var(--purple); color: var(--purple); }
 
-    /* Overlay */
-    .overlay {
-        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.9); z-index: 100; justify-content: center; align-items: center;
-        flex-direction: column; text-align: center; backdrop-filter: blur(5px);
-    }
-    .overlay.active { display: flex; }
-    .terminal-window {
-        background: #000; border: 2px solid var(--purple); padding: 30px; width: 400px;
-        max-width: 90%; border-radius: 8px; box-shadow: 0 0 50px rgba(197,108,240,0.2);
-    }
-    .auth-code { color: var(--accent); font-size: 1.8rem; letter-spacing: 3px; margin: 20px 0; font-weight: bold; }
-    .status-text { color: var(--success); font-size: 0.9rem; min-height: 20px; }
-    @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
-    .blinker { animation: blink 1s infinite; color: #fff; }
+    .popup-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:2000; justify-content:center; align-items:center; backdrop-filter:blur(4px); animation: fadeIn 0.2s; }
+    .popup-overlay.active { display:flex; }
+    @keyframes fadeIn { from{opacity:0;} to{opacity:1;} }
+    .popup-box { background:#000; border:2px solid var(--danger); padding:25px; width:400px; max-width:90%; border-radius:8px; text-align:center; box-shadow:0 0 50px rgba(255,0,68,0.2); animation: scaleIn 0.2s; }
+    @keyframes scaleIn { from{transform:scale(0.9);opacity:0;} to{transform:scale(1);opacity:1;} }
+    .popup-icon { font-size:2rem; margin-bottom:10px; }
+    .popup-title { color:var(--danger); font-size:1rem; font-weight:bold; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; text-shadow:0 0 10px rgba(255,0,68,0.5); }
+    .popup-msg { color:#ccc; font-size:0.8rem; line-height:1.4; margin-bottom:20px; }
+    .popup-btn { background:var(--danger); color:#fff; border:none; padding:8px 20px; font-family:monospace; font-weight:bold; text-transform:uppercase; cursor:pointer; border-radius:4px; font-size:0.8rem; }
+    .popup-btn:hover { filter:brightness(1.2); }
 
-    @media (max-width: 1024px) { .main-layout { grid-template-columns: 1fr; overflow-y: auto; } }
-    @media (max-width: 600px) { .top-bar h1 { font-size: 0.7rem; } .main-layout { padding: 15px; gap: 15px; } .math-grid { grid-template-columns: 1fr; } .math-box.net-box { grid-column: span 1; } }
+    .overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.92); z-index:100; justify-content:center; align-items:center; flex-direction:column; text-align:center; backdrop-filter:blur(6px); }
+    .overlay.active { display:flex; }
+    .terminal-window { background:#000; border:2px solid var(--purple); padding:25px; width:420px; max-width:90%; border-radius:8px; box-shadow:0 0 50px rgba(197,108,240,0.2); }
+    .auth-code { color:var(--accent); font-size:1.5rem; letter-spacing:3px; margin:15px 0; font-weight:bold; }
+    .status-text { color:var(--success); font-size:0.85rem; min-height:20px; margin-bottom:15px; }
+    @keyframes blink { 0%{opacity:1;} 50%{opacity:0.3;} 100%{opacity:1;} }
+    .blinker { animation:blink 1s infinite; color:#fff; }
+    .mfa-container { background:#111; border:1px dashed var(--border); padding:10px; border-radius:4px; display:none; }
+    .mfa-target { font-size:1.2rem; color:var(--warning); font-weight:bold; letter-spacing:2px; margin-bottom:8px; }
+    .mfa-input { background:#000; border:1px solid var(--purple); color:#fff; width:120px; text-align:center; font-family:monospace; font-size:1rem; padding:4px; outline:none; }
+
+    @media(max-width:1200px) { .main-layout { grid-template-columns:1fr; overflow-y:auto; height:auto; } body { overflow-y:auto; height:auto; } .panel { min-height:500px; } }
+    @media(max-width:600px) { .top-bar h1 { font-size:0.7rem; } .main-layout { padding:10px; gap:10px; } .account-header { flex-direction:column; text-align:center; gap:10px; } .bank-balance { text-align:center; } .math-grid { grid-template-columns:1fr; } .math-box.pool-box,.math-box.net-box { grid-column:span 1; } .market-item { flex-direction:column; align-items:flex-start; gap:10px; } .action-btn { width:100%; text-align:center; } }
 </style>
 </head>
 <body>
 
 <div class="top-bar">
-    <h1>▸ FEDERAL_RESERVE // OFFICER_SALARY_TERMINAL</h1>
-    <div class="time" id="clock">00:00:00</div>
+    <h1>▸ FEDERAL_RESERVE // OFFICER_ECONOMY_v6.0</h1>
+    <div class="top-controls">
+        <div class="month-timer">MONTH ENDS: <span id="month-countdown">45:00</span></div>
+        <select class="theme-select" id="theme-selector" onchange="changeTheme(this.value)"><option value="default">MATRIX_PURPLE</option><option value="green">OVERRIDE_GREEN</option><option value="amber">VINTAGE_AMBER</option><option value="red">CRITICAL_RED</option></select>
+        <button class="action-btn" onclick="toggleTerminalLock()">LOCK TERMINAL</button>
+        <div class="time" id="clock">00:00:00</div>
+    </div>
 </div>
 
 <div class="main-layout">
-    <!-- LEFT: CALCULATION & TRANSFER -->
+    <!-- LEFT PANEL -->
     <div class="panel">
-        <div class="panel-title">Officer Account</div>
-        
+        <div class="panel-title"><span class="panel-title-text">Officer Profile</span></div>
         <div class="account-header">
             <div class="officer-info">
                 <h2>OPERATOR-774</h2>
                 <div class="rank-text" id="rank-title">RANK: CADET</div>
-                <div class="lifetime-rev">LIFETIME CONTRIBUTION: $<span id="lifetime-rev">0</span></div>
+                <div class="lifetime-rev">LIFETIME REVENUE: $<span id="lifetime-rev">0</span></div>
+                <div class="debuff-text" id="debuff-evicted">⚠️ EVICTION: Rent Unpaid!</div>
+                <div class="debuff-text" id="debuff-starving">⚠️ STARVATION: No Food!</div>
+                <div class="debuff-text" id="debuff-hospital">🏥 HOSPITALIZED: Critical Audit Shock!</div>
+                <div class="debuff-text" id="debuff-loan">🏦 LOAN DEFAULT: Assets Seized!</div>
             </div>
             <div class="bank-balance">
                 <div class="label">Personal Bank Balance</div>
                 <div class="amount" id="bank-bal">$0</div>
             </div>
         </div>
-
+        <div class="meter-container"><div class="meter-label"><span>Next Rank</span><span id="rank-progress-text">0%</span></div><div class="progress-container"><div class="progress-bar" id="rank-progress-bar"></div></div></div>
         <div class="math-grid">
-            <div class="math-box">
-                <div class="math-label">Available in Central Pool</div>
-                <div class="math-value" style="color:var(--accent);" id="val-pool">$0</div>
-            </div>
-            <div class="math-box">
-                <div class="math-label">Base Pay (Rank)</div>
-                <div class="math-value base" id="val-base">$0</div>
-            </div>
-            <div class="math-box">
-                <div class="math-label">Commission (Pool %)</div>
-                <div class="math-value comm" id="val-comm">$0</div>
-            </div>
-            <div class="math-box">
-                <div class="math-label">Tax & Pension Deductions</div>
-                <div class="math-value deduct" id="val-deduct">-$0</div>
-            </div>
-            <div class="math-box net-box">
-                <div class="math-label">Net Salary Transfer</div>
-                <div class="math-value net" id="val-net">$0</div>
-            </div>
+            <div class="math-box pool-box"><div class="math-label">Audit Revenue Pool</div><div class="math-value" style="color:var(--accent);font-size:1.4rem;" id="val-pool">$0</div></div>
+            <div class="math-box"><div class="math-label">Base Pay</div><div class="math-value base" id="val-base">$0</div></div>
+            <div class="math-box"><div class="math-label">Commission</div><div class="math-value comm" id="val-comm">$0</div></div>
+            <div class="math-box"><div class="math-label">Taxes</div><div class="math-value deduct" id="val-deduct">-$0</div></div>
+            <div class="math-box net-box"><div class="math-label">Net Transfer</div><div class="math-value net" id="val-net">$0</div></div>
         </div>
-
-        <button class="transfer-btn" id="btn-transfer" onclick="initiateTransfer()">CLAIM SALARY FROM POOL</button>
+        <div class="meter-container"><div class="meter-label"><span>Audit Threat Risk</span><span id="audit-text">0%</span></div><div class="meter-bg"><div class="meter-fill audit-fill" id="audit-bar" style="width:0%"></div></div></div>
+        <div class="btn-group">
+            <button class="transfer-btn" id="btn-transfer" onclick="initiateTransfer(false)">CLAIM ROUTE</button>
+            <button class="transfer-btn clean-method" id="btn-clean" onclick="initiateTransfer(true)">LAUNDER CODES</button>
+        </div>
     </div>
 
-    <!-- RIGHT: PAYSLIP HISTORY -->
+    <!-- CENTER PANEL -->
     <div class="panel">
-        <div class="panel-title">Payslip Archive</div>
-        <div class="history-list" id="payslip-list">
-            <div style="color:#444; text-align:center; padding:40px 0;">NO PAYSLIPS ON RECORD</div>
+        <div class="panel-title"><span class="panel-title-text">Lifestyle & Banking</span></div>
+        <div style="flex-grow:1;overflow-y:auto;min-height:0;display:flex;flex-direction:column;gap:15px;padding-right:5px;">
+            <h3 style="font-size:0.75rem;color:var(--accent);margin:0;letter-spacing:1px;flex-shrink:0;">MONTHLY SUBSCRIPTIONS (Expires end of month)</h3>
+            <div class="market-grid" id="bills-market"></div>
+            <h3 style="font-size:0.75rem;color:var(--accent);margin:0;letter-spacing:1px;flex-shrink:0;">FEDERAL LOANS (5% Interest / 30s)</h3>
+            <div class="market-grid" id="loan-market"></div>
+            <h3 style="font-size:0.75rem;color:var(--accent);margin:0;letter-spacing:1px;flex-shrink:0;">UPGRADES & ENTERTAINMENT</h3>
+            <div class="market-grid" id="upgrades-market"></div>
         </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="panel">
+        <div class="panel-title"><span class="panel-title-text">Ledger Archives</span></div>
+        <div class="archive-filters">
+            <button class="filter-btn active" id="filter-all" onclick="setArchiveFilter('all')">ALL</button>
+            <button class="filter-btn" id="filter-high" onclick="setArchiveFilter('high')">VAL > $2K</button>
+            <button class="filter-btn" id="export-btn" onclick="exportLedgerData()">EXPORT</button>
+        </div>
+        <div class="history-list" id="payslip-list"><div style="color:#444;text-align:center;padding:40px 0;">NO ARCHIVES</div></div>
     </div>
 </div>
 
-<!-- Transfer Animation Overlay -->
-<div class="overlay" id="transfer-overlay">
-    <div class="terminal-window">
-        <div style="color: var(--purple); font-size: 0.8rem; letter-spacing: 2px;">FEDERAL RESERVE ROUTING</div>
-        <div class="auth-code" id="auth-code">AUTH-XXXX-XXXX</div>
-        <div class="status-text" id="status-text">INITIATING SECURE CONNECTION <span class="blinker">_</span></div>
+<div class="popup-overlay" id="popup-overlay">
+    <div class="popup-box">
+        <div class="popup-icon" id="popup-icon">⚠️</div>
+        <div class="popup-title" id="popup-title">INSUFFICIENT FUNDS</div>
+        <div class="popup-msg" id="popup-msg">Transaction declined.</div>
+        <button class="popup-btn" onclick="closePopup()">ACKNOWLEDGE</button>
     </div>
+</div>
+
+<div class="overlay" id="transfer-overlay">
+    <div class="terminal-window"><div style="color:var(--purple);font-size:0.8rem;letter-spacing:2px;">FEDERAL RESERVE ROUTING</div><div class="auth-code" id="auth-code">AUTH-XXXX</div><div class="status-text" id="status-text">INIT CONNECTION <span class="blinker">_</span></div><div class="mfa-container" id="mfa-box"><div class="mfa-target" id="mfa-challenge">XXXX</div><div style="font-size:0.7rem;color:#888;margin-bottom:8px;">DUPLICATE ACCESS STRING</div><input type="text" class="mfa-input" id="mfa-user-input" maxlength="4" autocomplete="off"></div></div>
 </div>
 
 <script>
-    const LS_D1_KEY = 'enforcementTerminalV23_D1';
-    const LS_D2_KEY = 'enforcementTerminalV23_TOLL';
+    const LS = 'enforcementTerminalV23_D1', LS2 = 'enforcementTerminalV23_TOLL';
+    const AUD = { blip:900, click:600, success:1200, alert:150, error:200 };
+    const GAME_MONTH_DURATION = 45 * 60 * 1000; // 45 minutes real time = 1 game month
 
-    let sharedData = { revenuePool: 0, history: [], payslips: [], lifetimeRevenue: 0, officerBalance: 0 };
+    let sharedData = {
+        revenuePool: 0, history: [], payslips: [], lifetimeRevenue: 0, officerBalance: 100,
+        auditRisk: 0, upgradesOwned: {},
+        lifestyle: {
+            housing: 'streets', food: 'none', accessories: [],
+            billsDue: { rent: false, food: false, medical: false },
+            loanBalance: 0, loanDefaulted: false,
+            lastBillCycle: Date.now(), lastLoanTick: Date.now()
+        },
+        monthStartTimestamp: Date.now(), 
+        lastCalculatedTimestamp: Date.now()
+    };
+    
+    const HOUSING = [
+        {id:'streets',name:'Streets / Squat',cost:0,desc:'No rent. Severe audit penalty. Pool generation halved.',auditMod:3,poolMod:0.5},
+        {id:'apartment',name:'Sector-4 Apartment',cost:50,desc:'Basic shelter. Standard pool generation.',auditMod:0,poolMod:1},
+        {id:'condo',name:'Neon Heights Condo',cost:150,desc:'Secure zone. +20% pool gen. Reduced audit risk.',auditMod:-0.5,poolMod:1.2},
+        {id:'penthouse',name:'Synth-Tower Penthouse',cost:400,desc:'Maximum luxury. +50% pool gen. Major audit protection.',auditMod:-1.5,poolMod:1.5}
+    ];
+    const FOOD = [
+        {id:'none',name:'Starvation Protocol',cost:0,desc:'No food. Slowly dying. Massive audit risk penalty.',auditMod:3},
+        {id:'rations',name:'Synth-Ration Packs',cost:20,desc:'Bare minimum survival. No bonuses.',auditMod:0},
+        {id:'restaurant',name:'Noodle Bar Dining',cost:60,desc:'Decent meals. Slightly reduces audit risk.',auditMod:-0.5},
+        {id:'luxury',name:'Luxury Nutripaste',cost:150,desc:'Premium diet. Majorly reduces audit risk.',auditMod:-1.5}
+    ];
+    const UPGRADES = [
+        {id:'insurance',name:'Auto-Pay Insurance',cost:2000,desc:'Automatically pays Rent & Food bills from bank balance when due.',type:'up'},
+        {id:'crypto_rig',name:'Crypto Mining Rig',cost:3500,desc:'Generates +$5 to pool every 3 seconds passively.',type:'up'},
+        {id:'ac_unit',name:'Cryo-AC Unit',cost:800,desc:'Reduces base audit risk accumulation by 20%.',type:'up'},
+        {id:'security',name:'Laser Grid Security',cost:1200,desc:'Reduces base audit risk accumulation by 30%.',type:'up'},
+        {id:'home_server',name:'Quantum Home Server',cost:2500,desc:'Boosts commission matrix by an extra +2%.',type:'up'},
+        {id:'vault',name:'Plasma Vault',cost:3500,desc:'Bank balance earns +1% interest every 30 seconds.',type:'up'},
+        {id:'ai_assistant',name:'AI Butler Drone',cost:5000,desc:'Automatically launders pool if audit risk exceeds 80%.',type:'up'},
+        {id:'arcade',name:'Retro Arcade Session',cost:30,desc:'Reduces audit risk by 10%.',type:'ent',auditReduce:10},
+        {id:'vr',name:'Full-Dive VR Simulation',cost:80,desc:'Reduces audit risk by 25%.',type:'ent',auditReduce:25}
+    ];
+    const LOANS = [ {id:'l1k',amount:1000}, {id:'l5k',amount:5000}, {id:'l20k',amount:20000} ];
+    const RANKS = [
+        {title:"CADET",minRev:0,base:500,comm:0.05}, {title:"CONSTABLE",minRev:3000,base:1000,comm:0.06}, {title:"SERGEANT",minRev:10000,base:2000,comm:0.08},
+        {title:"CAPTAIN",minRev:25000,base:3500,comm:0.10}, {title:"COMMISSIONER",minRev:50000,base:5000,comm:0.12}
+    ];
+
+    let currentFilter='all', activeMfa='', locked=false;
+
+    function beep(frequency, type='sine', duration=0.08) {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator(); const gain = ctx.createGain();
+            osc.type = type; osc.frequency.value = frequency;
+            gain.gain.setValueAtTime(0.04, ctx.currentTime);
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.start(); osc.stop(ctx.currentTime + duration);
+        } catch(e) {}
+    }
 
     function updateClock() { document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB'); }
     setInterval(updateClock, 1000);
 
-    function loadData() {
-        try {
-            const d1 = localStorage.getItem(LS_D1_KEY);
-            const d2 = localStorage.getItem(LS_D2_KEY);
-            let d1Data = d1 ? JSON.parse(d1) : {};
-            let d2Data = d2 ? JSON.parse(d2) : {};
-
-            let merged = { revenuePool: 0, history: [], payslips: [], lifetimeRevenue: 0, officerBalance: 0 };
-            
-            if (d1Data) {
-                merged.revenuePool = d1Data.revenuePool || 0;
-                merged.lifetimeRevenue = d1Data.lifetimeRevenue || 0;
-                merged.officerBalance = d1Data.officerBalance || 0;
-                merged.history = d1Data.history || [];
-                merged.payslips = d1Data.payslips || [];
-            }
-            if (d2Data) {
-                merged.revenuePool = Math.max(merged.revenuePool, d2Data.revenuePool || 0);
-                merged.lifetimeRevenue = Math.max(merged.lifetimeRevenue, d2Data.lifetimeRevenue || 0);
-                merged.officerBalance = Math.max(merged.officerBalance, d2Data.officerBalance || 0);
-                if (d2Data.payslips && d2Data.payslips.length > merged.payslips.length) merged.payslips = d2Data.payslips;
-            }
-            sharedData = merged;
-        } catch(e) { console.error("Load error:", e); }
-        renderDashboard();
+    function showPopup(title, msg, icon='⚠️') {
+        document.getElementById('popup-title').innerText = title;
+        document.getElementById('popup-msg').innerText = msg;
+        document.getElementById('popup-icon').innerText = icon;
+        document.getElementById('popup-overlay').classList.add('active');
+        beep(AUD.error, 'sawtooth', 0.2);
     }
+    function closePopup() { document.getElementById('popup-overlay').classList.remove('active'); }
 
-    function saveData() {
-        try { 
-            const dataStr = JSON.stringify(sharedData); 
-            localStorage.setItem(LS_D1_KEY, dataStr); 
-            localStorage.setItem(LS_D2_KEY, dataStr); 
-        } catch(e) { console.error("Save error:", e); }
-    }
-
-    const RANKS = [
-        { title: "CADET", minRev: 0, base: 500, comm: 0.05 },
-        { title: "CONSTABLE", minRev: 3000, base: 1000, comm: 0.06 },
-        { title: "SERGEANT", minRev: 10000, base: 2000, comm: 0.08 },
-        { title: "CAPTAIN", minRev: 25000, base: 3500, comm: 0.10 },
-        { title: "COMMISSIONER", minRev: 50000, base: 5000, comm: 0.12 }
-    ];
-
-    function getRank(lifetimeRev) {
-        let currentRank = RANKS[0];
-        for (let i = 0; i < RANKS.length; i++) { if (lifetimeRev >= RANKS[i].minRev) currentRank = RANKS[i]; }
-        return currentRank;
-    }
-
-    function calculateSalary() {
-        const rank = getRank(sharedData.lifetimeRevenue || 0);
-        const currentPool = sharedData.revenuePool || 0;
+    // --- MONTH & BILLING SYSTEM ---
+    function checkMonthCycle() {
+        const now = Date.now();
+        const elapsed = now - sharedData.monthStartTimestamp;
         
-        const basePay = rank.base;
-        const commission = Math.floor(currentPool * rank.comm);
-        const grossPay = basePay + commission;
-        const deductions = Math.floor(grossPay * 0.20); // 20% Total Deductions
-        const netPay = grossPay - deductions;
+        if (elapsed >= GAME_MONTH_DURATION) {
+            // NEW MONTH STARTS
+            sharedData.monthStartTimestamp = now;
+            sharedData.lifestyle.housing = 'streets';
+            sharedData.lifestyle.food = 'none';
+            sharedData.lifestyle.accessories = []; // All upgrades expire
+            sharedData.lifestyle.billsDue = { rent: false, food: false, medical: false };
+            showPopup('MONTH EXPIRED', 'All subscriptions and upgrades have expired. You must reactivate them with your salary.', '📅');
+            save(); render();
+        }
 
-        return { rank, basePay, commission, grossPay, deductions, netPay, currentPool };
+        // Countdown UI
+        const remaining = GAME_MONTH_DURATION - (now - sharedData.monthStartTimestamp);
+        const mins = Math.floor(remaining / 60000);
+        const secs = Math.floor((remaining % 60000) / 1000);
+        document.getElementById('month-countdown').innerText = `${mins}:${secs.toString().padStart(2, '0')}`;
     }
 
-    function initiateTransfer() {
-        const salary = calculateSalary();
-        if (salary.currentPool <= 0) {
-            alert("CENTRAL POOL IS EMPTY. DEPOSIT REVENUE FIRST.");
+    function runTicks() {
+        if(locked) return;
+        syncPool();
+        checkMonthCycle();
+
+        let ar = 0.6; 
+        if(sharedData.revenuePool > 5000) ar = 1.5;
+        const h = HOUSING.find(x=>x.id===sharedData.lifestyle.housing), f = FOOD.find(x=>x.id===sharedData.lifestyle.food);
+        if(h) ar += h.auditMod; if(f) ar += f.auditMod;
+        if(sharedData.lifestyle.accessories.includes('ac_unit')) ar *= 0.8;
+        if(sharedData.lifestyle.accessories.includes('security')) ar *= 0.7;
+        if(sharedData.lifestyle.billsDue.rent) ar += 2; 
+        if(sharedData.lifestyle.billsDue.food) ar += 2;
+        if(sharedData.lifestyle.loanDefaulted) ar += 3;
+        sharedData.auditRisk = Math.min(100, Math.max(0, sharedData.auditRisk + ar));
+
+        if(sharedData.auditRisk >= 100 && !sharedData.lifestyle.billsDue.medical) {
+            sharedData.lifestyle.billsDue.medical = true;
+            showPopup('CRITICAL AUDIT SHOCK', 'Your audit risk reached 100%. You have been hospitalized. Pay the medical bill to unlock the terminal.', '🏥');
+        }
+
+        if(sharedData.lifestyle.accessories.includes('crypto_rig')) sharedData.revenuePool += 5;
+
+        // In-Month Billing Cycle (60s)
+        if(Date.now() - sharedData.lifestyle.lastBillCycle > 60000) {
+            sharedData.lifestyle.lastBillCycle = Date.now();
+            const rentCost = h ? h.cost : 0, foodCost = f ? f.cost : 0;
+            
+            if(sharedData.lifestyle.accessories.includes('insurance')) {
+                if(sharedData.officerBalance >= rentCost + foodCost) {
+                    sharedData.officerBalance -= (rentCost + foodCost);
+                } else {
+                    sharedData.lifestyle.billsDue.rent = true; sharedData.lifestyle.billsDue.food = true;
+                    showPopup('INSURANCE FAILED', 'Auto-Pay Insurance failed due to insufficient bank balance. Bills are overdue!', '🛑');
+                }
+            } else {
+                if(rentCost > 0) sharedData.lifestyle.billsDue.rent = true;
+                if(foodCost > 0) sharedData.lifestyle.billsDue.food = true;
+            }
+        }
+
+        // Loan Interest
+        if(sharedData.loanBalance > 0 && Date.now() - sharedData.lifestyle.lastLoanTick > 30000) {
+            sharedData.lifestyle.lastLoanTick = Date.now();
+            const interest = Math.floor(sharedData.loanBalance * 0.05);
+            sharedData.loanBalance += interest;
+            if(sharedData.loanBalance > 50000) { 
+                sharedData.lifestyle.loanDefaulted = true; sharedData.officerBalance = 0;
+                showPopup('LOAN DEFAULT', 'Your federal loan exceeded $50,000. The bank has seized your assets!', '🏦');
+            }
+        }
+
+        // Vault Interest
+        if(sharedData.lifestyle.accessories.includes('vault') && Date.now() - sharedData.lastCalculatedTimestamp > 30000) {
+            if(sharedData.officerBalance > 0) sharedData.officerBalance += Math.floor(sharedData.officerBalance * 0.01);
+            sharedData.lastCalculatedTimestamp = Date.now();
+        }
+
+        // AI Butler Auto-Claim (Fixed to prevent spam)
+        if(sharedData.lifestyle.accessories.includes('ai_assistant') && sharedData.auditRisk >= 80 && sharedData.revenuePool > 0) {
+            initiateTransfer(true); 
+        }
+
+        // Debuff UI
+        document.getElementById('debuff-evicted').style.display = sharedData.lifestyle.billsDue.rent ? 'block' : 'none';
+        document.getElementById('debuff-starving').style.display = sharedData.lifestyle.billsDue.food ? 'block' : 'none';
+        document.getElementById('debuff-hospital').style.display = sharedData.lifestyle.billsDue.medical ? 'block' : 'none';
+        document.getElementById('debuff-loan').style.display = sharedData.lifestyle.loanDefaulted ? 'block' : 'none';
+
+        save(); render();
+    }
+    setInterval(runTicks, 3000);
+
+    function syncPool(){ try { const d1=JSON.parse(localStorage.getItem(LS)||'{}'); const d2=JSON.parse(localStorage.getItem(LS2)||'{}'); const ep=Math.max(d1.revenuePool||0,d2.revenuePool||0); if(ep>sharedData.revenuePool) sharedData.revenuePool=ep; } catch(e){} }
+
+    function load() {
+        try {
+            const d = JSON.parse(localStorage.getItem(LS)||'null') || JSON.parse(localStorage.getItem(LS2)||'null');
+            if(d) {
+                sharedData.revenuePool = d.revenuePool ?? 0; sharedData.lifetimeRevenue = d.lifetimeRevenue ?? 0;
+                sharedData.officerBalance = d.officerBalance ?? 100; sharedData.auditRisk = d.auditRisk ?? 0;
+                sharedData.history = d.history || []; sharedData.payslips = d.payslips || [];
+                sharedData.upgradesOwned = d.upgradesOwned || {};
+                sharedData.monthStartTimestamp = d.monthStartTimestamp ?? Date.now();
+                sharedData.lastCalculatedTimestamp = d.lastCalculatedTimestamp ?? Date.now();
+                sharedData.lifestyle = d.lifestyle || { housing:'streets',food:'none',accessories:[],billsDue:{rent:false,food:false,medical:false},loanBalance:0,loanDefaulted:false,lastBillCycle:Date.now(),lastLoanTick:Date.now()};
+                if(!sharedData.lifestyle.accessories) sharedData.lifestyle.accessories = [];
+                if(!sharedData.lifestyle.billsDue) sharedData.lifestyle.billsDue = {rent:false,food:false,medical:false};
+            }
+        } catch(e) {}
+        render();
+    }
+
+    function save() { try { sharedData.lastCalculatedTimestamp = Date.now(); const d = JSON.stringify(sharedData); localStorage.setItem(LS, d); localStorage.setItem(LS2, d); } catch(e) {} }
+
+    function getRank(lr) { let c=RANKS[0]; for(let i=0;i<RANKS.length;i++){if(lr>=RANKS[i].minRev)c=RANKS[i];} return c; }
+
+    function calcSal() {
+        const rk=getRank(sharedData.lifetimeRevenue||0); const h=HOUSING.find(x=>x.id===sharedData.lifestyle.housing);
+        const pool=(sharedData.revenuePool||0)*(h?h.poolMod:1); let cp=rk.comm;
+        if(sharedData.lifestyle.accessories.includes('home_server')) cp+=0.02;
+        const com=Math.floor(pool*cp); const gr=rk.base+com; const ded=Math.floor(gr*0.20);
+        return {rk,basePay:rk.base,commission:com,grossPay:gr,deductions:ded,netPay:Math.max(0,gr-ded),currentPool:Math.floor(pool)};
+    }
+
+    function render() {
+        const s=calcSal(); const lt=sharedData.lifetimeRevenue||0; const rk=s.rk;
+        document.getElementById('lifetime-rev').innerText = lt.toLocaleString();
+        document.getElementById('rank-title').innerText = `RANK: ${rk.title}`;
+        
+        const balEl = document.getElementById('bank-bal');
+        balEl.innerText = `$${sharedData.officerBalance.toLocaleString()}`;
+        if(sharedData.officerBalance < 100) balEl.classList.add('low-balance'); else balEl.classList.remove('low-balance');
+
+        let cri=RANKS.indexOf(rk);
+        if(cri<RANKS.length-1){let nr=RANKS[cri+1];let p=Math.min(100,Math.floor(((lt-rk.minRev)/(nr.minRev-rk.minRev))*100));document.getElementById('rank-progress-bar').style.width=p+"%";document.getElementById('rank-progress-text').innerText=p+"%";}else{document.getElementById('rank-progress-bar').style.width="100%";document.getElementById('rank-progress-text').innerText="MAX";}
+        
+        document.getElementById('val-pool').innerText=`$${s.currentPool.toLocaleString()}`;document.getElementById('val-base').innerText=`$${s.basePay}`;document.getElementById('val-comm').innerText=`$${s.commission} (${Math.round(rk.comm*100)}%)`;document.getElementById('val-deduct').innerText=`-$${s.deductions}`;document.getElementById('val-net').innerText=`$${s.netPay}`;
+        document.getElementById('audit-text').innerText=Math.floor(sharedData.auditRisk)+"%";document.getElementById('audit-bar').style.width=sharedData.auditRisk+"%";
+        
+        const isBlocked = sharedData.lifestyle.billsDue.medical || sharedData.lifestyle.loanDefaulted;
+        document.getElementById('btn-transfer').disabled = isBlocked;
+        document.getElementById('btn-clean').disabled = isBlocked;
+
+        renderMarket('bills-market', [...HOUSING, ...FOOD], 'bill');
+        renderLoans(); renderMarket('upgrades-market', UPGRADES, 'up');
+        renderPayslips();
+    }
+
+    function renderMarket(cid, items, type) {
+        const c=document.getElementById(cid); c.innerHTML='';
+        items.forEach(item => {
+            const isAct=(type==='bill'&&(sharedData.lifestyle.housing===item.id||sharedData.lifestyle.food===item.id));
+            const isOwn=type==='up'&&sharedData.lifestyle.accessories.includes(item.id);
+            const isDueRent=type==='bill'&&item.cost>0&&sharedData.lifestyle.billsDue.rent&&HOUSING.includes(item);
+            const isDueFood=type==='bill'&&item.cost>0&&sharedData.lifestyle.billsDue.food&&FOOD.includes(item);
+            const isDue=isDueRent||isDueFood;
+            
+            const div=document.createElement('div'); 
+            div.className=`market-item ${isAct?'active-tier':''} ${isDue?'bill-due':''} ${isOwn?'active-tier':''}`;
+            
+            let btnTxt='SELECT'; 
+            if(isAct) btnTxt='ACTIVE'; 
+            if(isOwn) btnTxt='ACTIVE'; 
+            if(isDue) btnTxt=`PAY $${item.cost}`;
+            
+            let adText = '';
+            if(isAct || isOwn) adText = `<span class="active-tag">● ONLINE</span>`;
+            else if(item.cost > 0 && type === 'bill') adText = `<span class="expired-tag">RENEW</span>`;
+
+            div.innerHTML=`<div><div style="font-weight:bold;">${item.name} ${adText}</div><div class="item-desc">${item.desc}</div></div><button class="action-btn" onclick="handleBuy('${type}','${item.id}')" ${isOwn&&type==='up'?'disabled':''}>${btnTxt}</button>`;
+            c.appendChild(div);
+        });
+        if(type==='bill'&&sharedData.lifestyle.billsDue.medical){
+            const m=document.createElement('div'); m.className='market-item bill-due';
+            m.innerHTML=`<div><div style="font-weight:bold;">🏥 Medical Bay Treatment <span class="expired-tag">OVERDUE</span></div><div class="item-desc">Audit shock hospitalization. Required to unlock terminal.</div></div><button class="action-btn" onclick="payBill('medical',500)">PAY $500</button>`;
+            c.appendChild(m);
+        }
+    }
+
+    function renderLoans() {
+        const c=document.getElementById('loan-market'); c.innerHTML='';
+        if(sharedData.loanBalance>0){
+            const d=document.createElement('div'); d.className='market-item loan-item';
+            const minPay = Math.floor(sharedData.loanBalance * 0.10); // 10% minimum payment
+            d.innerHTML=`<div><div style="font-weight:bold;">Outstanding Debt: $${sharedData.loanBalance.toLocaleString()}</div><div class="item-desc">5% interest accrues every 30s. Default if >$50k. Min monthly: $${minPay}</div></div><div style="display:flex; gap:5px;"><button class="action-btn" onclick="repayLoan(${minPay})" ${sharedData.officerBalance<minPay?'disabled':''}>MIN $${minPay}</button><button class="action-btn" onclick="repayLoan(${sharedData.loanBalance})" ${sharedData.officerBalance<=0?'disabled':''}>PAY ALL</button></div>`;
+            c.appendChild(d);
+        } else {
+            LOANS.forEach(l => {
+                const d=document.createElement('div'); d.className='market-item';
+                d.innerHTML=`<div><div style="font-weight:bold;">Federal Loan: $${l.amount.toLocaleString()}</div><div class="item-desc">Borrow cash. Must repay with 5% interest.</div></div><button class="action-btn" onclick="takeLoan(${l.amount})">BORROW</button>`;
+                c.appendChild(d);
+            });
+        }
+    }
+
+    function renderPayslips() {
+        const l=document.getElementById('payslip-list'); l.innerHTML=''; let f=[...sharedData.payslips]; if(currentFilter==='high') f=f.filter(s=>s.net>2000); let s=f.slice(-20).reverse();
+        if(s.length===0){l.innerHTML='<div style="color:#444;text-align:center;padding:40px 0;">NO ARCHIVES</div>';return;}
+        s.forEach(ps=>{const i=document.createElement('div');i.className='payslip-item';if(ps.isLaunderedMethod)i.style.borderLeftColor="var(--accent)";i.innerHTML=`<div class="payslip-header"><span style="color:var(--purple);">${ps.isLaunderedMethod?'LAUNDERED':'PAYOUT'}</span><span style="color:var(--success);">$${ps.net}</span></div><div class="payslip-details"><span>TIER: ${ps.rank}</span><span>GROSS: $${ps.gross} | TAX: -$${ps.deductions}</span></div><div class="payslip-auth">HASH: ${ps.authCode}</div>`;l.appendChild(i);});
+    }
+
+    function setArchiveFilter(ft){currentFilter=ft;document.getElementById('filter-all').classList.toggle('active',ft==='all');document.getElementById('filter-high').classList.toggle('active',ft==='high');renderPayslips();}
+
+    function handleBuy(type, id) {
+        if(type==='bill') {
+            const isH=HOUSING.find(x=>x.id===id); const isF=FOOD.find(x=>x.id===id);
+            const item=isH||isF; if(!item) return;
+            const isDueRent=isH&&sharedData.lifestyle.billsDue.rent; const isDueFood=isF&&sharedData.lifestyle.billsDue.food;
+            
+            if(isDueRent||isDueFood) { 
+                if(sharedData.officerBalance<item.cost){
+                    showPopup('INSUFFICIENT FUNDS', `You need $${item.cost} to pay your ${isH?'Rent':'Food'} bill.`, '💰');
+                    return;
+                }
+                sharedData.officerBalance-=item.cost;
+                if(isDueRent){sharedData.lifestyle.billsDue.rent=false;sharedData.lifestyle.housing=item.id;}
+                if(isDueFood){sharedData.lifestyle.billsDue.food=false;sharedData.lifestyle.food=item.id;}
+                beep(AUD.success);
+            } else { 
+                // Subscription Activation for current month
+                if(item.cost > 0) {
+                    if(sharedData.officerBalance < item.cost) {
+                        showPopup('INSUFFICIENT FUNDS', `You need $${item.cost} to activate ${item.name} for this month.`, '💰');
+                        return;
+                    }
+                    sharedData.officerBalance -= item.cost;
+                }
+                sharedData.lifestyle.housing=isH?id:sharedData.lifestyle.housing;
+                sharedData.lifestyle.food=isF?id:sharedData.lifestyle.food;
+                beep(AUD.success);
+            }
+        } else if(type==='up') {
+            const item=UPGRADES.find(x=>x.id===id); if(!item||sharedData.lifestyle.accessories.includes(id)) return;
+            if(sharedData.officerBalance<item.cost){
+                showPopup('INSUFFICIENT FUNDS', `You need $${item.cost} to purchase the ${item.name}.`, '💰');
+                return;
+            }
+            if(item.type==='ent') { 
+                sharedData.officerBalance-=item.cost; sharedData.auditRisk=Math.max(0,sharedData.auditRisk-item.auditReduce); beep(AUD.success);
+            } else { 
+                sharedData.officerBalance-=item.cost; sharedData.lifestyle.accessories.push(id); beep(AUD.success);
+            }
+        }
+        save(); render();
+    }
+
+    function payBill(type, cost) {
+        if(sharedData.officerBalance<cost){
+            showPopup('INSUFFICIENT FUNDS', `You need $${cost} to pay your Medical bill.`, '💰');
             return;
         }
-
-        const overlay = document.getElementById('transfer-overlay');
-        const btn = document.getElementById('btn-transfer');
-        btn.disabled = true;
-        overlay.classList.add('active');
-
-        const authCode = `FED-${Math.random().toString(36).substr(2, 4).toUpperCase()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
-        document.getElementById('auth-code').innerText = authCode;
-        const statusText = document.getElementById('status-text');
-
-        setTimeout(() => { statusText.innerHTML = "VERIFYING BIOMETRICS <span class='blinker'>_</span>"; }, 500);
-        setTimeout(() => { statusText.innerHTML = "CALCULATING COMMISSION & TAXES <span class='blinker'>_</span>"; }, 2000);
-        setTimeout(() => { statusText.innerHTML = `TRANSFERRING $${salary.netPay} TO ACCOUNT <span class='blinker'>_</span>`; statusText.style.color = "var(--success)"; }, 3500);
-        
-        setTimeout(() => {
-            statusText.innerHTML = "TRANSFER COMPLETE ✓"; 
-            
-            sharedData.payslips.push({
-                date: new Date().toLocaleString(),
-                rank: salary.rank.title,
-                gross: salary.grossPay,
-                deductions: salary.deductions,
-                net: salary.netPay,
-                poolAtTime: salary.currentPool,
-                authCode: authCode
-            });
-
-            // Move money from Pool to Officer Balance
-            sharedData.officerBalance = (sharedData.officerBalance || 0) + salary.netPay;
-            sharedData.revenuePool = 0; // Empty the pool
-            
-            saveData();
-            loadData();
-
-            setTimeout(() => {
-                overlay.classList.remove('active');
-                btn.disabled = false;
-                statusText.style.color = "var(--success)";
-                statusText.innerHTML = "INITIATING SECURE CONNECTION <span class='blinker'>_</span>";
-            }, 2500);
-        }, 5000);
+        sharedData.officerBalance-=cost; sharedData.lifestyle.billsDue[type]=false; sharedData.auditRisk=Math.max(0,sharedData.auditRisk-40); beep(AUD.success); save(); render();
     }
 
-    function renderDashboard() {
-        const salary = calculateSalary();
-        const lifetime = sharedData.lifetimeRevenue || 0;
-        const rank = salary.rank;
+    function takeLoan(amt) {
+        sharedData.officerBalance+=amt; sharedData.loanBalance+=amt; sharedData.lifestyle.loanDefaulted=false; sharedData.lifestyle.lastLoanTick=Date.now(); beep(AUD.success); save(); render();
+    }
 
-        document.getElementById('lifetime-rev').innerText = lifetime.toLocaleString();
-        document.getElementById('rank-title').innerText = `RANK: ${rank.title}`;
-        document.getElementById('bank-bal').innerText = `$${(sharedData.officerBalance || 0).toLocaleString()}`;
+    function repayLoan(amountToPay) {
+        if(sharedData.officerBalance<=0 || amountToPay <= 0) return;
+        const pay = Math.min(sharedData.officerBalance, amountToPay);
+        sharedData.officerBalance -= pay; 
+        sharedData.loanBalance -= pay; 
+        if(sharedData.loanBalance <= 0) sharedData.loanBalance = 0; 
+        beep(AUD.click); save(); render();
+    }
 
-        document.getElementById('val-pool').innerText = `$${salary.currentPool.toLocaleString()}`;
-        document.getElementById('val-base').innerText = `$${salary.basePay}`;
-        document.getElementById('val-comm').innerText = `$${salary.commission} (${rank.comm*100}%)`;
-        document.getElementById('val-deduct').innerText = `-$${salary.deductions}`;
-        document.getElementById('val-net').innerText = `$${salary.netPay}`;
-
-        // Payslips
-        const listContainer = document.getElementById('payslip-list');
-        listContainer.innerHTML = '';
-        const slips = (sharedData.payslips || []).slice(-20).reverse();
-        
-        if (slips.length === 0) {
-            listContainer.innerHTML = '<div style="color:#444; text-align:center; padding:40px 0;">NO PAYSLIPS ON RECORD</div>';
-        } else {
-            slips.forEach(ps => {
-                const item = document.createElement('div');
-                item.className = 'payslip-item';
-                item.innerHTML = `
-                    <div class="payslip-header"><span style="color:var(--purple);">SALARY PAYOUT</span><span style="color:var(--success);">$${ps.net}</span></div>
-                    <div class="payslip-details"><span>RANK: ${ps.rank}</span><span>GROSS: $${ps.gross} | TAX: -$${ps.deductions}</span></div>
-                    <div class="payslip-details"><span>POOL CLEARED: $${ps.poolAtTime}</span><span>${ps.date}</span></div>
-                    <div class="payslip-auth">AUTH_CODE: ${ps.authCode}</div>
-                `;
-                listContainer.appendChild(item);
-            });
+    function initiateTransfer(isL=false) {
+        const s=calcSal(); 
+        if(s.currentPool<=0){ showPopup('POOL EMPTY', 'Central Audit Revenue Pool is empty. Wait for external deposits.', '🛑'); return; }
+        if(sharedData.auditRisk>=85&&!isL){
+            let p=Math.floor(s.netPay*0.4); 
+            showPopup('AUDIT DETECTED!', `Federal Intel found irregularities! A 40% penalty voucher ($${p}) was forcefully applied to your payout.`, '⚠️');
+            sharedData.auditRisk=0; sharedData.revenuePool=0; sharedData.officerBalance+=Math.max(0,s.netPay-p); sharedData.lifetimeRevenue+=s.currentPool; save(); render(); return;
         }
+        const ov=document.getElementById('transfer-overlay'),mf=document.getElementById('mfa-box');
+        document.getElementById('btn-transfer').disabled=true; document.getElementById('btn-clean').disabled=true; ov.classList.add('active');
+        const ac=`FED-${Math.random().toString(36).substr(2,4).toUpperCase()}`; document.getElementById('auth-code').innerText=ac; const st=document.getElementById('status-text');
+        st.innerHTML="PROBING GRID <span class='blinker'>_</span>"; beep(AUD.blip);
+        setTimeout(()=>{
+            st.style.color="var(--warning)"; st.innerHTML="MFA OVERRIDE REQUIRED:"; mf.style.display="block"; activeMfa=Math.floor(1000+Math.random()*9000).toString();
+            document.getElementById('mfa-challenge').innerText=activeMfa; let ui=document.getElementById('mfa-user-input'); ui.value=''; ui.focus();
+            ui.oninput=function(){if(ui.value===activeMfa){mf.style.display="none";st.style.color="var(--success)";execPay(s,ac,isL,st,ov);}};
+        },1200);
     }
 
-    window.addEventListener('storage', (event) => { if (event.key === LS_D1_KEY || event.key === LS_D2_KEY) { loadData(); } });
-    loadData(); setInterval(loadData, 2000);
+    function execPay(s,ac,isL,st,ov) {
+        st.innerHTML="DECRYPTING PIPES... <span class='blinker'>_</span>";
+        setTimeout(()=>{
+            let pay=s.netPay,ded=s.deductions; if(isL){pay=s.grossPay;ded=0;}
+            st.innerHTML=`DISPENSING $${pay} ✓`; beep(AUD.success,'sine',0.3);
+            sharedData.payslips.push({date:new Date().toLocaleString(),rank:s.rk.title,gross:s.grossPay,deductions:ded,net:pay,poolAtTime:s.currentPool,authCode:ac,isLaunderedMethod:isL});
+            sharedData.officerBalance+=pay; sharedData.lifetimeRevenue+=s.currentPool; sharedData.revenuePool=0; if(!isL) sharedData.auditRisk=Math.max(0,sharedData.auditRisk-30);
+            save(); render();
+            setTimeout(()=>{ov.classList.remove('active');document.getElementById('btn-transfer').disabled=false;document.getElementById('btn-clean').disabled=false;st.innerHTML="INIT <span class='blinker'>_</span>";},1500);
+        },1500);
+    }
+
+    function exportLedgerData(){let d=`--- NHAI LEDGER ---\nBalance: $${sharedData.officerBalance}\n\n`;sharedData.payslips.forEach((p,i)=>d+=`[${i+1}] ${p.date} | $${p.net}\n`);const e=document.createElement("a");e.href=URL.createObjectURL(new Blob([d],{type:'text/plain'}));e.download=`Ledger_${Date.now()}.txt`;e.click();}
+    
+    function toggleTerminalLock(){locked=!locked;const ov=document.getElementById('transfer-overlay'),mf=document.getElementById('mfa-box'),st=document.getElementById('status-text');if(locked){ov.classList.add('active');document.getElementById('auth-code').innerText="LOCKED";st.innerHTML="TERMINAL SECURED.";mf.style.display="block";activeMfa="9981";document.getElementById('mfa-challenge').innerText="ENTER 9981";let ui=document.getElementById('mfa-user-input');ui.value='';ui.focus();ui.oninput=function(){if(ui.value===activeMfa){locked=false;mf.style.display="none";ov.classList.remove('active');beep(AUD.success);}};}}
+    
+    function changeTheme(t){document.body.className='';if(t!=='default')document.body.classList.add('theme-'+t);}
+
+    window.addEventListener('storage',(e)=>{if(e.key===LS||e.key===LS2)load();});
+    load();
 </script>
 </body>
 </html>
