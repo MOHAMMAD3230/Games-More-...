@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
   <link rel="icon" href="https://mohammad3230.github.io/PROJECT/favicon.png" type="image/png" sizes="32x32" />
 <script async src="https://www.googletagmanager.com/gtag/js?id=GT-NC6T5LRJ"></script>
 <script>
@@ -81,7 +80,8 @@ let sharedData = {
     revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, 
     history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null,
     activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [],
-    ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: []
+    ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [],
+    rehabGraduations: []
 };
 
 function updateClock(){document.getElementById('clock').innerText=new Date().toLocaleTimeString('en-GB');}
@@ -107,7 +107,6 @@ function loadData(){
             const p = JSON.parse(savedStr);
             deepMerge(sharedData, p); 
             
-            // Fallbacks
             if(!sharedData.activeInmates)sharedData.activeInmates=[];
             if(!sharedData.releasedInmates)sharedData.releasedInmates=[];
             if(!sharedData.registry)sharedData.registry={};
@@ -121,6 +120,7 @@ function loadData(){
             if(!sharedData.paroleRecords)sharedData.paroleRecords=[];
             if(!sharedData.iaViolations)sharedData.iaViolations=[];
             if(!sharedData.rehabPrograms)sharedData.rehabPrograms=[];
+            if(!sharedData.rehabGraduations)sharedData.rehabGraduations=[];
             if(!sharedData.history)sharedData.history=[];
         }catch(e){
             console.error("Load error:", e);
@@ -141,7 +141,6 @@ function addLog(msg, color, saveToState=true){
     e.innerText='> '+msg;
     l.prepend(e);
 
-    // Limit DOM logs to prevent memory bloat
     if(l.children.length > 50) l.removeChild(l.lastChild);
 
     if(saveToState) {
@@ -175,7 +174,6 @@ function renderLogs(){
     }
 }
 
-// FIX: Use Plate instead of Index to guarantee we modify the correct inmate
 function grantParole(plate){
     loadData(); 
     const inmates=sharedData.activeInmates;
@@ -214,7 +212,6 @@ function grantParole(plate){
     if(!sharedData.rehabPrograms) sharedData.rehabPrograms=[];
     sharedData.rehabPrograms.push({plate: realPlate, id: newId, program:'PAROLE SUPERVISION', status:'ACTIVE'});
     
-    // Remove from active inmates
     inmates.splice(index, 1);
     
     sharedData.history.push({
@@ -296,7 +293,6 @@ function renderDashboard(){
 loadData();
 renderLogs();
 
-// Sync with other tabs every 2 seconds
 setInterval(() => {
     loadData();
     renderLogs(); 
