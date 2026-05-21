@@ -120,7 +120,7 @@ function loadData(){
         }
     }
     
-    // FIX: Auto-repair broken inmate entries on load so the timer unsticks
+    // FIX: Force repair broken data types on load so the timer math actually works
     let needsSave = false;
     (sharedData.rehabPrograms || []).forEach(p => {
         if (!p.realPlate || p.realPlate === 'N/A' || p.realPlate === p.plate) {
@@ -135,12 +135,17 @@ function loadData(){
             p.offense = 'PENDING REVIEW';
             needsSave = true;
         }
-        if (!p.programDays || isNaN(p.programDays)) {
-            p.programDays = 15;
-            needsSave = true;
-        }
-        if (p.progress === undefined || isNaN(p.progress)) {
-            p.progress = 0;
+        
+        // CRITICAL FIX: Force progress and programDays to be valid integers
+        let prog = parseInt(p.progress);
+        let days = parseInt(p.programDays);
+        
+        if (isNaN(prog) || prog < 0) prog = 0;
+        if (isNaN(days) || days <= 0) days = 15;
+        
+        if (p.progress !== prog || p.programDays !== days) {
+            p.progress = prog;
+            p.programDays = days;
             needsSave = true;
         }
     });
@@ -208,7 +213,7 @@ function renderLogs(){
 function enrollFromReleased(){
     const graduatedPlates = new Set((sharedData.rehabGraduations || []).map(g => g.oldPlate));
     
-    // Accept released inmates, even if their data wasn't fully resolved by the prison terminal
+    // Accept released inmates
     const released = sharedData.releasedInmates.filter(i =>
         (i.status==='RELEASED' || i.status==='PAROLED') && 
         !graduatedPlates.has(i.plate)
@@ -218,7 +223,6 @@ function enrollFromReleased(){
     released.forEach(inmate => {
         const already = sharedData.rehabPrograms.find(r => r.plate === inmate.plate);
         if(!already){
-            // Auto-generate missing data upon enrollment so progress never gets stuck at NaN
             const validRealPlate = (inmate.realPlate && inmate.realPlate !== 'N/A' && inmate.realPlate !== inmate.plate) 
                 ? inmate.realPlate 
                 : 'TEMP-' + Math.floor(1000 + Math.random() * 9000);
@@ -232,8 +236,8 @@ function enrollFromReleased(){
                 realPlate: validRealPlate,
                 id: validId,
                 offense: inmate.offense || 'PENDING REVIEW',
-                progress: 0,
-                programDays: 15 + Math.floor(Math.random() * 16),
+                progress: 0, // Ensure this is an integer
+                programDays: 15 + Math.floor(Math.random() * 16), // Ensure this is an integer
                 status: 'ENROLLED',
                 dateEnrolled: new Date().toLocaleDateString()
             });
@@ -255,7 +259,10 @@ function graduateInmate(plate){
     if(index === -1) return;
 
     const inmate = prog[index];
-    if(inmate.progress < inmate.programDays) return;
+    const safeProgress = parseInt(inmate.progress) || 0;
+    const safeProgramDays = parseInt(inmate.programDays) || 15;
+    
+    if(safeProgress < safeProgramDays) return;
     
     const newPlate = 'RH-' + Math.floor(1000 + Math.random() * 9000);
     const newId = 'DL-REHAB-' + Math.floor(1000 + Math.random() * 9000);
@@ -313,9 +320,9 @@ function renderDashboard(){
     }
     
     programs.forEach(inmate => {
-        // Protection against NaN% just in case
-        const safeProgramDays = inmate.programDays && !isNaN(inmate.programDays) ? inmate.programDays : 15;
-        const safeProgress = inmate.progress && !isNaN(inmate.progress) ? inmate.progress : 0;
+        // CRITICAL FIX: Parse as Integers strictly for rendering
+        const safeProgramDays = parseInt(inmate.programDays) || 15;
+        const safeProgress = parseInt(inmate.progress) || 0;
         
         const pct = Math.min(100, Math.round((safeProgress / safeProgramDays) * 100));
         const isReady = safeProgress >= safeProgramDays;
@@ -354,11 +361,18 @@ function renderDashboard(){
     });
 }
 
+// CRITICAL FIX: Force Integer Parsing in the 1-Second Timer Loop
 setInterval(() => {
     let needsSave = false;
     (sharedData.rehabPrograms || []).forEach(p => {
-        if(p.status === 'ENROLLED' && p.progress < p.programDays){
-            p.progress++;
+        let prog = parseInt(p.progress);
+        let days = parseInt(p.programDays);
+        
+        if (isNaN(prog)) prog = 0;
+        if (isNaN(days)) days = 15;
+        
+        if(p.status === 'ENROLLED' && prog < days){
+            p.progress = prog + 1; // Increment safely
             needsSave = true;
         }
     });
