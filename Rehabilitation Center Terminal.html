@@ -99,20 +99,33 @@ function ensureDataStructure() {
 
 function repairInmateData(inmate) {
     if (!inmate) return inmate;
+    
+    // FIX: Use the ID/Case Number (e.g., AV-8992) as the plate if no plate is assigned
+    if (!inmate.plate && (inmate.id || inmate.caseNumber)) {
+        inmate.plate = inmate.id || inmate.caseNumber;
+    }
+    
     if (inmate.sentenceDays === undefined || inmate.sentenceDays === null) {
+        // FIX: Check for common alternate property names from the enforcement terminal
+        const days = inmate.days || inmate.sentence || inmate.time || 0;
+        
         if (inmate.offense === "911 FELONY" || inmate.facility === "FEDERAL HOLD") inmate.sentenceDays = 120;
         else if (inmate.offense === "FORGERY & FUGITIVE" || inmate.facility === "MAXIMUM SECURITY") inmate.sentenceDays = 90;
-        else inmate.sentenceDays = 60;
+        else if (days > 0) inmate.sentenceDays = days;
+        else inmate.sentenceDays = 60; // Default fallback
     }
+    
     if (inmate.sentenceRemaining === undefined || inmate.sentenceRemaining === null) inmate.sentenceRemaining = inmate.sentenceDays;
     inmate.sentenceRemaining = Math.max(0, inmate.sentenceRemaining);
     inmate.sentenceDays = Math.max(1, inmate.sentenceDays);
+    
     if (!inmate.offense) inmate.offense = "WARRANT / ROGUE";
     if (!inmate.facility) inmate.facility = "CENTRAL DETENTION";
     if (!inmate.realPlate) inmate.realPlate = inmate.plate || "UNKNOWN";
-    if (!inmate.id) inmate.id = "MISSING";
+    if (!inmate.id) inmate.id = inmate.plate || "MISSING";
     if (!inmate.dateArrested) inmate.dateArrested = new Date().toLocaleDateString();
     if (!inmate.status) inmate.status = "ARRESTED";
+    
     return inmate;
 }
 
