@@ -258,6 +258,14 @@
         return inmate;
     }
 
+    const mergeByKey = (localArr, parsedArr, keyGen) => {
+        if (!parsedArr) return localArr;
+        if (!localArr) return parsedArr;
+        const keys = new Set(localArr.map(keyGen));
+        parsedArr.forEach(item => { if (!keys.has(keyGen(item))) localArr.push(item); });
+        return localArr;
+    };
+
     function loadData() {
         try {
             const savedStr = localStorage.getItem(LS_MASTER_KEY);
@@ -294,26 +302,10 @@
 
                 sharedData.activeInmates = mergedInmates;
 
-                if ((parsed.releasedInmates || []).length > (sharedData.releasedInmates || []).length) {
-                    sharedData.releasedInmates = parsed.releasedInmates;
-                }
-                if (parsed.paroleRecords && parsed.paroleRecords.length > 0) {
-                    const existingKeys = new Set((sharedData.paroleRecords || []).map(r => r.plate + r.date));
-                    parsed.paroleRecords.forEach(r => {
-                        if (!existingKeys.has(r.plate + r.date)) {
-                            if (!sharedData.paroleRecords) sharedData.paroleRecords = [];
-                            sharedData.paroleRecords.push(r);
-                        }
-                    });
-                }
-                if (parsed.history && parsed.history.length > 0) {
-                    const existingKeys = new Set((sharedData.history || []).map(h => h.plate + h.timestamp));
-                    parsed.history.forEach(h => {
-                        if (!existingKeys.has(h.plate + h.timestamp)) {
-                            sharedData.history.push(h);
-                        }
-                    });
-                }
+                sharedData.releasedInmates = mergeByKey(sharedData.releasedInmates, parsed.releasedInmates, r => r.plate + r.dateReleased);
+                sharedData.paroleRecords = mergeByKey(sharedData.paroleRecords, parsed.paroleRecords, r => r.plate + r.date);
+                sharedData.history = mergeByKey(sharedData.history, parsed.history, h => h.plate + h.timestamp);
+
                 if (parsed.registry) Object.assign(sharedData.registry || {}, parsed.registry);
                 if (parsed.forgedAliases) Object.assign(sharedData.forgedAliases || {}, parsed.forgedAliases);
 
@@ -346,31 +338,6 @@
 
     function saveData() {
         try {
-            try {
-                const currentStr = localStorage.getItem(LS_MASTER_KEY);
-                if (currentStr) {
-                    const currentData = JSON.parse(currentStr);
-                    if (currentData.activeInmates) {
-                        currentData.activeInmates.forEach(storageInmate => {
-                            const existsLocally = sharedData.activeInmates.some(i => i.plate === storageInmate.plate);
-                            if (!existsLocally) {
-                                sharedData.activeInmates.push(repairInmateData(storageInmate));
-                            }
-                        });
-                    }
-                    if ((currentData.releasedInmates || []).length > (sharedData.releasedInmates || []).length) {
-                        sharedData.releasedInmates = currentData.releasedInmates;
-                    }
-                    if (currentData.history) {
-                        const existingKeys = new Set((sharedData.history || []).map(h => h.plate + h.timestamp));
-                        currentData.history.forEach(h => {
-                            if (!existingKeys.has(h.plate + h.timestamp)) {
-                                sharedData.history.push(h);
-                            }
-                        });
-                    }
-                }
-            } catch(e) {}
             localStorage.setItem(LS_MASTER_KEY, JSON.stringify(sharedData));
         } catch(e) {
             console.error("Prison save error:", e);
@@ -486,7 +453,8 @@
 
     function renderDashboard() {
         const activeCount = sharedData.activeInmates.length;
-        const releasedCount = (sharedData.releasedInmates || []).length;
+        // BUG FIX: Use history length for true historical discharged count
+        const releasedCount = (sharedData.history || []).filter(h => h.action === "PAROLE / RELEASED" || h.action === "PAROLE GRANTED").length;
         const paroleCount = sharedData.activeInmates.filter(i => i.sentenceRemaining <= 0).length;
 
         document.getElementById('stat-active').innerText = activeCount;
