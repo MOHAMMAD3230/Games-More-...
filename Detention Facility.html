@@ -234,20 +234,33 @@
 
     function repairInmateData(inmate) {
         if (!inmate) return inmate;
+        
+        // FIX: Use the ID/Case Number (e.g., AV-8992) as the plate if no plate is assigned
+        if (!inmate.plate && (inmate.id || inmate.caseNumber)) {
+            inmate.plate = inmate.id || inmate.caseNumber;
+        }
+        
         if (inmate.sentenceDays === undefined || inmate.sentenceDays === null) {
+            // FIX: Check for common alternate property names from the enforcement terminal
+            const days = inmate.days || inmate.sentence || inmate.time || 0;
+            
             if (inmate.offense === "911 FELONY" || inmate.facility === "FEDERAL HOLD") inmate.sentenceDays = 120;
             else if (inmate.offense === "FORGERY & FUGITIVE" || inmate.facility === "MAXIMUM SECURITY") inmate.sentenceDays = 90;
-            else inmate.sentenceDays = 60;
+            else if (days > 0) inmate.sentenceDays = days;
+            else inmate.sentenceDays = 60; // Default fallback
         }
+        
         if (inmate.sentenceRemaining === undefined || inmate.sentenceRemaining === null) inmate.sentenceRemaining = inmate.sentenceDays;
         inmate.sentenceRemaining = Math.max(0, inmate.sentenceRemaining);
         inmate.sentenceDays = Math.max(1, inmate.sentenceDays);
+        
         if (!inmate.offense) inmate.offense = "WARRANT / ROGUE";
         if (!inmate.facility) inmate.facility = "CENTRAL DETENTION";
         if (!inmate.realPlate) inmate.realPlate = inmate.plate || "UNKNOWN";
-        if (!inmate.id) inmate.id = "MISSING";
+        if (!inmate.id) inmate.id = inmate.plate || "MISSING";
         if (!inmate.dateArrested) inmate.dateArrested = new Date().toLocaleDateString();
         if (!inmate.status) inmate.status = "ARRESTED";
+        
         return inmate;
     }
 
@@ -264,9 +277,6 @@
                 (sharedData.activeInmates || []).forEach(i => { previousLocalInmateMap[i.plate] = i; });
 
                 // ---- SMART MERGE: activeInmates ----
-                // Instead of deepMerge replacing the entire array, we merge plate-by-plate.
-                // This prevents a race where our 1-second countdown saves mid-load,
-                // accidentally wiping a freshly arrested inmate from another terminal.
                 const mergedInmates = [];
                 const seenPlates = new Set();
 
@@ -276,8 +286,6 @@
                     const localVersion = previousLocalInmateMap[inmate.plate];
 
                     if (localVersion) {
-                        // We have a local version — take the LOWER sentenceRemaining
-                        // (our countdown is the authority, but storage might have a newer inmate)
                         if (localVersion.sentenceRemaining !== undefined && localVersion.sentenceRemaining !== null) {
                             repaired.sentenceRemaining = Math.min(
                                 localVersion.sentenceRemaining,
@@ -290,7 +298,6 @@
                 });
 
                 // Second: add any inmates we have locally that storage doesn't know about yet
-                // (e.g. we just decremented and haven't saved, or another tab just sent us data)
                 (sharedData.activeInmates || []).forEach(inmate => {
                     if (!seenPlates.has(inmate.plate)) {
                         mergedInmates.push(repairInmateData(inmate));
@@ -301,12 +308,10 @@
                 sharedData.activeInmates = mergedInmates;
 
                 // ---- MERGE other fields safely ----
-                // releasedInmates: take whichever list is longer (more entries = more recent)
                 if ((parsed.releasedInmates || []).length > (sharedData.releasedInmates || []).length) {
                     sharedData.releasedInmates = parsed.releasedInmates;
                 }
 
-                // paroleRecords: merge by plate+date
                 if (parsed.paroleRecords && parsed.paroleRecords.length > 0) {
                     const existingKeys = new Set((sharedData.paroleRecords || []).map(r => r.plate + r.date));
                     parsed.paroleRecords.forEach(r => {
@@ -317,7 +322,6 @@
                     });
                 }
 
-                // history: merge by plate+timestamp
                 if (parsed.history && parsed.history.length > 0) {
                     const existingKeys = new Set((sharedData.history || []).map(h => h.plate + h.timestamp));
                     parsed.history.forEach(h => {
@@ -327,25 +331,21 @@
                     });
                 }
 
-                // registry: overlay entries
                 if (parsed.registry) {
                     if (!sharedData.registry) sharedData.registry = {};
                     Object.assign(sharedData.registry, parsed.registry);
                 }
 
-                // forgedAliases: overlay entries
                 if (parsed.forgedAliases) {
                     if (!sharedData.forgedAliases) sharedData.forgedAliases = {};
                     Object.assign(sharedData.forgedAliases, parsed.forgedAliases);
                 }
 
-                // Simple scalar fields — take parsed value
                 const scalarFields = ['revenue','valids','missed','level','rankPoints','nextSpawnOverride'];
                 scalarFields.forEach(key => {
                     if (parsed[key] !== undefined) sharedData[key] = parsed[key];
                 });
 
-                // Array fields that are fully replaced (not inmate-sensitive)
                 const replaceArrays = ['inbox','sentMail','call911Logs','ledgerCashouts','intelFlags',
                     'iaViolations','rehabPrograms','rehabGraduations'];
                 replaceArrays.forEach(key => {
@@ -377,13 +377,10 @@
     /* ===== RACE-SAFE SAVE — re-read and merge before writing ===== */
     function saveData() {
         try {
-            // Re-read storage to catch any inmates added by Enforcement terminal
-            // during the time between our last load and now
             try {
                 const currentStr = localStorage.getItem(LS_MASTER_KEY);
                 if (currentStr) {
                     const currentData = JSON.parse(currentStr);
-                    // Merge any inmates from storage that we don't have locally
                     if (currentData.activeInmates) {
                         currentData.activeInmates.forEach(storageInmate => {
                             const existsLocally = sharedData.activeInmates.some(i => i.plate === storageInmate.plate);
@@ -392,11 +389,9 @@
                             }
                         });
                     }
-                    // Take releasedInmates if storage has more
                     if ((currentData.releasedInmates || []).length > (sharedData.releasedInmates || []).length) {
                         sharedData.releasedInmates = currentData.releasedInmates;
                     }
-                    // Merge history entries we don't have
                     if (currentData.history) {
                         const existingKeys = new Set((sharedData.history || []).map(h => h.plate + h.timestamp));
                         currentData.history.forEach(h => {
