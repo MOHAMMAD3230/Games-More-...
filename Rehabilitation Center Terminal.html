@@ -119,6 +119,36 @@ function loadData(){
             console.error("Load error:", e);
         }
     }
+    
+    // FIX: Auto-repair broken inmate entries on load so the timer unsticks
+    let needsSave = false;
+    (sharedData.rehabPrograms || []).forEach(p => {
+        if (!p.realPlate || p.realPlate === 'N/A' || p.realPlate === p.plate) {
+            p.realPlate = 'TEMP-' + Math.floor(1000 + Math.random() * 9000);
+            needsSave = true;
+        }
+        if (!p.id || p.id === 'MISSING' || p.id === 'ARREST_TARGET') {
+            p.id = 'DL-REHAB-' + Math.floor(1000 + Math.random() * 9000);
+            needsSave = true;
+        }
+        if (!p.offense || p.offense === 'UNKNOWN') {
+            p.offense = 'PENDING REVIEW';
+            needsSave = true;
+        }
+        if (!p.programDays || isNaN(p.programDays)) {
+            p.programDays = 15;
+            needsSave = true;
+        }
+        if (p.progress === undefined || isNaN(p.progress)) {
+            p.progress = 0;
+            needsSave = true;
+        }
+    });
+
+    if (needsSave) {
+        saveData();
+    }
+
     renderDashboard();
     renderLogs();
 }
@@ -178,11 +208,9 @@ function renderLogs(){
 function enrollFromReleased(){
     const graduatedPlates = new Set((sharedData.rehabGraduations || []).map(g => g.oldPlate));
     
-    // FIX: Only process released inmates that have fully resolved data (a realPlate and a valid ID)
+    // Accept released inmates, even if their data wasn't fully resolved by the prison terminal
     const released = sharedData.releasedInmates.filter(i =>
         (i.status==='RELEASED' || i.status==='PAROLED') && 
-        i.realPlate && i.realPlate !== 'N/A' && i.realPlate !== i.plate &&
-        i.id && i.id !== 'MISSING' && i.id !== 'ARREST_TARGET' &&
         !graduatedPlates.has(i.plate)
     );
     
@@ -190,13 +218,22 @@ function enrollFromReleased(){
     released.forEach(inmate => {
         const already = sharedData.rehabPrograms.find(r => r.plate === inmate.plate);
         if(!already){
+            // Auto-generate missing data upon enrollment so progress never gets stuck at NaN
+            const validRealPlate = (inmate.realPlate && inmate.realPlate !== 'N/A' && inmate.realPlate !== inmate.plate) 
+                ? inmate.realPlate 
+                : 'TEMP-' + Math.floor(1000 + Math.random() * 9000);
+                
+            const validId = (inmate.id && inmate.id !== 'MISSING' && inmate.id !== 'ARREST_TARGET') 
+                ? inmate.id 
+                : 'DL-REHAB-' + Math.floor(1000 + Math.random() * 9000);
+
             sharedData.rehabPrograms.push({
                 plate: inmate.plate,
-                realPlate: inmate.realPlate || inmate.plate,
-                id: inmate.id || 'MISSING',
-                offense: inmate.offense || 'UNKNOWN',
+                realPlate: validRealPlate,
+                id: validId,
+                offense: inmate.offense || 'PENDING REVIEW',
                 progress: 0,
-                programDays: 15 + Math.floor(Math.random() * 16), // Ensures this is never undefined
+                programDays: 15 + Math.floor(Math.random() * 16),
                 status: 'ENROLLED',
                 dateEnrolled: new Date().toLocaleDateString()
             });
@@ -257,11 +294,8 @@ function renderDashboard(){
     const enrolled = programs.filter(p => p.status === 'ENROLLED').length;
     const graduatedCount = (sharedData.rehabGraduations || []).length;
     
-    // FIX: Apply the same data validation to "awaiting" count
     const awaiting = (sharedData.releasedInmates || []).filter(i =>
         (i.status === 'RELEASED' || i.status === 'PAROLED') && 
-        i.realPlate && i.realPlate !== 'N/A' && i.realPlate !== i.plate &&
-        i.id && i.id !== 'MISSING' && i.id !== 'ARREST_TARGET' &&
         !graduatedPlates.has(i.plate) &&
         !programs.find(p => p.plate === i.plate)
     ).length;
@@ -279,7 +313,7 @@ function renderDashboard(){
     }
     
     programs.forEach(inmate => {
-        // FIX: Fallback logic to guarantee programDays is a number to prevent NaN%
+        // Protection against NaN% just in case
         const safeProgramDays = inmate.programDays && !isNaN(inmate.programDays) ? inmate.programDays : 15;
         const safeProgress = inmate.progress && !isNaN(inmate.progress) ? inmate.progress : 0;
         
