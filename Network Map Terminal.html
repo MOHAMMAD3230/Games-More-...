@@ -8,101 +8,403 @@ window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NHAI - Network Map Terminal</title>
+<title>NHAI - Quantum Network Map v12.0</title>
 <style>
-:root{--bg:#050508;--panel:#0a0a12;--accent:#00d9ff;--success:#2ed573;--danger:#ff0044;--warning:#ffa502;--border:#1a1a2e;--road:#1a1a2a;--purple:#a855f7;}
-body{background:var(--bg);color:#ccc;font-family:'Courier New',monospace;margin:0;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
-.top-bar{background:#000;padding:15px 20px;border-bottom:2px solid var(--accent);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
-.top-bar h1{margin:0;font-size:.9rem;color:var(--accent);letter-spacing:1px;}
-.top-bar .time{color:var(--warning);font-size:.8rem;}
-.map-container{flex-grow:1;padding:20px;display:flex;flex-direction:column;gap:15px;overflow:hidden;}
-.map-canvas{flex-grow:1;background:var(--panel);border:1px solid var(--border);border-radius:4px;position:relative;overflow:hidden;min-height:0;}
-.node{position:absolute;width:130px;padding:8px;background:#000;border:2px solid var(--border);border-radius:6px;text-align:center;font-size:.55rem;transition:all .3s;z-index:2;}
-.node.active{box-shadow:0 0 20px rgba(0,217,255,.3);}
-.node-label{font-weight:bold;font-size:.6rem;margin-bottom:4px;line-height:1.2;}
-.node-count{font-size:1.1rem;font-weight:900;}
+:root {
+    --bg: #030307;
+    --panel: rgba(10, 10, 20, 0.85);
+    --panel-solid: #090916;
+    --accent: #00f0ff;
+    --success: #00ff87;
+    --danger: #ff0055;
+    --warning: #ffb800;
+    --purple: #bf55ec;
+    --border: rgba(0, 240, 255, 0.15);
+    --border-bright: rgba(0, 240, 255, 0.3);
+    --text-muted: #626980;
+}
 
-/* Grid Layout for 20 Nodes */
-.row-1{top:4%}.row-2{top:22%}.row-3{top:40%}.row-4{top:58%}.row-5{top:76%}
-.col-1{left:2%}.col-2{left:18%}.col-3{left:34%}.col-4{left:50%}.col-5{left:66%}.col-6{left:82%}
+/* Custom Scrollbars */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #000; }
+::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 
-/* Color Themes */
-.t-accent .node-label,.t-accent .node-count{color:var(--accent);} .t-accent{border-color:var(--accent);}
-.t-success .node-label,.t-success .node-count{color:var(--success);} .t-success{border-color:var(--success);}
-.t-danger .node-label,.t-danger .node-count{color:var(--danger);} .t-danger{border-color:var(--danger);}
-.t-warning .node-label,.t-warning .node-count{color:var(--warning);} .t-warning{border-color:var(--warning);}
-.t-purple .node-label,.t-purple .node-count{color:var(--purple);} .t-purple{border-color:var(--purple);}
-.t-grey .node-label,.t-grey .node-count{color:#888;} .t-grey{border-color:#555;}
+body {
+    background: var(--bg);
+    color: #e2e8f0;
+    font-family: 'SF Mono', 'Courier New', monospace;
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
 
-.road-svg{position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;pointer-events:none;}
-.road-svg line{stroke:#222;stroke-width:2;}
-.road-svg line.active-road{stroke:var(--accent);stroke-width:2;stroke-dasharray:8 4;animation:dashMove 1s linear infinite;}
-.road-svg line.danger-road{stroke:var(--danger);stroke-width:2;stroke-dasharray:8 4;animation:dashMove .5s linear infinite;}
-.road-svg line.purple-road{stroke:var(--purple);stroke-width:2;stroke-dasharray:8 4;animation:dashMove 1.5s linear infinite;}
-.road-svg line.success-road{stroke:var(--success);stroke-width:2;stroke-dasharray:8 4;animation:dashMove 1.2s linear infinite;}
+body::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.2) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.04));
+    background-size: 100% 3px, 5px 100%;
+    z-index: 10;
+    pointer-events: none;
+}
 
-@keyframes dashMove{to{stroke-dashoffset:-12;}}
+.top-bar {
+    background: #000;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border-bright);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+    z-index: 20;
+}
 
-.legend{display:flex;gap:20px;flex-shrink:0;font-size:.7rem;color:#555;justify-content:center;padding:10px;background:var(--panel);border:1px solid var(--border);border-radius:4px;flex-wrap:wrap;}
-.legend-item{display:flex;align-items:center;gap:5px;}
-.legend-dot{width:8px;height:8px;border-radius:50%;}
+.top-bar h1 {
+    margin: 0;
+    font-size: .75rem;
+    color: var(--accent);
+    letter-spacing: 2px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+}
 
-.mech-btn{padding:10px 15px;border:2px solid #000;cursor:pointer;font-weight:bold;text-transform:uppercase;font-size:.7rem;box-shadow:0 3px 0 #000;transition:all .1s;font-family:monospace;border-radius:4px;flex-shrink:0;margin-top:15px;width:100%;}
-.mech-btn:active{transform:translateY(2px);box-shadow:0 1px 0 #000;}
-.btn-purge{background:var(--danger);color:#fff;box-shadow:0 3px 0 #800022;}
+.top-bar h1::before {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    border-radius: 50%;
+}
 
-@media(max-width:1024px){.map-container{overflow-y:auto;}.map-canvas{min-height:700px;}.node{width:100px;font-size:.5rem;padding:5px;}.node-count{font-size:.9rem;}}
-@media(max-width:600px){.node{width:80px;font-size:.4rem;padding:3px;}.node-count{font-size:.7rem;}.legend{gap:10px;}}
+.system-stats {
+    display: flex;
+    gap: 20px;
+    font-size: .7rem;
+}
+
+.stat-item span { color: var(--text-muted); }
+.stat-item b { color: #fff; margin-left: 4px; text-shadow: 0 0 5px rgba(255,255,255,0.4); }
+.time { color: var(--warning); font-weight: bold; text-shadow: 0 0 8px rgba(255, 184, 0, 0.5); }
+
+.main-layout {
+    flex-grow: 1;
+    display: flex;
+    padding: 15px;
+    gap: 15px;
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 280px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    flex-shrink: 0;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+.control-panel {
+    background: var(--panel);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.panel-title {
+    font-size: .65rem;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 5px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 5px;
+    text-shadow: 0 0 6px rgba(0, 240, 255, 0.4);
+}
+
+/* Map Container - Handles Responsiveness */
+.map-container {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--panel-solid);
+    box-shadow: inset 0 0 40px rgba(0,0,0,0.8);
+}
+
+.map-canvas-scroll {
+    flex-grow: 1;
+    overflow: auto; /* Enables scrolling on small screens */
+    position: relative;
+}
+
+.map-canvas {
+    position: relative;
+    min-width: 900px; /* Forces horizontal scroll instead of squishing */
+    min-height: 650px; /* Forces vertical scroll instead of squishing */
+    height: 100%;
+}
+
+/* Tech Grid Overlay */
+.map-canvas::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-size: 40px 40px;
+    background-image: linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px);
+    pointer-events: none;
+}
+
+/* Nodes */
+.node {
+    position: absolute;
+    width: 130px;
+    padding: 8px 12px;
+    background: rgba(4, 4, 8, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    transition: all .25s ease;
+    z-index: 5;
+    cursor: pointer;
+}
+
+.node:hover {
+    border-color: rgba(255,255,255,0.4) !important;
+    transform: translateY(-2px);
+}
+
+.node.active {
+    background: rgba(0, 240, 255, 0.05);
+    box-shadow: 0 0 15px rgba(0, 240, 255, 0.15);
+    border-color: rgba(0, 240, 255, 0.3);
+}
+
+.node-label {
+    font-size: .6rem;
+    color: rgba(255, 255, 255, 0.7);
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-shadow: 0 0 6px rgba(255, 255, 255, 0.3);
+}
+
+.node-count {
+    font-size: 1.1rem;
+    font-weight: bold;
+    font-family: monospace;
+}
+
+/* Precise Grid Layout */
+.row-1{top:7%}.row-2{top:28%}.row-3{top:50%}.row-4{top:71%}.row-5{top:88%}
+.col-1{left:4%}.col-2{left:20%}.col-3{left:36%}.col-4{left:52%}.col-5{left:68%}.col-6{left:84%}
+
+/* Color Variations + Heavy Text Glow */
+.t-accent  { border-left: 3px solid var(--accent); }   .t-accent  .node-count { color: var(--accent); text-shadow: 0 0 8px var(--accent), 0 0 20px var(--accent); }
+.t-success { border-left: 3px solid var(--success); }  .t-success .node-count { color: var(--success); text-shadow: 0 0 8px var(--success), 0 0 20px var(--success); }
+.t-danger  { border-left: 3px solid var(--danger); }   .t-danger  .node-count { color: var(--danger); text-shadow: 0 0 8px var(--danger), 0 0 20px var(--danger); }
+.t-warning { border-left: 3px solid var(--warning); }  .t-warning .node-count { color: var(--warning); text-shadow: 0 0 8px var(--warning), 0 0 20px var(--warning); }
+.t-purple  { border-left: 3px solid var(--purple); }   .t-purple  .node-count { color: var(--purple); text-shadow: 0 0 8px var(--purple), 0 0 20px var(--purple); }
+.t-grey    { border-left: 3px solid #555; }            .t-grey    .node-count { color: #aaa; text-shadow: 0 0 8px rgba(170,170,170,0.5); }
+
+/* SVG Lines */
+.road-svg { position: absolute; top:0; left:0; width:100%; height:100%; z-index:2; pointer-events:none; }
+.road-svg path { fill: none; stroke-width: 1.5; }
+
+.road-svg path.l-idle     { stroke: rgba(255,255,255,0.06); }
+.road-svg path.l-active   { stroke: var(--accent);  opacity: 0.5; stroke-dasharray: 6 4; animation: travel 1.2s linear infinite; }
+.road-svg path.l-danger   { stroke: var(--danger);  opacity: 0.6; stroke-dasharray: 4 3; animation: travel .6s linear infinite; }
+.road-svg path.l-purple   { stroke: var(--purple);  opacity: 0.5; stroke-dasharray: 8 4; animation: travel 1.8s linear infinite; }
+.road-svg path.l-success  { stroke: var(--success); opacity: 0.5; stroke-dasharray: 6 4; animation: travel 1.5s linear infinite; }
+
+@keyframes travel { to { stroke-dashoffset: -20; } }
+
+/* Sidebar Modules */
+.stream-box {
+    height: 180px;
+    background: rgba(0,0,0,0.6);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 4px;
+    padding: 8px;
+    font-size: .55rem;
+    color: #4af626;
+    overflow-y: auto;
+    line-height: 1.5;
+    text-shadow: 0 0 4px rgba(74, 246, 38, 0.4);
+}
+
+.filter-btn {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text-muted);
+    padding: 6px 10px;
+    font-size: .55rem;
+    text-align: left;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.filter-btn:hover, .filter-btn.active {
+    color: #fff;
+    border-color: var(--accent);
+    background: rgba(0, 240, 255, 0.05);
+    text-shadow: 0 0 6px rgba(0, 240, 255, 0.5);
+}
+
+.legend {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    font-size: .6rem;
+}
+.legend-item { display: flex; align-items: center; gap: 6px; color: #a0aec0; }
+.legend-dot { width: 6px; height: 6px; border-radius: 50%; box-shadow: 0 0 5px currentColor; }
+
+.mech-btn {
+    padding: 8px 12px;
+    border: 1px solid var(--danger);
+    background: rgba(255, 0, 85, 0.1);
+    color: var(--danger);
+    cursor: pointer;
+    font-weight: bold;
+    font-size: .65rem;
+    font-family: monospace;
+    border-radius: 4px;
+    transition: all .2s;
+    letter-spacing: 0.5px;
+    margin-top: 5px;
+    text-shadow: 0 0 5px rgba(255, 0, 85, 0.4);
+}
+.mech-btn:hover {
+    background: var(--danger);
+    color: #fff;
+    box-shadow: 0 0 12px rgba(255, 0, 85, 0.4);
+    text-shadow: 0 0 8px rgba(255,255,255,0.5);
+}
+
+/* Mobile & Tablet Responsiveness */
+@media(max-width: 1100px) {
+    .main-layout { flex-direction: column; overflow: hidden; }
+    .sidebar { 
+        width: 100%; 
+        flex-shrink: 1; 
+        flex-direction: row; 
+        overflow-x: auto; 
+        gap: 10px;
+        padding-right: 0;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--border);
+    }
+    .control-panel { 
+        min-width: 250px; 
+        flex-shrink: 0; 
+    }
+    .stream-box { height: auto; max-height: 120px; }
+    .map-container { flex-grow: 1; border: 1px solid var(--border); }
+}
+
+@media(max-width: 600px) {
+    .top-bar { padding: 8px 12px; flex-wrap: wrap; gap: 5px; }
+    .top-bar h1 { font-size: .6rem; letter-spacing: 1px; }
+    .system-stats { font-size: .6rem; gap: 10px; width: 100%; justify-content: space-between; }
+}
 </style>
 </head>
 <body>
+
 <div class="top-bar">
-<h1>▸ NHAI_NETMAP // NETWORK_MAP_v11.0</h1>
-<div class="time" id="clock">00:00:00</div>
-</div>
-<div class="map-container">
-<div class="map-canvas" id="map-canvas">
-    <svg class="road-svg" id="road-svg"></svg>
-    
-    <!-- Row 1 -->
-    <div class="node t-warning row-1 col-1" id="n-d2"><div class="node-label">D2: DISTANCE CALC</div><div class="node-count" id="nc-d2">0</div></div>
-    <div class="node t-grey row-1 col-2" id="n-d3"><div class="node-label">D3: CENTRAL CMD</div><div class="node-count" id="nc-d3">0</div></div>
-    <div class="node t-accent row-1 col-3" id="n-d4"><div class="node-label">D4: REGISTRY DB</div><div class="node-count" id="nc-d4">0</div></div>
-    <div class="node t-success row-1 col-4" id="n-d5"><div class="node-label">D5: LICENSING</div><div class="node-count" id="nc-d5">0</div></div>
-    <div class="node t-warning row-1 col-5" id="n-d6"><div class="node-label">D6: FORGE</div><div class="node-count" id="nc-d6">0</div></div>
-    <div class="node t-purple row-1 col-6" id="n-d10"><div class="node-label">D10: CYBERINT</div><div class="node-count" id="nc-d10">0</div></div>
-
-    <!-- Row 2 -->
-    <div class="node t-warning row-2 col-1" id="n-d8"><div class="node-label">D8: DISPATCH</div><div class="node-count" id="nc-d8">0</div></div>
-    <div class="node t-accent row-2 col-2" id="n-d1"><div class="node-label">D1: ENFORCEMENT</div><div class="node-count" id="nc-d1">0</div></div>
-    <div class="node t-success row-2 col-3" id="n-d9"><div class="node-label">D9: AUDIT</div><div class="node-count" id="nc-d9">0</div></div>
-    <div class="node t-accent row-2 col-4" id="n-d11"><div class="node-label">D11: NETMAP</div><div class="node-count" id="nc-d11">0</div></div>
-    <div class="node t-grey row-2 col-5" id="n-d12"><div class="node-label">D12: ANALYTICS</div><div class="node-count" id="nc-d12">0</div></div>
-    <div class="node t-warning row-2 col-6" id="n-d16"><div class="node-label">D16: 911 EMERG</div><div class="node-count" id="nc-d16">0</div></div>
-
-    <!-- Row 3 -->
-    <div class="node t-danger row-3 col-1" id="n-d9p"><div class="node-label">D9: PRISON</div><div class="node-count" id="nc-d9p">0</div></div>
-    <div class="node t-success row-3 col-2" id="n-d13"><div class="node-label">D13: PAROLE</div><div class="node-count" id="nc-d13">0</div></div>
-    <div class="node t-accent row-3 col-3" id="n-d15"><div class="node-label">D15: REHAB</div><div class="node-count" id="nc-d15">0</div></div>
-    <div class="node t-purple row-3 col-4" id="n-d14"><div class="node-label">D14: IAFFAIRS</div><div class="node-count" id="nc-d14">0</div></div>
-    <div class="node t-success row-3 col-5" id="n-d17"><div class="node-label">D17: CITIZEN REG</div><div class="node-count" id="nc-d17">0</div></div>
-    <div class="node t-grey row-3 col-6" id="n-d18"><div class="node-label">D18: CITIZEN ARCH</div><div class="node-count" id="nc-d18">0</div></div>
-
-    <!-- Row 4 -->
-    <div class="node t-warning row-4 col-2" id="n-d3r"><div class="node-label">D3: RE-LICENSE</div><div class="node-count" id="nc-d3r">0</div></div>
-    <div class="node t-accent row-4 col-3" id="n-d19"><div class="node-label">D19: CITIZEN DASH</div><div class="node-count" id="nc-d19">0</div></div>
-    <div class="node t-success row-4 col-4" id="n-d20"><div class="node-label">D20: FEDERAL RES</div><div class="node-count" id="nc-d20">0</div></div>
+    <h1>NHAI QUANTUM NODE TERMINAL v12.0</h1>
+    <div class="system-stats">
+        <div class="stat-item"><span>STATUS:</span><b style="color:var(--success)">SECURE</b></div>
+        <div class="stat-item"><span>LOAD:</span><b id="sys-load">4.12%</b></div>
+        <div class="stat-item"><span>TIME:</span><b class="time" id="clock">00:00:00</b></div>
+    </div>
 </div>
 
-<div class="legend">
-    <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div> Active Flow</div>
-    <div class="legend-item"><div class="legend-dot" style="background:var(--danger)"></div> Criminal/Pursuit</div>
-    <div class="legend-item"><div class="legend-dot" style="background:var(--success)"></div> Clear/Revenue</div>
-    <div class="legend-item"><div class="legend-dot" style="background:var(--warning)"></div> Forge/Dispatch</div>
-    <div class="legend-item"><div class="legend-dot" style="background:var(--purple)"></div> Intelligence</div>
-</div>
+<div class="main-layout">
+    <!-- Sidebar Modules -->
+    <div class="sidebar">
+        <div class="control-panel">
+            <div class="panel-title">Layer Filter</div>
+            <button class="filter-btn active" onclick="filterNodes('all', this)">[ALL] Unified Core</button>
+            <button class="filter-btn" onclick="filterNodes('revenue', this)">[REV] Capital</button>
+            <button class="filter-btn" onclick="filterNodes('intel', this)">[INT] Intel Mesh</button>
+            <button class="filter-btn" onclick="filterNodes('enforce', this)">[ENF] Enforcement</button>
+            <button class="filter-btn" onclick="filterNodes('ops', this)">[OPS] Core Ops</button>
+        </div>
 
-<button class="mech-btn btn-purge" onclick="purgeAllData()">⚠ MASTER PURGE: WIPE ALL LOCAL STORAGE</button>
+        <div class="control-panel" style="flex-grow:1; display:flex; flex-direction:column;">
+            <div class="panel-title">Data Pipeline</div>
+            <div class="stream-box" id="stream-box"></div>
+        </div>
+
+        <div class="control-panel">
+            <div class="panel-title">Topology Key</div>
+            <div class="legend">
+                <div class="legend-item"><div class="legend-dot" style="background:var(--accent); color:var(--accent)"></div> Active</div>
+                <div class="legend-item"><div class="legend-dot" style="background:var(--danger); color:var(--danger)"></div> Criminal</div>
+                <div class="legend-item"><div class="legend-dot" style="background:var(--success); color:var(--success)"></div> Clear</div>
+                <div class="legend-item"><div class="legend-dot" style="background:var(--warning); color:var(--warning)"></div> Core</div>
+            </div>
+            <button class="mech-btn" onclick="purgeAllData()">⚠ PURGE CORE</button>
+        </div>
+    </div>
+
+    <!-- Central Map Area -->
+    <div class="map-container">
+        <div class="map-canvas-scroll">
+            <div class="map-canvas" id="map-canvas">
+                <svg class="road-svg" id="road-svg"></svg>
+                
+                <!-- Row 1 -->
+                <div class="node t-accent row-1 col-1" id="n-d1" data-layer="enforce"><div class="node-label">D1: ENFORCEMENT</div><div class="node-count" id="nc-d1">0</div></div>
+                <div class="node t-warning row-1 col-2" id="n-d2" data-layer="ops"><div class="node-label">D2: DISTANCE CALC</div><div class="node-count" id="nc-d2">0</div></div>
+                <div class="node t-grey row-1 col-3" id="n-d3a" data-layer="ops"><div class="node-label">D3: CENTRAL CMD</div><div class="node-count" id="nc-d3a">0</div></div>
+                <div class="node t-accent row-1 col-4" id="n-d4" data-layer="intel"><div class="node-label">D4: REGISTRY DB</div><div class="node-count" id="nc-d4">0</div></div>
+                <div class="node t-success row-1 col-5" id="n-d5" data-layer="revenue"><div class="node-label">D5: LICENSING</div><div class="node-count" id="nc-d5">0</div></div>
+                <div class="node t-warning row-1 col-6" id="n-d6" data-layer="ops"><div class="node-label">D6: FORGE</div><div class="node-count" id="nc-d6">0</div></div>
+
+                <!-- Row 2 -->
+                <div class="node t-warning row-2 col-1" id="n-d7" data-layer="ops"><div class="node-label">D7: DISPATCH</div><div class="node-count" id="nc-d7">0</div></div>
+                <div class="node t-danger row-2 col-2" id="n-d8" data-layer="enforce"><div class="node-label">D8: PRISON</div><div class="node-count" id="nc-d8">0</div></div>
+                <div class="node t-success row-2 col-3" id="n-d9" data-layer="revenue"><div class="node-label">D9: AUDIT</div><div class="node-count" id="nc-d9">0</div></div>
+                <div class="node t-purple row-2 col-4" id="n-d10" data-layer="intel"><div class="node-label">D10: CYBERINT</div><div class="node-count" id="nc-d10">0</div></div>
+                <div class="node t-accent row-2 col-5" id="n-d11" data-layer="intel"><div class="node-label">D11: NETMAP</div><div class="node-count" id="nc-d11">0</div></div>
+                <div class="node t-grey row-2 col-6" id="n-d12" data-layer="ops"><div class="node-label">D12: ANALYTICS</div><div class="node-count" id="nc-d12">0</div></div>
+
+                <!-- Row 3 -->
+                <div class="node t-success row-3 col-1" id="n-d13" data-layer="enforce"><div class="node-label">D13: PAROLE</div><div class="node-count" id="nc-d13">0</div></div>
+                <div class="node t-purple row-3 col-2" id="n-d14" data-layer="intel"><div class="node-label">D14: IAFFAIRS</div><div class="node-count" id="nc-d14">0</div></div>
+                <div class="node t-accent row-3 col-3" id="n-d15" data-layer="enforce"><div class="node-label">D15: REHAB</div><div class="node-count" id="nc-d15">0</div></div>
+                <div class="node t-warning row-3 col-4" id="n-d16" data-layer="enforce"><div class="node-label">D16: 911 EMERG</div><div class="node-count" id="nc-d16">0</div></div>
+                <div class="node t-success row-3 col-5" id="n-d17" data-layer="revenue"><div class="node-label">D17: CITIZEN REG</div><div class="node-count" id="nc-d17">0</div></div>
+                <div class="node t-grey row-3 col-6" id="n-d18" data-layer="intel"><div class="node-label">D18: CITIZEN ARCH</div><div class="node-count" id="nc-d18">0</div></div>
+
+                <!-- Row 4 -->
+                <div class="node t-warning row-4 col-2" id="n-d3b" data-layer="ops"><div class="node-label">D3: RE-LICENSE</div><div class="node-count" id="nc-d3b">0</div></div>
+                <div class="node t-accent row-4 col-3" id="n-d19" data-layer="revenue"><div class="node-label">D19: CITIZEN DASH</div><div class="node-count" id="nc-d19">0</div></div>
+                <div class="node t-success row-4 col-4" id="n-d20" data-layer="revenue"><div class="node-label">D20: FEDERAL RES</div><div class="node-count" id="nc-d20">0</div></div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -114,7 +416,12 @@ let sharedData = {
     rehabGraduations: []
 };
 
-function updateClock(){document.getElementById('clock').innerText=new Date().toLocaleTimeString('en-GB');}
+let currentFilter = 'all';
+
+function updateClock(){
+    document.getElementById('clock').innerText=new Date().toLocaleTimeString('en-GB');
+    document.getElementById('sys-load').innerText = (Math.random() * 4 + 2).toFixed(2) + "%";
+}
 setInterval(updateClock,1000);
 
 function loadData(){
@@ -123,44 +430,55 @@ function loadData(){
         try {
             const p = JSON.parse(savedStr);
             sharedData = p;
-            if(!sharedData.registry)sharedData.registry={};
-            if(!sharedData.forgedAliases)sharedData.forgedAliases={};
+            const keys = ['registry','forgedAliases','history','activeInmates','releasedInmates','inbox','sentMail','call911Logs','ledgerCashouts','intelFlags','paroleRecords','iaViolations','rehabPrograms','rehabGraduations'];
+            keys.forEach(k => { if(!sharedData[k]) sharedData[k] = (k==='registry'||k==='forgedAliases') ? {} : []; });
             if(sharedData.nextSpawnOverride===undefined)sharedData.nextSpawnOverride=null;
-            if(!sharedData.activeInmates)sharedData.activeInmates=[];
-            if(!sharedData.releasedInmates)sharedData.releasedInmates=[];
-            if(!sharedData.inbox)sharedData.inbox=[];
-            if(!sharedData.sentMail)sharedData.sentMail=[];
-            if(!sharedData.call911Logs)sharedData.call911Logs=[];
-            if(!sharedData.ledgerCashouts)sharedData.ledgerCashouts=[];
-            if(!sharedData.intelFlags)sharedData.intelFlags=[];
-            if(!sharedData.paroleRecords)sharedData.paroleRecords=[];
-            if(!sharedData.iaViolations)sharedData.iaViolations=[];
-            if(!sharedData.rehabPrograms)sharedData.rehabPrograms=[];
-            if(!sharedData.rehabGraduations)sharedData.rehabGraduations=[];
-            if(!sharedData.history)sharedData.history=[];
-        }catch(e){
-            console.error("Load error:", e);
-        }
+        }catch(e){}
     }
     renderMap();
 }
 
-function purgeAllData() {
-    if(confirm("⚠ CRITICAL WARNING: This will permanently delete ALL game data across ALL 20 terminals. Are you absolutely sure?")) {
-        if(confirm("FINAL WARNING: There is no undo. Wipe everything?")) {
-            localStorage.removeItem('enforcementTerminalV23_D1');
-            localStorage.removeItem('enforcementTerminalV23');
-            localStorage.removeItem('enforcementTerminalV23_sig');
-            sharedData = { 
-                revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, 
-                history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null,
-                activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [],
-                ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [],
-                rehabGraduations: []
-            };
-            renderMap();
-            alert("SYSTEM PURGED: All local storage wiped.");
+function filterNodes(layer, btnElement) {
+    currentFilter = layer;
+    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+    btnElement.classList.add('active');
+    
+    document.querySelectorAll('.node').forEach(node => {
+        if(layer === 'all' || node.getAttribute('data-layer') === layer) {
+            node.style.opacity = '1';
+            node.style.pointerEvents = 'auto';
+        } else {
+            node.style.opacity = '0.1';
+            node.style.pointerEvents = 'none';
         }
+    });
+    drawRoads();
+}
+
+function appendLogStream() {
+    const stream = document.getElementById('stream-box');
+    const nodes = ['D1', 'D4', 'D9', 'D11', 'D20', 'D14'];
+    const actions = ['FETCH_SUCCESS', 'SYNC_OK', 'INTEGRITY_CHK', 'PACKET_ROUTED', 'LEDGER_VAL'];
+    const randomNode = nodes[Math.floor(Math.random() * nodes.length)];
+    const randomAction = actions[Math.floor(Math.random() * actions.length)];
+    
+    const timestamp = new Date().toLocaleTimeString('en-GB');
+    const div = document.createElement('div');
+    div.style.borderBottom = '1px solid rgba(255,255,255,0.03)';
+    div.style.paddingBottom = '2px';
+    div.style.marginBottom = '2px';
+    div.innerText = `[${timestamp}] ${randomNode} -> ${randomAction}`;
+    stream.appendChild(div);
+    
+    if(stream.children.length > 25) stream.removeChild(stream.firstChild);
+    stream.scrollTop = stream.scrollHeight;
+}
+setInterval(appendLogStream, 2500);
+
+function purgeAllData() {
+    if(confirm("⚠ WARNING: This will clean cross-terminal variables. Confirm?")) {
+        localStorage.removeItem('enforcementTerminalV23_D1');
+        location.reload();
     }
 }
 
@@ -169,67 +487,75 @@ function renderMap(){
     const aliases=sharedData.forgedAliases||{};
     const hist=sharedData.history||[];
     
-    // D2 - Distance Calc (No specific data, show total scans)
-    document.getElementById('nc-d2').innerText=hist.filter(h=>h.action==='SCANNED').length;
-    // D3 - Central Command (Show Level)
-    document.getElementById('nc-d3').innerText='LV'+(sharedData.level||1);
-    // D4 - Registry DB
-    document.getElementById('nc-d4').innerText=Object.keys(reg).length;
-    // D5 - Licensing Auth
-    document.getElementById('nc-d5').innerText=Object.values(reg).filter(r=>r.registeredBy==='AUTH_TERMINAL'||r.registeredBy==='NHAI_LICENSING_AUTH').length;
-    // D6 - Forge
-    document.getElementById('nc-d6').innerText=Object.keys(aliases).length;
-    // D10 - CyberInt
-    document.getElementById('nc-d10').innerText=(sharedData.intelFlags||[]).filter(f=>f.type==='FORGE_INJECTION'&&f.status==='ACTIVE').length;
-    
-    // D8 - Dispatch
-    const isPatrolActive=sharedData.nextSpawnOverride&&sharedData.nextSpawnOverride.startsWith('HOLD-');
-    document.getElementById('nc-d8').innerText=Object.values(reg).filter(r=>r.status==='WANTED'||r.registeredBy==='NHAI_PATROL_DISPATCH').length;
-    if(isPatrolActive) document.getElementById('n-d8').className='node t-warning row-2 col-1 active';
-    else document.getElementById('n-d8').className='node t-warning row-2 col-1';
-    
-    // D1 - Enforcement
+    // D1: Enforcement
     document.getElementById('nc-d1').innerText=hist.filter(h=>h.action==='RELEASED'||h.action==='ARRESTED').length;
-    if(sharedData.nextSpawnOverride) document.getElementById('n-d1').className='node t-accent row-2 col-2 active';
-    else document.getElementById('n-d1').className='node t-accent row-2 col-2';
+    document.getElementById('n-d1').classList.toggle('active', !!sharedData.nextSpawnOverride);
     
-    // D9 - Audit
+    // D2: Distance Calc
+    document.getElementById('nc-d2').innerText=hist.filter(h=>h.action==='SCANNED').length;
+    
+    // D3: Central Cmd
+    document.getElementById('nc-d3a').innerText='LV'+(sharedData.level||1);
+    
+    // D4: Registry
+    document.getElementById('nc-d4').innerText=Object.keys(reg).length;
+    
+    // D5: Licensing
+    document.getElementById('nc-d5').innerText=Object.values(reg).filter(r=>r.registeredBy==='AUTH_TERMINAL'||r.registeredBy==='NHAI_LICENSING_AUTH').length;
+    
+    // D6: Forge
+    document.getElementById('nc-d6').innerText=Object.keys(aliases).length;
+    
+    // D7: Dispatch
+    const isPatrolActive=sharedData.nextSpawnOverride&&sharedData.nextSpawnOverride.startsWith('HOLD-');
+    document.getElementById('nc-d7').innerText=Object.values(reg).filter(r=>r.status==='WANTED'||r.registeredBy==='NHAI_PATROL_DISPATCH').length;
+    document.getElementById('n-d7').classList.toggle('active', !!isPatrolActive);
+    
+    // D8: Prison
+    const inmateCount=(sharedData.activeInmates||[]).length;
+    document.getElementById('nc-d8').innerText=inmateCount;
+    document.getElementById('n-d8').classList.toggle('active', inmateCount > 0);
+    
+    // D9: Audit
     const d9AuditCount=(sharedData.ledgerCashouts||[]).reduce((s,c)=>s+c.totalCashOut,0);
     document.getElementById('nc-d9').innerText='$'+d9AuditCount;
     
-    // D11 - Netmap (Always 1 since you're on it)
+    // D10: CyberInt
+    document.getElementById('nc-d10').innerText=(sharedData.intelFlags||[]).filter(f=>f.type==='FORGE_INJECTION'&&f.status==='ACTIVE').length;
+    
+    // D11: Netmap
     document.getElementById('nc-d11').innerText='ONLINE';
     
-    // D12 - Analytics
+    // D12: Analytics
     document.getElementById('nc-d12').innerText=hist.length;
     
-    // D16 - 911 Emergency
-    document.getElementById('nc-d16').innerText=(sharedData.call911Logs||[]).length;
-    if((sharedData.call911Logs||[]).length > 0) document.getElementById('n-d16').className='node t-warning row-2 col-6 active';
-    else document.getElementById('n-d16').className='node t-warning row-2 col-6';
-    
-    // D9 - Prison (using d9p ID to avoid conflict with Audit)
-    const d9pCount=(sharedData.activeInmates||[]).length;
-    document.getElementById('nc-d9p').innerText=d9pCount;
-    if(d9pCount>0) document.getElementById('n-d9p').className='node t-danger row-3 col-1 active';
-    else document.getElementById('n-d9p').className='node t-danger row-3 col-1';
-    
-    // D13 - Parole
+    // D13: Parole
     document.getElementById('nc-d13').innerText=(sharedData.paroleRecords||[]).filter(r=>r.decision==='GRANTED').length;
-    // D15 - Rehab
-    document.getElementById('nc-d15').innerText=(sharedData.rehabGraduations||[]).length;
-    // D14 - IA Affairs
+    
+    // D14: IAffairs
     document.getElementById('nc-d14').innerText=(sharedData.iaViolations||[]).filter(v=>v.status==='ACTIVE'||v.status==='LOGGED').length;
-    // D17 - Citizen Registry
+    
+    // D15: Rehab
+    document.getElementById('nc-d15').innerText=(sharedData.rehabGraduations||[]).length;
+    
+    // D16: 911
+    const logs911 = (sharedData.call911Logs||[]).length;
+    document.getElementById('nc-d16').innerText=logs911;
+    document.getElementById('n-d16').classList.toggle('active', logs911 > 0);
+    
+    // D17: Citizen Reg
     document.getElementById('nc-d17').innerText=Object.values(reg).filter(r=>r.status==='CLEAR').length;
-    // D18 - Citizen Archive
+    
+    // D18: Citizen Arch
     document.getElementById('nc-d18').innerText=(sharedData.releasedInmates||[]).length;
     
-    // D3 - Re-License (using d3r ID)
-    document.getElementById('nc-d3r').innerText=Object.values(reg).filter(r=>r.vClass && r.vClass !== 'LVM_CLASS_1').length;
-    // D19 - Citizen Dashboard
+    // D3b: Re-License
+    document.getElementById('nc-d3b').innerText=Object.values(reg).filter(r=>r.vClass && r.vClass !== 'LVM_CLASS_1').length;
+    
+    // D19: Citizen Dash
     document.getElementById('nc-d19').innerText=(sharedData.inbox||[]).length;
-    // D20 - Federal Reserve
+    
+    // D20: Federal Res
     document.getElementById('nc-d20').innerText='$'+(sharedData.revenue||0);
     
     drawRoads();
@@ -239,28 +565,24 @@ function drawRoads(){
     const svg=document.getElementById('road-svg');
     svg.innerHTML='';
     const connections=[
-        // Topology connecting the 20 nodes logically
-        {from:'n-d2',to:'n-d3',cls:''},
-        {from:'n-d4',to:'n-d3',cls:'active-road'},
-        {from:'n-d5',to:'n-d4',cls:'success-road'},
-        {from:'n-d6',to:'n-d4',cls:'danger-road'},
-        {from:'n-d10',to:'n-d4',cls:'purple-road'},
-        
-        {from:'n-d3',to:'n-d1',cls:'active-road'},
-        {from:'n-d8',to:'n-d1',cls:sharedData.nextSpawnOverride?'danger-road':''},
-        {from:'n-d1',to:'n-d9',cls:'success-road'},
-        {from:'n-d16',to:'n-d8',cls:'danger-road'},
-        
-        {from:'n-d1',to:'n-d9p',cls:(sharedData.activeInmates||[]).length>0?'danger-road':''},
-        {from:'n-d9p',to:'n-d13',cls:''},
-        {from:'n-d13',to:'n-d15',cls:'success-road'},
-        {from:'n-d14',to:'n-d1',cls:'purple-road'},
-        
-        {from:'n-d9',to:'n-d20',cls:'success-road'},
-        {from:'n-d17',to:'n-d4',cls:''},
-        {from:'n-d18',to:'n-d12',cls:''},
-        {from:'n-d19',to:'n-d17',cls:''},
-        {from:'n-d3r',to:'n-d5',cls:''}
+        {from:'n-d2',to:'n-d3a',cls:'l-idle'},
+        {from:'n-d4',to:'n-d3a',cls:'l-active'},
+        {from:'n-d5',to:'n-d4',cls:'l-success'},
+        {from:'n-d6',to:'n-d4',cls:'l-danger'},
+        {from:'n-d10',to:'n-d4',cls:'l-purple'},
+        {from:'n-d3a',to:'n-d1',cls:'l-active'},
+        {from:'n-d7',to:'n-d1',cls:sharedData.nextSpawnOverride?'l-danger':'l-idle'},
+        {from:'n-d1',to:'n-d8',cls:(sharedData.activeInmates||[]).length>0?'l-danger':'l-idle'},
+        {from:'n-d1',to:'n-d9',cls:'l-success'},
+        {from:'n-d16',to:'n-d7',cls:'l-danger'},
+        {from:'n-d8',to:'n-d13',cls:'l-idle'},
+        {from:'n-d13',to:'n-d15',cls:'l-success'},
+        {from:'n-d14',to:'n-d1',cls:'l-purple'},
+        {from:'n-d9',to:'n-d20',cls:'l-success'},
+        {from:'n-d17',to:'n-d4',cls:'l-idle'},
+        {from:'n-d18',to:'n-d12',cls:'l-idle'},
+        {from:'n-d19',to:'n-d17',cls:'l-idle'},
+        {from:'n-d3b',to:'n-d5',cls:'l-idle'}
     ];
     
     const cR=document.getElementById('map-canvas').getBoundingClientRect();
@@ -270,30 +592,37 @@ function drawRoads(){
         const tEl=document.getElementById(c.to);
         if(!fEl||!tEl)return;
         
+        // Respect filter layer visibility
+        if(currentFilter !== 'all') {
+            if(fEl.getAttribute('data-layer') !== currentFilter && tEl.getAttribute('data-layer') !== currentFilter) return;
+        }
+        
         const fR=fEl.getBoundingClientRect();
         const tR=tEl.getBoundingClientRect();
         
-        const x1=fR.left+fR.width/2-cR.left;
-        const y1=fR.top+fR.height/2-cR.top;
-        const x2=tR.left+tR.width/2-cR.left;
-        const y2=tR.top+tR.height/2-cR.top;
+        // Smart connection points (bottom center to top center)
+        let x1 = fR.left + fR.width/2 - cR.left;
+        let y1 = fR.bottom - cR.top;
+        let x2 = tR.left + tR.width/2 - cR.left;
+        let y2 = tR.top - cR.top;
+
+        // Same row adjustment (side to side)
+        if(Math.abs(fR.top - tR.top) < 10) {
+            if(fR.left < tR.left) { x1 = fR.right - cR.left; y1 = fR.top + fR.height/2 - cR.top; x2 = tR.left - cR.left; y2 = y1; }
+            else { x1 = fR.left - cR.left; y1 = fR.top + fR.height/2 - cR.top; x2 = tR.right - cR.left; y2 = y1; }
+        }
         
-        const line=document.createElementNS('http://www.w3.org/2000/svg','line');
-        line.setAttribute('x1',x1);
-        line.setAttribute('y1',y1);
-        line.setAttribute('x2',x2);
-        line.setAttribute('y2',y2);
-        line.setAttribute('class',c.cls);
-        svg.appendChild(line);
+        const midY = (y1 + y2) / 2;
+        const d = `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`;
+        
+        const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+        path.setAttribute('d', d);
+        path.setAttribute('class', c.cls);
+        svg.appendChild(path);
     });
 }
 
-let resizeTimer;
-window.addEventListener('resize', () => {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(drawRoads, 250);
-});
-
+window.addEventListener('resize', () => { drawRoads(); });
 loadData();
 setInterval(loadData,2000);
 </script>
