@@ -128,6 +128,14 @@ function repairInmateData(inmate) {
     return inmate;
 }
 
+const mergeByKey = (localArr, parsedArr, keyGen) => {
+    if (!parsedArr) return localArr;
+    if (!localArr) return parsedArr;
+    const keys = new Set(localArr.map(keyGen));
+    parsedArr.forEach(item => { if (!keys.has(keyGen(item))) localArr.push(item); });
+    return localArr;
+};
+
 function loadData(){
     try {
         const savedStr = localStorage.getItem(LS_MASTER_KEY);
@@ -165,18 +173,7 @@ function loadData(){
 
             sharedData.activeInmates = mergedInmates;
 
-            if ((parsed.releasedInmates || []).length > (sharedData.releasedInmates || []).length) {
-                sharedData.releasedInmates = parsed.releasedInmates;
-            }
-
-            const mergeByKey = (localArr, parsedArr, keyGen) => {
-                if (!parsedArr) return localArr;
-                if (!localArr) return parsedArr;
-                const keys = new Set(localArr.map(keyGen));
-                parsedArr.forEach(item => { if (!keys.has(keyGen(item))) localArr.push(item); });
-                return localArr;
-            };
-
+            sharedData.releasedInmates = mergeByKey(sharedData.releasedInmates, parsed.releasedInmates, r => r.plate + r.dateReleased);
             sharedData.paroleRecords = mergeByKey(sharedData.paroleRecords, parsed.paroleRecords, r => r.plate + r.date);
             sharedData.rehabPrograms = mergeByKey(sharedData.rehabPrograms, parsed.rehabPrograms, r => r.plate + r.program);
             sharedData.iaViolations = mergeByKey(sharedData.iaViolations, parsed.iaViolations, r => r.time + r.message);
@@ -201,32 +198,6 @@ function loadData(){
 
 function saveData(){
     try {
-        try {
-            const currentStr = localStorage.getItem(LS_MASTER_KEY);
-            if (currentStr) {
-                const currentData = JSON.parse(currentStr);
-                if (currentData.activeInmates) {
-                    currentData.activeInmates.forEach(storageInmate => {
-                        const existsLocally = sharedData.activeInmates.some(i => i.plate === storageInmate.plate);
-                        if (!existsLocally) {
-                            sharedData.activeInmates.push(repairInmateData(storageInmate));
-                        }
-                    });
-                }
-                if ((currentData.releasedInmates || []).length > (sharedData.releasedInmates || []).length) {
-                    sharedData.releasedInmates = currentData.releasedInmates;
-                }
-                if (currentData.history) {
-                    const existingKeys = new Set((sharedData.history || []).map(h => h.plate + h.timestamp));
-                    currentData.history.forEach(h => {
-                        if (!existingKeys.has(h.plate + h.timestamp)) {
-                            sharedData.history.push(h);
-                        }
-                    });
-                }
-            }
-        } catch(e) {}
-
         localStorage.setItem(LS_MASTER_KEY, JSON.stringify(sharedData));
     } catch(e) {
         console.error("Parole save error:", e);
