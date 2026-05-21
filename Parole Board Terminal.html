@@ -87,50 +87,159 @@ let sharedData = {
 function updateClock(){document.getElementById('clock').innerText=new Date().toLocaleTimeString('en-GB');}
 setInterval(updateClock,1000);
 
-function deepMerge(target, source) {
-    for (const key in source) {
-        if (source[key] instanceof Array) {
-            target[key] = source[key];
-        } else if (source[key] instanceof Object && target[key] instanceof Object) {
-            deepMerge(target[key], source[key]);
-        } else {
-            target[key] = source[key];
+function ensureDataStructure() {
+    const defaults = {
+        revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, 
+        history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null,
+        activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [],
+        ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [],
+        rehabGraduations: []
+    };
+    for (const key in defaults) {
+        if (sharedData[key] === undefined || sharedData[key] === null) {
+            sharedData[key] = defaults[key];
         }
     }
-    return target;
 }
 
+function repairInmateData(inmate) {
+    if (!inmate) return inmate;
+    if (inmate.sentenceDays === undefined || inmate.sentenceDays === null) {
+        if (inmate.offense === "911 FELONY" || inmate.facility === "FEDERAL HOLD") inmate.sentenceDays = 120;
+        else if (inmate.offense === "FORGERY & FUGITIVE" || inmate.facility === "MAXIMUM SECURITY") inmate.sentenceDays = 90;
+        else inmate.sentenceDays = 60;
+    }
+    if (inmate.sentenceRemaining === undefined || inmate.sentenceRemaining === null) inmate.sentenceRemaining = inmate.sentenceDays;
+    inmate.sentenceRemaining = Math.max(0, inmate.sentenceRemaining);
+    inmate.sentenceDays = Math.max(1, inmate.sentenceDays);
+    if (!inmate.offense) inmate.offense = "WARRANT / ROGUE";
+    if (!inmate.facility) inmate.facility = "CENTRAL DETENTION";
+    if (!inmate.realPlate) inmate.realPlate = inmate.plate || "UNKNOWN";
+    if (!inmate.id) inmate.id = "MISSING";
+    if (!inmate.dateArrested) inmate.dateArrested = new Date().toLocaleDateString();
+    if (!inmate.status) inmate.status = "ARRESTED";
+    return inmate;
+}
+
+/* ===== RACE-SAFE LOAD ===== */
 function loadData(){
-    const savedStr = localStorage.getItem(LS_MASTER_KEY);
-    if(savedStr){
-        try{
-            const p = JSON.parse(savedStr);
-            deepMerge(sharedData, p); 
-            
-            if(!sharedData.activeInmates)sharedData.activeInmates=[];
-            if(!sharedData.releasedInmates)sharedData.releasedInmates=[];
-            if(!sharedData.registry)sharedData.registry={};
-            if(!sharedData.forgedAliases)sharedData.forgedAliases={};
-            if(sharedData.nextSpawnOverride===undefined)sharedData.nextSpawnOverride=null;
-            if(!sharedData.inbox)sharedData.inbox=[];
-            if(!sharedData.sentMail)sharedData.sentMail=[];
-            if(!sharedData.call911Logs)sharedData.call911Logs=[];
-            if(!sharedData.ledgerCashouts)sharedData.ledgerCashouts=[];
-            if(!sharedData.intelFlags)sharedData.intelFlags=[];
-            if(!sharedData.paroleRecords)sharedData.paroleRecords=[];
-            if(!sharedData.iaViolations)sharedData.iaViolations=[];
-            if(!sharedData.rehabPrograms)sharedData.rehabPrograms=[];
-            if(!sharedData.rehabGraduations)sharedData.rehabGraduations=[];
-            if(!sharedData.history)sharedData.history=[];
-        }catch(e){
-            console.error("Load error:", e);
+    try {
+        const savedStr = localStorage.getItem(LS_MASTER_KEY);
+        if (savedStr) {
+            const parsed = JSON.parse(savedStr);
+
+            const previousLocalPlates = new Set((sharedData.activeInmates || []).map(i => i.plate));
+            const previousLocalInmateMap = {};
+            (sharedData.activeInmates || []).forEach(i => { previousLocalInmateMap[i.plate] = i; });
+
+            // ---- SMART MERGE: activeInmates ----
+            const mergedInmates = [];
+            const seenPlates = new Set();
+
+            (parsed.activeInmates || []).forEach(inmate => {
+                const repaired = repairInmateData(inmate);
+                const localVersion = previousLocalInmateMap[inmate.plate];
+
+                if (localVersion) {
+                    // Take the LOWER sentenceRemaining (Prison countdown is the authority)
+                    if (localVersion.sentenceRemaining !== undefined && localVersion.sentenceRemaining !== null) {
+                        repaired.sentenceRemaining = Math.min(
+                            localVersion.sentenceRemaining,
+                            repaired.sentenceRemaining !== undefined ? repaired.sentenceRemaining : 9999
+                        );
+                    }
+                }
+                mergedInmates.push(repaired);
+                seenPlates.add(inmate.plate);
+            });
+
+            // Preserve local inmates that storage doesn't know about yet
+            (sharedData.activeInmates || []).forEach(inmate => {
+                if (!seenPlates.has(inmate.plate)) {
+                    mergedInmates.push(repairInmateData(inmate));
+                    seenPlates.add(inmate.plate);
+                }
+            });
+
+            sharedData.activeInmates = mergedInmates;
+
+            // releasedInmates: take longer list (more complete)
+            if ((parsed.releasedInmates || []).length > (sharedData.releasedInmates || []).length) {
+                sharedData.releasedInmates = parsed.releasedInmates;
+            }
+
+            // Merge keyed arrays
+            const mergeByKey = (localArr, parsedArr, keyGen) => {
+                if (!parsedArr) return localArr;
+                if (!localArr) return parsedArr;
+                const keys = new Set(localArr.map(keyGen));
+                parsedArr.forEach(item => { if (!keys.has(keyGen(item))) localArr.push(item); });
+                return localArr;
+            };
+
+            sharedData.paroleRecords = mergeByKey(sharedData.paroleRecords, parsed.paroleRecords, r => r.plate + r.date);
+            sharedData.rehabPrograms = mergeByKey(sharedData.rehabPrograms, parsed.rehabPrograms, r => r.plate + r.program);
+            sharedData.iaViolations = mergeByKey(sharedData.iaViolations, parsed.iaViolations, r => r.time + r.message);
+            sharedData.history = mergeByKey(sharedData.history, parsed.history, h => h.plate + h.timestamp);
+
+            // Object overlays
+            if (parsed.registry) Object.assign(sharedData.registry || {}, parsed.registry);
+            if (parsed.forgedAliases) Object.assign(sharedData.forgedAliases || {}, parsed.forgedAliases);
+
+            // Scalars
+            const scalarFields = ['revenue','valids','missed','level','rankPoints','nextSpawnOverride'];
+            scalarFields.forEach(key => { if (parsed[key] !== undefined) sharedData[key] = parsed[key]; });
+
+            // Full replace arrays (non-critical or mostly append-only handled above)
+            const replaceArrays = ['inbox','sentMail','call911Logs','ledgerCashouts','intelFlags','rehabGraduations'];
+            replaceArrays.forEach(key => { if (parsed[key] !== undefined && parsed[key] !== null) sharedData[key] = parsed[key]; });
+
+            ensureDataStructure();
         }
+    } catch(e) {
+        console.error("Parole load error:", e);
     }
     renderDashboard();
 }
 
+/* ===== RACE-SAFE SAVE ===== */
 function saveData(){
-    localStorage.setItem(LS_MASTER_KEY, JSON.stringify(sharedData));
+    try {
+        // Re-read storage to catch any inmates added by Enforcement terminal
+        // during the time between our last load and now
+        try {
+            const currentStr = localStorage.getItem(LS_MASTER_KEY);
+            if (currentStr) {
+                const currentData = JSON.parse(currentStr);
+                // Merge any inmates from storage that we don't have locally
+                if (currentData.activeInmates) {
+                    currentData.activeInmates.forEach(storageInmate => {
+                        const existsLocally = sharedData.activeInmates.some(i => i.plate === storageInmate.plate);
+                        if (!existsLocally) {
+                            sharedData.activeInmates.push(repairInmateData(storageInmate));
+                        }
+                    });
+                }
+                // Take releasedInmates if storage has more
+                if ((currentData.releasedInmates || []).length > (sharedData.releasedInmates || []).length) {
+                    sharedData.releasedInmates = currentData.releasedInmates;
+                }
+                // Merge history entries we don't have
+                if (currentData.history) {
+                    const existingKeys = new Set((sharedData.history || []).map(h => h.plate + h.timestamp));
+                    currentData.history.forEach(h => {
+                        if (!existingKeys.has(h.plate + h.timestamp)) {
+                            sharedData.history.push(h);
+                        }
+                    });
+                }
+            }
+        } catch(e) {}
+
+        localStorage.setItem(LS_MASTER_KEY, JSON.stringify(sharedData));
+    } catch(e) {
+        console.error("Parole save error:", e);
+    }
 }
 
 function addLog(msg, color, saveToState=true){
@@ -187,6 +296,7 @@ function grantParole(plate){
     const realPlate = inmate.realPlate || inmate.plate;
     const newId = inmate.id==='MISSING'?'DL-PAROLE-'+Math.floor(1000+Math.random()*9000):inmate.id;
     
+    if(!sharedData.registry) sharedData.registry = {};
     sharedData.registry[realPlate] = {
         id: newId,
         vClass: 'LVM_CLASS_1',
@@ -195,6 +305,8 @@ function grantParole(plate){
     };
     
     inmate.status = 'PAROLED';
+    
+    if(!sharedData.releasedInmates) sharedData.releasedInmates = [];
     sharedData.releasedInmates.push({
         plate: inmate.plate,
         realPlate: inmate.realPlate,
@@ -214,6 +326,7 @@ function grantParole(plate){
     
     inmates.splice(index, 1);
     
+    if(!sharedData.history) sharedData.history = [];
     sharedData.history.push({
         plate: realPlate,
         id: newId,
@@ -223,7 +336,8 @@ function grantParole(plate){
     
     saveData();
     renderDashboard();
-    addLog(`PAROLE GRANTED: ${realPlate} reintegrated into registry as CLEAR.`, 'var(--success)');
+    renderLogs();
+    addLog(`PAROLE GRANTED: ${realPlate} reintegrated into registry as CLEAR.`, 'var(--success)', false);
 }
 
 function denyParole(plate){
@@ -241,6 +355,7 @@ function denyParole(plate){
     if(!sharedData.paroleRecords) sharedData.paroleRecords=[];
     sharedData.paroleRecords.push({plate: inmate.plate, decision:'DENIED', date: new Date().toLocaleString()});
     
+    if(!sharedData.history) sharedData.history = [];
     sharedData.history.push({
         plate: inmate.plate,
         id: inmate.id||'DENIED',
@@ -250,7 +365,8 @@ function denyParole(plate){
     
     saveData();
     renderDashboard();
-    addLog(`PAROLE DENIED: ${inmate.plate} sentence extended by 30 days.`, 'var(--danger)');
+    renderLogs();
+    addLog(`PAROLE DENIED: ${inmate.plate} sentence extended by 30 days.`, 'var(--danger)', false);
 }
 
 function renderDashboard(){
