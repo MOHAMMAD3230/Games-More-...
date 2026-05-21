@@ -183,7 +183,7 @@
 
         <div style="color: #555; font-size: 0.75rem; margin-top: auto; border-top: 1px solid var(--border); padding-top: 15px;">
             SYSTEM NOTE: Inmates serve sentences in real-time (1 sec = 1 day). Federal holds require 120 days.<br>
-            Network sync: D1 universal key. Safe merge enabled.
+            Network sync: D1 universal key. Race-safe merge enabled.
         </div>
     </div>
 
@@ -216,19 +216,6 @@
 
     function updateClock() { document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB'); }
     setInterval(updateClock, 1000);
-
-    function deepMerge(target, source) {
-        for (const key in source) {
-            if (source[key] instanceof Array) {
-                target[key] = source[key];
-            } else if (source[key] instanceof Object && target[key] instanceof Object) {
-                deepMerge(target[key], source[key]);
-            } else {
-                target[key] = source[key];
-            }
-        }
-        return target;
-    }
 
     function ensureDataStructure() {
         const defaults = {
@@ -264,27 +251,112 @@
         return inmate;
     }
 
+    /* ===== RACE-SAFE LOAD — merge new inmates instead of wholesale replace ===== */
     function loadData() {
         try {
             const savedStr = localStorage.getItem(LS_MASTER_KEY);
             if (savedStr) {
                 const parsed = JSON.parse(savedStr);
 
-                const previousPlates = new Set((sharedData.activeInmates || []).map(i => i.plate));
+                // Capture which inmates we already know about locally
+                const previousLocalPlates = new Set((sharedData.activeInmates || []).map(i => i.plate));
+                const previousLocalInmateMap = {};
+                (sharedData.activeInmates || []).forEach(i => { previousLocalInmateMap[i.plate] = i; });
 
-                deepMerge(sharedData, parsed);
-                ensureDataStructure();
+                // ---- SMART MERGE: activeInmates ----
+                // Instead of deepMerge replacing the entire array, we merge plate-by-plate.
+                // This prevents a race where our 1-second countdown saves mid-load,
+                // accidentally wiping a freshly arrested inmate from another terminal.
+                const mergedInmates = [];
+                const seenPlates = new Set();
 
-                let needsSave = false;
-                sharedData.activeInmates.forEach((inmate, i) => {
-                    const before = JSON.stringify(inmate);
-                    sharedData.activeInmates[i] = repairInmateData(inmate);
-                    if (JSON.stringify(sharedData.activeInmates[i]) !== before) needsSave = true;
+                // First: add all inmates from the parsed (storage) data
+                (parsed.activeInmates || []).forEach(inmate => {
+                    const repaired = repairInmateData(inmate);
+                    const localVersion = previousLocalInmateMap[inmate.plate];
+
+                    if (localVersion) {
+                        // We have a local version — take the LOWER sentenceRemaining
+                        // (our countdown is the authority, but storage might have a newer inmate)
+                        if (localVersion.sentenceRemaining !== undefined && localVersion.sentenceRemaining !== null) {
+                            repaired.sentenceRemaining = Math.min(
+                                localVersion.sentenceRemaining,
+                                repaired.sentenceRemaining !== undefined ? repaired.sentenceRemaining : 9999
+                            );
+                        }
+                    }
+                    mergedInmates.push(repaired);
+                    seenPlates.add(inmate.plate);
                 });
+
+                // Second: add any inmates we have locally that storage doesn't know about yet
+                // (e.g. we just decremented and haven't saved, or another tab just sent us data)
+                (sharedData.activeInmates || []).forEach(inmate => {
+                    if (!seenPlates.has(inmate.plate)) {
+                        mergedInmates.push(repairInmateData(inmate));
+                        seenPlates.add(inmate.plate);
+                    }
+                });
+
+                sharedData.activeInmates = mergedInmates;
+
+                // ---- MERGE other fields safely ----
+                // releasedInmates: take whichever list is longer (more entries = more recent)
+                if ((parsed.releasedInmates || []).length > (sharedData.releasedInmates || []).length) {
+                    sharedData.releasedInmates = parsed.releasedInmates;
+                }
+
+                // paroleRecords: merge by plate+date
+                if (parsed.paroleRecords && parsed.paroleRecords.length > 0) {
+                    const existingKeys = new Set((sharedData.paroleRecords || []).map(r => r.plate + r.date));
+                    parsed.paroleRecords.forEach(r => {
+                        if (!existingKeys.has(r.plate + r.date)) {
+                            if (!sharedData.paroleRecords) sharedData.paroleRecords = [];
+                            sharedData.paroleRecords.push(r);
+                        }
+                    });
+                }
+
+                // history: merge by plate+timestamp
+                if (parsed.history && parsed.history.length > 0) {
+                    const existingKeys = new Set((sharedData.history || []).map(h => h.plate + h.timestamp));
+                    parsed.history.forEach(h => {
+                        if (!existingKeys.has(h.plate + h.timestamp)) {
+                            sharedData.history.push(h);
+                        }
+                    });
+                }
+
+                // registry: overlay entries
+                if (parsed.registry) {
+                    if (!sharedData.registry) sharedData.registry = {};
+                    Object.assign(sharedData.registry, parsed.registry);
+                }
+
+                // forgedAliases: overlay entries
+                if (parsed.forgedAliases) {
+                    if (!sharedData.forgedAliases) sharedData.forgedAliases = {};
+                    Object.assign(sharedData.forgedAliases, parsed.forgedAliases);
+                }
+
+                // Simple scalar fields — take parsed value
+                const scalarFields = ['revenue','valids','missed','level','rankPoints','nextSpawnOverride'];
+                scalarFields.forEach(key => {
+                    if (parsed[key] !== undefined) sharedData[key] = parsed[key];
+                });
+
+                // Array fields that are fully replaced (not inmate-sensitive)
+                const replaceArrays = ['inbox','sentMail','call911Logs','ledgerCashouts','intelFlags',
+                    'iaViolations','rehabPrograms','rehabGraduations'];
+                replaceArrays.forEach(key => {
+                    if (parsed[key] !== undefined && parsed[key] !== null) sharedData[key] = parsed[key];
+                });
+
+                ensureDataStructure();
 
                 // Detect new arrivals from other terminals
                 sharedData.activeInmates.forEach(inmate => {
-                    if (!previousPlates.has(inmate.plate) && !knownInmatePlates.has(inmate.plate)) {
+                    if (!previousLocalPlates.has(inmate.plate) && !knownInmatePlates.has(inmate.plate)) {
                         showArrivalToast(inmate);
                     }
                     knownInmatePlates.add(inmate.plate);
@@ -295,8 +367,6 @@
                 knownInmatePlates.forEach(plate => {
                     if (!currentPlates.has(plate)) knownInmatePlates.delete(plate);
                 });
-
-                if (needsSave) saveData();
             }
         } catch(e) {
             console.error("Prison load error:", e);
@@ -304,8 +374,40 @@
         renderDashboard();
     }
 
+    /* ===== RACE-SAFE SAVE — re-read and merge before writing ===== */
     function saveData() {
         try {
+            // Re-read storage to catch any inmates added by Enforcement terminal
+            // during the time between our last load and now
+            try {
+                const currentStr = localStorage.getItem(LS_MASTER_KEY);
+                if (currentStr) {
+                    const currentData = JSON.parse(currentStr);
+                    // Merge any inmates from storage that we don't have locally
+                    if (currentData.activeInmates) {
+                        currentData.activeInmates.forEach(storageInmate => {
+                            const existsLocally = sharedData.activeInmates.some(i => i.plate === storageInmate.plate);
+                            if (!existsLocally) {
+                                sharedData.activeInmates.push(repairInmateData(storageInmate));
+                            }
+                        });
+                    }
+                    // Take releasedInmates if storage has more
+                    if ((currentData.releasedInmates || []).length > (sharedData.releasedInmates || []).length) {
+                        sharedData.releasedInmates = currentData.releasedInmates;
+                    }
+                    // Merge history entries we don't have
+                    if (currentData.history) {
+                        const existingKeys = new Set((sharedData.history || []).map(h => h.plate + h.timestamp));
+                        currentData.history.forEach(h => {
+                            if (!existingKeys.has(h.plate + h.timestamp)) {
+                                sharedData.history.push(h);
+                            }
+                        });
+                    }
+                }
+            } catch(e) {}
+
             localStorage.setItem(LS_MASTER_KEY, JSON.stringify(sharedData));
         } catch(e) {
             console.error("Prison save error:", e);
@@ -356,8 +458,8 @@
         osc.stop(t + 0.3);
     }
 
-    // FIX: Use plate-based lookup instead of index to prevent wrong inmate release during sync
     function releaseInmate(plate) {
+        // Re-read latest data before modifying
         loadData();
         const inmates = sharedData.activeInmates;
         const index = inmates.findIndex(i => i.plate === plate);
@@ -374,7 +476,7 @@
         inmate.dateReleased = new Date().toLocaleDateString();
         inmate.status = "RELEASED";
 
-        // Add to released inmates so Rehab terminal can enroll them
+        // Add to released inmates
         sharedData.releasedInmates.push({
             plate: inmate.plate,
             realPlate: inmate.realPlate || inmate.plate,
@@ -393,7 +495,6 @@
             timestamp: new Date().toLocaleTimeString()
         });
 
-        // FIX: Use paroleRecords format matching the Parole terminal
         if (!sharedData.paroleRecords) sharedData.paroleRecords = [];
         sharedData.paroleRecords.push({
             plate: inmate.plate,
@@ -401,7 +502,6 @@
             date: new Date().toLocaleString()
         });
 
-        // FIX: Update registry using realPlate (HOLD-xxxx isn't in registry; the real plate is)
         const registryPlate = inmate.realPlate || inmate.plate;
         if (sharedData.registry[registryPlate]) {
             sharedData.registry[registryPlate].status = "CLEAR";
@@ -502,7 +602,6 @@
 
             const item = document.createElement('div');
             item.className = itemClass;
-            // FIX: Pass plate string instead of index to releaseInmate
             item.innerHTML = `
                 <div style="flex:1;">
                     <div class="plate-tag">${inmate.plate}</div>
