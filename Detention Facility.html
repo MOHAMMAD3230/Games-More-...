@@ -95,10 +95,10 @@
     .inmate-list::-webkit-scrollbar-track { background: #000; border: 1px solid var(--border); }
     .inmate-list::-webkit-scrollbar-thumb { background: var(--accent); border: 1px solid #000; }
 
-    .cell-block { 
+    .cell-block {
         display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 15px; flex-shrink: 0;
     }
-    .cell { 
+    .cell {
         background: #000; border: 1px solid var(--border); height: 60px; border-radius: 4px;
         display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: #333; text-align:center; padding:5px;
         flex-direction: column; gap: 3px;
@@ -152,7 +152,7 @@
 <body>
 
 <div class="top-bar">
-    <h1>▸ NHAI_PRISON // DETENTION_TERMINAL_v8.1</h1>
+    <h1>▸ NHAI_PRISON // DETENTION_TERMINAL_v8.2</h1>
     <div class="sync-indicator" id="syncStatus">● SYNC: ACTIVE</div>
     <div class="time" id="clock">00:00:00</div>
 </div>
@@ -160,7 +160,7 @@
 <div class="main-layout">
     <div class="panel">
         <div class="panel-title">■ Central Detention Block</div>
-        
+
         <div class="stat-row">
             <div class="stat-box">
                 <div class="stat-num" style="color:var(--danger);" id="stat-active">0</div>
@@ -183,7 +183,7 @@
 
         <div style="color: #555; font-size: 0.75rem; margin-top: auto; border-top: 1px solid var(--border); padding-top: 15px;">
             SYSTEM NOTE: Inmates serve sentences in real-time (1 sec = 1 day). Federal holds require 120 days.<br>
-            Network sync: D1 ↔ D2 ↔ D7 active. Safe merge enabled.
+            Network sync: D1 universal key. Safe merge enabled.
         </div>
     </div>
 
@@ -202,19 +202,48 @@
 </div>
 
 <script>
-    const LS_MASTER_KEY = 'enforcementTerminalV23_D1'; // Universal Sync Key
+    const LS_MASTER_KEY = 'enforcementTerminalV23_D1';
 
-    let sharedData = { 
-        revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, 
+    let sharedData = {
+        revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0,
         history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null,
         activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [],
-        ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: []
+        ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [],
+        rehabGraduations: []
     };
 
     let knownInmatePlates = new Set();
 
     function updateClock() { document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-GB'); }
     setInterval(updateClock, 1000);
+
+    function deepMerge(target, source) {
+        for (const key in source) {
+            if (source[key] instanceof Array) {
+                target[key] = source[key];
+            } else if (source[key] instanceof Object && target[key] instanceof Object) {
+                deepMerge(target[key], source[key]);
+            } else {
+                target[key] = source[key];
+            }
+        }
+        return target;
+    }
+
+    function ensureDataStructure() {
+        const defaults = {
+            revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0,
+            history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null,
+            activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [],
+            ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [],
+            rehabGraduations: []
+        };
+        for (const key in defaults) {
+            if (sharedData[key] === undefined || sharedData[key] === null) {
+                sharedData[key] = defaults[key];
+            }
+        }
+    }
 
     function repairInmateData(inmate) {
         if (!inmate) return inmate;
@@ -235,60 +264,38 @@
         return inmate;
     }
 
-    // Universal Deep Merge to prevent data loss across tabs
-    function deepMerge(target, source) {
-        for (const key in source) {
-            if (source[key] instanceof Array) {
-                target[key] = source[key]; // Arrays are replaced wholesale (like activeInmates)
-            } else if (source[key] instanceof Object && target[key] instanceof Object) {
-                deepMerge(target[key], source[key]); // Objects merge recursively (like registry)
-            } else {
-                target[key] = source[key]; // Primitives overwrite
-            }
-        }
-        return target;
-    }
-
     function loadData() {
         try {
             const savedStr = localStorage.getItem(LS_MASTER_KEY);
             if (savedStr) {
                 const parsed = JSON.parse(savedStr);
-                
+
                 const previousPlates = new Set((sharedData.activeInmates || []).map(i => i.plate));
-                
-                // Deep Merge instead of overwrite to keep other tabs' updates safe
+
                 deepMerge(sharedData, parsed);
-                
-                // Ensure arrays exist
-                if (!sharedData.history) sharedData.history = [];
-                if (!sharedData.activeInmates) sharedData.activeInmates = [];
-                if (!sharedData.releasedInmates) sharedData.releasedInmates = [];
-                if (!sharedData.rehabPrograms) sharedData.rehabPrograms = [];
-                if (!sharedData.paroleRecords) sharedData.paroleRecords = [];
-                if (!sharedData.iaViolations) sharedData.iaViolations = [];
-                
+                ensureDataStructure();
+
                 let needsSave = false;
                 sharedData.activeInmates.forEach((inmate, i) => {
                     const before = JSON.stringify(inmate);
                     sharedData.activeInmates[i] = repairInmateData(inmate);
                     if (JSON.stringify(sharedData.activeInmates[i]) !== before) needsSave = true;
                 });
-                
-                // Detect new arrivals
+
+                // Detect new arrivals from other terminals
                 sharedData.activeInmates.forEach(inmate => {
                     if (!previousPlates.has(inmate.plate) && !knownInmatePlates.has(inmate.plate)) {
                         showArrivalToast(inmate);
                     }
                     knownInmatePlates.add(inmate.plate);
                 });
-                
-                // Clean up known plates for released inmates
+
+                // Clean up known plates for released/removed inmates
                 const currentPlates = new Set(sharedData.activeInmates.map(i => i.plate));
                 knownInmatePlates.forEach(plate => {
                     if (!currentPlates.has(plate)) knownInmatePlates.delete(plate);
                 });
-                
+
                 if (needsSave) saveData();
             }
         } catch(e) {
@@ -349,23 +356,58 @@
         osc.stop(t + 0.3);
     }
 
-    function releaseInmate(index) {
-        if (index < 0 || index >= sharedData.activeInmates.length) return;
-        loadData(); 
-        let inmate = sharedData.activeInmates.splice(index, 1)[0];
+    // FIX: Use plate-based lookup instead of index to prevent wrong inmate release during sync
+    function releaseInmate(plate) {
+        loadData();
+        const inmates = sharedData.activeInmates;
+        const index = inmates.findIndex(i => i.plate === plate);
+
+        if (index === -1) return;
+        const inmate = inmates[index];
+
+        if (inmate.sentenceRemaining > 0) return;
+
+        // Remove from active inmates
+        inmates.splice(index, 1);
+
+        // Set release data
         inmate.dateReleased = new Date().toLocaleDateString();
         inmate.status = "RELEASED";
-        
-        sharedData.releasedInmates.push(inmate);
-        sharedData.history.push({ plate: inmate.plate, id: inmate.id, action: "PAROLE / RELEASED", timestamp: new Date().toLocaleTimeString() });
+
+        // Add to released inmates so Rehab terminal can enroll them
+        sharedData.releasedInmates.push({
+            plate: inmate.plate,
+            realPlate: inmate.realPlate || inmate.plate,
+            id: inmate.id,
+            offense: inmate.offense,
+            dateArrested: inmate.dateArrested,
+            facility: inmate.facility,
+            status: "RELEASED",
+            dateReleased: inmate.dateReleased
+        });
+
+        sharedData.history.push({
+            plate: inmate.plate,
+            id: inmate.id,
+            action: "PAROLE / RELEASED",
+            timestamp: new Date().toLocaleTimeString()
+        });
+
+        // FIX: Use paroleRecords format matching the Parole terminal
         if (!sharedData.paroleRecords) sharedData.paroleRecords = [];
-        sharedData.paroleRecords.push({ plate: inmate.plate, id: inmate.id, releaseDate: inmate.dateReleased });
-        
-        if (sharedData.registry[inmate.plate]) {
-            sharedData.registry[inmate.plate].status = "CLEAR";
-            sharedData.registry[inmate.plate].registeredBy = "NHAI_PAROLE_BOARD";
+        sharedData.paroleRecords.push({
+            plate: inmate.plate,
+            decision: 'RELEASED',
+            date: new Date().toLocaleString()
+        });
+
+        // FIX: Update registry using realPlate (HOLD-xxxx isn't in registry; the real plate is)
+        const registryPlate = inmate.realPlate || inmate.plate;
+        if (sharedData.registry[registryPlate]) {
+            sharedData.registry[registryPlate].status = "CLEAR";
+            sharedData.registry[registryPlate].registeredBy = "NHAI_PAROLE_BOARD";
         }
-        
+
         knownInmatePlates.delete(inmate.plate);
         playReleaseSound();
         saveData();
@@ -404,6 +446,7 @@
         syncEl.innerText = activeCount > 0 ? `● SYNC: ${activeCount} INMATES TRACKED` : '● SYNC: ACTIVE';
         syncEl.style.color = activeCount > 0 ? 'var(--warning)' : '#2ed573';
 
+        // Cell Grid
         const cellGrid = document.getElementById('cellGrid');
         cellGrid.innerHTML = '';
         for (let i = 0; i < 12; i++) {
@@ -426,6 +469,7 @@
             cellGrid.appendChild(cell);
         }
 
+        // Inmate List
         const listContainer = document.getElementById('inmate-list');
         listContainer.innerHTML = '';
 
@@ -442,14 +486,13 @@
         });
 
         sortedInmates.forEach((inmate) => {
-            const originalIndex = sharedData.activeInmates.indexOf(inmate);
             const isServed = inmate.sentenceRemaining <= 0;
             const isFed = isFederalInmate(inmate);
-            
+
             let itemClass = 'inmate-item';
             if (isFed && !isServed) itemClass += ' federal';
             if (isServed) itemClass += isFed ? ' federal served' : ' served';
-            
+
             const totalSentence = inmate.sentenceDays || 60;
             const timeServed = totalSentence - (inmate.sentenceRemaining || 0);
             const percentServed = Math.min(100, Math.max(0, (timeServed / totalSentence) * 100));
@@ -459,6 +502,7 @@
 
             const item = document.createElement('div');
             item.className = itemClass;
+            // FIX: Pass plate string instead of index to releaseInmate
             item.innerHTML = `
                 <div style="flex:1;">
                     <div class="plate-tag">${inmate.plate}</div>
@@ -471,7 +515,7 @@
                         <div class="sentence-fill ${isServed ? 'complete' : 'active'}" style="width:${percentServed}%"></div>
                     </div>
                 </div>
-                <button class="mech-btn btn-release" onclick="releaseInmate(${originalIndex})" ${!isServed ? 'disabled' : ''}>
+                <button class="mech-btn btn-release" onclick="releaseInmate('${inmate.plate}')" ${!isServed ? 'disabled' : ''}>
                     ${isServed ? 'RELEASE' : 'LOCKED'}
                 </button>
             `;
@@ -492,10 +536,11 @@
         });
     }
 
+    // Sentence countdown: 1 second = 1 day
     setInterval(() => {
         let needsRender = false;
         let needsSave = false;
-        
+
         sharedData.activeInmates.forEach(inmate => {
             if (inmate.sentenceRemaining === undefined || inmate.sentenceRemaining === null) {
                 inmate.sentenceRemaining = inmate.sentenceDays || 60;
@@ -511,8 +556,10 @@
         if (needsSave) saveData();
     }, 1000);
 
+    // Cross-tab sync
     setInterval(() => { loadData(); }, 2000);
 
+    // Initialize
     loadData();
     sharedData.activeInmates.forEach(inmate => knownInmatePlates.add(inmate.plate));
 </script>
