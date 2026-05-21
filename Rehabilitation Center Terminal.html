@@ -122,7 +122,6 @@ function loadData(){
         }
     }
     
-    // Auto-repair broken types on load
     let needsSave = false;
     (sharedData.rehabPrograms || []).forEach(p => {
         let prog = parseInt(p.progress);
@@ -240,12 +239,14 @@ function enrollFromReleased(){
     }
 }
 
+// FIX: Purge BOTH the rehab programs AND the corrupted released inmates so they can't come back
 function purgeCorruptData() {
-    if(confirm("⚠ WARNING: This will delete all current rehabilitation programs, clearing stuck/corrupted inmates. Proceed?")) {
+    if(confirm("⚠ WARNING: This will delete all current rehabilitation programs AND clear the released inmates queue to fix stuck/corrupted data. Proceed?")) {
         sharedData.rehabPrograms = [];
+        sharedData.releasedInmates = []; // This stops the broken HOLD-xxxx from re-enrolling!
         saveData();
         renderDashboard();
-        addLog('SYSTEM: Corrupted rehabilitation data purged.', 'var(--danger)');
+        addLog('SYSTEM: Corrupted rehabilitation and release data purged.', 'var(--danger)');
     }
 }
 
@@ -356,7 +357,6 @@ function renderDashboard(){
     });
 }
 
-// Timer loop strictly enforcing integers
 setInterval(() => {
     let needsSave = false;
     (sharedData.rehabPrograms || []).forEach(p => {
