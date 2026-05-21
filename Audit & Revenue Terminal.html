@@ -11,7 +11,7 @@
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>NHAI - Audit & Revenue Terminal v9.2</title>
+<title>NHAI - Audit & Revenue Terminal v9.3</title>
 <style>
     :root {
         --bg: #0a0508; 
@@ -308,7 +308,7 @@
 <body>
 
 <div class="top-bar">
-    <h1>▸ NHAI_AUDIT // REVENUE_v9.2</h1>
+    <h1>▸ NHAI_AUDIT // REVENUE_v9.3</h1>
     <div class="system-status">
         <div><span class="status-dot online"></span>MAINFRAME</div>
         <div><span class="status-dot online"></span>RESERVE</div>
@@ -430,13 +430,15 @@
 <script>
     const LS_D1_KEY = 'enforcementTerminalV23_D1';
     const LS_D2_KEY = 'enforcementTerminalV23_TOLL';
+    const GAME_MONTH_DURATION = 45 * 60 * 1000; // Must match Officer Terminal (45 mins)
 
     const defaultData = { 
         revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, 
         history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null,
         activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [],
         ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [],
-        citizenCards: {}, revenuePool: 0, lifetimeRevenue: 0, officerBalance: 0, payslips: []
+        citizenCards: {}, revenuePool: 0, lifetimeRevenue: 0, officerBalance: 0, payslips: [],
+        monthStartTimestamp: Date.now(), lifestyle: { housing: 'streets', food: 'none', accessories: [], billsDue: {} }
     };
 
     let sharedData = JSON.parse(JSON.stringify(defaultData));
@@ -455,32 +457,35 @@
 
             let m = JSON.parse(JSON.stringify(defaultData));
 
-            if (d1Data) { 
-                Object.assign(m, d1Data); 
-                if (d1Data.registry) Object.assign(m.registry, d1Data.registry); 
-                if (d1Data.citizenCards) Object.assign(m.citizenCards, d1Data.citizenCards); 
-            }
-            if (d2Data) { 
-                m.revenue = Math.max(m.revenue || 0, d2Data.revenue || 0); 
-                m.valids = Math.max(m.valids || 0, d2Data.valids || 0); 
-                m.missed = Math.max(m.missed || 0, d2Data.missed || 0);
-                m.rankPoints = Math.max(m.rankPoints || 0, d2Data.rankPoints || 0);
-                m.revenuePool = Math.max(m.revenuePool || 0, d2Data.revenuePool || 0);
-                m.lifetimeRevenue = Math.max(m.lifetimeRevenue || 0, d2Data.lifetimeRevenue || 0);
-                m.officerBalance = Math.max(m.officerBalance || 0, d2Data.officerBalance || 0);
-                
-                if (d2Data.registry) Object.assign(m.registry, d2Data.registry); 
-                if (d2Data.citizenCards) Object.assign(m.citizenCards, d2Data.citizenCards); 
-                if (d2Data.history) { 
-                    m.history = d2Data.history.concat(m.history).filter((v, i, a) => 
-                        a.findIndex(t => (t.plate === v.plate && t.timestamp === v.timestamp)) === i
-                    ); 
+            // Safe Merge Function to prevent desyncs
+            const safeMerge = (target, source) => {
+                for (let key in source) {
+                    if (!source.hasOwnProperty(key)) continue;
+                    if (source[key] !== null && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+                        if (!target[key]) target[key] = {};
+                        safeMerge(target[key], source[key]);
+                    } else {
+                        target[key] = source[key];
+                    }
                 }
-                if (d2Data.ledgerCashouts && d2Data.ledgerCashouts.length > m.ledgerCashouts.length) m.ledgerCashouts = d2Data.ledgerCashouts;
-                if (d2Data.iaViolations && d2Data.iaViolations.length > m.iaViolations.length) m.iaViolations = d2Data.iaViolations;
-                if (d2Data.payslips && d2Data.payslips.length > m.payslips.length) m.payslips = d2Data.payslips;
+            };
+
+            if (d1Data) safeMerge(m, d1Data); 
+            if (d2Data) safeMerge(m, d2Data); 
+
+            // Synchronize Game Month Cycle safely
+            if (m.monthStartTimestamp) {
+                const now = Date.now();
+                if (now - m.monthStartTimestamp >= GAME_MONTH_DURATION) {
+                    // Month expired in the background, trigger warnings for this terminal
+                    addAuditLog("SYSTEM: Fiscal Month Expired. Lifestyle subscriptions reverted to default.", "var(--danger)");
+                    m.monthStartTimestamp = now; // Reset month
+                }
+            } else {
+                m.monthStartTimestamp = Date.now();
             }
 
+            // Array length checks (prevent corruption)
             ['history', 'ledgerCashouts', 'iaViolations', 'activeInmates', 'releasedInmates', 'payslips'].forEach(k => {
                 if (!Array.isArray(m[k])) m[k] = [];
             });
