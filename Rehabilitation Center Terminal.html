@@ -178,8 +178,12 @@ function renderLogs(){
 function enrollFromReleased(){
     const graduatedPlates = new Set((sharedData.rehabGraduations || []).map(g => g.oldPlate));
     
+    // FIX: Only process released inmates that have fully resolved data (a realPlate and a valid ID)
     const released = sharedData.releasedInmates.filter(i =>
-        (i.status==='RELEASED' || i.status==='PAROLED') && !graduatedPlates.has(i.plate)
+        (i.status==='RELEASED' || i.status==='PAROLED') && 
+        i.realPlate && i.realPlate !== 'N/A' && i.realPlate !== i.plate &&
+        i.id && i.id !== 'MISSING' && i.id !== 'ARREST_TARGET' &&
+        !graduatedPlates.has(i.plate)
     );
     
     let enrolled = 0;
@@ -192,7 +196,7 @@ function enrollFromReleased(){
                 id: inmate.id || 'MISSING',
                 offense: inmate.offense || 'UNKNOWN',
                 progress: 0,
-                programDays: 15 + Math.floor(Math.random() * 16),
+                programDays: 15 + Math.floor(Math.random() * 16), // Ensures this is never undefined
                 status: 'ENROLLED',
                 dateEnrolled: new Date().toLocaleDateString()
             });
@@ -253,8 +257,11 @@ function renderDashboard(){
     const enrolled = programs.filter(p => p.status === 'ENROLLED').length;
     const graduatedCount = (sharedData.rehabGraduations || []).length;
     
+    // FIX: Apply the same data validation to "awaiting" count
     const awaiting = (sharedData.releasedInmates || []).filter(i =>
         (i.status === 'RELEASED' || i.status === 'PAROLED') && 
+        i.realPlate && i.realPlate !== 'N/A' && i.realPlate !== i.plate &&
+        i.id && i.id !== 'MISSING' && i.id !== 'ARREST_TARGET' &&
         !graduatedPlates.has(i.plate) &&
         !programs.find(p => p.plate === i.plate)
     ).length;
@@ -272,8 +279,13 @@ function renderDashboard(){
     }
     
     programs.forEach(inmate => {
-        const pct = Math.min(100, Math.round((inmate.progress / inmate.programDays) * 100));
-        const isReady = inmate.progress >= inmate.programDays;
+        // FIX: Fallback logic to guarantee programDays is a number to prevent NaN%
+        const safeProgramDays = inmate.programDays && !isNaN(inmate.programDays) ? inmate.programDays : 15;
+        const safeProgress = inmate.progress && !isNaN(inmate.progress) ? inmate.progress : 0;
+        
+        const pct = Math.min(100, Math.round((safeProgress / safeProgramDays) * 100));
+        const isReady = safeProgress >= safeProgramDays;
+        
         const item = document.createElement('div');
         item.className = 'rehab-item ' + (isReady ? 'ready' : 'in-progress');
         item.innerHTML = `
@@ -281,9 +293,9 @@ function renderDashboard(){
             <div style="flex:1;">
                 <div class="plate-tag">${inmate.plate}</div>
                 <div class="meta-tag">Real: ${inmate.realPlate || 'N/A'} | ID: ${inmate.id || 'MISSING'}</div>
-                <div class="meta-tag">Offense: ${inmate.offense || 'UNKNOWN'} | Program: ${inmate.programDays} days</div>
+                <div class="meta-tag">Offense: ${inmate.offense || 'UNKNOWN'} | Program: ${safeProgramDays} days</div>
                 <div class="meta-tag" style="color:${isReady ? 'var(--success)' : 'var(--warning)'}">
-                    ${isReady ? '✔ PROGRAM COMPLETE — READY FOR GRADUATION' : `Progress: ${inmate.progress}/${inmate.programDays} days (${pct}%)`}
+                    ${isReady ? '✔ PROGRAM COMPLETE — READY FOR GRADUATION' : `Progress: ${safeProgress}/${safeProgramDays} days (${pct}%)`}
                 </div>
                 <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${isReady ? 'var(--success)' : 'var(--warning)'}"></div></div>
             </div>
