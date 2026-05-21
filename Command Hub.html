@@ -11,12 +11,13 @@
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NHAI CENTRAL COMMAND - NETWORK HUB v4.1</title>
+<title>NHAI CENTRAL COMMAND - NETWORK HUB v4.2</title>
 <style>
     :root {
         --bg: #050508; --panel: #0d0d14; --accent: #00d9ff; --success: #00ff9d;
         --danger: #ff0044; --warning: #ffcc00; --border: #1a1a2e;
         --police: #00d9ff; --ems: #ff4757; --fire: #ffa502;
+        --purple: #c56cf0;
     }
 
     body {
@@ -34,7 +35,9 @@
 
     .top-bar h1 { margin: 0; font-size: 1.2rem; color: var(--accent); letter-spacing: 2px; text-shadow: 0 0 10px rgba(0, 217, 255, 0.5); }
     .top-bar .time { color: var(--warning); font-size: 0.9rem; font-weight: bold; text-shadow: 0 0 8px rgba(255, 204, 0, 0.4); }
-    .top-bar .sync-badge {
+    .top-bar .month-timer { color: var(--purple); font-size: 0.85rem; font-weight: bold; letter-spacing: 1px; text-shadow: 0 0 8px rgba(197, 108, 240, 0.4); }
+    
+    .sync-badge {
         font-size: 0.6rem; padding: 4px 10px; border-radius: 3px; letter-spacing: 1px;
         font-weight: bold; text-transform: uppercase; transition: all 0.3s ease;
     }
@@ -94,6 +97,7 @@
     .feed-action.enforce { color: var(--danger); text-shadow: 0 0 5px rgba(255,0,68,0.3); }
     .feed-action.parole { color: var(--police); }
     .feed-action.system { color: #888; }
+    .feed-action.economy { color: var(--purple); }
     .feed-time { color: #555; width: 80px; text-align: right; flex-shrink: 0; }
 
     .health-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 0.85rem; align-items: center; }
@@ -107,6 +111,20 @@
     .health-dot.waiting { background: var(--warning); animation: pulseDot 1.5s infinite; }
     @keyframes pulseDot {
         0% { opacity: 1; box-shadow: 0 0 4px var(--warning); } 50% { opacity: 0.3; box-shadow: 0 0 8px var(--warning); } 100% { opacity: 1; box-shadow: 0 0 4px var(--warning); }
+    }
+
+    .inmate-mini {
+        background: #000; border: 1px solid var(--border); border-radius: 4px; padding: 12px 15px;
+        margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .inmate-mini .inmate-count { font-size: 1.5rem; font-weight: 900; color: var(--danger); text-shadow: 0 0 8px rgba(255,0,68,0.3); }
+    .inmate-mini .inmate-label { font-size: 0.7rem; color: #888; margin-top: 2px; }
+    .inmate-mini .inmate-parole { font-size: 0.8rem; color: var(--success); font-weight: bold; }
+
+    .registry-badge {
+        display: inline-block; background: rgba(0,217,255,0.1); color: var(--accent);
+        padding: 2px 8px; border-radius: 3px; font-size: 0.65rem; font-weight: bold;
+        border: 1px solid rgba(0,217,255,0.3);
     }
 
     .activity-graph { 
@@ -131,22 +149,6 @@
     .scan-line { position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: var(--accent); opacity: 0.3; animation: scanDown 3s infinite linear; pointer-events: none; }
     @keyframes scanDown { 0% { top: 0; } 100% { top: 100%; } }
 
-    /* Mini inmate counter in health panel */
-    .inmate-mini {
-        background: #000; border: 1px solid var(--border); border-radius: 4px; padding: 12px 15px;
-        margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;
-    }
-    .inmate-mini .inmate-count { font-size: 1.5rem; font-weight: 900; color: var(--danger); text-shadow: 0 0 8px rgba(255,0,68,0.3); }
-    .inmate-mini .inmate-label { font-size: 0.7rem; color: #888; margin-top: 2px; }
-    .inmate-mini .inmate-parole { font-size: 0.8rem; color: var(--success); font-weight: bold; }
-
-    /* Registry count */
-    .registry-badge {
-        display: inline-block; background: rgba(0,217,255,0.1); color: var(--accent);
-        padding: 2px 8px; border-radius: 3px; font-size: 0.65rem; font-weight: bold;
-        border: 1px solid rgba(0,217,255,0.3);
-    }
-
     @media (max-width: 900px) {
         .grid-layout { grid-template-columns: 1fr; grid-template-rows: auto auto auto; overflow-y: auto; }
         .panel { min-height: 250px; }
@@ -158,8 +160,11 @@
 <body>
 
 <div class="top-bar">
-    <h1>▸ NHAI_CENTRAL_COMMAND // HUB_v4.1</h1>
-    <span class="sync-badge waiting" id="syncBadge">● SYNCING</span>
+    <h1>▸ NHAI_CENTRAL_COMMAND // HUB_v4.2</h1>
+    <div style="display:flex; gap: 20px; align-items: center;">
+        <div class="month-timer">FISCAL MONTH: <span id="month-countdown">45:00</span></div>
+        <span class="sync-badge waiting" id="syncBadge">● SYNCING</span>
+    </div>
     <div class="time" id="clock">00:00:00</div>
 </div>
 
@@ -189,7 +194,6 @@
         </div>
     </div>
 
-    <!-- Fixed grid-row to span properly instead of using 1/3 which breaks implicit rows -->
     <div class="panel" style="grid-row: span 2;">
         <div class="scan-line"></div>
         <div class="panel-header">
@@ -219,7 +223,6 @@
             </div>
         </div>
 
-        <!-- Fixed duplicate ID from dot-d1 to dot-cache -->
         <div class="health-row">
             <span><span class="health-dot online" id="dot-cache"></span>CACHE MEMORY:</span>
             <span class="health-status online" id="cmd-cache">SYNCED</span>
@@ -236,6 +239,10 @@
             <span><span class="health-dot waiting" id="dot-d7"></span>TERMINAL_07 (PRISON D7):</span>
             <span class="health-status waiting" id="cmd-d7-status">PROBING</span>
         </div>
+        <div class="health-row">
+            <span><span class="health-dot waiting" id="dot-eco"></span>TERMINAL_04 (ECONOMY SUBSYS):</span>
+            <span class="health-status waiting" id="cmd-eco-status">PROBING</span>
+        </div>
         
         <div style="font-size: 0.7rem; color: #888; margin-top: 10px;">NETWORK ACTIVITY (LAST 10 EVENTS)</div>
         <div class="activity-graph" id="activity-graph"></div>
@@ -243,15 +250,17 @@
 </div>
 
 <script>
-    /* ===== SYNC KEYS — matched to all network terminals ===== */
     const LS_D1_KEY = 'enforcementTerminalV23_D1';
     const LS_D2_KEY = 'enforcementTerminalV23_TOLL';
+    const GAME_MONTH_DURATION = 45 * 60 * 1000; // Must match Officer Economy Terminal
 
     let sharedData = { 
         revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, 
         history: [], registry: {}, forgedAliases: {}, nextSpawnOverride: null,
         activeInmates: [], releasedInmates: [], inbox: [], sentMail: [], call911Logs: [],
-        ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [] 
+        ledgerCashouts: [], intelFlags: [], paroleRecords: [], iaViolations: [], rehabPrograms: [],
+        revenuePool: 0, lifetimeRevenue: 0, officerBalance: 0, payslips: [],
+        monthStartTimestamp: Date.now(), lifestyle: {}
     };
 
     let lastRenderHash = '';
@@ -261,7 +270,23 @@
     }
     setInterval(updateClock, 1000);
 
-    /* ===== SAFE DATA MERGE — no signature check ===== */
+    // Month Timer Update
+    function updateMonthTimer() {
+        if (!sharedData.monthStartTimestamp) return;
+        const now = Date.now();
+        const remaining = GAME_MONTH_DURATION - (now - sharedData.monthStartTimestamp);
+        
+        if (remaining > 0) {
+            const mins = Math.floor(remaining / 60000);
+            const secs = Math.floor((remaining % 60000) / 1000);
+            document.getElementById('month-countdown').innerText = `${mins}:${secs.toString().padStart(2, '0')}`;
+        } else {
+            document.getElementById('month-countdown').innerText = "EXPIRED";
+            document.getElementById('month-countdown').style.color = "var(--danger)";
+        }
+    }
+    setInterval(updateMonthTimer, 1000);
+
     function loadSharedData() {
         try {
             const d1 = localStorage.getItem(LS_D1_KEY);
@@ -276,63 +301,31 @@
                 registry: {}, history: [], activeInmates: [], releasedInmates: [],
                 inbox: [], sentMail: [], call911Logs: [], forgedAliases: {},
                 nextSpawnOverride: null, ledgerCashouts: [], intelFlags: [],
-                paroleRecords: [], iaViolations: [], rehabPrograms: []
+                paroleRecords: [], iaViolations: [], rehabPrograms: [],
+                revenuePool: 0, lifetimeRevenue: 0, officerBalance: 0, payslips: [],
+                monthStartTimestamp: Date.now(), lifestyle: {}
             };
 
-            // Merge D1 (Enforcement Gate — primary source)
-            if (d1Data) {
-                Object.assign(mergedData, d1Data);
-                if (d1Data.registry) Object.assign(mergedData.registry, d1Data.registry);
-                if (d1Data.activeInmates) mergedData.activeInmates = d1Data.activeInmates;
-                if (d1Data.releasedInmates) mergedData.releasedInmates = d1Data.releasedInmates;
-            }
-
-            // Merge D2 (Toll/Dispatch — overlay registry, concatenate history)
-            if (d2Data) {
-                mergedData.revenue = Math.max(mergedData.revenue || 0, d2Data.revenue || 0);
-                mergedData.valids = Math.max(mergedData.valids || 0, d2Data.valids || 0);
-                mergedData.missed = Math.max(mergedData.missed || 0, d2Data.missed || 0);
-                mergedData.level = Math.max(mergedData.level || 1, d2Data.level || 1);
-                mergedData.rankPoints = Math.max(mergedData.rankPoints || 0, d2Data.rankPoints || 0);
-
-                if (d2Data.registry) Object.assign(mergedData.registry, d2Data.registry);
-
-                if (d2Data.history) {
-                    mergedData.history = d2Data.history.concat(mergedData.history).filter((v, i, a) => 
-                        a.findIndex(t => (t.plate === v.plate && t.timestamp === v.timestamp)) === i
-                    );
+            const safeMerge = (target, source) => {
+                for (let key in source) {
+                    if (!source.hasOwnProperty(key)) continue;
+                    if (source[key] !== null && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+                        if (!target[key]) target[key] = {};
+                        safeMerge(target[key], source[key]);
+                    } else {
+                        target[key] = source[key];
+                    }
                 }
+            };
 
-                if (d2Data.activeInmates && d2Data.activeInmates.length > mergedData.activeInmates.length) {
-                    mergedData.activeInmates = d2Data.activeInmates;
-                }
-                if (d2Data.releasedInmates && d2Data.releasedInmates.length > (mergedData.releasedInmates || []).length) {
-                    mergedData.releasedInmates = d2Data.releasedInmates;
-                }
+            if (d1Data) safeMerge(mergedData, d1Data); 
+            if (d2Data) safeMerge(mergedData, d2Data); 
 
-                if (!mergedData.call911Logs && d2Data.call911Logs) mergedData.call911Logs = d2Data.call911Logs;
-                if (!mergedData.paroleRecords && d2Data.paroleRecords) mergedData.paroleRecords = d2Data.paroleRecords;
-                if (!mergedData.rehabPrograms && d2Data.rehabPrograms) mergedData.rehabPrograms = d2Data.rehabPrograms;
-                if (!mergedData.forgedAliases && d2Data.forgedAliases) mergedData.forgedAliases = d2Data.forgedAliases;
-            }
+            // Array length checks
+            ['history', 'ledgerCashouts', 'iaViolations', 'activeInmates', 'releasedInmates', 'payslips'].forEach(k => {
+                if (!Array.isArray(mergedData[k])) mergedData[k] = [];
+            });
 
-            // Ensure all sub-keys exist
-            if (!mergedData.registry) mergedData.registry = {};
-            if (!mergedData.forgedAliases) mergedData.forgedAliases = {};
-            if (mergedData.nextSpawnOverride === undefined) mergedData.nextSpawnOverride = null;
-            if (!mergedData.activeInmates) mergedData.activeInmates = [];
-            if (!mergedData.releasedInmates) mergedData.releasedInmates = [];
-            if (!mergedData.inbox) mergedData.inbox = [];
-            if (!mergedData.sentMail) mergedData.sentMail = [];
-            if (!mergedData.call911Logs) mergedData.call911Logs = [];
-            if (!mergedData.ledgerCashouts) mergedData.ledgerCashouts = [];
-            if (!mergedData.intelFlags) mergedData.intelFlags = [];
-            if (!mergedData.paroleRecords) mergedData.paroleRecords = [];
-            if (!mergedData.iaViolations) mergedData.iaViolations = [];
-            if (!mergedData.rehabPrograms) mergedData.rehabPrograms = [];
-            if (!mergedData.history) mergedData.history = [];
-
-            // Check if data actually changed before re-rendering
             const newHash = JSON.stringify({
                 r: mergedData.revenue, v: mergedData.valids, m: mergedData.missed,
                 l: mergedData.level, rp: mergedData.rankPoints,
@@ -340,6 +333,8 @@
                 rc: Object.keys(mergedData.registry || {}).length,
                 ic: (mergedData.activeInmates || []).length,
                 dlc: (mergedData.releasedInmates || []).length,
+                ob: mergedData.officerBalance || 0,
+                rpPool: mergedData.revenuePool || 0,
                 hLast: (mergedData.history || []).slice(-3).map(h => h.plate + h.action + h.timestamp).join('|')
             });
 
@@ -348,6 +343,7 @@
 
             if (newHash !== lastRenderHash) {
                 lastRenderHash = newHash;
+                updateMonthTimer();
                 renderDashboard();
             }
 
@@ -361,14 +357,15 @@
     function updateHealthStatus(d1Data, d2Data) {
         const badge = document.getElementById('syncBadge');
         const cache = document.getElementById('cmd-cache');
-        const cacheDot = document.getElementById('dot-cache'); // Fixed reference from dot-d1 to dot-cache
+        const cacheDot = document.getElementById('dot-cache');
 
         const d1Live = d1Data !== null;
         const d2Live = d2Data !== null;
+        const ecoLive = sharedData.officerBalance !== undefined && sharedData.lifestyle !== undefined;
 
-        if (d1Live && d2Live) {
+        if (d1Live && d2Live && ecoLive) {
             cache.innerText = "SYNCED"; cache.className = "health-status online"; cacheDot.className = "health-dot online";
-            badge.innerText = "● DUAL SYNC"; badge.className = "sync-badge online";
+            badge.innerText = "● FULL SYNC"; badge.className = "sync-badge online";
         } else if (d1Live || d2Live) {
             cache.innerText = "PARTIAL"; cache.className = "health-status waiting"; cacheDot.className = "health-dot waiting";
             badge.innerText = "● PARTIAL SYNC"; badge.className = "sync-badge waiting";
@@ -390,6 +387,11 @@
         const hasInmateActivity = inmates.length > 0 || (sharedData.releasedInmates || []).length > 0 || (sharedData.paroleRecords || []).length > 0;
         if (hasInmateActivity) { d7Status.innerText = "CONNECTED"; d7Status.className = "health-status online"; d7Dot.className = "health-dot online"; } 
         else { d7Status.innerText = "STANDBY"; d7Status.className = "health-status waiting"; d7Dot.className = "health-dot waiting"; }
+
+        // Economy Terminal Health
+        const ecoStatus = document.getElementById('cmd-eco-status'); const ecoDot = document.getElementById('dot-eco');
+        if (ecoLive) { ecoStatus.innerText = "CONNECTED"; ecoStatus.className = "health-status online"; ecoDot.className = "health-dot online"; } 
+        else { ecoStatus.innerText = "OFFLINE"; ecoStatus.className = "health-status offline"; ecoDot.className = "health-dot offline"; }
     }
 
     function triggerPulse(boxId, className) {
@@ -401,7 +403,6 @@
     }
 
     function renderDashboard() {
-        // Safely parse out numbers from commas and the $ sign to properly track prev values
         const prevRev = parseInt((document.getElementById('cmd-rev').innerText || '$0').replace(/[^0-9\-]/g, ''), 10) || 0;
         const prevArrests = parseInt(document.getElementById('cmd-arrests').innerText) || 0;
         const prevValids = parseInt(document.getElementById('cmd-valids').innerText) || 0;
@@ -417,17 +418,14 @@
         ).length;
         document.getElementById('cmd-arrests').innerText = arrests;
 
-        // Animate Stat Changes
         if (sharedData.revenue > prevRev) triggerPulse('box-rev', 'pulse-success');
         if (arrests > prevArrests) triggerPulse('box-arrests', 'pulse-danger');
         if (sharedData.valids > prevValids) triggerPulse('box-valids', 'pulse-accent');
         if (sharedData.level > prevLevel) triggerPulse('box-level', 'pulse-success');
 
-        // Registry count
         const regCount = Object.keys(sharedData.registry || {}).length;
         document.getElementById('registryCount').innerText = `${regCount} REGISTR${regCount === 1 ? 'Y' : 'IES'}`;
 
-        // Inmate summary
         const inmates = sharedData.activeInmates || [];
         const released = sharedData.releasedInmates || [];
         const paroleReady = inmates.filter(i => (i.sentenceRemaining || 0) <= 0).length;
@@ -435,7 +433,6 @@
         document.getElementById('cmd-parole').innerText = paroleReady;
         document.getElementById('cmd-released').innerText = released.length;
 
-        // Live network feed
         const feedContainer = document.getElementById('network-feed');
         feedContainer.innerHTML = '';
 
@@ -453,8 +450,8 @@
                 let actionClass = 'system';
                 let actionText = event.action || 'UNKNOWN';
                 
-                if (actionText.includes('TOLL') || actionText.includes('REVENUE') || actionText.includes('CASHOUT')) {
-                    actionClass = 'toll';
+                if (actionText.includes('TOLL') || actionText.includes('REVENUE') || actionText.includes('CASHOUT') || actionText.includes('DEPOSIT') || actionText.includes('LAUNDERED') || actionText.includes('PAYOUT')) {
+                    actionClass = actionText.includes('LAUNDERED') || actionText.includes('PAYOUT') ? 'economy' : 'toll';
                 } else if (actionText.includes('RELEASED') || actionText.includes('PAROLE') || actionText.includes('REHAB') || actionText.includes('APPROVED') || actionText.includes('CLEAR') || actionText.includes('FAST-TRACK')) {
                     actionClass = 'parole';
                 } else if (actionText.includes('ARRESTED') || actionText.includes('INTERCEPT') || actionText.includes('PATROL') || actionText.includes('REJECTED') || actionText.includes('WANTED') || actionText.includes('DENIED') || actionText.includes('BREACH')) {
@@ -470,7 +467,6 @@
             });
         }
 
-        // Activity graph
         const graphContainer = document.getElementById('activity-graph');
         graphContainer.innerHTML = '';
         const last10 = history.slice(-10);
@@ -488,17 +484,15 @@
                 let color = 'linear-gradient(180deg, var(--accent), rgba(0, 217, 255, 0.2))';
 
                 if (action.includes('ARRESTED') || action.includes('PATROL') || action.includes('INTERCEPT') || action.includes('BREACH')) {
-                    height = '90%';
-                    color = 'linear-gradient(180deg, var(--danger), rgba(255, 0, 68, 0.2))';
-                } else if (action.includes('TOLL') || action.includes('REVENUE') || action.includes('CASHOUT')) {
-                    height = '50%';
-                    color = 'linear-gradient(180deg, var(--success), rgba(0, 255, 157, 0.2))';
+                    height = '90%'; color = 'linear-gradient(180deg, var(--danger), rgba(255, 0, 68, 0.2))';
+                } else if (action.includes('TOLL') || action.includes('REVENUE') || action.includes('CASHOUT') || action.includes('DEPOSIT')) {
+                    height = '50%'; color = 'linear-gradient(180deg, var(--success), rgba(0, 255, 157, 0.2))';
                 } else if (action.includes('RELEASED') || action.includes('PAROLE') || action.includes('APPROVED') || action.includes('FAST-TRACK') || action.includes('CLEAR')) {
-                    height = '60%';
-                    color = 'linear-gradient(180deg, var(--police), rgba(0, 217, 255, 0.2))';
-                } else if (action.includes('REJECTED') || action.includes('DENIED') || action.includes('WANTED')) {
-                    height = '80%';
-                    color = 'linear-gradient(180deg, #ff4757, rgba(255, 71, 87, 0.2))';
+                    height = '60%'; color = 'linear-gradient(180deg, var(--police), rgba(0, 217, 255, 0.2))';
+                } else if (action.includes('REJECTED') || action.includes('DENIED') || action.includes('WANTED') || action.includes('LAUNDERED')) {
+                    height = '80%'; color = 'linear-gradient(180deg, #ff4757, rgba(255, 71, 87, 0.2))';
+                } else if (action.includes('PAYOUT')) {
+                    height = '70%'; color = 'linear-gradient(180deg, var(--purple), rgba(197, 108, 240, 0.2))';
                 }
 
                 bar.style.background = color;
@@ -512,7 +506,6 @@
         }
     }
 
-    /* ===== INIT ===== */
     loadSharedData();
     setInterval(loadSharedData, 2000);
 </script>
