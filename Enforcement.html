@@ -216,7 +216,6 @@
   .tag-ems { background: rgba(255,71,87,0.2); color: var(--ems); border: 1px solid var(--ems); }
   .tag-fire { background: rgba(255,165,2,0.2); color: var(--fire); border: 1px solid var(--fire); }
 
-  /* ===== D-7 INMATE DASHBOARD STYLES (SYNCED WITH PRISON TERMINAL) ===== */
   .offense-badge {
       display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 0.6rem;
       font-weight: bold; text-transform: uppercase; margin-top: 4px;
@@ -530,7 +529,6 @@
 </div>
 </div>
 
-<!-- TOLL CASE MANAGEMENT LAYOUT -->
 <div class="toll-case-layout" id="tollCaseLayout">
     <div class="toll-case-box">
         <div class="toll-case-title">⚠ NHAI TOLL ENFORCEMENT CHECK ⚠</div>
@@ -604,7 +602,7 @@
       iaViolations: [], rehabPrograms: [], rehabGraduations: []
   };
 
-  /* ===== DEEP MERGE (matched to Prison terminal) ===== */
+  /* ===== DEEP MERGE ===== */
   function deepMerge(target, source) {
       for (const key in source) {
           if (source[key] instanceof Array) {
@@ -618,7 +616,7 @@
       return target;
   }
 
-  /* ===== ENSURE DATA STRUCTURE (matched to Prison terminal) ===== */
+  /* ===== ENSURE DATA STRUCTURE ===== */
   function ensureDataStructure() {
       const defaults = {
           revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0,
@@ -634,7 +632,7 @@
       }
   }
 
-  /* ===== REPAIR INMATE DATA (matched to Prison terminal) ===== */
+  /* ===== REPAIR INMATE DATA ===== */
   function repairInmateData(inmate) {
       if (!inmate) return inmate;
       if (inmate.sentenceDays === undefined || inmate.sentenceDays === null) {
@@ -654,7 +652,7 @@
       return inmate;
   }
 
-  /* ===== INMATE HELPERS (synced with Prison terminal) ===== */
+  /* ===== INMATE HELPERS ===== */
   function isFederalInmate(inmate) {
       return inmate.facility === "FEDERAL HOLD" || (inmate.offense && inmate.offense.includes('911'));
   }
@@ -672,13 +670,12 @@
       return 'facility-central';
   }
 
-  /* ===== SAFE DATA LOAD — D1 primary, D2 supplemental ===== */
+  /* ===== SAFE DATA LOAD ===== */
   function loadData() {
       try {
           const d1 = localStorage.getItem(LS_D1_KEY);
           const d2 = localStorage.getItem(LS_D2_KEY);
 
-          // Start from clean defaults
           sharedData = {
               revenue: 0, valids: 0, missed: 0, level: 1, rankPoints: 0, history: [],
               registry: {}, forgedAliases: {}, nextSpawnOverride: null,
@@ -687,23 +684,18 @@
               iaViolations: [], rehabPrograms: [], rehabGraduations: []
           };
           
-          // D1 is the PRIMARY source — Prison terminal writes here
+          // D1 is PRIMARY — Prison terminal writes here
           if (d1) { 
               const parsed = JSON.parse(d1); 
               deepMerge(sharedData, parsed);
           }
 
-          // D2 (TOLL) is SUPPLEMENTAL — only overlay specific fields
-          // Do NOT let D2 overwrite Prison-managed arrays like activeInmates
+          // D2 is SUPPLEMENTAL — only overlay specific safe fields
           if (d2) { 
               const parsed = JSON.parse(d2); 
-              // Registry: merge entries (TOLL may have added vehicles)
               if(parsed.registry) Object.assign(sharedData.registry, parsed.registry);
-              // Forged aliases: merge
               if(parsed.forgedAliases) Object.assign(sharedData.forgedAliases, parsed.forgedAliases);
-              // Next spawn override: take D2 if D1 doesn't have one
               if(parsed.nextSpawnOverride && !sharedData.nextSpawnOverride) sharedData.nextSpawnOverride = parsed.nextSpawnOverride;
-              // 911 logs: merge by timestamp
               if(parsed.call911Logs && parsed.call911Logs.length > 0) {
                   const existingTimestamps = new Set((sharedData.call911Logs || []).map(l => l.timestamp));
                   for (const log of parsed.call911Logs) {
@@ -713,7 +705,6 @@
                       }
                   }
               }
-              // Inbox: merge unread mail from TOLL
               if(parsed.inbox && parsed.inbox.length > 0) {
                   const existingSubjects = new Set((sharedData.inbox || []).map(m => m.subject + m.timestamp));
                   for (const mail of parsed.inbox) {
@@ -727,7 +718,7 @@
           
           ensureDataStructure();
 
-          // Repair any inmates with missing fields
+          // Repair inmates
           let needsSave = false;
           if(sharedData.activeInmates) {
               sharedData.activeInmates.forEach((inmate, i) => {
@@ -736,7 +727,7 @@
                   if (JSON.stringify(sharedData.activeInmates[i]) !== before) needsSave = true;
               });
           }
-          if(needsSave) saveData();
+          if(needsSave) saveDataInternal();
           
           // Pull top-level stats
           revenue = sharedData.revenue || 0;
@@ -753,10 +744,21 @@
       updateStatusUI(); updateMailUI();
   }
 
-  /* ===== SAFE DATA SAVE — preserve Prison-managed data ===== */
+  /* ===== RACE-CONDITION-SAFE SAVE ===== */
+  // saveDataInternal: writes sharedData directly (used when we KNOW sharedData is fresh)
+  function saveDataInternal() {
+      try {
+          localStorage.setItem(LS_D1_KEY, JSON.stringify(sharedData));
+          localStorage.setItem(LS_D2_KEY, JSON.stringify(sharedData));
+      } catch(e) { console.error("Save failed", e); }
+  }
+
+  // saveData: re-reads D1 to merge in Prison's latest sentence countdowns,
+  // then applies our local changes on top. Prevents race condition where
+  // Prison's 1-second countdown overwrites a freshly arrested inmate.
   function saveData() {
       try {
-          // Sync local state into sharedData
+          // Sync local state into sharedData first
           sharedData.revenue = revenue;
           sharedData.valids = valids;
           sharedData.missed = missed;
@@ -764,15 +766,36 @@
           sharedData.rankPoints = rankPoints;
           sharedData.history = history;
 
-          // Re-read D1 right before saving to preserve Prison terminal's
-          // real-time sentence countdown and release actions
+          // Re-read D1 to get Prison's latest sentence countdowns
           try {
               const d1Str = localStorage.getItem(LS_D1_KEY);
               if (d1Str) {
                   const d1Data = JSON.parse(d1Str);
-                  // Prison-managed fields: always prefer D1's latest version
-                  if (d1Data.activeInmates) sharedData.activeInmates = d1Data.activeInmates;
-                  if (d1Data.releasedInmates) sharedData.releasedInmates = d1Data.releasedInmates;
+                  // For each inmate in D1 that also exists in our sharedData,
+                  // take D1's sentenceRemaining (it's the authoritative countdown)
+                  if (d1Data.activeInmates) {
+                      d1Data.activeInmates.forEach(d1Inmate => {
+                          const myInmate = sharedData.activeInmates.find(i => i.plate === d1Inmate.plate);
+                          if (myInmate) {
+                              // Prison terminal owns the countdown — take its value
+                              myInmate.sentenceRemaining = d1Inmate.sentenceRemaining;
+                          }
+                      });
+                  }
+                  // Also preserve any inmates D1 has that we don't (Prison may have added them)
+                  if (d1Data.activeInmates) {
+                      d1Data.activeInmates.forEach(d1Inmate => {
+                          const exists = sharedData.activeInmates.some(i => i.plate === d1Inmate.plate);
+                          if (!exists) {
+                              sharedData.activeInmates.push(d1Inmate);
+                          }
+                      });
+                  }
+                  // Take Prison's releasedInmates if it has more entries
+                  if (d1Data.releasedInmates && d1Data.releasedInmates.length > (sharedData.releasedInmates || []).length) {
+                      sharedData.releasedInmates = d1Data.releasedInmates;
+                  }
+                  // Preserve other Prison-managed fields
                   if (d1Data.paroleRecords) sharedData.paroleRecords = d1Data.paroleRecords;
                   if (d1Data.rehabGraduations) sharedData.rehabGraduations = d1Data.rehabGraduations;
                   if (d1Data.rehabPrograms) sharedData.rehabPrograms = d1Data.rehabPrograms;
@@ -787,13 +810,12 @@
 
   /* ===== PERIODIC NETWORK SYNC ===== */
   let lastTollPendingState = false;
-  let lastInmateCount = 0;
+  let lastInmateCount = -1;
   setInterval(() => {
       const prevInmateCount = (sharedData.activeInmates || []).length;
       loadData();
       
       try {
-          // Check for D17 Toll Enforcement requests
           const tollReg = sharedData.registry || {};
           const hasPending = Object.values(tollReg).some(r => r.status === 'PENDING_ENFORCEMENT' && r.source === 'D17_RELICENSE');
           
@@ -809,14 +831,14 @@
           }
           lastTollPendingState = hasPending;
 
-          // Detect new inmates arriving from Prison or other terminals
           const currentInmateCount = (sharedData.activeInmates || []).length;
-          if (currentInmateCount > prevInmateCount) {
-              addLog(`D-7 SYNC: ${currentInmateCount - prevInmateCount} new inmate(s) detected in holding.`, "var(--danger)");
-          }
-          // Detect inmates released by Prison terminal
-          if (currentInmateCount < prevInmateCount && prevInmateCount > 0) {
-              addLog(`D-7 SYNC: ${prevInmateCount - currentInmateCount} inmate(s) discharged from holding.`, "var(--success)");
+          if (lastInmateCount >= 0) {
+              if (currentInmateCount > prevInmateCount) {
+                  addLog(`D-7 SYNC: ${currentInmateCount - prevInmateCount} new inmate(s) received.`, "var(--danger)");
+              }
+              if (currentInmateCount < prevInmateCount && prevInmateCount > 0) {
+                  addLog(`D-7 SYNC: ${prevInmateCount - currentInmateCount} inmate(s) discharged.`, "var(--success)");
+              }
           }
           lastInmateCount = currentInmateCount;
       } catch(e) {}
@@ -949,12 +971,8 @@
       if(!sharedData.sentMail) sharedData.sentMail = [];
       sharedData.sentMail.push({
           from: "ENFORCEMENT_D1",
-          to: to,
-          cc: cc,
-          subject: subject,
-          body: body,
-          timestamp: new Date().toLocaleString(),
-          read: true
+          to: to, cc: cc, subject: subject, body: body,
+          timestamp: new Date().toLocaleString(), read: true
       });
       
       saveData();
@@ -1361,7 +1379,7 @@
       updateLevel(); saveData(); updateStatusUI(); resetStage();
   }
 
-  /* ===== ARREST ===== */
+  /* ===== ARREST — RACE-CONDITION-SAFE ===== */
   function triggerArrest() {
       if(!car) return;
       const isGuilty = car.isWanted || car.hasMissingID || car.expired || car.isForged || car.realWantedPlate;
@@ -1378,12 +1396,15 @@
       }
       let logPlate = car.realWantedPlate ? `${car.plate} (Real: ${car.realWantedPlate})` : car.plate;
       history.push({ plate: logPlate, id: car.id, action: "ARRESTED", timestamp: new Date().toLocaleTimeString() });
+      
+      // Build inmate data BEFORE saving to ensure it's included
       clearWarrantOnArrest(car.plate);
       if (car.realWantedPlate) clearWarrantOnArrest(car.realWantedPlate);
+      
       updateLevel(); saveData(); updateStatusUI(); resetStage();
   }
 
-  /* ===== WARRANT CLEARING ===== */
+  /* ===== WARRANT CLEARING — BUILDS INMATE DATA DIRECTLY ===== */
   function clearWarrantOnArrest(plate) {
       let inmateData = null;
       if (sharedData.forgedAliases && sharedData.forgedAliases[plate]) {
@@ -1414,14 +1435,13 @@
       }
       if (inmateData) {
           if(!sharedData.activeInmates) sharedData.activeInmates = [];
-          // Avoid duplicates
           const exists = sharedData.activeInmates.some(i => i.plate === inmateData.plate);
           if (!exists) {
               sharedData.activeInmates.push(inmateData);
           }
       }
       if (sharedData.registry[plate]) delete sharedData.registry[plate];
-      saveData();
+      // Do NOT save here — saveData() will be called by triggerArrest() after this
   }
 
   /* ===== LEVEL / STATUS ===== */
@@ -1488,7 +1508,7 @@
       }
   }
 
-  /* ===== DASHBOARD REFRESH — ENHANCED D-7 SYNC ===== */
+  /* ===== DASHBOARD REFRESH ===== */
   function refreshDashboards() {
       // D-2 Enforcement Log
       const db2 = document.getElementById('db2Content');
@@ -1499,7 +1519,7 @@
           db2.innerHTML += `<div class="data-row"><span>${h.plate}</span><span style="color:${h.action.includes('ARRESTED')?'var(--danger)':'var(--success)'}">${h.action}</span><span style="color:#888">${h.timestamp||'N/A'}</span></div>`;
       });
       
-      // D-7 Inmate Holding Log — FULL SYNC WITH PRISON TERMINAL
+      // D-7 Inmate Holding Log
       const db7 = document.getElementById('db7Content');
       db7.innerHTML = '';
 
@@ -1509,7 +1529,6 @@
       const releasedCount = releasedInmates.length;
       const paroleCount = inmates.filter(i => (i.sentenceRemaining || 0) <= 0).length;
 
-      // Stats row
       let d7HTML = `<div class="d7-stat-row">
           <div class="d7-stat-box">
               <div class="d7-stat-num" style="color:var(--danger);">${activeCount}</div>
@@ -1525,7 +1544,6 @@
           </div>
       </div>`;
 
-      // Cell grid (max 12, matching Prison terminal)
       d7HTML += `<div style="color:#555; font-size:0.7rem; margin-bottom:6px;">Holding Cells (Max 12) — Real-time sync with Prison Terminal</div>`;
       d7HTML += `<div class="d7-cell-grid">`;
       for (let i = 0; i < 12; i++) {
@@ -1545,11 +1563,9 @@
       }
       d7HTML += `</div>`;
 
-      // Detailed inmate list
       if (activeCount === 0 && releasedCount === 0) {
           d7HTML += `<div style="color:#555; text-align:center; padding:20px;">NO INMATES IN CUSTODY</div>`;
       } else {
-          // Sort: federal first, then by sentence remaining
           const sortedInmates = [...inmates].sort((a, b) => {
               const aFed = isFederalInmate(a) ? 0 : 1;
               const bFed = isFederalInmate(b) ? 0 : 1;
@@ -1588,7 +1604,6 @@
               </div>`;
           });
 
-          // Show last 3 released inmates
           if (releasedCount > 0) {
               d7HTML += `<div style="color:#555; font-size:0.7rem; margin-top:12px; border-top:1px solid #333; padding-top:8px;">RECENTLY DISCHARGED:</div>`;
               releasedInmates.slice(-3).reverse().forEach(inmate => {
@@ -1767,7 +1782,7 @@
   loadData();
   refreshAPBList();
   addLog("ENFORCEMENT TERMINAL v23.2 ONLINE", "var(--accent)");
-  addLog("Network sync: D1 ↔ D2 active. Prison D-7 sync enabled.", "var(--success)");
+  addLog("Network sync: D1 ↔ D2 active. Prison D-7 race-safe sync enabled.", "var(--success)");
   addLog("Awaiting vehicle inspection...", "#888");
 </script>
 
