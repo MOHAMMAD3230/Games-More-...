@@ -25,7 +25,7 @@
   <!-- Strict CSP: Prevents object injection, restricts iframe embedding, limits script sources -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none';" />
 
-  <title>Pro Image Resizer & Cropper - Secure & Responsive</title>
+  <title>ProCrop Studio - Secure Image Resizer</title>
 
   <!-- Cropper.js CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" />
@@ -454,7 +454,7 @@
       }
     });
 
-    // --- Preview Generator ---
+    // --- Preview Generator (Optimized for Memory) ---
     previewBtn.onclick = () => {
       if (!cropper) return alert('Please upload an image first.');
       
@@ -464,32 +464,35 @@
       setStatus('Generating preview...');
 
       try {
+        // We use maxWidth/maxHeight here to prevent Safari/mobile canvas memory crashes
+        // It maintains perfect aspect ratio, but keeps preview rendering lightweight
         const canvas = cropper.getCroppedCanvas({
-          width: tW, height: tH,
-          imageSmoothingEnabled: true, imageSmoothingQuality: 'high',
+          maxWidth: 2048, 
+          maxHeight: 2048,
+          imageSmoothingEnabled: true, 
+          imageSmoothingQuality: 'high',
           fillColor: '#ffffff'
         });
 
         if (!canvas) throw new Error("Canvas context creation failed.");
 
-        // Using Blob to avoid base64 string memory crashes on massive resolutions
         canvas.toBlob((blob) => {
-          if (!blob) return setStatus('Error: Preview generation failed.', true);
+          if (!blob) return setStatus('Error: Blob generation failed.', true);
 
           if (previewBlobUrl) URL.revokeObjectURL(previewBlobUrl);
           
           previewBlobUrl = URL.createObjectURL(blob);
           modalImg.src = previewBlobUrl;
-          modalTitle.textContent = `Preview: ${tW} × ${tH}px`;
+          modalTitle.textContent = `Preview Target: ${tW} × ${tH}px`;
           modalOverlay.style.display = 'flex';
           
-          setStatus(`Preview Generated`);
-        }, 'image/jpeg', 0.9); // Fast preview encoding
+          setStatus(`Preview Generated Safely`);
+        }, 'image/jpeg', 0.9);
 
       } catch (err) {
         console.error(err);
-        setStatus("Preview Error: Memory Limit Exceeded", true);
-        alert("Failed to generate preview. Resolution may be too high.");
+        setStatus("Preview Error: Memory Limit", true);
+        alert("Failed to generate preview. The image is too complex for this device's memory.");
       }
     };
 
@@ -512,9 +515,12 @@
       setStatus('Generating pixels. Please wait...');
 
       try {
+        // Export actually generates the massive exact target size
         const canvas = cropper.getCroppedCanvas({
-          width: tW, height: tH,
-          imageSmoothingEnabled: true, imageSmoothingQuality: 'high',
+          width: tW, 
+          height: tH,
+          imageSmoothingEnabled: true, 
+          imageSmoothingQuality: 'high',
           fillColor: '#ffffff'
         });
 
@@ -541,7 +547,7 @@
       } catch (err) {
         console.error(err);
         setStatus("Export Error: Memory Limit Exceeded", true);
-        alert("Failed to generate image. Try a smaller size.");
+        alert("Failed to generate final image. The requested resolution is too high for your device's memory. Try a smaller size.");
       }
     };
   </script>
