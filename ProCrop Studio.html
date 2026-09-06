@@ -454,7 +454,7 @@
       }
     });
 
-    // --- Preview Generator (Optimized for Memory) ---
+    // --- Preview Generator (Ultra-Safe Memory Optimized) ---
     previewBtn.onclick = () => {
       if (!cropper) return alert('Please upload an image first.');
       
@@ -464,13 +464,14 @@
       setStatus('Generating preview...');
 
       try {
-        // We use maxWidth/maxHeight here to prevent Safari/mobile canvas memory crashes
-        // It maintains perfect aspect ratio, but keeps preview rendering lightweight
+        // ULTRA-SAFE LIMITS: 
+        // We limit the preview to 800px max. This uses ~2MB of RAM instead of ~16MB+,
+        // completely bypassing the iOS/Android canvas memory crash limits.
         const canvas = cropper.getCroppedCanvas({
-          maxWidth: 2048, 
-          maxHeight: 2048,
+          maxWidth: 800, 
+          maxHeight: 800,
           imageSmoothingEnabled: true, 
-          imageSmoothingQuality: 'high',
+          imageSmoothingQuality: 'low', // Low is perfectly fine for a screen preview
           fillColor: '#ffffff'
         });
 
@@ -487,12 +488,12 @@
           modalOverlay.style.display = 'flex';
           
           setStatus(`Preview Generated Safely`);
-        }, 'image/jpeg', 0.9);
+        }, 'image/jpeg', 0.8); // 80% quality is lighter on memory just for the preview screen
 
       } catch (err) {
         console.error(err);
         setStatus("Preview Error: Memory Limit", true);
-        alert("Failed to generate preview. The image is too complex for this device's memory.");
+        alert("Failed to generate preview. The original image is too large for this device's memory.");
       }
     };
 
