@@ -18,8 +18,8 @@
 
   <!-- SECURITY: CSP permits only the runtime CDN + model hosts (download-only).
        No upload path exists anywhere — pixels never leave the device. -->
-  <meta http-equiv="Content-Security-Policy"
-        content="default-src 'none'; script-src 'unsafe-inline' https://cdn.jsdelivr.net 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src blob: data:; connect-src https://cdn.jsdelivr.net https://huggingface.co https://*.huggingface.co https://*.hf.co https://hf-mirror.com https://*.hf-mirror.com; worker-src 'self' blob:; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';" />
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'unsafe-inline' https://cdn.jsdelivr.net 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src blob: data:; connect-src https://cdn.jsdelivr.net https://huggingface.co https://*.huggingface.co https://*.hf.co https://github.com https://objects.githubusercontent.com https://release-assets.githubusercontent.com; worker-src 'self' blob:; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';" />
   <meta name="referrer" content="no-referrer" />
 
   <title>Advanced Web Photo Studio</title>
@@ -876,12 +876,18 @@
     const ORT_BASE_URL   = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/ort.min.js';
     const ORT_WASM_PATHS = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/';
     const MODEL_LABEL = 'GFPGAN v1.4';
-    const MODEL_HOSTS = ['https://huggingface.co', 'https://hf-mirror.com'];
-    const MODEL_PATHS = [
-      '/facefusion/models-3.0.0/resolve/main/gfpgan_1_4.onnx',
-      '/facefusion/models-3.1.0/resolve/main/gfpgan_1_4.onnx',
-      '/facefusion/models/resolve/main/GFPGANv1.4.onnx',
-      '/facefusion/models-gfpgan/resolve/main/gfpgan_1_4.onnx'
+      /* Ordered sources. Public 3.x repos use the dot-named file (gfpgan_1.4.onnx);
+       the two gated repos sit last and get an automatic token retry on 401. */
+    const MODEL_SOURCES = [
+      'https://huggingface.co/facefusion/models-3.1.0/resolve/main/gfpgan_1.4.onnx',
+      'https://huggingface.co/facefusion/models-3.2.0/resolve/main/gfpgan_1.4.onnx',
+      'https://huggingface.co/facefusion/models-3.0.0/resolve/main/gfpgan_1.4.onnx',
+      'https://github.com/facefusion/facefusion-assets/releases/download/models-3.1.0/gfpgan_1.4.onnx',
+      'https://huggingface.co/facefusion/models-3.1.0/resolve/main/gfpgan_1_4.onnx',
+      'https://huggingface.co/facefusion/models-3.2.0/resolve/main/gfpgan_1_4.onnx',
+      'https://huggingface.co/facefusion/models-3.0.0/resolve/main/gfpgan_1_4.onnx',
+      'https://huggingface.co/facefusion/models/resolve/main/GFPGANv1.4.onnx',
+      'https://huggingface.co/facefusion/models-gfpgan/resolve/main/gfpgan_1_4.onnx'
     ];
 
     const aiBox = document.getElementById('aiBox');
@@ -995,9 +1001,7 @@
       const errors = [];
       const gatedUrls = [];
       try {
-        const candidates = [];
-        for (const host of MODEL_HOSTS)
-          for (const p of MODEL_PATHS) candidates.push(host + p);
+              const candidates = MODEL_SOURCES;
 
         /* Pass 1 — anonymous */
         for (const url of candidates) {
