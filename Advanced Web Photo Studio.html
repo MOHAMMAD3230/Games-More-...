@@ -14,6 +14,7 @@
 </script> 
 
  <link rel="icon" href="https://mohammad3230.github.io/PROJECT/favicon.png" type="image/png" sizes="32x32" />
+  
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="color-scheme" content="dark" />
 
@@ -139,7 +140,7 @@
         <button id="upLoadBtn" type="button">⤓ Load Model</button>
         <button id="upRunBtn" type="button" class="primary">Restore Pixels</button>
       </div>
-      <p class="hint" id="upStatus" style="white-space:pre-wrap;">Whole-image restoration — pixelation, noise, JPEG mush. Auto-loads on Restore; walks a fallback chain of model variants if one repo is blocked. WebGPU fast; CPU uses quantized q8 + multithreading when sw.js isolation is active. Order: Restore Pixels → GFPGAN face → look → export.</p>
+      <p class="hint" id="upStatus" style="white-space:pre-wrap;">Whole-image restoration — pixelation, noise, JPEG mush. Auto-loads on Restore; walks a fallback chain of model variants if one repo is blocked. GPU probed first; CPU fallback uses quantized q8 + multithreading when sw.js isolation is active. Order: Restore Pixels → GFPGAN face → look → export.</p>
     </div>
 
     <div class="group">
@@ -166,7 +167,7 @@
       <label>Contrast <span id="v-contrast">100%</span></label>
       <input type="range" id="contrast" min="0" max="200" value="100" />
       <label>Saturation <span id="v-saturate">100%</span></label>
-      <input type="range" id="saturate" min="0" max="100" value="100" />
+      <input type="range" id="saturate" min="0" max="200" value="100" />
       <label>Exposure <span id="v-exposure">0</span></label>
       <input type="range" id="exposure" min="-100" max="100" value="0" />
       <label>Hue Shift <span id="v-hue">0°</span></label>
@@ -520,7 +521,6 @@
           const up = i - row, dn2 = i + row;
           o[i]     = center * s[i]     - a * (s[i - 4] + s[i + 4] + s[up]     + s[dn2]);
           o[i + 1] = center * s[i + 1] - a * (s[i - 3] + s[i + 5] + s[up + 1] + s[dn2 + 1]);
-          o[i + 2] = center * s[i + 2] - a * s[i - 2] + 0 * a + a * (s[i - 2] * 0) - a * (s[i + 2]) + 0; // (kept explicit below)
           o[i + 2] = center * s[i + 2] - a * (s[i - 2] + s[i + 6] + s[up + 2] + s[dn2 + 2]);
         }
       }
@@ -1057,17 +1057,24 @@
 
     async function createSessionFromBuffer(bytes, label) {
       await loadOrt();
-      const gpu = navigator.gpu ? 'WebGPU' : 'WASM CPU';
-      aiShow('Creating inference session (' + gpu + ')… up to a minute.');
+      /* Probe for a REAL GPU adapter before choosing WebGPU — navigator.gpu
+         existing doesn't mean an adapter is available (Linux Chrome, VMs,
+         blocklisted drivers all expose the API but fail requestAdapter). */
+      let gpuOk = false;
+      if (navigator.gpu) {
+        try { gpuOk = !!(await navigator.gpu.requestAdapter()); } catch { gpuOk = false; }
+      }
+      const eps = gpuOk ? ['webgpu', 'wasm'] : ['wasm'];
+      aiShow('Creating inference session (' + (gpuOk ? 'WebGPU' : 'WASM CPU') + ')… up to a minute.');
       await new Promise(r => setTimeout(r, 50));
       aiSession = await ort.InferenceSession.create(bytes, {
-        executionProviders: navigator.gpu ? ['webgpu', 'wasm'] : ['wasm'],
+        executionProviders: eps,
         graphOptimizationLevel: 'all'
       });
-      aiEp = navigator.gpu ? 'webgpu' : 'wasm';
+      aiEp = gpuOk ? 'webgpu' : 'wasm';
       aiModelBuf = bytes;
-      aiStat('Model ready (' + gpu + ') — ' + label + '. 1) Select Face → 2) Restore Face.');
-      toast('AI model loaded (' + label + ') via ' + gpu + '.');
+      aiStat('Model ready (' + (gpuOk ? 'WebGPU' : 'WASM CPU') + ') — ' + label + '. 1) Select Face → 2) Restore Face.');
+      toast('AI model loaded (' + label + ') via ' + (gpuOk ? 'WebGPU' : 'WASM CPU') + '.');
     }
 
     async function loadAIModel() {
@@ -1356,6 +1363,20 @@
     function upShow(msg) { aiOverlay.style.display = 'flex'; aiOverlayMsg.textContent = msg; }
     function upStat(msg) { upStatus.textContent = msg; }
 
+    /* Real GPU probe — navigator.gpu existing ≠ an adapter being usable.
+       Prevents wasted WebGPU attempts and misleading adapter errors. */
+    let gpuProbeDone = false, gpuUsable = false;
+    async function probeGPU() {
+      if (gpuProbeDone) return gpuUsable;
+      gpuProbeDone = true;
+      try {
+        gpuUsable = !!(navigator.gpu && await navigator.gpu.requestAdapter());
+      } catch { gpuUsable = false; }
+      if (navigator.gpu && !gpuUsable)
+        console.warn('[Swin2SR] navigator.gpu present but adapter unavailable — using CPU (q8).');
+      return gpuUsable;
+    }
+
     UP_MODELS.forEach((m, i) => {
       const o = document.createElement('option');
       o.value = String(i); o.textContent = m.label; // textContent — injection-safe
@@ -1377,7 +1398,8 @@
     /* Worker source:
        · input RawImage channels=4 (RGBA ImageData) + explicit .rgb() conversion
        · output converted RGB→RGBA before postMessage (ImageData needs 4ch)
-       · optional HF token (tf.env.accessToken) — fixes 401 on public repos too */
+       · optional HF token (tf.env.accessToken) — fixes 401 on public repos too
+       · absolute wasmPaths — blob workers break relative resolution */
     const UP_WORKER_SRC = `
       let tf = null, pipe = null, cur = '';
       self._cancel = false;
@@ -1390,6 +1412,7 @@
             if (!tf) {
               tf = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3');
               tf.env.allowLocalModels = false;
+              try { tf.env.backends.onnx.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3/dist/'; } catch (_) {}
               if (d.token) { try { tf.env.accessToken = d.token; } catch (_) {} }
               try { tf.env.backends.onnx.wasm.proxy = false; } catch (_) {}
               tf.env.backends.onnx.wasm.numThreads = d.threads || 1;
@@ -1488,7 +1511,8 @@
         ? Math.min(4, navigator.hardwareConcurrency) : 1;
       const token = aiTokenInput.value.trim();
       try {
-        const devices = navigator.gpu ? [['webgpu', 'fp32'], ['wasm', 'q8']] : [['wasm', 'q8']];
+        const hasGPU = await probeGPU();
+        const devices = hasGPU ? [['webgpu', 'fp32'], ['wasm', 'q8']] : [['wasm', 'q8']];
         /* Selected model first, then all other variants — a single gated or
            moved repo can no longer block the feature */
         const order = [upModelSel.value].concat(
