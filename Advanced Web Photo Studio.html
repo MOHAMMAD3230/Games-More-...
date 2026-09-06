@@ -1,0 +1,1407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=GT-NC6T5LRJ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'GT-NC6T5LRJ');
+</script> 
+
+ <link rel="icon" href="https://mohammad3230.github.io/PROJECT/favicon.png" type="image/png" sizes="32x32" />
+
+  <!-- SECURITY: CSP permits only the runtime CDN + model hosts (download-only).
+       No upload path exists anywhere — pixels never leave the device. -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'unsafe-inline' https://cdn.jsdelivr.net 'wasm-unsafe-eval'; style-src 'unsafe-inline'; img-src blob: data:; connect-src https://cdn.jsdelivr.net https://huggingface.co https://*.huggingface.co https://*.hf.co https://hf-mirror.com https://*.hf-mirror.com; worker-src 'self' blob:; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';" />
+  <meta name="referrer" content="no-referrer" />
+
+  <title>Advanced Web Photo Studio</title>
+  <style>
+    :root {
+      --bg: #0e0e11; --panel: #18181c; --border: #26262e;
+      --accent: #3b82f6; --accent-hover: #2563eb; --danger: #ef4444;
+      --text: #f4f4f5; --muted: #a1a1aa;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { display: flex; height: 100vh; background: var(--bg); color: var(--text); overflow: hidden; }
+
+    .sidebar { width: 340px; min-width: 340px; background: var(--panel); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; padding: 16px; gap: 16px; overflow-y: auto; }
+    .section-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 8px; }
+    .group { display: flex; flex-direction: column; gap: 8px; }
+    label { font-size: 0.8rem; display: flex; justify-content: space-between; color: var(--text); }
+    label span { color: var(--muted); font-variant-numeric: tabular-nums; }
+    input[type="range"] { width: 100%; height: 4px; accent-color: var(--accent); background: var(--border); border-radius: 2px; outline: none; cursor: pointer; }
+    input[type="password"], input[type="text"] { background: #111114; border: 1px solid var(--border); color: var(--text);
+      padding: 8px; border-radius: 4px; font-size: 0.8rem; width: 100%; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+    button, .file-btn { background: #24242c; color: var(--text); border: 1px solid var(--border); padding: 8px 12px;
+      font-size: 0.8rem; font-weight: 500; border-radius: 4px; cursor: pointer; display: flex; align-items: center;
+      justify-content: center; transition: background 0.15s ease; }
+    button:hover, .file-btn:hover { background: #2f2f3a; border-color: #3f3f4e; }
+    button.active { background: var(--accent); border-color: var(--accent); }
+    button.danger { color: var(--danger); }
+    button.primary { background: var(--accent); border-color: var(--accent); color: white; }
+    button.primary:hover { background: var(--accent-hover); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .file-btn { position: relative; overflow: hidden; }
+    .file-btn input[type="file"] { position: absolute; left: 0; top: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+    .hint { font-size: 0.72rem; color: var(--muted); line-height: 1.45; }
+
+    .workspace { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;
+      background: radial-gradient(circle at center, #1b1b22 0%, #0d0d11 100%); user-select: none; }
+    .canvas-wrapper { position: relative; display: inline-block; box-shadow: 0 12px 36px rgba(0,0,0,0.6); max-width: 90%; max-height: 90%; }
+    canvas { display: block; max-width: 100%; max-height: 85vh; object-fit: contain; }
+    #cropBox { position: absolute; border: 2px dashed #fff; box-shadow: 0 0 0 9999px rgba(0,0,0,0.55); cursor: move; display: none; }
+    #aiBox { position: absolute; border: 2px solid #22c55e; box-shadow: 0 0 0 9999px rgba(0,0,0,0.35); cursor: crosshair; display: none; }
+
+    #toast { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); background: #24242c;
+      border: 1px solid var(--border); color: var(--text); font-size: 0.8rem; padding: 10px 16px; border-radius: 6px;
+      opacity: 0; pointer-events: none; transition: opacity 0.2s ease; max-width: 80%; text-align: center; z-index: 30; }
+    #toast.show { opacity: 1; }
+    #toast.error { border-color: var(--danger); color: #fca5a5; }
+
+    #aiOverlay { position: absolute; inset: 0; background: rgba(10,10,14,0.85); display: none;
+      align-items: center; justify-content: center; flex-direction: column; gap: 14px; z-index: 20; }
+    #aiOverlay .spin { width: 36px; height: 36px; border: 3px solid #333; border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #aiOverlayMsg { font-size: 0.85rem; text-align: center; max-width: 70%; line-height: 1.5; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+
+  <aside class="sidebar">
+    <label class="file-btn">
+      Choose Image
+      <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" />
+    </label>
+    <p class="hint">Max 25 MB · JPEG / PNG / WebP / GIF / BMP · verified by content signature.</p>
+
+    <div class="group">
+      <div class="section-title">AI Face Restoration (GFPGAN)</div>
+      <div class="grid-2">
+        <button id="aiLoadBtn">⤓ Auto (Mirror)</button>
+        <button id="aiDiskBtn">⤓ From Disk</button>
+      </div>
+      <label>HF Token — optional, for gated repos</label>
+      <input type="password" id="aiToken" placeholder="hf_… (leave empty if not needed)" autocomplete="off" />
+      <div class="grid-2">
+        <button id="aiSelectBtn">▭ Select Face</button>
+        <button id="aiRunBtn" class="primary">Restore Face</button>
+      </div>
+      <div class="grid-2">
+        <button id="aiCancelSelBtn" class="danger" style="display:none;">Cancel Box</button>
+      </div>
+      <input type="file" id="aiModelFile" accept=".onnx,application/octet-stream" style="display:none;" />
+      <label>Restore Strength <span id="v-aiStrength">80%</span></label>
+      <input type="range" id="aiStrength" min="0" max="100" value="80" />
+      <p class="hint" id="aiStatus" style="white-space:pre-wrap;">Model not loaded. Auto tries several mirrors (incl. hf-mirror.com) — if repos are gated you'll see 401: create a free HF account, accept the license on the model page, paste a read token above (Settings → Access Tokens), or download the .onnx manually and use "From Disk". Runs 100% locally — your photo never leaves this device.</p>
+    </div>
+
+    <div class="group">
+      <div class="section-title">Smart Auto Fixes</div>
+      <div class="grid-2">
+        <button data-preset="autoFix">Auto Fix</button>
+        <button data-preset="restore">Face Smooth</button>
+        <button data-preset="glamour">Glamour</button>
+        <button data-preset="clarity">Clarity</button>
+        <button data-preset="portrait">Portrait</button>
+        <button data-preset="vivid">Vivid</button>
+        <button data-preset="hdr">HDR</button>
+        <button data-preset="vintage">Vintage</button>
+        <button data-preset="bw">B&amp;W</button>
+        <button data-preset="cinematic">Cinematic</button>
+      </div>
+      <p class="hint">Ten one-click looks, analyzed from your photo. "Face Smooth" is classical (non-AI) retouching; the AI section above is true neural restoration.</p>
+    </div>
+
+    <div class="group">
+      <div class="section-title">Color &amp; Tone</div>
+      <label>Brightness <span id="v-brightness">100%</span></label>
+      <input type="range" id="brightness" min="0" max="200" value="100" />
+      <label>Contrast <span id="v-contrast">100%</span></label>
+      <input type="range" id="contrast" min="0" max="200" value="100" />
+      <label>Saturation <span id="v-saturate">100%</span></label>
+      <input type="range" id="saturate" min="0" max="200" value="100" />
+      <label>Exposure <span id="v-exposure">0</span></label>
+      <input type="range" id="exposure" min="-100" max="100" value="0" />
+      <label>Hue Shift <span id="v-hue">0°</span></label>
+      <input type="range" id="hue" min="0" max="360" value="0" />
+      <label>Blur <span id="v-blur">0px</span></label>
+      <input type="range" id="blur" min="0" max="20" value="0" />
+      <button id="autoEnhance" style="margin-top: 2px;">✨ Auto Enhance (Auto Levels)</button>
+    </div>
+
+    <div class="group">
+      <div class="section-title">Retouch &amp; Texture</div>
+      <label>Face Smooth <span id="v-smooth">0%</span></label>
+      <input type="range" id="smooth" min="0" max="100" value="0" />
+      <label>Denoise <span id="v-denoise">0%</span></label>
+      <input type="range" id="denoise" min="0" max="100" value="0" />
+      <label>Warmth <span id="v-sepia">0%</span></label>
+      <input type="range" id="sepia" min="0" max="100" value="0" />
+      <label>Temperature <span id="v-temp">0</span></label>
+      <input type="range" id="temp" min="-100" max="100" value="0" />
+      <label>Glow <span id="v-glow">0%</span></label>
+      <input type="range" id="glow" min="0" max="100" value="0" />
+      <label>Sharpness <span id="v-sharpen">0%</span></label>
+      <input type="range" id="sharpen" min="0" max="100" value="0" />
+      <label>Vignette <span id="v-vignette">0%</span></label>
+      <input type="range" id="vignette" min="0" max="100" value="0" />
+      <label>Grain <span id="v-grain">0%</span></label>
+      <input type="range" id="grain" min="0" max="100" value="0" />
+    </div>
+
+    <div class="group">
+      <div class="section-title">Transformations</div>
+      <label>Straighten <span id="v-straighten">0°</span></label>
+      <input type="range" id="straighten" min="-15" max="15" value="0" />
+      <div class="grid-2" style="margin-top: 2px;">
+        <button id="rotLeft">↺ -90°</button>
+        <button id="rotRight">↻ +90°</button>
+        <button id="flipH">Flip Horizontal</button>
+        <button id="flipV">Flip Vertical</button>
+      </div>
+      <button id="compareBtn">👁 Hold to Compare Original</button>
+    </div>
+
+    <div class="group">
+      <div class="section-title">Crop Presets</div>
+      <div class="grid-2">
+        <button data-ratio="1">2×2" (US/IN)</button>
+        <button data-ratio="0.778">35×45mm (EU/UK)</button>
+        <button data-ratio="0.75">30×40mm</button>
+        <button data-ratio="0.5625">9:16 (1620×2880)</button>
+      </div>
+      <div class="grid-2" style="margin-top: 4px;">
+        <button id="applyCrop" class="primary" style="display: none;">Apply Crop</button>
+        <button id="cancelCrop" class="danger" style="display: none;">Cancel</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="section-title">Export — 1620 × 2880 px</div>
+      <div class="grid-2">
+        <button id="modeFill" class="active">Fill (crop)</button>
+        <button id="modeFit">Fit (pad)</button>
+      </div>
+    </div>
+
+    <div class="group" style="margin-top: auto;">
+      <button id="resetBtn" class="danger">Reset Parameters</button>
+      <button id="exportBtn" class="primary">Export JPG · 1620×2880</button>
+    </div>
+  </aside>
+
+  <main class="workspace" id="workspace">
+    <div class="canvas-wrapper" id="canvasWrapper">
+      <canvas id="mainCanvas"></canvas>
+      <div id="cropBox"></div>
+      <div id="aiBox"></div>
+    </div>
+    <div id="aiOverlay"><div class="spin"></div><div id="aiOverlayMsg"></div></div>
+    <div id="toast" role="status" aria-live="polite"></div>
+  </main>
+
+  <script>
+    'use strict';
+
+    /* ═══════════════════════ SECURITY CONSTANTS ═══════════════════════ */
+    const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/bmp']);
+    const MAX_FILE_BYTES = 25 * 1024 * 1024;
+    const MAX_DIM = 10000;
+    const MAX_PIXELS = 40e6;
+    const PREP_MAX_SIDE = 4096;
+
+    /* ═══════════════════════ EXPORT CONSTANTS ═══════════════════════ */
+    const EXPORT_W = 1620;
+    const EXPORT_H = 2880;
+    let exportMode = 'fill';
+
+    const canvas = document.getElementById('mainCanvas');
+    const ctx = canvas.getContext('2d');
+    const fileInput = document.getElementById('fileInput');
+    const cropBox = document.getElementById('cropBox');
+    const applyCropBtn = document.getElementById('applyCrop');
+    const cancelCropBtn = document.getElementById('cancelCrop');
+    const toastEl = document.getElementById('toast');
+    const modeFillBtn = document.getElementById('modeFill');
+    const modeFitBtn = document.getElementById('modeFit');
+
+    let baseImg = null;
+    let renderScheduled = false;
+    let compareHeld = false;
+
+    const state = {
+      brightness: 100, contrast: 100, saturate: 100, exposure: 0, hue: 0, blur: 0,
+      smooth: 0, denoise: 0, sepia: 0, temp: 0, glow: 0, sharpen: 0, vignette: 0, grain: 0,
+      straighten: 0, rotate: 0, flipH: 1, flipV: 1
+    };
+
+    const ALL_KEYS = ['brightness','contrast','saturate','exposure','hue','blur',
+                      'smooth','denoise','sepia','temp','glow','sharpen','vignette','grain','straighten'];
+
+    let cropActive = false;
+    let cropAspect = 1;
+    let dragData = { dragging: false, startX: 0, startY: 0, boxX: 0, boxY: 0 };
+
+    let toastTimer = null;
+    function toast(msg, isError = false) {
+      toastEl.textContent = msg;
+      toastEl.classList.toggle('error', isError);
+      toastEl.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toastEl.classList.remove('show'), 4000);
+    }
+
+    function formatValue(key, v) {
+      if (key === 'hue' || key === 'straighten') return v + '°';
+      if (key === 'blur') return v + 'px';
+      if (key === 'temp') return (v > 0 ? '+' : '') + v;
+      if (key === 'exposure') return String(v);
+      return v + '%';
+    }
+
+    /* ═════════════════ FILE VALIDATION & SAFE LOADING ═════════════════ */
+
+    function hasValidImageSignature(b) {
+      if (b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF) return true;
+      if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47 &&
+          b[4] === 0x0D && b[5] === 0x0A && b[6] === 0x1A && b[7] === 0x0A) return true;
+      if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38) return true;
+      if (b[0] === 0x42 && b[1] === 0x4D) return true;
+      if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 &&
+          b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) return true;
+      return false;
+    }
+
+    async function handleFile(file) {
+      if (!file) return;
+      if (!ALLOWED_MIME.has(file.type)) { toast('Rejected: only JPEG, PNG, WebP, GIF or BMP are allowed.', true); return; }
+      if (file.size === 0 || file.size > MAX_FILE_BYTES) {
+        toast(`Rejected: file must be between 1 byte and ${MAX_FILE_BYTES / 1048576} MB.`, true); return;
+      }
+      try {
+        const head = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+        if (!hasValidImageSignature(head)) { toast('Rejected: file content does not match any supported image signature.', true); return; }
+      } catch { toast('Rejected: unable to read the file.', true); return; }
+
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.decoding = 'async';
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        if (img.naturalWidth > MAX_DIM || img.naturalHeight > MAX_DIM ||
+            img.naturalWidth * img.naturalHeight > MAX_PIXELS) {
+          toast(`Rejected: image too large (max ${MAX_DIM}px per side, ${MAX_PIXELS / 1e6} MP).`, true); return;
+        }
+        baseImg = img;
+        resetState();
+        requestRender();
+        toast(`Loaded ${img.naturalWidth}×${img.naturalHeight}.`);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); toast('Rejected: image is corrupted or undecodable.', true); };
+      img.src = url;
+    }
+
+    fileInput.addEventListener('change', (e) => { handleFile(e.target.files[0]); e.target.value = ''; });
+    const workspace = document.getElementById('workspace');
+    workspace.addEventListener('dragover', (e) => e.preventDefault());
+    workspace.addEventListener('drop', (e) => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); });
+
+    /* ═════════════════ RETOUCH ENGINE (classical, non-AI) ═════════════════ */
+
+    function skinProb(r, g, b) {
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+      if (mx === 0) return 0;
+      const st = (mx - mn) / mx;
+      if (r > 60 && g > 30 && b > 15 && r > g && r > b &&
+          (mx - mn) > 10 && (r - g) > 8 && st < 0.62 && (r - b) < 150) return 1;
+      return 0;
+    }
+
+    function buildPrepCanvas() {
+      const bw = baseImg.naturalWidth, bh = baseImg.naturalHeight;
+      const sc = Math.min(1, PREP_MAX_SIDE / Math.max(bw, bh));
+      const w = Math.max(1, Math.round(bw * sc));
+      const h = Math.max(1, Math.round(bh * sc));
+
+      const c0 = document.createElement('canvas'); c0.width = w; c0.height = h;
+      const x0 = c0.getContext('2d', { willReadFrequently: true });
+      x0.drawImage(baseImg, 0, 0, w, h);
+      const src = x0.getImageData(0, 0, w, h).data;
+
+      function blurredCopy(radius) {
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        const x = c.getContext('2d', { willReadFrequently: true });
+        x.drawImage(c0, 0, 0);
+        x.filter = `blur(${radius.toFixed(2)}px)`;
+        x.drawImage(c, 0, 0);
+        x.filter = 'none';
+        return x.getImageData(0, 0, w, h).data;
+      }
+      const blr = blurredCopy(0.6 + (state.denoise / 100) * 2.4);
+      const blc = blurredCopy(1.5 + (state.smooth / 100) * 6.5);
+
+      const N = w * h;
+      const lum = new Float32Array(N);
+      for (let i = 0, p = 0; i < N; i++, p += 4)
+        lum[i] = 0.2126 * blr[p] + 0.7152 * blr[p + 1] + 0.0722 * blr[p + 2];
+      const edge = new Float32Array(N);
+      for (let y = 1; y < h - 1; y++) {
+        for (let x = 1; x < w - 1; x++) {
+          const i = y * w + x;
+          const gx = -lum[i - w - 1] - 2 * lum[i - 1] - lum[i + w - 1] + lum[i - w + 1] + 2 * lum[i + 1] + lum[i + w + 1];
+          const gy = -lum[i - w - 1] - 2 * lum[i - w] - lum[i - w + 1] + lum[i + w - 1] + 2 * lum[i + w] + lum[i + w + 1];
+          edge[i] = Math.sqrt(gx * gx + gy * gy);
+        }
+      }
+
+      const out = new Uint8ClampedArray(src);
+      const dn = state.denoise / 100, sm = state.smooth / 100;
+
+      for (let y = 0; y < h; y++) {
+        const rowY = y * w;
+        for (let x = 0; x < w; x++) {
+          const i = rowY + x, p = i * 4;
+          const r = src[p], g = src[p + 1], b = src[p + 2];
+          let or_ = r, og = g, ob = b;
+
+          if (dn > 0) {
+            const a = dn * (1 - Math.min(1, edge[i] / 110));
+            or_ += (blr[p] - or_) * a;
+            og += (blr[p + 1] - og) * a;
+            ob += (blr[p + 2] - ob) * a;
+          }
+          if (sm > 0) {
+            const sk = skinProb(r, g, b);
+            if (sk) {
+              const a = sm * sk * (1 - Math.min(1, edge[i] / 80));
+              or_ += (blc[p] - or_) * a;
+              og += (blc[p + 1] - og) * a;
+              ob += (blc[p + 2] - ob) * a;
+            }
+            const bmx = Math.max(blc[p], blc[p + 1], blc[p + 2]), bmn = Math.min(blc[p], blc[p + 1], blc[p + 2]);
+            if (bmx > 0 && (bmx - bmn) / bmx < 0.45 && skinProb(blc[p], blc[p + 1], blc[p + 2])) {
+              const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+              const l = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+              const st = mx ? (mx - mn) / mx : 0;
+              if (l > 0.72 && st < 0.2) {
+                const boost = 1 + 0.4 * sm * ((l - 0.72) / 0.28);
+                or_ = Math.min(255, or_ * boost);
+                og = Math.min(255, og * boost);
+                ob = Math.min(255, ob * boost);
+              }
+            }
+          }
+          out[p] = or_; out[p + 1] = og; out[p + 2] = ob;
+        }
+      }
+      const idc = x0.createImageData(w, h);
+      idc.data.set(out);
+      x0.putImageData(idc, 0, 0);
+      return c0;
+    }
+
+    /* ── Cache management ── */
+    let prepCache = null, sharpenCache = null;
+    let prepDirty = false, sharpenDirty = false;
+    let lastPrepBuild = 0, lastSharpenBuild = 0;
+    let prepTimer = null, sharpTimer = null;
+
+    function prepValid() {
+      return prepCache && prepCache.src === baseImg &&
+             prepCache.den === state.denoise && prepCache.smo === state.smooth;
+    }
+    function prepSourceNow() {
+      if (!baseImg || (state.denoise === 0 && state.smooth === 0)) return baseImg;
+      return prepValid() ? prepCache.canvas : baseImg;
+    }
+    function sharpenValid(src) {
+      return sharpenCache && sharpenCache.src === src && sharpenCache.amount === state.sharpen;
+    }
+    function makePrep() { prepCache = { canvas: buildPrepCanvas(), den: state.denoise, smo: state.smooth, src: baseImg }; return prepCache.canvas; }
+    function makeSharpen(srcCanvas) {
+      const src = srcCanvas || baseImg;
+      const w = src.naturalWidth || src.width, h = src.naturalHeight || src.height;
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      const cx = c.getContext('2d', { willReadFrequently: true });
+      cx.drawImage(src, 0, 0);
+      const id = cx.getImageData(0, 0, w, h);
+      const s = id.data, o = new Uint8ClampedArray(s);
+      const a = state.sharpen / 100, center = 1 + 4 * a, row = w * 4;
+      for (let y = 1; y < h - 1; y++) {
+        let i = (y * w + 1) * 4;
+        for (let x = 1; x < w - 1; x++, i += 4) {
+          const up = i - row, dn2 = i + row;
+          o[i]     = center * s[i]     - a * (s[i - 4] + s[i + 4] + s[up]     + s[dn2]);
+          o[i + 1] = center * s[i + 1] - a * (s[i - 3] + s[i + 5] + s[up + 1] + s[dn2 + 1]);
+          o[i + 2] = center * s[i + 2] - a * (s[i - 2] + s[i + 6] + s[up + 2] + s[dn2 + 2]);
+        }
+      }
+      id.data.set(o); cx.putImageData(id, 0, 0);
+      sharpenCache = { canvas: c, amount: state.sharpen, src };
+      return c;
+    }
+    function getPrepSource() {
+      if (!baseImg || (state.denoise === 0 && state.smooth === 0)) return baseImg;
+      if (prepValid()) return prepCache.canvas;
+      prepDirty = true;
+      const now = performance.now();
+      if (now - lastPrepBuild >= 250) {
+        prepDirty = false; lastPrepBuild = now;
+        try { makePrep(); } catch { prepCache = null; }
+        return prepCache ? prepCache.canvas : baseImg;
+      }
+      scheduleTrailingPrep();
+      return prepCache ? prepCache.canvas : baseImg;
+    }
+    function getSharpSource() {
+      if (!baseImg || state.sharpen === 0) return prepSourceNow();
+      const ps = getPrepSource();
+      if (sharpenValid(ps)) return sharpenCache.canvas;
+      sharpenDirty = true;
+      const now = performance.now();
+      if (now - lastSharpenBuild >= 250) {
+        sharpenDirty = false; lastSharpenBuild = now;
+        try { return makeSharpen(ps); } catch { sharpenCache = null; return ps; }
+      }
+      scheduleTrailingSharpen();
+      return sharpenCache ? sharpenCache.canvas : ps;
+    }
+    function scheduleTrailingPrep() {
+      clearTimeout(prepTimer);
+      prepTimer = setTimeout(() => {
+        if (!prepDirty || !baseImg || (state.denoise === 0 && state.smooth === 0)) return;
+        prepDirty = false; lastPrepBuild = performance.now();
+        try { makePrep(); } catch { prepCache = null; }
+        requestRender();
+      }, 260);
+    }
+    function scheduleTrailingSharpen() {
+      clearTimeout(sharpTimer);
+      sharpTimer = setTimeout(() => {
+        if (!sharpenDirty || !baseImg || state.sharpen === 0) return;
+        sharpenDirty = false; lastSharpenBuild = performance.now();
+        try { makeSharpen(prepSourceNow()); } catch { sharpenCache = null; }
+        requestRender();
+      }, 260);
+    }
+    function rebuildCaches(done) {
+      clearTimeout(prepTimer); clearTimeout(sharpTimer);
+      prepDirty = sharpenDirty = false;
+      setTimeout(() => {
+        try {
+          if (baseImg && (state.denoise > 0 || state.smooth > 0) && !prepValid()) makePrep();
+          const ps = prepSourceNow();
+          if (baseImg && state.sharpen > 0 && !sharpenValid(ps)) makeSharpen(ps);
+        } catch { toast('Retouch processing failed for this image.', true); }
+        requestRender();
+        if (done) done();
+      }, 30);
+    }
+
+    /* ═════════════════ COMPOSITE EFFECT PASSES ═════════════════ */
+
+    let grainTile = null;
+    function getGrainTile() {
+      if (grainTile) return grainTile;
+      const s = 160;
+      const c = document.createElement('canvas'); c.width = s; c.height = s;
+      const g = c.getContext('2d');
+      const id = g.createImageData(s, s), d = id.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const v = 128 + (Math.random() - 0.5) * 120;
+        d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255;
+      }
+      g.putImageData(id, 0, 0);
+      grainTile = c; return c;
+    }
+    function fxTemp(c, x, y, w, h, temp) {
+      if (!temp) return;
+      c.save();
+      c.globalCompositeOperation = 'soft-light';
+      c.globalAlpha = Math.abs(temp) / 100 * 0.6;
+      c.fillStyle = temp > 0 ? 'rgb(255,150,60)' : 'rgb(60,130,255)';
+      c.fillRect(x, y, w, h);
+      c.restore();
+    }
+    function fxVignette(c, x, y, w, h, amount) {
+      if (!amount) return;
+      const cx0 = x + w / 2, cy0 = y + h / 2;
+      const g = c.createRadialGradient(cx0, cy0, Math.min(w, h) * 0.55, cx0, cy0, (Math.hypot(w, h) / 2) * 1.05);
+      g.addColorStop(0, 'rgba(0,0,0,0)');
+      g.addColorStop(1, `rgba(0,0,0,${((amount / 100) * 0.8).toFixed(3)})`);
+      c.save(); c.fillStyle = g; c.fillRect(x, y, w, h); c.restore();
+    }
+    function fxGrain(c, x, y, w, h, amount, scale) {
+      if (!amount) return;
+      c.save();
+      c.globalCompositeOperation = 'overlay';
+      c.globalAlpha = (amount / 100) * 0.4;
+      c.scale(scale, scale);
+      c.fillStyle = c.createPattern(getGrainTile(), 'repeat');
+      c.fillRect(x / scale, y / scale, w / scale, h / scale);
+      c.restore();
+    }
+    function coverScale(W, H, deg) {
+      const t = Math.abs(deg) * Math.PI / 180, c = Math.cos(t), s = Math.sin(t);
+      return Math.max((W * c + H * s) / W, (W * s + H * c) / H);
+    }
+
+    /* ═════════════════════════ RENDER PIPELINE ═════════════════════════ */
+
+    function requestRender() {
+      if (!renderScheduled && baseImg) {
+        renderScheduled = true;
+        requestAnimationFrame(() => { executeRender(); renderScheduled = false; });
+      }
+    }
+
+    function executeRender() {
+      if (compareHeld) {
+        canvas.width = baseImg.naturalWidth;
+        canvas.height = baseImg.naturalHeight;
+        ctx.filter = 'none';
+        ctx.drawImage(baseImg, 0, 0);
+        if (cropActive) updateCropOverlay();
+        return;
+      }
+
+      const src = getSharpSource();
+      const w = src.naturalWidth || src.width;
+      const h = src.naturalHeight || src.height;
+      const isSideways = state.rotate % 180 !== 0;
+      canvas.width = isSideways ? h : w;
+      canvas.height = isSideways ? w : h;
+
+      ctx.save();
+      const exposureMultiplier = 1 + (state.exposure / 100);
+      const computedBrightness = (state.brightness / 100) * exposureMultiplier * 100;
+
+      ctx.filter = `brightness(${computedBrightness}%) contrast(${state.contrast}%) sepia(${state.sepia}%) saturate(${state.saturate}%) hue-rotate(${state.hue}deg) blur(${state.blur}px)`;
+
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate((state.rotate * Math.PI) / 180);
+      ctx.scale(state.flipH, state.flipV);
+      if (state.straighten) {
+        ctx.rotate(state.straighten * Math.PI / 180);
+        const cs = coverScale(canvas.width, canvas.height, state.straighten);
+        ctx.scale(cs, cs);
+      }
+      ctx.drawImage(src, -w / 2, -h / 2);
+
+      if (state.glow > 0) {
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = (state.glow / 100) * 0.55;
+        ctx.filter = `blur(${(Math.max(canvas.width, canvas.height) * 0.012).toFixed(1)}px) brightness(1.2) saturate(1.1)`;
+        ctx.drawImage(src, -w / 2, -h / 2);
+      }
+      ctx.restore();
+
+      fxTemp(ctx, 0, 0, canvas.width, canvas.height, state.temp);
+      fxVignette(ctx, 0, 0, canvas.width, canvas.height, state.vignette);
+      fxGrain(ctx, 0, 0, canvas.width, canvas.height, state.grain, 1);
+
+      if (cropActive) updateCropOverlay();
+    }
+
+    /* ═════════════════════════ SLIDERS & TRANSFORMS ═════════════════════════ */
+
+    ALL_KEYS.forEach(key => {
+      const input = document.getElementById(key);
+      const label = document.getElementById('v-' + key);
+      input.addEventListener('input', () => {
+        state[key] = parseFloat(input.value);
+        label.textContent = formatValue(key, state[key]);
+        requestRender();
+      });
+    });
+    ['smooth', 'denoise', 'sharpen'].forEach(k =>
+      document.getElementById(k).addEventListener('input', () => { prepDirty = true; sharpenDirty = true; }));
+
+    document.getElementById('rotLeft').onclick = () => { state.rotate = (state.rotate - 90) % 360; requestRender(); };
+    document.getElementById('rotRight').onclick = () => { state.rotate = (state.rotate + 90) % 360; requestRender(); };
+    document.getElementById('flipH').onclick = () => { state.flipH *= -1; requestRender(); };
+    document.getElementById('flipV').onclick = () => { state.flipV *= -1; requestRender(); };
+
+    const compareBtn = document.getElementById('compareBtn');
+    compareBtn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      if (!baseImg) { toast('Load an image first.', true); return; }
+      compareHeld = true; compareBtn.classList.add('active'); requestRender();
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev =>
+      window.addEventListener(ev, () => {
+        if (!compareHeld) return;
+        compareHeld = false; compareBtn.classList.remove('active'); requestRender();
+      }));
+
+    /* ═════════════════ HISTOGRAM AUTO-LEVELS ═════════════════ */
+
+    function applySliderValue(key, value) {
+      const el = document.getElementById(key);
+      const v = Math.round(value);
+      el.value = v; state[key] = v;
+      document.getElementById('v-' + key).textContent = formatValue(key, v);
+    }
+
+    function computeAutoLevels() {
+      try {
+        const scale = Math.min(1, 256 / Math.max(baseImg.naturalWidth, baseImg.naturalHeight));
+        const w = Math.max(1, Math.round(baseImg.naturalWidth * scale));
+        const h = Math.max(1, Math.round(baseImg.naturalHeight * scale));
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        const cx = c.getContext('2d', { willReadFrequently: true });
+        cx.drawImage(baseImg, 0, 0, w, h);
+        const data = cx.getImageData(0, 0, w, h).data;
+
+        const lum = new Uint32Array(256);
+        let satSum = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i], g = data[i + 1], b = data[i + 2];
+          lum[(0.2126 * r + 0.7152 * g + 0.0722 * b) | 0]++;
+          const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+          satSum += mx ? (mx - mn) / mx : 0;
+        }
+        const meanSat = satSum / (w * h);
+
+        const cut = w * h * 0.004;
+        let acc = 0, lo = 0, hi = 1;
+        for (let v = 0; v < 256; v++) { acc += lum[v]; if (acc >= cut) { lo = v / 255; break; } }
+        acc = 0;
+        for (let v = 255; v >= 0; v--) { acc += lum[v]; if (acc >= cut) { hi = v / 255; break; } }
+        if (hi - lo < 0.04) return null;
+
+        let contrast = (hi + lo) / (hi - lo) * 100;
+        let brightness = 100 / (hi + lo);
+        let exposure = 0;
+        if (brightness > 200) { exposure = Math.min(100, (brightness / 200 - 1) * 100); brightness = 200; }
+        const saturation = Math.min(118, Math.max(90, 100 + (0.32 - meanSat) * 50));
+        contrast = Math.min(200, Math.max(100, contrast));
+        return { brightness, contrast, saturation, exposure, lo, hi };
+      } catch { return null; }
+    }
+
+    /* ═════════════════ TEN SMART AUTO FIXES ═════════════════ */
+
+    const PRESET_DEFAULTS = {
+      brightness: 100, contrast: 100, saturate: 100, exposure: 0, hue: 0, blur: 0,
+      smooth: 0, denoise: 0, sepia: 0, temp: 0, glow: 0, sharpen: 0, vignette: 0, grain: 0, straighten: 0
+    };
+
+    const PRESETS = {
+      autoFix: {
+        build: L => ({ brightness: 100 + (L.brightness - 100) * 0.7, exposure: L.exposure * 0.7,
+          contrast: 100 + (L.contrast - 100) * 0.7, saturate: L.saturation, sharpen: 10 }),
+        msg: L => `Auto fix — levels balanced (black ${Math.round(L.lo * 255)}, white ${Math.round(L.hi * 255)}) with light sharpening.`
+      },
+      restore: {
+        build: L => ({ brightness: Math.min(150, 100 + (L.brightness - 100) * 0.5), exposure: L.exposure * 0.5,
+          contrast: 98, saturate: 104, temp: 10, denoise: 30, smooth: 60, glow: 12 }),
+        msg: () => 'Face smooth (classical) — skin-targeted smoothing, denoise, eye/teeth brightening. For neural restoration use the AI section.'
+      },
+      glamour: {
+        build: L => ({ brightness: Math.min(165, 100 + (L.brightness - 100) * 0.5 + 6), exposure: L.exposure * 0.5,
+          contrast: 97, saturate: 112, sepia: 16, glow: 42, smooth: 45, vignette: 8 }),
+        msg: () => 'Glamour — soft warm glow, lifted shadows, smooth skin.'
+      },
+      clarity: {
+        build: L => ({ brightness: 100 + (L.brightness - 100) * 0.35, exposure: L.exposure * 0.35,
+          contrast: Math.min(130, 100 + (L.contrast - 100) * 0.75 + 6), saturate: 106, sharpen: 62 }),
+        msg: () => 'Clarity — unsharp mask 62% with punchy mid-tone contrast.'
+      },
+      portrait: {
+        build: L => ({ brightness: Math.min(150, 100 + (L.brightness - 100) * 0.45 + 4), exposure: L.exposure * 0.4,
+          contrast: 98, saturate: 104, temp: 18, glow: 20, smooth: 35, vignette: 8 }),
+        msg: () => 'Portrait — gentle warmth, soft glow and light skin smoothing.'
+      },
+      vivid: {
+        build: L => ({ brightness: 100 + (L.brightness - 100) * 0.3,
+          contrast: Math.min(125, 100 + (L.contrast - 100) * 0.6 + 8), saturate: 135, sharpen: 12 }),
+        msg: () => 'Vivid — bold color and contrast, clean and crisp.'
+      },
+      hdr: {
+        build: L => ({ brightness: 100 + (L.brightness - 100) * 0.4 + 2, exposure: L.exposure * 0.4,
+          contrast: Math.min(135, 100 + (L.contrast - 100) * 0.9 + 10), saturate: 118, sharpen: 48, vignette: 18 }),
+        msg: () => 'HDR — dramatic contrast and rich color with strong edge detail.'
+      },
+      vintage: {
+        build: L => ({ brightness: 104 + (L.brightness - 100) * 0.3,
+          contrast: 90, saturate: 82, sepia: 28, glow: 6, vignette: 32, grain: 38 }),
+        msg: () => 'Vintage — faded film tones with grain and a darkened edge.'
+      },
+      bw: {
+        build: L => ({ brightness: 100 + (L.brightness - 100) * 0.4,
+          contrast: 118, saturate: 0, sharpen: 28, grain: 18, vignette: 22 }),
+        msg: () => 'B&W — classic monochrome with fine grain.'
+      },
+      cinematic: {
+        build: L => ({ brightness: 101 + (L.brightness - 100) * 0.25, exposure: L.exposure * 0.3,
+          contrast: 108, saturate: 96, temp: -28, sharpen: 22, vignette: 38, grain: 10 }),
+        msg: () => 'Cinematic — cool teal cast, deep vignette, moody finish.'
+      }
+    };
+
+    const presetBtns = {};
+    document.querySelectorAll('button[data-preset]').forEach(b => {
+      presetBtns[b.dataset.preset] = b;
+      b.onclick = () => applyPreset(b.dataset.preset);
+    });
+    function setActivePreset(name) {
+      Object.entries(presetBtns).forEach(([k, b]) => b.classList.toggle('active', k === name));
+    }
+    function applyPreset(key) {
+      if (!baseImg) { toast('Load an image first.', true); return; }
+      const L = computeAutoLevels() || { brightness: 100, contrast: 100, exposure: 0, saturation: 100, lo: 0, hi: 1 };
+      const v = Object.assign({}, PRESET_DEFAULTS, PRESETS[key].build(L));
+      ALL_KEYS.forEach(k => applySliderValue(k, v[k]));
+      setActivePreset(key);
+      if (key === 'restore' || key === 'glamour' || key === 'portrait') toast('Processing retouch…');
+      rebuildCaches(() => toast(PRESETS[key].msg(L)));
+    }
+
+    document.getElementById('autoEnhance').onclick = () => {
+      if (!baseImg) { toast('Load an image first.', true); return; }
+      const res = computeAutoLevels();
+      if (!res) { toast('Auto enhance: tonal range is too flat to improve.', true); return; }
+      applySliderValue('brightness', res.brightness);
+      applySliderValue('contrast', res.contrast);
+      applySliderValue('saturate', res.saturation);
+      applySliderValue('exposure', res.exposure);
+      ['hue','blur','smooth','denoise','sepia','temp','glow','sharpen','vignette','grain','straighten']
+        .forEach(k => applySliderValue(k, 0));
+      setActivePreset(null);
+      rebuildCaches(() =>
+        toast(`Auto enhanced — black ${Math.round(res.lo * 255)}, white ${Math.round(res.hi * 255)}.`));
+    };
+
+    /* ═════════════════════════ CROP LOGIC ═════════════════════════ */
+
+    document.querySelectorAll('button[data-ratio]').forEach(btn => {
+      btn.onclick = () => {
+        if (!baseImg) { toast('Load an image first.', true); return; }
+        cropAspect = parseFloat(btn.dataset.ratio);
+        initCropBox();
+      };
+    });
+
+    function initCropBox() {
+      cropActive = true;
+      cropBox.style.display = 'block';
+      applyCropBtn.style.display = 'flex';
+      cancelCropBtn.style.display = 'flex';
+      const rect = canvas.getBoundingClientRect();
+      let boxW = rect.width * 0.7;
+      let boxH = boxW / cropAspect;
+      if (boxH > rect.height) { boxH = rect.height * 0.7; boxW = boxH * cropAspect; }
+      cropBox.style.width = `${boxW}px`;
+      cropBox.style.height = `${boxH}px`;
+      cropBox.style.left = `${(rect.width - boxW) / 2}px`;
+      cropBox.style.top = `${(rect.height - boxH) / 2}px`;
+    }
+    function closeCrop() {
+      cropActive = false;
+      cropBox.style.display = 'none';
+      applyCropBtn.style.display = 'none';
+      cancelCropBtn.style.display = 'none';
+    }
+    cancelCropBtn.onclick = closeCrop;
+
+    cropBox.addEventListener('mousedown', (e) => {
+      dragData.dragging = true;
+      dragData.startX = e.clientX; dragData.startY = e.clientY;
+      dragData.boxX = cropBox.offsetLeft; dragData.boxY = cropBox.offsetTop;
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!dragData.dragging) return;
+      const rect = canvas.getBoundingClientRect();
+      let nx = dragData.boxX + (e.clientX - dragData.startX);
+      let ny = dragData.boxY + (e.clientY - dragData.startY);
+      nx = Math.max(0, Math.min(nx, rect.width - cropBox.offsetWidth));
+      ny = Math.max(0, Math.min(ny, rect.height - cropBox.offsetHeight));
+      cropBox.style.left = `${nx}px`;
+      cropBox.style.top = `${ny}px`;
+    });
+    window.addEventListener('mouseup', () => { dragData.dragging = false; });
+
+    applyCropBtn.onclick = () => {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const sx = cropBox.offsetLeft * scaleX;
+      const sy = cropBox.offsetTop * scaleY;
+      const sw = cropBox.offsetWidth * scaleX;
+      const sh = cropBox.offsetHeight * scaleY;
+      const offscreen = document.createElement('canvas');
+      offscreen.width = Math.round(sw);
+      offscreen.height = Math.round(sh);
+      const offCtx = offscreen.getContext('2d');
+      offCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, offscreen.width, offscreen.height);
+      offscreen.toBlob((blob) => {
+        if (!blob) { toast('Crop failed: encoding error.', true); return; }
+        const url = URL.createObjectURL(blob);
+        const nextImg = new Image();
+        nextImg.onload = () => { URL.revokeObjectURL(url); baseImg = nextImg; resetState(); requestRender(); };
+        nextImg.onerror = () => { URL.revokeObjectURL(url); toast('Crop failed: could not decode result.', true); };
+        nextImg.src = url;
+      }, 'image/png');
+    };
+
+    function updateCropOverlay() {
+      const rect = canvas.getBoundingClientRect();
+      let x = Math.min(cropBox.offsetLeft, rect.width - cropBox.offsetWidth);
+      let y = Math.min(cropBox.offsetTop, rect.height - cropBox.offsetHeight);
+      cropBox.style.left = `${Math.max(0, x)}px`;
+      cropBox.style.top = `${Math.max(0, y)}px`;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       AI FACE RESTORATION — GFPGAN v1.4 via onnxruntime-web.
+       · 4 model paths × 2 hosts (huggingface.co + hf-mirror.com)
+       · Optional HF access token, auto-retries gated (401/403) URLs
+       · Per-mirror diagnostic report on failure
+       · Manual "From Disk" loader as the guaranteed path
+       ═══════════════════════════════════════════════════════════════════ */
+
+    const ORT_WEBGPU_URL = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/ort.webgpu.min.js';
+    const ORT_BASE_URL   = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/ort.min.js';
+    const ORT_WASM_PATHS = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/';
+    const MODEL_LABEL = 'GFPGAN v1.4';
+    const MODEL_HOSTS = ['https://huggingface.co', 'https://hf-mirror.com'];
+    const MODEL_PATHS = [
+      '/facefusion/models-3.0.0/resolve/main/gfpgan_1_4.onnx',
+      '/facefusion/models-3.1.0/resolve/main/gfpgan_1_4.onnx',
+      '/facefusion/models/resolve/main/GFPGANv1.4.onnx',
+      '/facefusion/models-gfpgan/resolve/main/gfpgan_1_4.onnx'
+    ];
+
+    const aiBox = document.getElementById('aiBox');
+    const aiStatus = document.getElementById('aiStatus');
+    const aiLoadBtn = document.getElementById('aiLoadBtn');
+    const aiDiskBtn = document.getElementById('aiDiskBtn');
+    const aiModelFile = document.getElementById('aiModelFile');
+    const aiTokenInput = document.getElementById('aiToken');
+    const aiSelectBtn = document.getElementById('aiSelectBtn');
+    const aiRunBtn = document.getElementById('aiRunBtn');
+    const aiCancelSelBtn = document.getElementById('aiCancelSelBtn');
+    const aiOverlay = document.getElementById('aiOverlay');
+    const aiOverlayMsg = document.getElementById('aiOverlayMsg');
+
+    let aiSession = null, aiEp = null, aiLoading = false, aiRunning = false;
+    let aiModelBuf = null;
+    let aiSelecting = false, aiDragging = false;
+    let aiDragStart = { x: 0, y: 0 };
+    let aiStrength = 80;
+
+    document.getElementById('aiStrength').addEventListener('input', (e) => {
+      aiStrength = parseFloat(e.target.value);
+      document.getElementById('v-aiStrength').textContent = aiStrength + '%';
+    });
+
+    function aiShow(msg) { aiOverlay.style.display = 'flex'; aiOverlayMsg.textContent = msg; }
+    function aiHide() { aiOverlay.style.display = 'none'; }
+    function aiStat(msg) { aiStatus.textContent = msg; }
+    function shortUrl(u) { return u.replace(/^https:\/\//, '').replace('/resolve/main/', ' › '); }
+
+    function injectScript(src) {
+      return new Promise((res, rej) => {
+        const s = document.createElement('script');
+        s.crossOrigin = 'anonymous';
+        s.src = src; s.onload = res;
+        s.onerror = () => rej(new Error('runtime script download blocked (offline / CSP / adblock?)'));
+        document.head.appendChild(s);
+      });
+    }
+
+    async function loadOrt() {
+      if (window.ort) return;
+      try { await injectScript(ORT_WEBGPU_URL); }
+      catch { await injectScript(ORT_BASE_URL); }
+      ort.env.wasm.wasmPaths = ORT_WASM_PATHS;
+      // GitHub Pages can't set COOP/COEP headers, so we're normally not
+      // cross-origin isolated → 1 thread. If sw.js (optional) is deployed,
+      // isolation is active and WASM inference uses up to 4 threads (2–4× faster).
+      ort.env.wasm.numThreads = (self.crossOriginIsolated && navigator.hardwareConcurrency > 1)
+        ? Math.min(4, navigator.hardwareConcurrency) : 1;
+      ort.env.logLevel = 'error';
+    }
+
+    async function fetchModelFromUrl(url, useAuth, onp) {
+      let cache = null;
+      try { if ('caches' in window) cache = await caches.open('ai-face-models'); } catch (_) {}
+      if (cache && !useAuth) {
+        const hit = await cache.match(url);
+        if (hit) { onp(1, 1, true); return new Uint8Array(await hit.arrayBuffer()); }
+      }
+      const opts = {};
+      if (useAuth) {
+        const tk = aiTokenInput.value.trim();
+        if (!tk) throw new Error('no token provided');
+        opts.headers = { 'Authorization': 'Bearer ' + tk };
+      }
+      const resp = await fetch(url, opts);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status +
+        (resp.status === 401 || resp.status === 403 ? ' (gated — needs token/login)' :
+         resp.status === 404 ? ' (file not on this repo)' : ''));
+      const total = +resp.headers.get('content-length') || 0;
+      if (!resp.body) {
+        const buf = new Uint8Array(await resp.arrayBuffer());
+        if (cache) try { await cache.put(url, new Response(new Blob([buf]))); } catch (_) {}
+        onp(buf.length, buf.length, true);
+        return buf;
+      }
+      const reader = resp.body.getReader();
+      const chunks = []; let got = 0;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value); got += value.length;
+        onp(got, total, false);
+      }
+      const resp2 = new Response(new Blob(chunks));
+      if (cache) try { await cache.put(url, resp2.clone()); } catch (_) {}
+      onp(got, got, true);
+      return new Uint8Array(await resp2.arrayBuffer());
+    }
+
+    async function createSessionFromBuffer(bytes, label) {
+      await loadOrt();
+      const gpu = navigator.gpu ? 'WebGPU' : 'WASM CPU';
+      aiShow('Creating inference session (' + gpu + ')… up to a minute.');
+      await new Promise(r => setTimeout(r, 50));
+      aiSession = await ort.InferenceSession.create(bytes, {
+        executionProviders: navigator.gpu ? ['webgpu', 'wasm'] : ['wasm'],
+        graphOptimizationLevel: 'all'
+      });
+      aiEp = navigator.gpu ? 'webgpu' : 'wasm';
+      aiModelBuf = bytes;
+      aiStat('Model ready (' + gpu + ') — ' + label + '. 1) Select Face → 2) Restore Face.');
+      toast('AI model loaded (' + label + ') via ' + gpu + '.');
+    }
+
+    async function loadAIModel() {
+      if (aiLoading) return;
+      if (aiSession) { toast('Model is already loaded.'); return; }
+      aiLoading = true; aiLoadBtn.disabled = true;
+      const errors = [];
+      const gatedUrls = [];
+      try {
+        const candidates = [];
+        for (const host of MODEL_HOSTS)
+          for (const p of MODEL_PATHS) candidates.push(host + p);
+
+        /* Pass 1 — anonymous */
+        for (const url of candidates) {
+          try {
+            aiShow('Trying: ' + shortUrl(url));
+            const buf = await fetchModelFromUrl(url, false, (got, total, done) => {
+              if (total > 0)
+                aiShow('Downloading ' + shortUrl(url) + '\n' + (got / total * 100).toFixed(1) + '% (' +
+                  (got / 1048576).toFixed(0) + '/' + (total / 1048576).toFixed(0) + ' MB)' + (done ? ' · cached ✓' : ''));
+              else
+                aiShow('Downloading ' + shortUrl(url) + ' — ' + (got / 1048576).toFixed(0) + ' MB…');
+            });
+            await createSessionFromBuffer(buf, MODEL_LABEL);
+            return;
+          } catch (e) {
+            const m = e && e.message ? e.message : String(e);
+            errors.push(shortUrl(url) + ' → ' + m);
+            console.warn('[AI mirror]', url, m);
+            if (/gated/.test(m)) gatedUrls.push(url);
+          }
+        }
+
+        /* Pass 2 — token retry on gated URLs */
+        const hasToken = aiTokenInput.value.trim().length > 0;
+        if (hasToken && gatedUrls.length) {
+          for (const url of gatedUrls) {
+            try {
+              aiShow('Retrying with token: ' + shortUrl(url));
+              const buf = await fetchModelFromUrl(url, true, (got, total, done) => {
+                if (total > 0)
+                  aiShow('Downloading (token) ' + shortUrl(url) + '\n' + (got / total * 100).toFixed(1) + '% (' +
+                    (got / 1048576).toFixed(0) + '/' + (total / 1048576).toFixed(0) + ' MB)');
+                else
+                  aiShow('Downloading (token) — ' + (got / 1048576).toFixed(0) + ' MB…');
+              });
+              await createSessionFromBuffer(buf, MODEL_LABEL);
+              return;
+            } catch (e) {
+              const m = e && e.message ? e.message : String(e);
+              errors.push(shortUrl(url) + ' [token] → ' + m);
+              console.warn('[AI mirror token]', url, m);
+            }
+          }
+        }
+
+        const report =
+          'All mirror downloads failed:\n' + errors.join('\n') +
+          '\n\nFixes: ① open a model page in your browser, log in, accept the license, download the .onnx, then use "From Disk". ' +
+          (hasToken ? '' : '② paste an HF read token above and retry Auto. ') +
+          '③ if huggingface.co is blocked on your network, From Disk is the reliable path.';
+        aiStat(report);
+        toast('Mirror downloads failed — details in the AI status box.', true);
+      } finally {
+        aiLoading = false; aiLoadBtn.disabled = false; aiHide();
+      }
+    }
+    aiLoadBtn.onclick = loadAIModel;
+
+    /* Manual disk load — guaranteed path. File is read locally; nothing uploaded. */
+    aiDiskBtn.onclick = () => aiModelFile.click();
+    aiModelFile.addEventListener('change', async () => {
+      const file = aiModelFile.files[0];
+      aiModelFile.value = '';
+      if (!file) return;
+      if (!/\.onnx$/i.test(file.name)) { toast('Pick a .onnx file (GFPGANv1.4.onnx).', true); return; }
+      if (file.size < 5 * 1048576 || file.size > 2 * 1024 * 1024 * 1024) {
+        toast('File size implausible for an ONNX model — rejected.', true); return;
+      }
+      aiDiskBtn.disabled = true;
+      try {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        await createSessionFromBuffer(bytes, file.name);
+      } catch (err) {
+        toast('Could not load model: ' + err.message, true);
+        aiStat('Model load failed: ' + err.message);
+      } finally {
+        aiDiskBtn.disabled = false; aiHide();
+      }
+    });
+
+    /* Face box selection — freeform drag on the canvas */
+    aiSelectBtn.onclick = () => {
+      if (!baseImg) { toast('Load an image first.', true); return; }
+      closeCrop();
+      aiSelecting = !aiSelecting;
+      aiSelectBtn.classList.toggle('active', aiSelecting);
+      aiCancelSelBtn.style.display = aiSelecting ? 'flex' : 'none';
+      if (aiSelecting) toast('Drag a box around the face, then press Restore Face.');
+      else aiBox.style.display = 'none';
+    };
+    aiCancelSelBtn.onclick = () => {
+      aiSelecting = false; aiDragging = false;
+      aiSelectBtn.classList.remove('active');
+      aiCancelSelBtn.style.display = 'none';
+      aiBox.style.display = 'none';
+    };
+
+    canvas.addEventListener('mousedown', (e) => {
+      if (!aiSelecting) return;
+      const r = canvas.getBoundingClientRect();
+      aiDragging = true;
+      aiDragStart = { x: e.clientX - r.left, y: e.clientY - r.top };
+      aiBox.style.display = 'block';
+      aiBox.style.left = aiDragStart.x + 'px';
+      aiBox.style.top = aiDragStart.y + 'px';
+      aiBox.style.width = '0px'; aiBox.style.height = '0px';
+      e.preventDefault();
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!aiDragging) return;
+      const r = canvas.getBoundingClientRect();
+      let x = e.clientX - r.left, y = e.clientY - r.top;
+      x = Math.max(0, Math.min(x, r.width));
+      y = Math.max(0, Math.min(y, r.height));
+      const bx = Math.min(aiDragStart.x, x), by = Math.min(aiDragStart.y, y);
+      aiBox.style.left = bx + 'px'; aiBox.style.top = by + 'px';
+      aiBox.style.width = Math.abs(x - aiDragStart.x) + 'px';
+      aiBox.style.height = Math.abs(y - aiDragStart.y) + 'px';
+    });
+    window.addEventListener('mouseup', () => {
+      if (!aiDragging) return;
+      aiDragging = false;
+      if (parseInt(aiBox.style.width) < 12 || parseInt(aiBox.style.height) < 12) {
+        aiBox.style.display = 'none';
+        toast('Box too small — drag around the whole face.', true);
+      }
+    });
+
+    /* Display coords → original source pixel coords (accounts for rotate/flip) */
+    function canvasToSourceCoords(px, py) {
+      let x = px - canvas.width / 2, y = py - canvas.height / 2;
+      if (state.rotate !== 0) {
+        const a = -state.rotate * Math.PI / 180;
+        const c = Math.cos(a), s = Math.sin(a);
+        const nx = x * c - y * s, ny = x * s + y * c;
+        x = nx; y = ny;
+      }
+      x /= state.flipH; y /= state.flipV;
+      return [x + baseImg.naturalWidth / 2, y + baseImg.naturalHeight / 2];
+    }
+
+    async function runGFPGAN(inCanvas) {
+      const S = 512;
+      const tmp = document.createElement('canvas'); tmp.width = S; tmp.height = S;
+      const tx = tmp.getContext('2d', { willReadFrequently: true });
+      tx.drawImage(inCanvas, 0, 0, S, S);
+      const d = tx.getImageData(0, 0, S, S).data;
+      const N = S * S;
+      const data = new Float32Array(3 * N);
+      for (let i = 0; i < N; i++) {
+        data[i]         = (d[i * 4]     / 255 - 0.5) / 0.5;
+        data[N + i]     = (d[i * 4 + 1] / 255 - 0.5) / 0.5;
+        data[2 * N + i] = (d[i * 4 + 2] / 255 - 0.5) / 0.5;
+      }
+      const feeds = {};
+      feeds[aiSession.inputNames[0]] = new ort.Tensor('float32', data, [1, 3, S, S]);
+      const res = await aiSession.run(feeds);
+      const out = res[aiSession.outputNames[0]];
+      const oh = out.dims[2], ow = out.dims[3], M = ow * oh;
+      const od = out.data;
+      const oc = document.createElement('canvas'); oc.width = ow; oc.height = oh;
+      const ox = oc.getContext('2d');
+      const img = ox.createImageData(ow, oh);
+      for (let i = 0; i < M; i++) {
+        img.data[i * 4]     = Math.max(0, Math.min(255, (od[i]         * 0.5 + 0.5) * 255)) | 0;
+        img.data[i * 4 + 1] = Math.max(0, Math.min(255, (od[M + i]     * 0.5 + 0.5) * 255)) | 0;
+        img.data[i * 4 + 2] = Math.max(0, Math.min(255, (od[2 * M + i] * 0.5 + 0.5) * 255)) | 0;
+        img.data[i * 4 + 3] = 255;
+      }
+      ox.putImageData(img, 0, 0);
+      return oc;
+    }
+
+    aiRunBtn.onclick = async () => {
+      if (!baseImg) { toast('Load an image first.', true); return; }
+      if (aiRunning) { toast('A restore is already running…', true); return; }
+      if (!aiSession) { toast('Load the AI model first.', true); return; }
+      if (aiBox.style.display === 'none' || parseInt(aiBox.style.width) < 12) {
+        toast('Draw the face box first (Select Face).', true); return;
+      }
+      if (state.straighten !== 0) {
+        toast('Set Straighten back to 0° before restoring.', true); return;
+      }
+      aiRunning = true;
+      const t0 = performance.now();
+      let restoreTimer = null;
+      try {
+        const rect = canvas.getBoundingClientRect();
+        const kx = canvas.width / rect.width, ky = canvas.height / rect.height;
+        const bx = parseInt(aiBox.style.left) * kx, by = parseInt(aiBox.style.top) * ky;
+        const bw = parseInt(aiBox.style.width) * kx, bh = parseInt(aiBox.style.height) * ky;
+
+        const [x1, y1] = canvasToSourceCoords(bx, by);
+        const [x2, y2] = canvasToSourceCoords(bx + bw, by + bh);
+        const cx = (Math.min(x1, x2) + Math.max(x1, x2)) / 2;
+        const cy = (Math.min(y1, y2) + Math.max(y1, y2)) / 2;
+
+        const iw = baseImg.naturalWidth, ih = baseImg.naturalHeight;
+        let side = Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1)) * 1.45;
+        side = Math.min(side, iw, ih);
+        const F = Math.max(64, Math.floor(side));
+        const sxr = Math.max(0, Math.min(Math.round(cx - F / 2), iw - F));
+        const syr = Math.max(0, Math.min(Math.round(cy - F / 2), ih - F));
+
+        const inC = document.createElement('canvas'); inC.width = F; inC.height = F;
+        inC.getContext('2d').drawImage(baseImg, sxr, syr, F, F, 0, 0, F, F);
+
+        aiShow('Restoring face… (CPU inference can take a couple of minutes)');
+        restoreTimer = setInterval(() => {
+          aiShow('Restoring face… ' + ((performance.now() - t0) / 1000).toFixed(0) + 's elapsed');
+        }, 500);
+
+        let out512;
+        try { out512 = await runGFPGAN(inC); }
+        catch (err) {
+          if (aiEp === 'webgpu') {
+            toast('WebGPU inference failed — retrying on CPU…', true);
+            aiSession = await ort.InferenceSession.create(aiModelBuf, { executionProviders: ['wasm'] });
+            aiEp = 'wasm';
+            out512 = await runGFPGAN(inC);
+          } else throw err;
+        }
+        clearInterval(restoreTimer); restoreTimer = null;
+
+        /* Feathered paste-back: only the face region changes, seam is blurred out */
+        const feather = Math.max(8, Math.round(F * 0.07));
+        const mask = document.createElement('canvas'); mask.width = F; mask.height = F;
+        const mx = mask.getContext('2d');
+        try { mx.filter = 'blur(' + feather + 'px)'; } catch (_) {}
+        mx.fillStyle = '#fff';
+        mx.fillRect(feather, feather, F - 2 * feather, F - 2 * feather);
+
+        const masked = document.createElement('canvas'); masked.width = F; masked.height = F;
+        const mc = masked.getContext('2d');
+        mc.drawImage(out512, 0, 0, F, F);
+        mc.globalCompositeOperation = 'destination-in';
+        mc.drawImage(mask, 0, 0);
+
+        const comp = document.createElement('canvas'); comp.width = F; comp.height = F;
+        const cc = comp.getContext('2d');
+        cc.drawImage(inC, 0, 0);
+        cc.globalAlpha = aiStrength / 100;
+        cc.drawImage(masked, 0, 0);
+
+        const full = document.createElement('canvas'); full.width = iw; full.height = ih;
+        const fc = full.getContext('2d');
+        fc.drawImage(baseImg, 0, 0);
+        fc.drawImage(comp, sxr, syr);
+
+        full.toBlob((blob) => {
+          if (!blob) { toast('Restore failed: encoding error.', true); return; }
+          const url = URL.createObjectURL(blob);
+          const img = new Image();
+          img.onload = () => {
+            URL.revokeObjectURL(url);
+            baseImg = img;
+            aiCancelSelBtn.onclick();
+            requestRender();
+            toast(`Face restored in ${((performance.now() - t0) / 1000).toFixed(1)}s. Color sliders still apply on top.`);
+          };
+          img.onerror = () => { URL.revokeObjectURL(url); toast('Restore failed: decode error.', true); };
+          img.src = url;
+        }, 'image/png');
+      } catch (err) {
+        toast('Restore failed: ' + (err && err.message ? err.message : 'unknown error'), true);
+      } finally {
+        if (restoreTimer) { clearInterval(restoreTimer); restoreTimer = null; }
+        aiHide();
+        aiRunning = false;
+      }
+    };
+
+    /* ═════════════════════ RESET & EXPORT MODE ═════════════════════ */
+
+    function resetState() {
+      ALL_KEYS.forEach(key => {
+        const def = (key === 'brightness' || key === 'contrast' || key === 'saturate') ? 100 : 0;
+        state[key] = def;
+        document.getElementById(key).value = def;
+        document.getElementById('v-' + key).textContent = formatValue(key, def);
+      });
+      state.rotate = 0; state.flipH = 1; state.flipV = 1;
+      prepCache = null; sharpenCache = null;
+      prepDirty = sharpenDirty = false;
+      clearTimeout(prepTimer); clearTimeout(sharpTimer);
+      compareHeld = false; compareBtn.classList.remove('active');
+      setActivePreset(null);
+      closeCrop();
+    }
+
+    document.getElementById('resetBtn').onclick = () => { resetState(); if (baseImg) requestRender(); };
+
+    function setExportMode(mode) {
+      exportMode = mode;
+      modeFillBtn.classList.toggle('active', mode === 'fill');
+      modeFitBtn.classList.toggle('active', mode === 'fit');
+    }
+    modeFillBtn.onclick = () => setExportMode('fill');
+    modeFitBtn.onclick = () => setExportMode('fit');
+
+    /* ═════════════ FIXED-RESOLUTION EXPORT: 1620 × 2880 ═════════════ */
+
+    document.getElementById('exportBtn').onclick = () => {
+      if (!baseImg) { toast('Load an image first.', true); return; }
+      closeCrop();
+
+      try {
+        if ((state.denoise > 0 || state.smooth > 0) && !prepValid()) makePrep();
+        let src = prepSourceNow();
+        if (state.sharpen > 0 && !sharpenValid(src)) src = makeSharpen(src);
+        const iw = src.naturalWidth || src.width;
+        const ih = src.naturalHeight || src.height;
+
+        const isSideways = state.rotate % 180 !== 0;
+        const t = document.createElement('canvas');
+        t.width  = isSideways ? ih : iw;
+        t.height = isSideways ? iw : ih;
+        const tctx = t.getContext('2d');
+        tctx.translate(t.width / 2, t.height / 2);
+        tctx.rotate((state.rotate * Math.PI) / 180);
+        tctx.scale(state.flipH, state.flipV);
+        if (state.straighten) {
+          tctx.rotate(state.straighten * Math.PI / 180);
+          const cs = coverScale(t.width, t.height, state.straighten);
+          tctx.scale(cs, cs);
+        }
+        tctx.drawImage(src, -iw / 2, -ih / 2);
+
+        const targetAspect = EXPORT_W / EXPORT_H;
+        let sw = t.width, sh = t.height;
+        if (t.width / t.height > targetAspect) sw = Math.round(t.height * targetAspect);
+        else sh = Math.round(t.width / targetAspect);
+        const sx = Math.round((t.width - sw) / 2);
+        const sy = Math.round((t.height - sh) / 2);
+
+        const out = document.createElement('canvas');
+        out.width = EXPORT_W; out.height = EXPORT_H;
+        const octx = out.getContext('2d');
+
+        let dx = 0, dy = 0, dw = EXPORT_W, dh = EXPORT_H;
+        if (exportMode === 'fit') {
+          const scale = Math.min(EXPORT_W / sw, EXPORT_H / sh);
+          dw = Math.round(sw * scale); dh = Math.round(sh * scale);
+          dx = Math.round((EXPORT_W - dw) / 2);
+          dy = Math.round((EXPORT_H - dh) / 2);
+          octx.fillStyle = '#000000';
+          octx.fillRect(0, 0, EXPORT_W, EXPORT_H);
+        }
+
+        const blurScale = dw / sw;
+        const exposureMultiplier = 1 + (state.exposure / 100);
+        const computedBrightness = (state.brightness / 100) * exposureMultiplier * 100;
+        octx.filter = `brightness(${computedBrightness}%) contrast(${state.contrast}%) sepia(${state.sepia}%) saturate(${state.saturate}%) hue-rotate(${state.hue}deg) blur(${(state.blur * blurScale).toFixed(2)}px)`;
+        octx.drawImage(t, sx, sy, sw, sh, dx, dy, dw, dh);
+        octx.filter = 'none';
+
+        if (state.glow > 0) {
+          octx.save();
+          octx.globalCompositeOperation = 'screen';
+          octx.globalAlpha = (state.glow / 100) * 0.55;
+          octx.filter = `blur(${(Math.max(dw, dh) * 0.012).toFixed(1)}px) brightness(1.2) saturate(1.1)`;
+          octx.drawImage(t, sx, sy, sw, sh, dx, dy, dw, dh);
+          octx.restore();
+        }
+
+        fxTemp(octx, dx, dy, dw, dh, state.temp);
+        fxVignette(octx, dx, dy, dw, dh, state.vignette);
+        fxGrain(octx, dx, dy, dw, dh, state.grain, dw / t.width);
+
+        out.toBlob((blob) => {
+          if (!blob) { toast('Export failed: encoding error.', true); return; }
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `photo-edit-${EXPORT_W}x${EXPORT_H}-${Date.now()}.jpg`;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 2000);
+          toast(`Exported ${EXPORT_W}×${EXPORT_H} JPG · ${(blob.size / 1048576).toFixed(2)} MB.`);
+        }, 'image/jpeg', 0.95);
+      } catch (err) {
+        toast('Export failed: ' + (err && err.message ? err.message : 'unknown error'), true);
+      }
+    };
+
+    /* ═════════════ GITHUB PAGES: optional cross-origin isolation ═════════════
+       GH Pages can't send COOP/COEP headers, so a tiny sw.js does it for us.
+       This unlocks multithreaded WASM (2–4× faster CPU inference).
+       Safe no-op if sw.js isn't deployed (registration 404s → caught). */
+    (function enableCrossOriginIsolation() {
+      if (!('serviceWorker' in navigator) || location.protocol !== 'https:') return;
+      navigator.serviceWorker.register('./sw.js', { scope: './' })
+        .then(() => navigator.serviceWorker.ready)
+        .then(() => {
+          // Isolation applies only to documents loaded after the SW is active,
+          // so one reload is needed on the very first visit.
+          if (!self.crossOriginIsolated && !sessionStorage.getItem('coepReload')) {
+            sessionStorage.setItem('coepReload', '1');
+            setTimeout(() => location.reload(), 100);
+          }
+        })
+        .catch(() => {});
+    })();
+  </script>
+</body>
+</html>
