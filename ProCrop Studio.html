@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=GT-NC6T5LRJ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'GT-NC6T5LRJ');
+</script> 
+
+ <link rel="icon" href="https://mohammad3230.github.io/PROJECT/favicon.png" type="image/png" sizes="32x32" />
+  
+  <!-- Responsive viewport setting to prevent mobile scaling issues -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  
+  <!-- Security Headers -->
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+  
+  <!-- Strict CSP: Prevents object injection, restricts iframe embedding, limits script sources -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none';" />
+
+  <title>Pro Image Resizer & Cropper - Secure & Responsive</title>
+
+  <!-- Cropper.js CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" />
+
+  <style>
+    :root {
+      --bg: #07080b;
+      --panel: #111217;
+      --border: #1f2029;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --text: #f4f4f5;
+      --muted: #8e8f9c;
+      --error: #ef4444;
+      --preview: #4f46e5;
+      --preview-hover: #4338ca;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    
+    html, body { 
+      width: 100%; height: 100%; 
+      background: var(--bg); color: var(--text); 
+      overflow: hidden; 
+    }
+    
+    body { display: flex; flex-direction: row; }
+
+    .sidebar {
+      width: 380px; min-width: 380px; height: 100%;
+      background: var(--panel); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; padding: 16px; gap: 16px;
+      overflow-y: auto; z-index: 20;
+    }
+
+    .section-title {
+      font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.05em; color: var(--muted); margin-bottom: 6px;
+    }
+
+    .group { display: flex; flex-direction: column; gap: 8px; }
+
+    button, .file-btn, select, input[type="number"] {
+      background: #181920; color: var(--text); border: 1px solid var(--border);
+      padding: 12px; font-size: 0.9rem; font-weight: 500; border-radius: 6px;
+      transition: all 0.15s ease; outline: none; min-height: 44px;
+    }
+    
+    button { cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+    button:hover, .file-btn:hover, select:hover { background: #22232c; border-color: #383948; }
+    input[type="number"]:focus { border-color: var(--accent); }
+
+    .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: auto; }
+
+    button.preview-btn {
+      background: var(--preview); border: none; color: #fff; padding: 14px;
+      box-shadow: 0 4px 15px rgba(79, 70, 229, 0.2);
+    }
+    button.preview-btn:hover { background: var(--preview-hover); }
+
+    button.export-btn {
+      background: #10b981; border: none; color: #fff; padding: 14px;
+      box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);
+    }
+    button.export-btn:hover { background: #059669; }
+
+    .file-btn { position: relative; overflow: hidden; text-align: center; background: var(--accent); color: white; border: none; }
+    .file-btn:hover { background: var(--accent-hover); }
+    .file-btn input[type="file"] { position: absolute; left: 0; top: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+
+    .workspace {
+      flex: 1; height: 100%; display: flex; align-items: center; justify-content: center;
+      position: relative; overflow: hidden; background: #0a0a0c;
+    }
+
+    .cropper-container-wrapper {
+      width: 90%; height: 90%; max-width: 1200px;
+      display: none; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8);
+      background: #000; border-radius: 4px; overflow: hidden;
+    }
+
+    img#image { display: block; max-width: 100%; }
+
+    .status-badge {
+      position: absolute; top: 16px; left: 16px; display: flex; align-items: center; gap: 8px;
+      background: rgba(17, 18, 23, 0.95); border: 1px solid rgba(59, 130, 246, 0.5);
+      padding: 8px 16px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;
+      color: #93c5fd; z-index: 25; pointer-events: none;
+    }
+
+    .status-error { border-color: var(--error); color: var(--error); }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: center;}
+    .input-label { font-size: 0.75rem; color: var(--muted); margin-bottom: 4px; }
+    
+    input[type=range] { -webkit-appearance: none; background: transparent; width: 100%; margin-top: 6px; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%; background: var(--accent); cursor: pointer; margin-top: -7px; }
+    input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: var(--border); border-radius: 2px; }
+    
+    .checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--text); cursor: pointer; margin-top: 6px; }
+    input[type="checkbox"] { cursor: pointer; width: 18px; height: 18px; accent-color: var(--accent); }
+
+    .tool-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .tool-btn { font-size: 1.2rem; padding: 10px 0; background: #1a1b23; }
+    .btn-reset { grid-column: span 4; background: #262733; padding: 12px; font-size: 0.85rem; }
+    .btn-reset:hover { background: var(--error) !important; border-color: var(--error); }
+
+    /* PREVIEW MODAL STYLES */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.9); z-index: 100;
+      display: none; align-items: center; justify-content: center;
+      backdrop-filter: blur(5px);
+    }
+    .modal-content {
+      position: relative; max-width: 95vw; max-height: 95vh;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .modal-header {
+      width: 100%; display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 12px;
+    }
+    .modal-title { font-weight: 600; color: #fff; font-size: 1rem; }
+    .close-modal {
+      font-size: 2rem; color: #fff; cursor: pointer; line-height: 1;
+      width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+      background: rgba(255,255,255,0.1); border-radius: 50%;
+    }
+    .close-modal:hover { background: var(--error); }
+    .modal-img {
+      max-width: 100%; max-height: 80vh; background: #ffffff; /* White background shows exactly how transparent PNGs convert to JPG */
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5); object-fit: contain; border-radius: 4px;
+    }
+
+    @media (max-width: 768px) {
+      html, body { overflow: auto; height: auto; min-height: 100vh; }
+      body { flex-direction: column; }
+      .sidebar { width: 100%; min-width: 100%; height: auto; border-right: none; order: 2; padding-bottom: 40px; }
+      .workspace { order: 1; width: 100%; height: 55vh; min-height: 400px; border-bottom: 1px solid var(--border); }
+      .cropper-container-wrapper { width: 100%; height: 100%; border-radius: 0; box-shadow: none; }
+      .status-badge { top: 10px; left: 10px; font-size: 0.7rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <aside class="sidebar">
+    <label class="file-btn">
+      📷 Upload Original Image
+      <input type="file" id="fileInput" accept="image/png, image/jpeg, image/webp, image/bmp" />
+    </label>
+
+    <div class="group">
+      <div class="section-title">Transform Tools</div>
+      <div class="tool-grid">
+        <button class="tool-btn" id="btnRotLeft" title="Rotate 90° Left" aria-label="Rotate Left">↺</button>
+        <button class="tool-btn" id="btnRotRight" title="Rotate 90° Right" aria-label="Rotate Right">↻</button>
+        <button class="tool-btn" id="btnFlipH" title="Flip Horizontally" aria-label="Flip Horizontal">↔</button>
+        <button class="tool-btn" id="btnFlipV" title="Flip Vertically" aria-label="Flip Vertical">↕</button>
+        <button class="btn-reset" id="btnReset">✕ Reset All Transforms</button>
+      </div>
+      
+      <div style="margin-top: 6px;">
+        <div class="input-label" style="display:flex; justify-content:space-between;">
+          <span>Zoom Level</span>
+        </div>
+        <input type="range" id="zoomSlider" min="0.1" max="3" step="0.05" value="1" aria-label="Zoom Image" />
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="section-title">Crop Target (W × H)</div>
+      <div class="grid-2">
+        <div>
+          <div class="input-label">Width (px)</div>
+          <input type="number" id="targetW" value="1620" min="1" max="8192" style="width:100%" />
+        </div>
+        <div>
+          <div class="input-label">Height (px)</div>
+          <input type="number" id="targetH" value="2880" min="1" max="8192" style="width:100%" />
+        </div>
+      </div>
+      <label class="checkbox-row">
+        <input type="checkbox" id="lockRatio" checked />
+        Lock crop box to aspect ratio
+      </label>
+    </div>
+
+    <div class="group">
+      <div class="section-title">Quick Presets</div>
+      <select id="presetSelect" aria-label="Resolution Presets">
+        <optgroup label="Custom">
+          <option value="custom">Custom Dimensions</option>
+        </optgroup>
+        <optgroup label="Passport & ID Photos (300 DPI)">
+          <option value="600x600">US Passport / India OCI (2x2" - 600×600 px)</option>
+          <option value="413x531">UK / EU / India Passport (35x45mm - 413×531 px)</option>
+          <option value="394x512">Australian Passport (35x45mm - 394×512 px)</option>
+        </optgroup>
+        <optgroup label="Ultra HD & 4K">
+          <option value="1620x2880" selected>Ultra HD Portrait (1620 × 2880)</option>
+          <option value="2880x1620">Ultra HD Landscape (2880 × 1620)</option>
+          <option value="1080x1920">Full HD Portrait (1080 × 1920)</option>
+          <option value="1920x1080">Full HD Landscape (1920 × 1080)</option>
+          <option value="2160x3840">4K Portrait (2160 × 3840)</option>
+          <option value="3840x2160">4K Landscape (3840 × 2160)</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <div class="group" style="margin-top: 10px;">
+      <div class="section-title">Export Settings</div>
+      <select id="exportFormat" aria-label="Export Format">
+        <option value="image/png">PNG (Lossless - Best Quality)</option>
+        <option value="image/jpeg" selected>JPEG (Standard for Passports)</option>
+      </select>
+      
+      <div id="qualityContainer" style="padding-top: 6px;">
+        <div class="input-label" style="display:flex; justify-content:space-between;">
+          <span>JPEG Quality</span>
+          <span id="qualityVal">95%</span>
+        </div>
+        <input type="range" id="exportQuality" min="0.1" max="1.0" step="0.01" value="0.95" aria-label="JPEG Compression Quality" />
+      </div>
+    </div>
+
+    <div class="action-grid">
+      <button id="previewBtn" class="preview-btn">👁️ Preview</button>
+      <button id="exportBtn" class="export-btn">💾 Export</button>
+    </div>
+  </aside>
+
+  <main class="workspace" id="workspace">
+    <div class="status-badge" id="statusBadge">Engine: Waiting for Image...</div>
+    <div class="cropper-container-wrapper" id="cropperWrapper">
+      <img id="image" src="" alt="Workspace Image" />
+    </div>
+  </main>
+
+  <!-- Preview Modal -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title" id="modalTitle">Preview Output</div>
+        <div class="close-modal" id="closeModal">&times;</div>
+      </div>
+      <img id="modalImg" class="modal-img" src="" alt="Image Preview" />
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
+  <script>
+    'use strict';
+
+    const imageElement = document.getElementById('image');
+    const cropperWrapper = document.getElementById('cropperWrapper');
+    const statusBadge = document.getElementById('statusBadge');
+    const fileInput = document.getElementById('fileInput');
+    
+    // Geometry & Presets
+    const targetWInput = document.getElementById('targetW');
+    const targetHInput = document.getElementById('targetH');
+    const lockRatio = document.getElementById('lockRatio');
+    const presetSelect = document.getElementById('presetSelect');
+    
+    // Tools
+    const btnRotLeft = document.getElementById('btnRotLeft');
+    const btnRotRight = document.getElementById('btnRotRight');
+    const btnFlipH = document.getElementById('btnFlipH');
+    const btnFlipV = document.getElementById('btnFlipV');
+    const btnReset = document.getElementById('btnReset');
+    const zoomSlider = document.getElementById('zoomSlider');
+    
+    // Export & Preview
+    const exportFormat = document.getElementById('exportFormat');
+    const qualityContainer = document.getElementById('qualityContainer');
+    const exportQuality = document.getElementById('exportQuality');
+    const qualityVal = document.getElementById('qualityVal');
+    const exportBtn = document.getElementById('exportBtn');
+    
+    const previewBtn = document.getElementById('previewBtn');
+    const modalOverlay = document.getElementById('modalOverlay');
+    const modalImg = document.getElementById('modalImg');
+    const closeModal = document.getElementById('closeModal');
+    const modalTitle = document.getElementById('modalTitle');
+
+    let cropper = null;
+    let baseBlobUrl = null;
+    let previewBlobUrl = null;
+    let scaleX = 1;
+    let scaleY = 1;
+
+    // --- UI State Management ---
+    function setStatus(msg, isError = false) {
+      statusBadge.textContent = msg;
+      if (isError) statusBadge.classList.add('status-error');
+      else statusBadge.classList.remove('status-error');
+    }
+
+    // --- Transform Tools Handlers ---
+    btnRotLeft.onclick = () => { if (cropper) cropper.rotate(-90); };
+    btnRotRight.onclick = () => { if (cropper) cropper.rotate(90); };
+    
+    btnFlipH.onclick = () => {
+      if (!cropper) return;
+      scaleX = scaleX === 1 ? -1 : 1;
+      cropper.scaleX(scaleX);
+    };
+    
+    btnFlipV.onclick = () => {
+      if (!cropper) return;
+      scaleY = scaleY === 1 ? -1 : 1;
+      cropper.scaleY(scaleY);
+    };
+
+    btnReset.onclick = () => {
+      if (!cropper) return;
+      cropper.reset();
+      scaleX = 1; scaleY = 1; zoomSlider.value = 1;
+    };
+
+    zoomSlider.addEventListener('input', (e) => {
+      if (cropper) cropper.zoomTo(e.target.value);
+    });
+
+    // --- Export Slider UI ---
+    exportFormat.addEventListener('change', (e) => {
+      qualityContainer.style.display = (e.target.value === 'image/jpeg') ? 'block' : 'none';
+    });
+    exportQuality.addEventListener('input', (e) => {
+      qualityVal.textContent = Math.round(e.target.value * 100) + '%';
+    });
+
+    // --- Input Validation & Sanitization ---
+    function getSafeDimension(val, fallback) {
+      const parsed = parseInt(val, 10);
+      if (isNaN(parsed) || parsed <= 0) return fallback;
+      return Math.min(parsed, 8192); 
+    }
+
+    function updateCropperRatio() {
+      if (!cropper) return;
+      if (lockRatio.checked) {
+        const w = getSafeDimension(targetWInput.value, 1620);
+        const h = getSafeDimension(targetHInput.value, 2880);
+        cropper.setAspectRatio(w / h);
+      } else {
+        cropper.setAspectRatio(NaN); 
+      }
+    }
+
+    targetWInput.addEventListener('input', updateCropperRatio);
+    targetHInput.addEventListener('input', updateCropperRatio);
+    lockRatio.addEventListener('change', updateCropperRatio);
+
+    presetSelect.addEventListener('change', (e) => {
+      if (e.target.value !== 'custom') {
+        const [w, h] = e.target.value.split('x').map(Number);
+        targetWInput.value = w;
+        targetHInput.value = h;
+        lockRatio.checked = true;
+        updateCropperRatio();
+      }
+    });
+
+    // --- Strict File Upload Validation & Init ---
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      if (!file.type.match(/^image\/(jpeg|png|webp|bmp)$/i)) {
+        setStatus("Security Error: Invalid image format.", true);
+        alert("Only standard images (JPG, PNG, WebP) are allowed.");
+        fileInput.value = '';
+        return;
+      }
+      
+      if (file.size > 50 * 1024 * 1024) {
+        setStatus("Error: File too large (>50MB).", true);
+        alert("File size exceeds 50MB limit.");
+        fileInput.value = '';
+        return;
+      }
+
+      if (baseBlobUrl) URL.revokeObjectURL(baseBlobUrl);
+      
+      baseBlobUrl = URL.createObjectURL(file);
+      cropperWrapper.style.display = 'block';
+      imageElement.src = baseBlobUrl;
+      
+      scaleX = 1; scaleY = 1; zoomSlider.value = 1;
+
+      imageElement.onerror = () => {
+        setStatus("Error: Corrupted image file.", true);
+        cropperWrapper.style.display = 'none';
+      };
+
+      if (cropper) {
+        cropper.replace(baseBlobUrl);
+      } else {
+        imageElement.onload = () => {
+          try {
+            cropper = new Cropper(imageElement, {
+              viewMode: 1,
+              dragMode: 'move',
+              aspectRatio: (getSafeDimension(targetWInput.value, 1) / getSafeDimension(targetHInput.value, 1)),
+              autoCropArea: 0.9,
+              restore: false,
+              guides: true,
+              center: true,
+              highlight: false,
+              cropBoxMovable: true,
+              cropBoxResizable: true,
+              toggleDragModeOnDblclick: false,
+              zoom: (event) => {
+                setTimeout(() => { if(cropper) zoomSlider.value = cropper.getImageData().ratio; }, 0);
+              }
+            });
+            setStatus(`Crop Engine Ready`);
+          } catch(err) {
+            setStatus("Error initializing cropper engine.", true);
+            console.error(err);
+          }
+        };
+      }
+    });
+
+    // --- Preview Generator ---
+    previewBtn.onclick = () => {
+      if (!cropper) return alert('Please upload an image first.');
+      
+      const tW = getSafeDimension(targetWInput.value, 1620);
+      const tH = getSafeDimension(targetHInput.value, 2880);
+      
+      setStatus('Generating preview...');
+
+      try {
+        const canvas = cropper.getCroppedCanvas({
+          width: tW, height: tH,
+          imageSmoothingEnabled: true, imageSmoothingQuality: 'high',
+          fillColor: '#ffffff'
+        });
+
+        if (!canvas) throw new Error("Canvas context creation failed.");
+
+        // Using Blob to avoid base64 string memory crashes on massive resolutions
+        canvas.toBlob((blob) => {
+          if (!blob) return setStatus('Error: Preview generation failed.', true);
+
+          if (previewBlobUrl) URL.revokeObjectURL(previewBlobUrl);
+          
+          previewBlobUrl = URL.createObjectURL(blob);
+          modalImg.src = previewBlobUrl;
+          modalTitle.textContent = `Preview: ${tW} × ${tH}px`;
+          modalOverlay.style.display = 'flex';
+          
+          setStatus(`Preview Generated`);
+        }, 'image/jpeg', 0.9); // Fast preview encoding
+
+      } catch (err) {
+        console.error(err);
+        setStatus("Preview Error: Memory Limit Exceeded", true);
+        alert("Failed to generate preview. Resolution may be too high.");
+      }
+    };
+
+    // Close Modal Logic
+    const hideModal = () => { modalOverlay.style.display = 'none'; };
+    closeModal.onclick = hideModal;
+    modalOverlay.onclick = (e) => { if (e.target === modalOverlay) hideModal(); };
+
+    // --- Final Export ---
+    exportBtn.onclick = () => {
+      if (!cropper) return alert('Please upload an image first.');
+      
+      const tW = getSafeDimension(targetWInput.value, 1620);
+      const tH = getSafeDimension(targetHInput.value, 2880);
+      
+      const format = exportFormat.value;
+      const extension = format === 'image/jpeg' ? 'jpg' : 'png';
+      const quality = format === 'image/jpeg' ? parseFloat(exportQuality.value) : 1.0;
+      
+      setStatus('Generating pixels. Please wait...');
+
+      try {
+        const canvas = cropper.getCroppedCanvas({
+          width: tW, height: tH,
+          imageSmoothingEnabled: true, imageSmoothingQuality: 'high',
+          fillColor: '#ffffff'
+        });
+
+        if (!canvas) throw new Error("Canvas context creation failed.");
+
+        canvas.toBlob((blob) => {
+          if (!blob) return setStatus('Error: Blob generation failed.', true);
+
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          
+          let prefix = "pro-crop";
+          if (tW === 600 && tH === 600) prefix = "passport-us";
+          if (tW === 413 && tH === 531) prefix = "passport-eu";
+
+          a.download = `${prefix}-${tW}x${tH}.${extension}`;
+          a.href = url;
+          a.click();
+          
+          setStatus(`Exported: ${tW} × ${tH}px (${extension.toUpperCase()})`);
+          setTimeout(() => URL.revokeObjectURL(url), 1500);
+        }, format, quality);
+
+      } catch (err) {
+        console.error(err);
+        setStatus("Export Error: Memory Limit Exceeded", true);
+        alert("Failed to generate image. Try a smaller size.");
+      }
+    };
+  </script>
+</body>
+</html>
