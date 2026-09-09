@@ -499,7 +499,7 @@
     closeModal.onclick = hideModal;
     modalOverlay.onclick = (e) => { if (e.target === modalOverlay) hideModal(); };
 
-    // --- Final Export (Two-Step Desktop Safe Fix) ---
+    // --- Final Export (Corrected Memory-Safe Version) ---
     exportBtn.onclick = () => {
       if (!cropper) return alert('Please upload an image first.');
       
@@ -513,8 +513,13 @@
       setStatus('Generating pixels. Please wait...');
 
       try {
-        // Let the engine crop naturally without forcing a massive initial canvas scale
+        // By passing width/height directly, Cropper resizes the image *during* the crop.
+        // The maxWidth/maxHeight of 8192 acts as a hard ceiling for up to 8K resolution.
         const canvas = cropper.getCroppedCanvas({
+          width: tW, 
+          height: tH,
+          maxWidth: 8192,  
+          maxHeight: 8192, 
           imageSmoothingEnabled: true, 
           imageSmoothingQuality: 'high',
           fillColor: '#ffffff'
@@ -522,16 +527,7 @@
 
         if (!canvas) throw new Error("Canvas context creation failed.");
 
-        // Create a secondary, memory-safe canvas to handle the final resize
-        const finalCanvas = document.createElement('canvas');
-        finalCanvas.width = tW;
-        finalCanvas.height = tH;
-        const ctx = finalCanvas.getContext('2d');
-        
-        // Draw and scale the original crop into the target dimensions safely
-        ctx.drawImage(canvas, 0, 0, tW, tH);
-
-        finalCanvas.toBlob((blob) => {
+        canvas.toBlob((blob) => {
           if (!blob) return setStatus('Error: Blob generation failed.', true);
 
           const url = URL.createObjectURL(blob);
@@ -541,11 +537,12 @@
           if (tW === 600 && tH === 600) prefix = "passport-us";
           if (tW === 413 && tH === 531) prefix = "passport-eu";
 
-          a.download = `${prefix}-${tW}x${tH}.${extension}`;
+          // Uses canvas.width/height to accurately reflect the exported file size
+          a.download = `${prefix}-${canvas.width}x${canvas.height}.${extension}`;
           a.href = url;
           a.click();
           
-          setStatus(`Exported: ${tW} × ${tH}px (${extension.toUpperCase()})`);
+          setStatus(`Exported: ${canvas.width} × ${canvas.height}px (${extension.toUpperCase()})`);
           setTimeout(() => URL.revokeObjectURL(url), 1500);
         }, format, quality);
 
