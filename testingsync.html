@@ -156,7 +156,7 @@
     }
     .close-modal:hover { background: var(--error); }
     .modal-img {
-      max-width: 100%; max-height: 80vh; background: #ffffff; /* White background shows exactly how transparent PNGs convert to JPG */
+      max-width: 100%; max-height: 80vh; background: #ffffff;
       box-shadow: 0 10px 40px rgba(0,0,0,0.5); object-fit: contain; border-radius: 4px;
     }
 
@@ -454,7 +454,7 @@
       }
     });
 
-    // --- Preview Generator (Ultra-Safe Memory Optimized) ---
+    // --- Preview Generator ---
     previewBtn.onclick = () => {
       if (!cropper) return alert('Please upload an image first.');
       
@@ -464,14 +464,11 @@
       setStatus('Generating preview...');
 
       try {
-        // ULTRA-SAFE LIMITS: 
-        // We limit the preview to 800px max. This uses ~2MB of RAM instead of ~16MB+,
-        // completely bypassing the iOS/Android canvas memory crash limits.
         const canvas = cropper.getCroppedCanvas({
           maxWidth: 800, 
           maxHeight: 800,
           imageSmoothingEnabled: true, 
-          imageSmoothingQuality: 'low', // Low is perfectly fine for a screen preview
+          imageSmoothingQuality: 'low',
           fillColor: '#ffffff'
         });
 
@@ -488,7 +485,7 @@
           modalOverlay.style.display = 'flex';
           
           setStatus(`Preview Generated Safely`);
-        }, 'image/jpeg', 0.8); // 80% quality is lighter on memory just for the preview screen
+        }, 'image/jpeg', 0.8);
 
       } catch (err) {
         console.error(err);
@@ -502,7 +499,7 @@
     closeModal.onclick = hideModal;
     modalOverlay.onclick = (e) => { if (e.target === modalOverlay) hideModal(); };
 
-    // --- Final Export ---
+    // --- Final Export (Two-Step Desktop Safe Fix) ---
     exportBtn.onclick = () => {
       if (!cropper) return alert('Please upload an image first.');
       
@@ -516,22 +513,25 @@
       setStatus('Generating pixels. Please wait...');
 
       try {
-        // Enforce a hard memory cap (4096 or 8192) to prevent browser canvas crashes on 10k images
-        const HARDWARE_SAFE_LIMIT = 4096; 
-        
+        // Let the engine crop naturally without forcing a massive initial canvas scale
         const canvas = cropper.getCroppedCanvas({
-          width: tW, 
-          height: tH,
-          maxWidth: HARDWARE_SAFE_LIMIT, // Forces proportional downscaling if tW exceeds limit
-          maxHeight: HARDWARE_SAFE_LIMIT, // Forces proportional downscaling if tH exceeds limit
           imageSmoothingEnabled: true, 
           imageSmoothingQuality: 'high',
           fillColor: '#ffffff'
         });
 
-        if (!canvas) throw new Error("Canvas context creation failed due to device memory limits.");
+        if (!canvas) throw new Error("Canvas context creation failed.");
 
-        canvas.toBlob((blob) => {
+        // Create a secondary, memory-safe canvas to handle the final resize
+        const finalCanvas = document.createElement('canvas');
+        finalCanvas.width = tW;
+        finalCanvas.height = tH;
+        const ctx = finalCanvas.getContext('2d');
+        
+        // Draw and scale the original crop into the target dimensions safely
+        ctx.drawImage(canvas, 0, 0, tW, tH);
+
+        finalCanvas.toBlob((blob) => {
           if (!blob) return setStatus('Error: Blob generation failed.', true);
 
           const url = URL.createObjectURL(blob);
@@ -541,19 +541,18 @@
           if (tW === 600 && tH === 600) prefix = "passport-us";
           if (tW === 413 && tH === 531) prefix = "passport-eu";
 
-          // Use actual canvas width/height in filename in case it was safely downscaled
-          a.download = `${prefix}-${canvas.width}x${canvas.height}.${extension}`;
+          a.download = `${prefix}-${tW}x${tH}.${extension}`;
           a.href = url;
           a.click();
           
-          setStatus(`Exported: ${canvas.width} × ${canvas.height}px (${extension.toUpperCase()})`);
+          setStatus(`Exported: ${tW} × ${tH}px (${extension.toUpperCase()})`);
           setTimeout(() => URL.revokeObjectURL(url), 1500);
         }, format, quality);
 
       } catch (err) {
         console.error(err);
         setStatus("Export Error: Memory Limit Exceeded", true);
-        alert("Failed to generate final image. The requested resolution is too high for your device's memory. Try a smaller size.");
+        alert("Failed to generate final image. The requested resolution is too high for your browser's memory limits. Try a smaller size.");
       }
     };
   </script>
