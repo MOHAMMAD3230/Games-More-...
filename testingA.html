@@ -2,9 +2,21 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <meta name="theme-color" content="#0b0a09"/>
 <title>MYSTUFF — ignition &amp; deep frost</title>
+
+<!-- Security Measures: CSP, Anti-Injection, No-Sniff -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; base-uri 'none'; object-src 'none'; form-action 'none';">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+
+<!-- Anti-Clickjacking / Anti-Mirroring Framebuster -->
+<script>
+  if (window.top !== window.self) {
+    window.top.location.replace(window.self.location.href);
+  }
+</script>
+
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%239fd4ee' d='M8 1v14M2 4.5l12 7M14 4.5l-12 7' stroke='%239fd4ee' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -74,10 +86,21 @@
   .go:hover,.go:focus-visible{color:#ffc791;border-color:#ff8a2e;background:rgba(255,122,36,.1);outline:none}
   .go:hover svg{transform:translate(2px,-2px)}
   .item.sel .go{color:#ffb35c;border-color:rgba(255,138,46,.55);box-shadow:0 0 16px rgba(255,138,46,.12)}
+  
   .cfoot{display:flex;justify-content:space-between;align-items:center;gap:12px;
     margin-top:26px;font-size:9.5px;letter-spacing:.22em;color:#6d655a}
   .cfoot svg{width:11px;height:11px;color:#8a5a2e;vertical-align:-1px;margin-right:6px}
   #selName{color:#c98d4b}
+
+  /* Seal Button */
+  #closeBtn {
+    background: rgba(255,138,46,0.1); border: 1px solid rgba(255,138,46,0.4);
+    color: #ffb35c; padding: 6px 12px; font-family: inherit; font-size: 10px;
+    cursor: pointer; letter-spacing: 0.15em; border-radius: 4px;
+    transition: all 0.25s; opacity: 0; pointer-events: none; margin-left: 10px;
+  }
+  #closeBtn:hover { background: rgba(255,138,46,0.25); border-color: #ff8a2e; }
+  body.open #closeBtn { opacity: 1; pointer-events: auto; }
 
   /* ---------- cover + atmosphere ---------- */
   #cover{position:fixed;inset:0;z-index:2;pointer-events:none;display:block}
@@ -169,7 +192,6 @@
 </head>
 <body>
 
-<!-- what's buried underneath — stable, never moves -->
 <div id="content" aria-hidden="true">
   <div id="stars"></div>
   <div class="panel">
@@ -180,14 +202,13 @@
     <p class="pick-hint mono">PICK ONE · THEN HIT OPEN</p>
 
     <div class="items">
-      <!-- EDIT: replace each href with your real link -->
       <label class="item">
         <input type="radio" name="vault-pick" value="EMBERFORGE">
         <span class="radio" aria-hidden="true"></span>
         <span class="idx mono">01</span>
         <span><span class="name">EMBERFORGE</span><span class="desc">real-time wildfire engine — canvas × math</span></span>
         <span class="tag mono">TOOL</span>
-        <a class="go" href="#emberforge" target="_blank" rel="noopener">OPEN <i data-lucide="arrow-up-right"></i></a>
+        <a class="go" href="#emberforge" target="_blank" rel="noopener noreferrer">OPEN <i data-lucide="arrow-up-right"></i></a>
       </label>
 
       <label class="item">
@@ -196,7 +217,7 @@
         <span class="idx mono">02</span>
         <span><span class="name">ASHFALL ARCHIVE</span><span class="desc">notes on motion, light &amp; heat</span></span>
         <span class="tag mono">NOTES</span>
-        <a class="go" href="#ashfall" target="_blank" rel="noopener">OPEN <i data-lucide="arrow-up-right"></i></a>
+        <a class="go" href="#ashfall" target="_blank" rel="noopener noreferrer">OPEN <i data-lucide="arrow-up-right"></i></a>
       </label>
 
       <label class="item">
@@ -205,7 +226,7 @@
         <span class="idx mono">03</span>
         <span><span class="name">SIGNAL WIRE</span><span class="desc">a monthly letter, sent while hot</span></span>
         <span class="tag mono">MAIL</span>
-        <a class="go" href="#signal" target="_blank" rel="noopener">OPEN <i data-lucide="arrow-up-right"></i></a>
+        <a class="go" href="#signal" target="_blank" rel="noopener noreferrer">OPEN <i data-lucide="arrow-up-right"></i></a>
       </label>
 
       <label class="item">
@@ -214,13 +235,16 @@
         <span class="idx mono">04</span>
         <span><span class="name">GITHUB COALS</span><span class="desc">code leftovers that never cooled</span></span>
         <span class="tag mono">CODE</span>
-        <a class="go" href="#coals" target="_blank" rel="noopener">OPEN <i data-lucide="arrow-up-right"></i></a>
+        <a class="go" href="#coals" target="_blank" rel="noopener noreferrer">OPEN <i data-lucide="arrow-up-right"></i></a>
       </label>
     </div>
 
     <div class="cfoot mono">
       <span><i data-lucide="flame"></i>EVERYTHING HERE SURVIVED THE BURN</span>
-      <span>SELECTED — <span id="selName">NONE</span></span>
+      <div style="display: flex; align-items: center;">
+        <span>SELECTED — <span id="selName">NONE</span></span>
+        <button id="closeBtn">SEAL VAULT</button>
+      </div>
     </div>
   </div>
 </div>
@@ -263,13 +287,25 @@
 
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 <script>
-if (window.lucide) lucide.createIcons();
+// Safe init for icons
+if (window.lucide) {
+  try { window.lucide.createIcons(); } catch(e) { console.warn("Lucide icons error", e); }
+}
+
+/* ================= Performance Calibration ================= */
+const IS_MOBILE = window.innerWidth < 768;
+const POLY_VERTICES = IS_MOBILE ? 80 : 130; 
+const MAX_FLAMES = IS_MOBILE ? 150 : 300;
+const MAX_SPARKS = IS_MOBILE ? 100 : 200;
+const MAX_SMOKES = IS_MOBILE ? 60 : 120;
+const MAX_ICES = IS_MOBILE ? 100 : 200;
 
 /* ================= basics ================= */
 const TAU = Math.PI * 2, R = Math.random;
 const cv = document.getElementById('cover'), ctx = cv.getContext('2d');
 const content = document.getElementById('content'), starsEl = document.getElementById('stars');
 const brand = document.getElementById('brand');
+const closeBtn = document.getElementById('closeBtn');
 const stateText = document.getElementById('stateText');
 const hintLabel = document.getElementById('hintLabel');
 const toastEl = document.getElementById('toast');
@@ -280,23 +316,25 @@ const gaugeLabel = document.getElementById('gaugeLabel');
 const tempVal = document.getElementById('tempVal');
 const stepEls = [...document.querySelectorAll('.step')];
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const PM = REDUCED ? .4 : 1;
+const PM = REDUCED ? (IS_MOBILE ? .2 : .4) : (IS_MOBILE ? .6 : 1);
 
-let W = 0, H = 0, DPR = 1;
+let W = 0, H = 0, DPR = 1, cx = 0, cy = 0, Ax = 0, Ay = 0;
 let T = 0, wind = 0, windTarget = 0, hoverTitle = false, hintedOnce = false;
 let openSecs = 0, catchT = 0, dieT = 0, sealT = 0, sealPct = 0, brandRect = null, lastPct = -1;
 let temp = 21, lastTempStr = '', lastCount = -1;
+let burn = 0; 
 
-/* sealed → catching → burning → dying → open → sealing → sealed ⇢ freezing → frozen ⇢ thawing */
+/* Slower frame opening & closing bounds */
 let mode = 'sealed';
-const CATCH_DUR = .9, IGN_DUR = 7.0, AW = 1.1, DIE_DUR = 3.0, SEAL_DUR = 1.7,
-      CHAR_LIFE = 3.5, FREEZE_DUR = 4.5, THAW_DUR = 1.1;
-let freezeDelay = 9, sealedT = 0;                 // first grace is longer
+const CATCH_DUR = .9, IGN_DUR = 8.0, DIE_DUR = 3.0, SEAL_DUR = 6.0, FREEZE_DUR = 4.5, THAW_DUR = 1.1;
+let freezeDelay = 9, sealedT = 0;                 
 
 const flames = [], sparks = [], smokes = [], flashes = [], embers = [], ices = [], cracks = [];
 let ambAcc = 0, titleAcc = 0, dieSmokeAcc = 0, iceAcc = 0;
+let flameAcc = 0, sparkAcc = 0, smokeAcc = 0, nodeAcc = 0;
+const hotNodes = [];
 
-/* ============ fire palette: 72-step blackbody LUT + sprites ============ */
+/* ============ palette & sprites ============ */
 const SPR = [];
 (function(){
   const stops = [
@@ -340,43 +378,25 @@ const coldSpr = (() => {
   g.fillStyle = r; g.fillRect(0,0,s,s);
   return c;
 })();
-const sootSpr = (() => {
-  const s = 48, c = document.createElement('canvas');
-  c.width = c.height = s;
-  const g = c.getContext('2d');
-  const r = g.createRadialGradient(24,24,0,24,24,24);
-  r.addColorStop(0,'rgba(8,5,3,.9)');
-  r.addColorStop(.6,'rgba(10,6,4,.55)');
-  r.addColorStop(1,'rgba(10,6,4,0)');
-  g.fillStyle = r; g.fillRect(0,0,s,s);
-  return c;
-})();
 
 /* ================= layout, cover texture ================= */
 const texCv = document.createElement('canvas');
-const maskCv = document.createElement('canvas');
-const charCv = document.createElement('canvas');
 const frostCv = document.createElement('canvas');
-let maskCtx, charCtx, frostCtx;
+let frostCtx;
 
 function resize(){
   DPR = Math.min(devicePixelRatio || 1, 2);
   W = innerWidth; H = innerHeight;
-  for (const c of [cv, texCv, maskCv, charCv, frostCv]){
+  for (const c of [cv, texCv, frostCv]){
     c.width = Math.round(W * DPR); c.height = Math.round(H * DPR);
   }
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  maskCtx = maskCv.getContext('2d'); maskCtx.setTransform(DPR,0,0,DPR,0,0); maskCtx.fillStyle = '#000';
-  charCtx = charCv.getContext('2d'); charCtx.setTransform(DPR,0,0,DPR,0,0);
   frostCtx = frostCv.getContext('2d'); frostCtx.setTransform(DPR,0,0,DPR,0,0);
+  cx = W / 2; cy = H / 2;
+  const rim = Math.max(26, Math.min(64, Math.min(W, H) * .07));
+  Ax = W / 2 - rim * .8; Ay = H / 2 - rim;
   bakeTexture();
   brandRect = brand.getBoundingClientRect();
-  if (mode === 'open' || mode === 'dying') maskCtx.fillRect(0, 0, W, H);
-  if (mode === 'burning'){
-    buildField(fieldOrigin.x, fieldOrigin.y);
-    elapsed = Math.min(elapsed, maxT + AW);
-    ptrEnd = locate(elapsed); ptrStart = locate(Math.max(0, elapsed - AW));
-  }
   if (mode === 'freezing'){ buildFrostField(); fptr = flocate(felapsed); }
   if (mode === 'frozen') frostOver();
 }
@@ -386,7 +406,7 @@ function bakeTexture(){
   g.setTransform(DPR, 0, 0, DPR, 0, 0);
   g.clearRect(0, 0, W, H);
   g.fillStyle = '#0b0a09'; g.fillRect(0, 0, W, H);
-  for (let i = 0; i < 7; i++){
+  for (let i = 0; i < (IS_MOBILE ? 3 : 7); i++){
     const x = R() * W, y = R() * H, r = 120 + R() * 320;
     const rg = g.createRadialGradient(x, y, 0, x, y, r);
     const d = R() < .5 ? '18,15,12' : '30,26,22';
@@ -394,12 +414,12 @@ function bakeTexture(){
     rg.addColorStop(1, 'rgba(0,0,0,0)');
     g.fillStyle = rg; g.fillRect(x - r, y - r, r * 2, r * 2);
   }
-  for (let i = 0; i < 600; i++){
+  for (let i = 0; i < (IS_MOBILE ? 300 : 600); i++){
     g.fillStyle = `rgba(200,190,175,${(.015 + R() * .05).toFixed(3)})`;
     g.fillRect(R() * W, R() * H, R() < .9 ? 1 : 2, R() < .9 ? 1 : 2);
   }
   g.strokeStyle = 'rgba(255,255,255,.03)'; g.lineWidth = 1;
-  for (let i = 0; i < 50; i++){
+  for (let i = 0; i < (IS_MOBILE ? 20 : 50); i++){
     const x = R() * W, y = R() * H, a = R() * TAU, l = 10 + R() * 70;
     g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke();
   }
@@ -422,18 +442,50 @@ function bakeTexture(){
   g.restore();
 }
 
-(function makeStars(){
-  const n = REDUCED ? 0 : 70;
-  for (let i = 0; i < n; i++){
-    const s = document.createElement('span');
-    s.className = 'star';
-    const sz = R() < .8 ? 1 : 2;
-    s.style.cssText = `left:${(R()*100).toFixed(2)}%;top:${(R()*100).toFixed(2)}%;` +
-      `width:${sz}px;height:${sz}px;opacity:${(.1+R()*.4).toFixed(2)};` +
-      `animation-duration:${(2.5+R()*4.5).toFixed(2)}s;animation-delay:${(-R()*7).toFixed(2)}s`;
-    starsEl.appendChild(s);
+/* ================= polygon burn framework ================= */
+const sx = new Float32Array(POLY_VERTICES), sy = new Float32Array(POLY_VERTICES), vis = new Uint8Array(POLY_VERTICES);
+const visIdx = [];
+const harm = [[2,.09],[3,.12],[5,.09],[8,.06],[13,.045],[23,.03],[37,.018]]
+  .map(([k,a]) => ({ k, a, p: R()*TAU, s: (R()<.5?-1:1)*(0.15+R()*0.5) }));
+const ease = t => t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
+
+function computeSamples(){
+  visIdx.length = 0;
+  const m = 1 + .006 * Math.sin(T * 23);            
+  const maxNeeded = (Math.hypot(W, H) / 2) / Math.min(Ax, Ay) + 1;
+  const spreadMultiplier = 1 + Math.pow(burn, 3) * maxNeeded;
+  const tEase = ease(burn) * spreadMultiplier;
+  
+  for (let i = 0; i < POLY_VERTICES; i++){
+    const th = i / POLY_VERTICES * TAU;
+    let r = 1 / Math.hypot(Math.cos(th) / Ax, Math.sin(th) / Ay);
+    let mult = m;
+    for (const h of harm) mult += h.a * Math.sin(h.k * th + h.p + T * h.s);
+    
+    r *= Math.max(.05, mult) * tEase;
+    const x = cx + Math.cos(th) * r, y = cy + Math.sin(th) * r;
+    sx[i] = x; sy[i] = y;
+    
+    if (x > -200 && x < W + 200 && y > -200 && y < H + 200){ vis[i] = 1; visIdx.push(i); }
+    else vis[i] = 0;
   }
-})();
+}
+
+function buildPoly(){
+  ctx.beginPath(); ctx.moveTo(sx[0], sy[0]);
+  for (let i = 1; i < POLY_VERTICES; i++) ctx.lineTo(sx[i], sy[i]);
+  ctx.closePath();
+}
+const angDiff = (a, b) => { let d = (a - b) % TAU; if (d > Math.PI) d -= TAU; if (d < -Math.PI) d += TAU; return d; };
+function bright(i){
+  const th = i / POLY_VERTICES * TAU;
+  let b = .26 + .2 * Math.sin(T * 5.3 + i * .73) + .16 * Math.sin(T * 9.7 + i * 2.1 + 1.3);
+  for (const n of hotNodes){
+    const d = Math.abs(angDiff(th, n.th));
+    if (d < .5) b += n.p * Math.exp(-d * d / (2 * .09 * .09));
+  }
+  return Math.max(0, Math.min(1.7, b)) * (burn > 0 && burn < 1 ? 1 : .55);
+}
 
 /* ================= shared noise ================= */
 function hash2(i, j){ const s = Math.sin(i * 127.1 + j * 311.7) * 43758.5453; return s - Math.floor(s); }
@@ -446,65 +498,8 @@ function vnoise(x, y){
 const fbm = (x, y) =>
   vnoise(x / 170, y / 170) * .6 + vnoise(x / 70 + 41, y / 70 + 13) * .28 + vnoise(x / 27 + 9, y / 27 + 71) * .12;
 
-/* ================= wildfire field ================= */
-const CELL = 8;
-let cols = 0, rows = 0, total = 0;
-let cellsT = null, order = null, maxT = 1;
-let ptrEnd = 0, ptrStart = 0, elapsed = 0, bodyCount = 0;
-const fieldOrigin = { x: 0, y: 0 };
-const frontC = { x: 0, y: 0 };
-
-function buildField(ox, oy){
-  fieldOrigin.x = ox; fieldOrigin.y = oy;
-  cols = Math.ceil(W / CELL) + 1; rows = Math.ceil(H / CELL) + 1; total = cols * rows;
-  const raw = new Float32Array(total);
-  let maxRaw = 1e-6;
-  for (let j = 0; j < rows; j++){
-    const y = j * CELL + CELL / 2;
-    for (let i = 0; i < cols; i++){
-      const x = i * CELL + CELL / 2;
-      const dx = x - ox, dy = y - oy;
-      const dyS = dy < 0 ? dy / 1.55 : dy / 0.8;
-      const r = Math.hypot(dx, dyS) + fbm(x, y) * 140;
-      raw[j * cols + i] = r;
-      if (r > maxRaw) maxRaw = r;
-    }
-  }
-  const scale = IGN_DUR / maxRaw;
-  cellsT = new Float32Array(total);
-  for (let k = 0; k < total; k++) cellsT[k] = raw[k] * scale;
-  order = Int32Array.from(Array.from({length: total}, (_, k) => k).sort((a, b) => cellsT[a] - cellsT[b]));
-  maxT = cellsT[order[total - 1]];
-  ptrEnd = 0; ptrStart = 0; elapsed = 0; bodyCount = 0;
-}
-function locate(t){
-  let lo = 0, hi = total;
-  while (lo < hi){ const m = (lo + hi) >> 1; if (cellsT[order[m]] <= t) lo = m + 1; else hi = m; }
-  return lo;
-}
-const cellX = k => (k % cols) * CELL + CELL / 2;
-const cellY = k => ((k / cols) | 0) * CELL + CELL / 2;
-
-function igniteCell(k){
-  const x = cellX(k), y = cellY(k);
-  maskCtx.beginPath();
-  maskCtx.arc(x, y, CELL * .72 + R() * 1.6, 0, TAU);
-  maskCtx.fill();
-  charCtx.globalAlpha = .8;
-  const r = 7 + R() * 9;
-  charCtx.drawImage(sootSpr, x - r, y - r, r * 2, r * 2);
-  if (R() < .3){
-    charCtx.globalAlpha = .95;
-    charCtx.fillStyle = R() < .5 ? '#ff8a2e' : '#ffc257';
-    charCtx.fillRect(x + (R() - .5) * 8, y + (R() - .5) * 8, 1.4, 1.4);
-  }
-  charCtx.globalAlpha = 1;
-  if (R() < .1 && embers.length < 400)
-    embers.push({ x, y, vx: (R() - .5) * 8, vy: -(5 + R() * 12),
-      life: 1.8 + R() * 1.6, max: 3.4, s: .8 + R() * 1.6, seed: R() * 100 });
-}
-
-/* ================= frost field (edges → inward, like window frost) ================= */
+/* ================= frost field ================= */
+const CELL = IS_MOBILE ? 12 : 8; // Faster frost grid calc on mobile
 let fcols = 0, frows = 0, ftotal = 0;
 let fcellsT = null, forder = null, fmaxT = 1;
 let fptr = 0, felapsed = 0, frostAlpha = 0;
@@ -518,7 +513,7 @@ function buildFrostField(){
     for (let i = 0; i < fcols; i++){
       const x = i * CELL + CELL / 2;
       const dEdge = Math.min(x, W - x, y, H - y);
-      const r = dEdge + fbm(x + 500, y + 900) * 110;   // icy fingers
+      const r = dEdge + fbm(x + 500, y + 900) * 110; 
       raw[j * fcols + i] = r;
       if (r > maxRaw) maxRaw = r;
     }
@@ -540,14 +535,14 @@ const fcY = k => ((k / fcols) | 0) * CELL + CELL / 2;
 
 function frostCell(k){
   const x = fcX(k), y = fcY(k);
-  const r = 4 + R() * 6;                                     // soft icy body
+  const r = 4 + R() * 6;                                     
   const g = frostCtx.createRadialGradient(x, y, 0, x, y, r * 2.2);
   g.addColorStop(0, 'rgba(206,222,234,.5)');
   g.addColorStop(.55, 'rgba(190,208,222,.28)');
   g.addColorStop(1, 'rgba(190,208,222,0)');
   frostCtx.fillStyle = g;
   frostCtx.fillRect(x - r * 2.2, y - r * 2.2, r * 4.4, r * 4.4);
-  frostCtx.strokeStyle = 'rgba(236,246,252,.75)';            // dendrite spikes
+  frostCtx.strokeStyle = 'rgba(236,246,252,.75)';            
   frostCtx.lineWidth = .8; frostCtx.lineCap = 'round';
   const n = 1 + (R() * 3 | 0);
   for (let i = 0; i < n; i++){
@@ -560,15 +555,15 @@ function frostCell(k){
       frostCtx.stroke();
     }
   }
-  if (R() < .35){                                            // bright specks
+  if (R() < .35){                                            
     frostCtx.fillStyle = 'rgba(255,255,255,.9)';
     frostCtx.fillRect(x + (R() - .5) * 6, y + (R() - .5) * 6, 1, 1);
   }
 }
-function frostOver(){                                        // final glaze: milky glass + droplets
+function frostOver(){                                        
   frostCtx.fillStyle = 'rgba(196,209,219,.55)';
   frostCtx.fillRect(0, 0, W, H);
-  for (let i = 0; i < 60; i++){                              // condensation droplets
+  for (let i = 0; i < (IS_MOBILE ? 25 : 60); i++){                              
     const x = R() * W, y = R() * H, w = 1.5 + R() * 2, h = 3 + R() * 5;
     frostCtx.fillStyle = 'rgba(150,170,185,.35)';
     frostCtx.beginPath(); frostCtx.ellipse(x, y, w, h, 0, 0, TAU); frostCtx.fill();
@@ -576,36 +571,37 @@ function frostOver(){                                        // final glaze: mil
     frostCtx.beginPath(); frostCtx.ellipse(x - w * .25, y - h * .3, w * .35, h * .22, 0, 0, TAU); frostCtx.fill();
   }
   frostCtx.strokeStyle = 'rgba(120,140,155,.3)'; frostCtx.lineWidth = 1;
-  for (let i = 0; i < 24; i++){                              // melt trails
+  for (let i = 0; i < (IS_MOBILE ? 10 : 24); i++){                              
     const x = R() * W, y = R() * H, l = 10 + R() * 28;
     frostCtx.beginPath(); frostCtx.moveTo(x, y); frostCtx.lineTo(x, y + l); frostCtx.stroke();
   }
 }
 
-/* ================= particles — slow, cinematic ================= */
+/* ================= particles ================= */
 const scaleK = () => Math.max(.75, Math.min(1.25, Math.min(W, H) / 900));
-function spawnFlame(x, y, big){
-  if (flames.length > 320) return;
-  const life = .7 + R() * .8, k = scaleK();
-  flames.push({ x: x + (R() - .5) * 6, y: y + (R() - .5) * 6,
-    vx: wind * .35 + (R() - .5) * 14,
-    vy: -(26 + R() * 55) - (big ? 40 : 0),
-    life, max: life, size: (6 + R() * 11 + (big ? 10 : 0)) * k, seed: R() * 1000 });
+function spawnFlame(x, y, nx, ny, big){
+  if (flames.length > MAX_FLAMES) return; 
+  const life = .35 + R() * .6, k = scaleK();
+  flames.push({ x: x+(R()-.5)*5, y: y+(R()-.5)*5,
+    vx: nx*(14+R()*30)+wind*.4+(R()-.5)*18, vy: -(46+R()*(big?130:80)),
+    life, max: life, size: (4.5+R()*(big?15:9))*k, seed: R()*1000 });
 }
-function spawnSpark(x, y, dim, white){
-  if (sparks.length > 260) return;
-  const life = .8 + R() * .9;
-  sparks.push({ x, y, vx: (R() - .5) * 70 + wind * .4, vy: -(22 + R() * 60),
-    life, max: life, dim: !!dim, white: !!white, seed: R() * 1000 });
+function spawnSpark(x, y, nx, ny, inward){
+  if (sparks.length > MAX_SPARKS) return; 
+  const life = .5 + R() * .8;
+  let vx, vy;
+  if (inward){ vx = -nx*(40+R()*80); vy = -(20+R()*60); }
+  else { vx = nx*(50+R()*150)+wind*.5; vy = -(30+R()*90); }
+  sparks.push({ x, y, vx, vy, life, max: life, dim: false, white: false });
 }
 function spawnSmoke(x, y, big, cold){
-  if (smokes.length > 150) return;
-  const life = (big ? 3.0 : 2.2) + R() * 2.2, k = scaleK();
-  smokes.push({ x, y, vx: (R() - .5) * 10 + wind * .25, vy: -(10 + R() * 18),
-    life, max: life, size: (16 + R() * (big ? 34 : 18)) * k, seed: R() * 100, cold: !!cold });
+  if (smokes.length > MAX_SMOKES) return;
+  const life = big ? 1.8+R()*1.6 : 1.3+R()*1.4, k = scaleK();
+  smokes.push({ x, y, vx: (R()-.5)*14+wind*.3, vy: -(14+R()*26),
+    life, max: life, size: ((big?22:13)+R()*(big?30:16))*k, seed: R()*100, cold: !!cold });
 }
 function spawnIce(x, y){
-  if (ices.length > 200) return;
+  if (ices.length > MAX_ICES) return;
   ices.push({ x, y, vx: (R() - .5) * 6, vy: 8 + R() * 14,
     life: 3 + R() * 3, max: 6, s: .6 + R() * 1.2, seed: R() * 100 });
 }
@@ -626,8 +622,8 @@ function addCracks(x, y){
   }
 }
 function burst(x, y, white){
-  for (let i = 0; i < 18; i++) spawnSpark(x, y, false, white);
-  if (!white) for (let i = 0; i < 6; i++) spawnFlame(x + (R() - .5) * 40, y + (R() - .5) * 20, false);
+  for (let i = 0; i < (IS_MOBILE ? 8 : 18); i++) spawnSpark(x, y, (R()-.5)*2, -1, false);
+  if (!white) for (let i = 0; i < (IS_MOBILE ? 3 : 6); i++) spawnFlame(x + (R() - .5) * 40, y + (R() - .5) * 20, 0, -1, false);
   for (let i = 0; i < 3; i++) spawnSmoke(x, y - 8, false, white);
   flash(x, y, 60 + R() * 40, white);
 }
@@ -647,16 +643,14 @@ const HINTS = {
 const STEP_OF = { sealed:0, catching:1, burning:2, dying:2, open:3, sealing:4, freezing:5, frozen:5, thawing:0 };
 function setState(m){
   mode = m;
-  document.body.classList.toggle('burning',
-    mode === 'catching' || mode === 'burning' || mode === 'dying');
-  document.body.classList.toggle('cold',
-    mode === 'freezing' || mode === 'frozen' || mode === 'thawing');
+  document.body.classList.toggle('burning', mode === 'catching' || mode === 'burning' || mode === 'dying');
+  document.body.classList.toggle('cold', mode === 'freezing' || mode === 'frozen' || mode === 'thawing');
   document.body.classList.toggle('open', mode === 'open');
   brand.setAttribute('aria-expanded', mode === 'open');
   content.setAttribute('aria-hidden', mode !== 'open');
   hintLabel.textContent = HINTS[mode] || '';
   lastPct = -1; lastCount = -1;
-  if (mode === 'sealed'){ sealedT = 0; }
+  if (mode === 'sealed'){ sealedT = 0; burn = 0; }
   else if (mode === 'catching') stateText.textContent = 'CATCHING';
   else if (mode === 'burning') stateText.textContent = 'WILDFIRE 0%';
   else if (mode === 'dying') stateText.textContent = 'DYING DOWN';
@@ -672,20 +666,19 @@ function ignite(){
   if (!brandRect) brandRect = brand.getBoundingClientRect();
   const ox = brandRect.left + brandRect.width / 2;
   const oy = brandRect.top + brandRect.height / 2;
-  buildField(ox, oy);
-  frontC.x = ox; frontC.y = oy;
-  catchT = 0;
+  catchT = 0; elapsed = 0; burn = 0;
   flash(ox, oy, 110);
   burst(ox, oy, false);
   setState('catching');
   toast('IGNITION. STAND BACK.');
 }
 function seal(){
+  if (mode !== 'open') return;
   sealT = 0; freezeDelay = 6;
-  for (let i = 0; i < 10; i++) spawnSmoke(R() * W, R() * H, true);
-  for (let i = 0; i < 14; i++)
+  for (let i = 0; i < 10; i++) spawnSmoke(R() * W, R() * H, true, false);
+  for (let i = 0; i < (IS_MOBILE ? 6 : 14); i++)
     sparks.push({ x: R() * W, y: R() * H * .6, vx: (R() - .5) * 20, vy: 10 + R() * 30,
-      life: 1.2 + R() * .8, max: 2, dim: true, seed: R() * 1000 });
+      life: 1.2 + R() * .8, max: 2, dim: true, white: false, seed: R() * 1000 });
   setState('sealing');
   toast('SEALING THE VAULT.');
 }
@@ -707,19 +700,21 @@ function startThaw(x, y){
 brand.addEventListener('click', () => {
   if (mode === 'sealed') ignite();
   else if (mode === 'open') seal();
-  else if (mode === 'burning'){ elapsed = maxT + AW; toast('ACCELERATING THE BURN.'); }
+  else if (mode === 'burning'){ elapsed = IGN_DUR; toast('ACCELERATING THE BURN.'); }
   else if (mode === 'dying'){ dieT = DIE_DUR; }
   else if (mode === 'frozen'){
     if (!brandRect) brandRect = brand.getBoundingClientRect();
     startThaw(brandRect.left + brandRect.width / 2, brandRect.top + brandRect.height / 2);
   }
 });
+closeBtn.addEventListener('click', seal);
+
 brand.addEventListener('pointerenter', () => hoverTitle = true);
 brand.addEventListener('pointerleave', () => hoverTitle = false);
 
 addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
-  if (mode === 'burning'){ elapsed = maxT + AW; }
+  if (mode === 'burning'){ elapsed = IGN_DUR; }
   else if (mode === 'open'){ seal(); }
   else if (mode === 'frozen'){ startThaw(W / 2, H / 2); }
 });
@@ -732,13 +727,13 @@ addEventListener('pointerdown', e => {
   if (e.target.closest('button, a, input, label, header')) return;
   const x = e.clientX, y = e.clientY;
   if (mode === 'burning' || mode === 'dying' || mode === 'open'){ burst(x, y, false); return; }
-  if (mode === 'frozen'){                                     // knock on the ice
+  if (mode === 'frozen'){                                      
     addCracks(x, y); flash(x, y, 46, true);
-    for (let i = 0; i < 8; i++) spawnSpark(x, y, false, true);
+    for (let i = 0; i < 8; i++) spawnSpark(x, y, (R()-.5)*2, -1, true);
     return;
   }
-  for (let i = 0; i < 8; i++) spawnSmoke(x + (R() - .5) * 36, y + (R() - .5) * 20, false);
-  for (let i = 0; i < 4; i++) spawnSpark(x, y, true);
+  for (let i = 0; i < 8; i++) spawnSmoke(x + (R() - .5) * 36, y + (R() - .5) * 20, false, false);
+  for (let i = 0; i < 4; i++) spawnSpark(x, y, (R()-.5)*2, -1, false);
   if (!hintedOnce){ toast('SEALED. The title above is the ignition.'); hintedOnce = true; }
 });
 
@@ -767,13 +762,14 @@ function setGauge(label, frac, precold){
   barFill.style.width = (Math.max(0, Math.min(1, frac)) * 100).toFixed(1) + '%';
   barFill.classList.toggle('precold', !!precold);
 }
-function updateHUD(){
+function updateHUD(dt){
   const act = STEP_OF[mode] ?? 0;
   stepEls.forEach(el => {
     const s = +el.dataset.s;
     el.classList.toggle('act', s === act);
     el.classList.toggle('done', s < act);
   });
+  
   if (mode === 'sealed'){
     const n = Math.max(0, Math.ceil(freezeDelay - sealedT));
     if (n !== lastCount){
@@ -783,20 +779,20 @@ function updateHUD(){
     }
     setGauge('FROST', sealedT / freezeDelay, true);
   }
-  else if (mode === 'burning'){ setGauge('BURN', ptrEnd / total); }
-  else if (mode === 'sealing'){ setGauge('SEAL', sealT / SEAL_DUR); }
-  else if (mode === 'freezing'){ setGauge('FROST', felapsed / FREEZE_DUR); }
-  else if (mode === 'thawing'){ setGauge('THAW', 1 - frostAlpha); }
+  else if (mode === 'catching'){ setGauge('BURN', 0); pctVal.textContent = '0%'; }
+  else if (mode === 'burning'){ setGauge('BURN', burn); pctVal.textContent = `${Math.round(burn * 100)}%`; }
+  else if (mode === 'sealing'){ setGauge('SEAL', sealPct); pctVal.textContent = `${Math.round(sealPct * 100)}%`; }
+  else if (mode === 'freezing'){ setGauge('FROST', felapsed / FREEZE_DUR); pctVal.textContent = `${Math.round((felapsed / FREEZE_DUR) * 100)}%`; }
+  else if (mode === 'thawing'){ setGauge('THAW', 1 - frostAlpha); pctVal.textContent = `${Math.round((1 - frostAlpha) * 100)}%`; }
   else if (mode === 'frozen'){ setGauge('FROST', 1); pctVal.textContent = '100%'; }
   else if (mode === 'open'){ setGauge('IDLE', 0); pctVal.textContent = '—'; }
   else if (mode === 'dying'){ setGauge('BURN', 1); pctVal.textContent = 'END'; }
-  else if (mode === 'catching'){ setGauge('BURN', 0); pctVal.textContent = '0%'; }
 
   /* temperature — smoothed, flickers at full burn */
   const targets = { sealed:21, catching:180, burning:1180, dying:320, open:60,
                     sealing:30, freezing:-16, frozen:-24, thawing:-6 };
   const tgt = targets[mode] ?? 21;
-  temp += (tgt - temp) * Math.min(1, TAU * 0 + (temp < tgt ? 1.1 : .55) * .016);
+  temp += (tgt - temp) * Math.min(1, dt * (temp < tgt ? 1.1 : .55));
   let shown = Math.round(temp + (mode === 'burning' ? Math.sin(T * 3.7) * 45 : Math.sin(T * .8) * .8));
   const str = `${shown}°C`;
   if (str !== lastTempStr){
@@ -809,6 +805,8 @@ function updateHUD(){
 
 /* ================= main loop ================= */
 let last = performance.now(), rto = null;
+let elapsed = 0;
+
 function frame(now){
   requestAnimationFrame(frame);
   let dt = (now - last) / 1000; last = now;
@@ -819,42 +817,38 @@ function frame(now){
   windTarget *= Math.exp(-dt * 2.6);
   wind += (windTarget - wind) * Math.min(1, dt * 5);
 
-  /* --- state progression --- */
+  let intensity = 0;
+
   if (mode === 'catching'){
     catchT += dt;
-    if (R() < .55) spawnFlame(fieldOrigin.x + (R() - .5) * 30, fieldOrigin.y + (R() - .5) * 12, R() < .25);
-    if (R() < .3)  spawnSmoke(fieldOrigin.x + (R() - .5) * 26, fieldOrigin.y - 8, false);
+    if (R() < .55) spawnFlame(cx, cy, 0, -1, R() < .25);
+    if (R() < .3)  spawnSmoke(cx, cy, false, false);
     if (catchT >= CATCH_DUR) setState('burning');
   }
   else if (mode === 'burning'){
     elapsed += dt;
-    const newEnd = locate(elapsed);
-    if (newEnd - ptrEnd > 1400){
-      maskCtx.fillRect(0, 0, W, H);
-      charCtx.globalAlpha = 1; charCtx.fillStyle = 'rgba(14,9,6,.5)';
-      charCtx.fillRect(0, 0, W, H); charCtx.globalAlpha = 1;
-      ptrEnd = newEnd;
-    } else while (ptrEnd < newEnd) igniteCell(order[ptrEnd++]);
-    const cutoff = elapsed - AW;
-    while (ptrStart < ptrEnd && cellsT[order[ptrStart]] < cutoff) ptrStart++;
-    bodyCount = ptrEnd - ptrStart;
-    const pct = Math.round(ptrEnd / total * 100);
+    burn = Math.min(1, elapsed / IGN_DUR);
+    intensity = 1;
+    const pct = Math.round(burn * 100);
     if (pct !== lastPct){ lastPct = pct; stateText.textContent = `WILDFIRE ${pct}%`; }
-    if (elapsed > maxT + AW + .15){ dieT = 0; dieSmokeAcc = 0; setState('dying'); }
+    if (burn >= 1){ burn = 1; dieT = 0; dieSmokeAcc = 0; setState('dying'); }
   }
   else if (mode === 'dying'){
     dieT += dt;
-    dieSmokeAcc += 7 * dt;
-    while (dieSmokeAcc > 1){ dieSmokeAcc--; spawnSmoke(R() * W, R() * H, R() < .5); }
-    if (R() < .25) spawnSpark(R() * W, R() * H, true);
+    burn = 1;
+    intensity = Math.max(0, 1 - dieT / 1.6);
+    dieSmokeAcc += (IS_MOBILE ? 3 : 7) * dt;
+    while (dieSmokeAcc > 1){ dieSmokeAcc--; spawnSmoke(cx + (R() - .5) * W * .8, cy + (R() - .5) * H * .8, R() < .5, false); }
+    if (R() < (IS_MOBILE ? .1 : .25)) spawnSpark(cx + (R() - .5) * W * .8, cy + (R() - .5) * H * .8, (R()-.5)*2, -1, true);
     if (dieT >= DIE_DUR){
-      maskCtx.fillRect(0, 0, W, H);
       openSecs = 0;
       setState('open');
       toast('THE FIRE SPENT ITSELF — VAULT OPEN.');
     }
   }
   else if (mode === 'open'){
+    burn = 1;
+    intensity = 0.45;
     openSecs += dt;
     const m = (openSecs / 60) | 0, s = (openSecs % 60) | 0;
     stateText.textContent = `OPEN ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
@@ -862,16 +856,18 @@ function frame(now){
   else if (mode === 'sealing'){
     sealT += dt;
     sealPct = sealT / SEAL_DUR;
+    burn = Math.max(0, 1 - sealPct);
+    intensity = 1;
     const pct = Math.round(sealPct * 100);
     if (pct !== lastPct){ lastPct = pct; stateText.textContent = `SEALING ${pct}%`; }
-    if (sealT >= SEAL_DUR){
-      maskCtx.clearRect(0, 0, W, H);
-      charCtx.clearRect(0, 0, W, H);
+    if (burn <= 0){
+      burn = 0;
       setState('sealed');
       toast(`VAULT SEALED — FROST IN ${freezeDelay}s.`);
     }
   }
   else if (mode === 'sealed'){
+    burn = 0;
     sealedT += dt;
     if (sealedT >= freezeDelay) startFreeze();
   }
@@ -902,54 +898,68 @@ function frame(now){
     if (sealT >= THAW_DUR){
       frostCtx.clearRect(0, 0, W, H);
       frostAlpha = 0;
-      freezeDelay = 8;                          // a little grace after thawing
+      freezeDelay = 8;                          
       setState('sealed');
       toast('THAWED — THE SEAL HOLDS. FOR NOW.');
     }
   }
 
-  /* char cools & fades */
-  if (mode !== 'sealed' && charCtx){
-    charCtx.globalCompositeOperation = 'destination-out';
-    charCtx.fillStyle = `rgba(0,0,0,${Math.min(1, dt / CHAR_LIFE).toFixed(3)})`;
-    charCtx.fillRect(0, 0, W, H);
-    charCtx.globalCompositeOperation = 'source-over';
+  /* polygon particle spawning logic */
+  if (burn > 0){
+    nodeAcc -= dt;
+    if (nodeAcc <= 0){
+      nodeAcc = .25 + R() * .7;
+      if (hotNodes.length > 7) hotNodes.shift();
+      hotNodes.push({ th: R() * TAU, p: .7 + R() * .8, decay: 1 + R() * 1.6 });
+    }
+    for (let i = hotNodes.length - 1; i >= 0; i--){
+      hotNodes[i].p *= Math.exp(-dt * hotNodes[i].decay);
+      if (hotNodes[i].p < .05) hotNodes.splice(i, 1);
+    }
+    
+    computeSamples();
+    const active = (mode === 'burning' || mode === 'sealing');
+    flameAcc += (active ? 150 : 36) * intensity * PM * dt;
+    while (flameAcc > 1){ flameAcc--;
+      const i = visIdx[(R()*visIdx.length)|0];
+      if (i !== undefined){
+        const nx = (sx[i]-cx), ny = (sy[i]-cy), l = Math.hypot(nx,ny)||1;
+        spawnFlame(sx[i], sy[i], nx/l, ny/l, R() < .06);
+      }
+    }
+    sparkAcc += (active ? 46 : 12) * intensity * PM * dt;
+    while (sparkAcc > 1){ sparkAcc--;
+      const i = visIdx[(R()*visIdx.length)|0];
+      if (i !== undefined) spawnSpark(sx[i], sy[i]-4, (sx[i]-cx)/Ax, -1, R() < .3);
+    }
+    smokeAcc += (active ? 16 : 6) * intensity * PM * dt;
+    while (smokeAcc > 1){ smokeAcc--;
+      const i = visIdx[(R()*visIdx.length)|0];
+      if (i !== undefined) spawnSmoke(sx[i], sy[i], R() < .25, false);
+    }
   }
 
   /* ambient life */
   if (mode === 'sealed' || mode === 'open'){
-    const rate = mode === 'sealed' ? 1.4 : .8;
+    const rate = mode === 'sealed' ? (IS_MOBILE ? 0.8 : 1.4) : (IS_MOBILE ? 0.4 : 0.8);
     ambAcc += rate * PM * dt;
     while (ambAcc > 1){ ambAcc--;
-      if (sparks.length < 260)
+      if (sparks.length < MAX_SPARKS)
         sparks.push({ x: R() * W, y: H + 8, vx: (R() - .5) * 12, vy: -(14 + R() * 26),
-          life: 3 + R() * 2.5, max: 5.5, dim: true, seed: R() * 1000 });
+          life: 3 + R() * 2.5, max: 5.5, dim: true, white: false, seed: R() * 1000 });
     }
   }
   if (hoverTitle && brandRect && mode === 'sealed'){
     titleAcc += 8 * PM * dt;
     while (titleAcc > 1){ titleAcc--;
-      if (sparks.length < 260)
+      if (sparks.length < MAX_SPARKS)
         sparks.push({ x: brandRect.left + 8 + R() * (brandRect.width - 16), y: brandRect.bottom - 4,
-          vx: (R() - .5) * 14, vy: -(24 + R() * 40), life: .5 + R() * .6, max: 1.1, dim: true, seed: R() * 1000 });
+          vx: (R() - .5) * 14, vy: -(24 + R() * 40), life: .5 + R() * .6, max: 1.1, dim: true, white: false, seed: R() * 1000 });
     }
   }
 
-  /* spawn along the active fire front */
-  let intensity = 0;
-  if ((mode === 'burning' || mode === 'dying') && bodyCount > 0){
-    intensity = mode === 'burning' ? 1 : Math.max(0, 1 - dieT / 1.6);
-    const pick = () => order[ptrStart + ((R() * bodyCount) | 0)];
-    let nf = Math.min(90, Math.max(8, bodyCount * .05)) * PM * intensity;
-    while (nf > 1 || (nf > 0 && R() < nf)){ nf--; const k = pick(); spawnFlame(cellX(k), cellY(k), R() < .04); }
-    let ns = Math.min(36, Math.max(3, bodyCount * .02)) * PM * intensity;
-    while (ns > 1 || (ns > 0 && R() < ns)){ ns--; const k = pick(); spawnSpark(cellX(k), cellY(k) - 4); }
-    let nsm = Math.min(22, Math.max(2, bodyCount * .012)) * PM * intensity;
-    while (nsm > 1 || (nsm > 0 && R() < nsm)){ nsm--; const k = pick(); spawnSmoke(cellX(k), cellY(k), R() < .25); }
-  }
-
   updateParticles(dt);
-  updateHUD();
+  updateHUD(dt);
   render(flick, intensity);
 }
 
@@ -994,8 +1004,57 @@ function updateParticles(dt){
   }
 }
 
-/* ================= render ================= */
-const easeIO = t => t < .5 ? 2*t*t : 1 - Math.pow(-2*t + 2, 2) / 2;
+/* ================= render optimizations ================= */
+function cutAndFire(flick, intensity){
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.fillStyle = '#000';
+  buildPoly(); ctx.fill(); 
+
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.save();
+  buildPoly(); ctx.clip();
+  buildPoly(); ctx.lineWidth = 60; ctx.strokeStyle = 'rgba(26,19,14,.35)'; ctx.stroke();
+  buildPoly(); ctx.lineWidth = 22; ctx.strokeStyle = 'rgba(7,4,3,.8)'; ctx.stroke();
+  ctx.globalCompositeOperation = 'lighter';
+  
+  // Throttle glowing edge dots on mobile
+  const edgeDots = IS_MOBILE ? 15 : 46;
+  for (let k = 0; k < edgeDots && visIdx.length; k++){
+    const i = visIdx[(R()*visIdx.length)|0];
+    const a = .15 + .5 * Math.abs(Math.sin(T*7 + i*2.3 + k));
+    ctx.fillStyle = `rgba(255,${150+(R()*60|0)},60,${a.toFixed(3)})`;
+    ctx.beginPath();
+    ctx.arc(sx[i]+(R()-.5)*7, sy[i]+(R()-.5)*7, .8+R()*1.8, 0, TAU);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  ctx.globalCompositeOperation = 'lighter';
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H)*.62);
+  g.addColorStop(0, `rgba(255,110,30,${(.07*intensity*flick).toFixed(3)})`);
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+  buildPoly(); ctx.lineWidth = 58; ctx.strokeStyle = 'rgba(255,80,12,.06)'; ctx.stroke();
+  buildPoly(); ctx.lineWidth = 26; ctx.strokeStyle = 'rgba(255,110,25,.1)'; ctx.stroke();
+  
+  ctx.lineCap = 'round';
+  for (let i = 0; i < POLY_VERTICES; i++){
+    const j = (i+1) % POLY_VERTICES;
+    if (!(vis[i] && vis[j])) continue;
+    const b = bright(i);
+    if (b < .05) continue; // Opt: Skip rendering imperceptible glowing lines
+    ctx.strokeStyle = `rgba(255,${(118+70*Math.min(1,b))|0},34,${(.2+.45*b).toFixed(3)})`;
+    ctx.lineWidth = 3.5 + 9*Math.min(1.2, b);
+    ctx.beginPath(); ctx.moveTo(sx[i], sy[i]); ctx.lineTo(sx[j], sy[j]); ctx.stroke();
+    if (b > .62){
+      ctx.strokeStyle = `rgba(255,240,196,${Math.min(1,(b-.62)*1.5).toFixed(3)})`;
+      ctx.lineWidth = 1.2 + 2.6*(b-.62);
+      ctx.beginPath(); ctx.moveTo(sx[i], sy[i]); ctx.lineTo(sx[j], sy[j]); ctx.stroke();
+    }
+  }
+  ctx.globalCompositeOperation = 'source-over';
+}
 
 function render(flick, intensity){
   ctx.globalCompositeOperation = 'source-over';
@@ -1003,20 +1062,8 @@ function render(flick, intensity){
   ctx.clearRect(0, 0, W, H);
   ctx.drawImage(texCv, 0, 0, W, H);
 
-  /* burnt holes + cooling soot */
-  if (mode !== 'sealed' && mode !== 'freezing' && mode !== 'frozen' && mode !== 'thawing'){
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.drawImage(maskCv, 0, 0, W, H);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = .9;
-    ctx.drawImage(charCv, 0, 0, W, H);
-    ctx.globalAlpha = 1;
-    if (mode === 'sealing'){
-      ctx.globalAlpha = easeIO(Math.min(1, sealT / SEAL_DUR));
-      ctx.drawImage(texCv, 0, 0, W, H);
-      ctx.globalAlpha = 1;
-    }
-  }
+  /* Polygon Burn Layer */
+  if (burn > 0.001) cutAndFire(flick, intensity);
 
   /* frost layer — the iced state */
   if (frostAlpha > 0){
@@ -1032,15 +1079,6 @@ function render(flick, intensity){
     sh.addColorStop(1, `rgba(210,235,250,${(0.04 * frostAlpha).toFixed(3)})`);
     ctx.fillStyle = sh;
     ctx.fillRect(0, 0, W, H);
-  }
-
-  /* firelight wash following the front */
-  if (intensity > 0){
-    ctx.globalCompositeOperation = 'lighter';
-    const g = ctx.createRadialGradient(frontC.x, frontC.y, 0, frontC.x, frontC.y, Math.max(W, H) * .6);
-    g.addColorStop(0, `rgba(255,110,30,${(.07 * intensity * flick).toFixed(3)})`);
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   }
 
   /* smoke & cold mist */
@@ -1060,28 +1098,6 @@ function render(flick, intensity){
     const t = p.life / p.max, r = p.size * (.35 + .75 * t);
     ctx.globalAlpha = Math.min(1, t * 1.5) * .75;
     ctx.drawImage(SPR[Math.min(71, ((1 - t) * 71) | 0)], p.x - r, p.y - r, r * 2, r * 2);
-  }
-
-  /* the burning rim */
-  if (bodyCount > 0 && intensity > 0){
-    const M = Math.min(140, Math.max(30, (bodyCount * .08) | 0));
-    let sx = 0, sy = 0;
-    for (let n = 0; n < M; n++){
-      const k = order[ptrStart + ((R() * bodyCount) | 0)];
-      const x = cellX(k), y = cellY(k);
-      const age = Math.min(1, (elapsed - cellsT[k]) / AW);
-      sx += x; sy += y;
-      const r = 8 + age * 12;
-      ctx.globalAlpha = (1 - age) * .6 * flick + .07;
-      ctx.drawImage(SPR[Math.min(71, (8 + age * 58) | 0)], x - r, y - r, r * 2, r * 2);
-      if (age < .2){
-        const cr = 4 + R() * 5;
-        ctx.globalAlpha = (1 - age / .2) * .8;
-        ctx.drawImage(SPR[0], x - cr, y - cr, cr * 2, cr * 2);
-      }
-    }
-    frontC.x += (sx / M - frontC.x) * .15;
-    frontC.y += (sy / M - frontC.y) * .15;
   }
 
   /* ember / ice streaks */
