@@ -6,8 +6,8 @@
 <meta name="theme-color" content="#0b0a09"/>
 <title>MYSTUFF — ignition &amp; deep frost</title>
 
-<!-- Security Measures: CSP, Anti-Injection, No-Sniff -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; base-uri 'none'; object-src 'none'; form-action 'none';">
+<!-- Strict Content-Security-Policy optimized for GTM, external favicon, and standalone execution -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://unpkg.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://mohammad3230.github.io https://www.googletagmanager.com; connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com; base-uri 'none'; object-src 'none'; form-action 'none';">
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 
 <!-- Anti-Clickjacking / Anti-Mirroring Framebuster -->
@@ -17,10 +17,22 @@
   }
 </script>
 
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%239fd4ee' d='M8 1v14M2 4.5l12 7M14 4.5l-12 7' stroke='%239fd4ee' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E"/>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=GT-NC6T5LRJ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'GT-NC6T5LRJ');
+</script> 
+
+<!-- Custom Favicon -->
+<link rel="icon" href="https://mohammad3230.github.io/PROJECT/favicon.png" type="image/png" sizes="32x32" />
+
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=JetBrains+Mono:wght@400;500&family=Rubik+Dirt&family=Space+Grotesk:wght@400;500&display=swap" rel="stylesheet"/>
+
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   html,body{height:100%}
@@ -265,7 +277,6 @@
   <div id="hintLabel" class="mono">CLICK THE TITLE — SET IT ALIGHT</div>
 </header>
 
-<!-- indicators -->
 <div id="hud" class="mono">
   <div class="stepper" id="stepper">
     <div class="step" data-s="0"><span class="sdot"></span>SEALED</div><span class="step-sep"></span>
@@ -287,10 +298,12 @@
 
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 <script>
-// Safe init for icons
-if (window.lucide) {
-  try { window.lucide.createIcons(); } catch(e) { console.warn("Lucide icons error", e); }
-}
+// Safe init for icons once DOM loads
+document.addEventListener("DOMContentLoaded", () => {
+  if (window.lucide) {
+    try { window.lucide.createIcons(); } catch(e) { console.warn("Lucide icons error", e); }
+  }
+});
 
 /* ================= Performance Calibration ================= */
 const IS_MOBILE = window.innerWidth < 768;
@@ -499,7 +512,7 @@ const fbm = (x, y) =>
   vnoise(x / 170, y / 170) * .6 + vnoise(x / 70 + 41, y / 70 + 13) * .28 + vnoise(x / 27 + 9, y / 27 + 71) * .12;
 
 /* ================= frost field ================= */
-const CELL = IS_MOBILE ? 12 : 8; // Faster frost grid calc on mobile
+const CELL = IS_MOBILE ? 12 : 8; 
 let fcols = 0, frows = 0, ftotal = 0;
 let fcellsT = null, forder = null, fmaxT = 1;
 let fptr = 0, felapsed = 0, frostAlpha = 0;
@@ -1017,7 +1030,6 @@ function cutAndFire(flick, intensity){
   buildPoly(); ctx.lineWidth = 22; ctx.strokeStyle = 'rgba(7,4,3,.8)'; ctx.stroke();
   ctx.globalCompositeOperation = 'lighter';
   
-  // Throttle glowing edge dots on mobile
   const edgeDots = IS_MOBILE ? 15 : 46;
   for (let k = 0; k < edgeDots && visIdx.length; k++){
     const i = visIdx[(R()*visIdx.length)|0];
@@ -1043,7 +1055,7 @@ function cutAndFire(flick, intensity){
     const j = (i+1) % POLY_VERTICES;
     if (!(vis[i] && vis[j])) continue;
     const b = bright(i);
-    if (b < .05) continue; // Opt: Skip rendering imperceptible glowing lines
+    if (b < .05) continue; 
     ctx.strokeStyle = `rgba(255,${(118+70*Math.min(1,b))|0},34,${(.2+.45*b).toFixed(3)})`;
     ctx.lineWidth = 3.5 + 9*Math.min(1.2, b);
     ctx.beginPath(); ctx.moveTo(sx[i], sy[i]); ctx.lineTo(sx[j], sy[j]); ctx.stroke();
@@ -1070,9 +1082,9 @@ function render(flick, intensity){
     ctx.globalAlpha = frostAlpha;
     ctx.drawImage(frostCv, 0, 0, W, H);
     ctx.globalAlpha = 1;
-    ctx.fillStyle = `rgba(150,190,215,${(0.10 * frostAlpha).toFixed(3)})`;   // cold tint
+    ctx.fillStyle = `rgba(150,190,215,${(0.10 * frostAlpha).toFixed(3)})`;   
     ctx.fillRect(0, 0, W, H);
-    const sh = ctx.createLinearGradient(0, 0, W, H);                        // glass sheen
+    const sh = ctx.createLinearGradient(0, 0, W, H);                        
     sh.addColorStop(0, 'rgba(255,255,255,0)');
     sh.addColorStop(.42, `rgba(255,255,255,${(0.05 * frostAlpha).toFixed(3)})`);
     sh.addColorStop(.55, 'rgba(255,255,255,0)');
