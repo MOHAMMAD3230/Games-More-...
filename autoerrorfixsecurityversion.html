@@ -3,11 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <!-- ================================================================
-  SECURITY ARCHITECTURE (v7.4.1 — builder-friendly, page-boot fixed)
-  · v7.4.1 FIX: the "web" sample contained a literal </script> inside a
-    JS template literal — the HTML parser closed the page's own script
-    block there and the app never booted. Now written as <\/script>
-    (renders identically, invisible to the parser). Only occurrence.
+  SECURITY ARCHITECTURE (v7.4.2 — builder-friendly, boot fixed)
+  · v7.4.2 FIX: the previous build's explanatory comment itself contained
+    the raw closing-script sequence, which ends THIS script block at parse
+    time — HTML parsers do not understand JS comments or strings, they only
+    scan for that sequence. Rule (applies to COMMENTS as well as strings):
+    inside this file that sequence must NEVER appear raw — always write it
+    escaped as  <\/script  (backslash makes it invisible to the parser while
+    rendering identically at runtime). Full file re-audited: the only raw
+    occurrence is the one legitimate closing tag at the end of the file.
   · CSP via meta; connect-src 'none' → the page cannot exfiltrate anything
   · No eval / no new Function / no DOMParser-with-user-input anywhere
   · BUILD MODE: pinned-CDN <script src> never flagged (any mode);
@@ -463,10 +467,15 @@
 
 <script>
 /* ================================================================
-   REDLINE v7.4.1 — SECURE MASTER BUILD
-   v7.4.1: "web" sample's </script> written as <\/script> — a literal
-   </script> inside a JS string terminates the page's own script block
-   at parse time (HTML parsers ignore JS string context). Only fix.
+   REDLINE v7.4.2 — SECURE MASTER BUILD
+   v7.4.2: the previous build's own header comment contained the raw
+   closing-script sequence, which terminated THIS script block at parse
+   time (HTML parsers scan for that sequence even inside JS comments and
+   strings) — the rest of the file rendered as page text and nothing ran.
+   FILE RULE: the closing-script sequence must never appear raw anywhere
+   in this file — strings OR comments. Always write it escaped: <\/script
+   (the backslash is invisible to the HTML parser and identical at
+   runtime). Re-audited: the only raw occurrence is the final closing tag.
    ================================================================ */
 'use strict';
 
@@ -3023,7 +3032,10 @@ function toast(msg,good){
   $('dlgClose').addEventListener('click',()=>{ try{dlg.close();}catch(e){dlg.removeAttribute('open');} });
 })();
 
-/* ---------------- samples (deliberately broken) ---------------- */
+/* ---------------- samples (deliberately broken) ----------------
+   NOTE: any closing-script tag inside these template literals is
+   written escaped as <\/script — a raw one would end THIS file's
+   script block at parse time. Same rule as in the header comment. */
 const SAMPLES={
 js:`// checkout totals — deliberately broken on purpose
 funtion calcTotal(items) {
