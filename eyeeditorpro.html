@@ -1,16 +1,9 @@
-
-
-
-
-
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>SculptSync AI - Interactive Image & Texture Transfer Editor</title>
+  <title>SculptSync AI - Cut & Paste Texture Editor</title>
   <style>
     :root {
       --bg-dark: #121316;
@@ -19,6 +12,7 @@
       --accent-blue: #3b82f6;
       --accent-green: #10b981;
       --accent-purple: #8b5cf6;
+      --accent-orange: #f97316;
       --text-main: #f3f4f6;
       --text-sub: #9ca3af;
     }
@@ -92,29 +86,14 @@
       border-color: #4b5263;
     }
 
-    .btn-primary {
-      background: var(--accent-blue);
-      border-color: var(--accent-blue);
-    }
-    .btn-primary:hover {
-      background: #2563eb;
-    }
+    .btn-primary { background: var(--accent-blue); border-color: var(--accent-blue); }
+    .btn-primary:hover { background: #2563eb; }
 
-    .btn-success {
-      background: var(--accent-green);
-      border-color: var(--accent-green);
-    }
-    .btn-success:hover {
-      background: #059669;
-    }
+    .btn-success { background: var(--accent-green); border-color: var(--accent-green); }
+    .btn-success:hover { background: #059669; }
 
-    .btn-purple {
-      background: var(--accent-purple);
-      border-color: var(--accent-purple);
-    }
-    .btn-purple:hover {
-      background: #7c3aed;
-    }
+    .btn-orange { background: var(--accent-orange); border-color: var(--accent-orange); }
+    .btn-orange:hover { background: #ea580c; }
 
     .main-layout {
       display: flex;
@@ -123,9 +102,9 @@
       overflow: hidden;
     }
 
-    /* Left Control Sidebar */
+    /* Sidebar */
     .sidebar {
-      width: 340px;
+      width: 350px;
       background: var(--panel-bg);
       border-right: 1px solid var(--panel-border);
       display: flex;
@@ -142,11 +121,11 @@
 
     .tab-btn {
       flex: 1;
-      padding: 12px 8px;
+      padding: 12px 6px;
       background: transparent;
       border: none;
       color: var(--text-sub);
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       font-weight: 600;
       cursor: pointer;
       border-bottom: 2px solid transparent;
@@ -166,9 +145,7 @@
       gap: 16px;
     }
 
-    .tab-content.active {
-      display: flex;
-    }
+    .tab-content.active { display: flex; }
 
     .control-group {
       background: #16181d;
@@ -185,7 +162,6 @@
       text-transform: uppercase;
       letter-spacing: 0.5px;
       color: var(--text-sub);
-      margin-bottom: 2px;
       display: flex;
       justify-content: space-between;
     }
@@ -228,7 +204,7 @@
       outline: none;
     }
 
-    /* Canvas Workspaces */
+    /* Workspace */
     .workspace {
       flex: 1;
       display: flex;
@@ -289,136 +265,59 @@
       object-fit: contain;
     }
 
-    /* Split View Overlay */
-    .split-view-container {
-      position: absolute;
-      top: 0;
-      left: 0;
+    /* Texture Selection Box */
+    .crop-preview-box {
       width: 100%;
-      height: 100%;
-      display: none;
-      z-index: 6;
-      background: #0a0a0c;
-    }
-
-    .split-view-container.active {
-      display: block;
-    }
-
-    #splitCanvas {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-    }
-
-    .split-handle {
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      width: 4px;
-      background: var(--accent-blue);
-      cursor: ew-resize;
-      z-index: 7;
-      transform: translateX(-50%);
-    }
-
-    .split-handle::after {
-      content: '↔';
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 28px;
-      height: 28px;
-      background: var(--accent-blue);
-      border-radius: 50%;
-      color: white;
+      height: 80px;
+      background: #0d0e11;
+      border: 1px dashed var(--accent-orange);
+      border-radius: 6px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 14px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+      overflow: hidden;
+      position: relative;
     }
 
-    /* HUD Metrics Overlay */
-    .hud-overlay {
-      position: absolute;
-      bottom: 15px;
-      right: 15px;
-      background: rgba(22, 24, 29, 0.9);
-      backdrop-filter: blur(10px);
-      border: 1px solid var(--panel-border);
-      border-radius: 8px;
-      padding: 10px 14px;
-      font-family: monospace;
-      font-size: 0.72rem;
-      color: var(--text-sub);
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      z-index: 4;
-      pointer-events: none;
-    }
-
-    .hud-overlay span {
-      color: var(--accent-green);
-    }
-
-    /* Analysis Visual Canvas */
-    #histogramCanvas {
-      width: 100%;
-      height: 50px;
-      background: #0d0e11;
-      border-radius: 4px;
-      margin-top: 4px;
+    .crop-preview-box canvas {
+      max-height: 100%;
+      max-width: 100%;
     }
 
     @media (max-width: 900px) {
-      .main-layout {
-        flex-direction: column;
-      }
-      .sidebar {
-        width: 100%;
-        height: 280px;
-      }
-      .workspace {
-        flex-direction: column;
-      }
-      .canvas-container {
-        border-right: none;
-        border-bottom: 1px solid var(--panel-border);
-      }
+      .main-layout { flex-direction: column; }
+      .sidebar { width: 100%; height: 300px; }
+      .workspace { flex-direction: column; }
+      .canvas-container { border-right: none; border-bottom: 1px solid var(--panel-border); }
     }
   </style>
 </head>
 <body>
 
   <header>
-    <h1><span>SCULPT-SYNC AI</span> Texture Transfer Studio</h1>
+    <h1><span>SCULPT-SYNC AI</span> Cut & Paste Texture Editor</h1>
     <div class="header-actions">
-      <button class="btn btn-purple" id="toggleSplitBtn">Split Compare</button>
-      <button class="btn btn-success" id="exportBtn">Export High-Res</button>
+      <button class="btn btn-success" id="exportBtn">Export Result</button>
     </div>
   </header>
 
   <div class="main-layout">
-    <!-- Left Sidebar Control Panels -->
     <div class="sidebar">
       <div class="tab-bar">
         <button class="tab-btn active" data-tab="tab-source">Source Image</button>
-        <button class="tab-btn" data-tab="tab-target">Target Sculpture</button>
-        <button class="tab-btn" data-tab="tab-transfer">Texture Transfer</button>
+        <button class="tab-btn" data-tab="tab-cutpaste">Cut & Paste</button>
+        <button class="tab-btn" data-tab="tab-target">Target Tweaks</button>
       </div>
 
-      <!-- Tab 1: Source Image & Analysis -->
+      <!-- Tab 1: Source & Adjustments -->
       <div class="tab-content active" id="tab-source">
         <div class="control-group">
-          <h3>Source Image Upload</h3>
+          <h3>1. Source Image Upload</h3>
           <input type="file" id="sourceUpload" accept="image/*">
         </div>
 
         <div class="control-group">
-          <h3>Source Image Tweaks</h3>
+          <h3>Source Adjustments</h3>
           <div class="slider-row">
             <div class="slider-label">Brightness <span id="v-src-bright">0</span></div>
             <input type="range" id="srcBright" min="-100" max="100" value="0">
@@ -427,171 +326,119 @@
             <div class="slider-label">Contrast <span id="v-src-contrast">0</span></div>
             <input type="range" id="srcContrast" min="-100" max="100" value="0">
           </div>
-          <div class="slider-row">
-            <div class="slider-label">High-Pass Sharpen <span id="v-src-sharpen">25</span></div>
-            <input type="range" id="srcSharpen" min="0" max="100" value="25">
-          </div>
-          <div class="slider-row">
-            <div class="slider-label">Blur Radius <span id="v-src-blur">0</span></div>
-            <input type="range" id="srcBlur" min="0" max="10" value="0">
-          </div>
-        </div>
-
-        <div class="control-group">
-          <h3>Analyze Source Texture</h3>
-          <button class="btn btn-primary" id="analyzeBtn" style="width: 100%; justify-content: center;">1. Analyze Source Texture</button>
-          <canvas id="histogramCanvas"></canvas>
-          <div style="font-size: 0.75rem; color: var(--text-sub); margin-top: 4px;">
-            Detail Density: <span id="metricDensity" style="color:var(--text-main); font-weight:bold;">0%</span> | 
-            Pore Depth: <span id="metricPore" style="color:var(--text-main); font-weight:bold;">0.0</span>
-          </div>
         </div>
       </div>
 
-      <!-- Tab 2: Target Sculpture Tweaks -->
+      <!-- Tab 2: Cut & Paste Texture Tool -->
+      <div class="tab-content" id="tab-cutpaste">
+        <div class="control-group">
+          <h3>Cut Texture Region</h3>
+          <p style="font-size: 0.75rem; color: var(--text-sub);">
+            Click and drag a box on the Source image to select a region of skin, marble grain, or pattern.
+          </p>
+          <button class="btn btn-orange" id="cutTextureBtn" style="width: 100%; justify-content: center;">✂️ Cut Selected Region</button>
+          <div class="crop-preview-box">
+            <canvas id="cropPreviewCanvas"></canvas>
+            <span id="cropPlaceholder" style="font-size:0.75rem; color:var(--text-sub);">No region cut yet</span>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <h3>Paste & Apply Options</h3>
+          <p style="font-size: 0.75rem; color: var(--text-sub);">
+            Drag the pasted patch on the Target image to position it.
+          </p>
+          <div class="slider-row">
+            <div class="slider-label">Blend Mode</div>
+            <select id="pasteBlendMode">
+              <option value="normal">Normal (Direct Patch)</option>
+              <option value="overlay" selected>Overlay (Blend Grain)</option>
+              <option value="soft-light">Soft Light (Subtle Texture)</option>
+              <option value="multiply">Multiply (Darken/Details)</option>
+            </select>
+          </div>
+          <div class="slider-row">
+            <div class="slider-label">Patch Scale <span id="v-patch-scale">1.0x</span></div>
+            <input type="range" id="patchScale" min="0.2" max="3.0" step="0.1" value="1.0">
+          </div>
+          <div class="slider-row">
+            <div class="slider-label">Patch Opacity <span id="v-patch-opacity">80%</span></div>
+            <input type="range" id="patchOpacity" min="0" max="100" value="80">
+          </div>
+          <div class="slider-row">
+            <div class="slider-label">Edge Feathering <span id="v-patch-feather">20px</span></div>
+            <input type="range" id="patchFeather" min="0" max="50" value="20">
+          </div>
+          <button class="btn btn-primary" id="pasteApplyBtn" style="width: 100%; justify-content: center;">Paste Texture onto Target</button>
+        </div>
+      </div>
+
+      <!-- Tab 3: Target Tweaks -->
       <div class="tab-content" id="tab-target">
         <div class="control-group">
-          <h3>Target Sculpture Upload</h3>
+          <h3>Target Image Upload</h3>
           <input type="file" id="targetUpload" accept="image/*">
         </div>
 
         <div class="control-group">
-          <h3>Target Marble Tweaks</h3>
+          <h3>Target Base Tweaks</h3>
           <div class="slider-row">
             <div class="slider-label">Exposure <span id="v-tgt-exp">0</span></div>
             <input type="range" id="tgtExp" min="-100" max="100" value="0">
           </div>
           <div class="slider-row">
-            <div class="slider-label">Marble Smoothness <span id="v-tgt-smooth">10</span></div>
-            <input type="range" id="tgtSmooth" min="0" max="50" value="10">
-          </div>
-          <div class="slider-row">
             <div class="slider-label">Contrast <span id="v-tgt-contrast">0</span></div>
             <input type="range" id="tgtContrast" min="-100" max="100" value="0">
           </div>
-        </div>
-      </div>
-
-      <!-- Tab 3: Transfer & Feature Alignment -->
-      <div class="tab-content" id="tab-transfer">
-        <div class="control-group">
-          <h3>Landmark Alignment</h3>
-          <p style="font-size: 0.75rem; color: var(--text-sub);">
-            Drag crosshair pins on both Source and Target images to align Eyes, Nose, and Mouth.
-          </p>
-          <button class="btn btn-primary" id="transferBtn" style="width: 100%; justify-content: center;">2. Apply Texture to Target</button>
-        </div>
-
-        <div class="control-group">
-          <h3>Transfer Options</h3>
-          <div class="slider-row">
-            <div class="slider-label">Blend Mode</div>
-            <select id="blendModeSelect">
-              <option value="overlay">Overlay</option>
-              <option value="softlight" selected>Soft Light</option>
-              <option value="multiply">Multiply</option>
-              <option value="sharpen">High-Pass Sharpen</option>
-              <option value="luminance">Luminance Sync</option>
-            </select>
-          </div>
-          <div class="slider-row">
-            <div class="slider-label">Texture Opacity <span id="v-tex-opacity">80%</span></div>
-            <input type="range" id="texOpacity" min="0" max="100" value="80">
-          </div>
-          <div class="slider-row">
-            <div class="slider-label">Feature Sync Radius <span id="v-warp-radius">60px</span></div>
-            <input type="range" id="warpRadius" min="10" max="150" value="60">
-          </div>
-        </div>
-
-        <div class="control-group">
-          <h3>Target Mask Brush</h3>
-          <div class="slider-row">
-            <div class="slider-label">Brush Radius <span id="v-brush-size">30px</span></div>
-            <input type="range" id="brushSize" min="5" max="100" value="30">
-          </div>
-          <div class="slider-row">
-            <div class="slider-label">Feather Softness <span id="v-brush-feather">15px</span></div>
-            <input type="range" id="brushFeather" min="0" max="50" value="15">
-          </div>
-          <div style="display: flex; gap: 8px;">
-            <button class="btn" id="maskFillBtn" style="flex: 1; justify-content: center;">Fill Mask</button>
-            <button class="btn" id="maskClearBtn" style="flex: 1; justify-content: center;">Clear Mask</button>
-          </div>
+          <button class="btn" id="clearPatchesBtn" style="width: 100%; justify-content: center;">Reset All Pasted Textures</button>
         </div>
       </div>
     </div>
 
-    <!-- Right Canvas Area -->
+    <!-- Right Workspace Canvas Views -->
     <div class="workspace">
-      <!-- Source Canvas Container -->
+      <!-- Source Canvas -->
       <div class="canvas-container">
-        <div class="canvas-title"><div class="dot" style="background:var(--accent-blue)"></div> Source Image (Original)</div>
+        <div class="canvas-title"><div class="dot" style="background:var(--accent-orange)"></div> Source (Drag to Select Texture)</div>
         <div class="canvas-wrapper">
           <canvas id="sourceCanvas"></canvas>
         </div>
-        <div class="hud-overlay">
-          <div>RES: <span id="srcRes">0x0</span></div>
-          <div>POINTS: <span id="srcPoints">Aligned</span></div>
-        </div>
       </div>
 
-      <!-- Target Canvas Container -->
+      <!-- Target Canvas -->
       <div class="canvas-container">
-        <div class="canvas-title"><div class="dot" style="background:var(--accent-green)"></div> Target Sculpture (Render)</div>
+        <div class="canvas-title"><div class="dot" style="background:var(--accent-green)"></div> Target (Drag to Position Patch)</div>
         <div class="canvas-wrapper">
           <canvas id="targetCanvas"></canvas>
         </div>
-        <div class="hud-overlay">
-          <div>RES: <span id="tgtRes">0x0</span></div>
-          <div>DPR: <span id="dprVal">1.0</span></div>
-        </div>
-      </div>
-
-      <!-- Split View Screen -->
-      <div class="split-view-container" id="splitView">
-        <canvas id="splitCanvas"></canvas>
-        <div class="split-handle" id="splitHandle" style="left: 50%;"></div>
       </div>
     </div>
   </div>
 
   <script>
-    // --- Application State ---
     const state = {
-      dpr: Math.min(window.devicePixelRatio || 1, 2),
       srcImg: null,
       tgtImg: null,
-      srcLandmarks: [
-        { name: 'L-Eye', x: 0.38, y: 0.38 },
-        { name: 'R-Eye', x: 0.58, y: 0.37 },
-        { name: 'Nose',  x: 0.46, y: 0.52 },
-        { name: 'Mouth', x: 0.47, y: 0.67 }
-      ],
-      tgtLandmarks: [
-        { name: 'L-Eye', x: 0.39, y: 0.32 },
-        { name: 'R-Eye', x: 0.59, y: 0.31 },
-        { name: 'Nose',  x: 0.47, y: 0.45 },
-        { name: 'Mouth', x: 0.48, y: 0.59 }
-      ],
-      activeDrag: null,
-      analyzedTexture: null,
-      maskData: null,
-      splitPos: 0.5,
-      isSplitActive: false
+      // Source Crop Region (Norm x, y, w, h)
+      cropBox: { x: 0.25, y: 0.25, w: 0.5, h: 0.5 },
+      isSelectingCrop: false,
+      cropStart: null,
+      cutCanvas: null, // Cut texture canvas buffer
+      // Target Paste Position (Norm x, y)
+      pastePos: { x: 0.5, y: 0.5 },
+      isDraggingPatch: false,
+      pastedPatches: [] // Applied patches history
     };
 
-    // DOM Elements
+    // Canvas Contexts
     const sourceCanvas = document.getElementById('sourceCanvas');
     const targetCanvas = document.getElementById('targetCanvas');
-    const splitCanvas = document.getElementById('splitCanvas');
-    const histogramCanvas = document.getElementById('histogramCanvas');
+    const cropPreviewCanvas = document.getElementById('cropPreviewCanvas');
     const srcCtx = sourceCanvas.getContext('2d');
     const tgtCtx = targetCanvas.getContext('2d');
-    const splitCtx = splitCanvas.getContext('2d');
-    const histCtx = histogramCanvas.getContext('2d');
+    const cropCtx = cropPreviewCanvas.getContext('2d');
 
-    // Tab Switching Logic
+    // Tab Logic
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -601,68 +448,26 @@
       });
     });
 
-    // Helper: Procedural Preset Generators
-    function createDefaultSource() {
-      const c = document.createElement('canvas');
-      c.width = 600; c.height = 800;
-      const ctx = c.getContext('2d');
-      ctx.fillStyle = '#2b1d19';
-      ctx.fillRect(0, 0, 600, 800);
-      
-      // Face
-      ctx.fillStyle = '#d2a382';
-      ctx.beginPath();
-      ctx.ellipse(280, 400, 140, 190, -0.1, 0, Math.PI*2);
-      ctx.fill();
+    // Default Images
+    function loadDefaults() {
+      const c1 = document.createElement('canvas');
+      c1.width = 600; c1.height = 800;
+      const ctx1 = c1.getContext('2d');
+      ctx1.fillStyle = '#2b1d19'; ctx1.fillRect(0,0,600,800);
+      ctx1.fillStyle = '#d2a382'; ctx1.beginPath(); ctx1.arc(300,400,180,0,Math.PI*2); ctx1.fill();
+      const img1 = new Image(); img1.src = c1.toDataURL();
+      img1.onload = () => { state.srcImg = img1; renderSource(); };
 
-      // Hair Curls
-      ctx.fillStyle = '#3a2312';
-      for(let i=0; i<80; i++) {
-        const x = 280 + (Math.random()-0.5)*260;
-        const y = 380 + (Math.random()-0.5)*320;
-        ctx.beginPath();
-        ctx.arc(x, y, 20 + Math.random()*25, 0, Math.PI*2);
-        ctx.fill();
-      }
-
-      // Facial Features
-      ctx.fillStyle = '#22110c';
-      ctx.beginPath(); ctx.arc(220, 360, 14, 0, Math.PI*2); ctx.fill(); // L Eye
-      ctx.beginPath(); ctx.arc(340, 355, 14, 0, Math.PI*2); ctx.fill(); // R Eye
-      ctx.beginPath(); ctx.arc(270, 430, 18, 0, Math.PI*2); ctx.fill(); // Nose
-      ctx.beginPath(); ctx.ellipse(275, 510, 30, 8, 0, 0, Math.PI*2); ctx.fill(); // Mouth
-
-      const img = new Image();
-      img.src = c.toDataURL();
-      img.onload = () => { state.srcImg = img; renderSource(); };
+      const c2 = document.createElement('canvas');
+      c2.width = 600; c2.height = 800;
+      const ctx2 = c2.getContext('2d');
+      ctx2.fillStyle = '#111317'; ctx2.fillRect(0,0,600,800);
+      ctx2.fillStyle = '#e8e6e3'; ctx2.beginPath(); ctx2.arc(300,400,180,0,Math.PI*2); ctx2.fill();
+      const img2 = new Image(); img2.src = c2.toDataURL();
+      img2.onload = () => { state.tgtImg = img2; renderTarget(); };
     }
 
-    function createDefaultTarget() {
-      const c = document.createElement('canvas');
-      c.width = 600; c.height = 800;
-      const ctx = c.getContext('2d');
-      ctx.fillStyle = '#111317';
-      ctx.fillRect(0, 0, 600, 800);
-
-      // Marble Bust Shape
-      ctx.fillStyle = '#e8e6e3';
-      ctx.beginPath();
-      ctx.ellipse(300, 380, 150, 200, 0, 0, Math.PI*2);
-      ctx.fill();
-
-      // Sculpted Features
-      ctx.fillStyle = '#bebbb5';
-      ctx.beginPath(); ctx.ellipse(235, 340, 22, 12, 0, 0, Math.PI*2); ctx.fill(); // L Eye
-      ctx.beginPath(); ctx.ellipse(355, 335, 22, 12, 0, 0, Math.PI*2); ctx.fill(); // R Eye
-      ctx.beginPath(); ctx.moveTo(285, 340); ctx.lineTo(270, 420); ctx.lineTo(300, 420); ctx.closePath(); ctx.fill(); // Nose
-      ctx.beginPath(); ctx.ellipse(290, 480, 32, 10, 0, 0, Math.PI*2); ctx.fill(); // Lips
-
-      const img = new Image();
-      img.src = c.toDataURL();
-      img.onload = () => { state.tgtImg = img; renderTarget(); };
-    }
-
-    // Render Source Canvas with Adjustments
+    // Render Source Canvas
     function renderSource() {
       if (!state.srcImg) return;
       const w = state.srcImg.width;
@@ -672,34 +477,21 @@
 
       const bright = parseInt(document.getElementById('srcBright').value);
       const contrast = parseInt(document.getElementById('srcContrast').value);
-      const blur = parseInt(document.getElementById('srcBlur').value);
 
-      srcCtx.filter = `brightness(${100 + bright}%) contrast(${100 + contrast}%) blur(${blur}px)`;
+      srcCtx.filter = `brightness(${100 + bright}%) contrast(${100 + contrast}%)`;
       srcCtx.drawImage(state.srcImg, 0, 0);
       srcCtx.filter = 'none';
 
-      // Draw Landmark Overlay Crosshairs
-      state.srcLandmarks.forEach((pt, idx) => {
-        const px = pt.x * w;
-        const py = pt.y * h;
-        
-        srcCtx.strokeStyle = '#3b82f6';
-        srcCtx.lineWidth = 2;
-        srcCtx.beginPath();
-        srcCtx.arc(px, py, 12, 0, Math.PI * 2);
-        srcCtx.stroke();
+      // Draw Crop Selection Rectangle
+      const cb = state.cropBox;
+      srcCtx.strokeStyle = '#f97316';
+      srcCtx.lineWidth = 3;
+      srcCtx.setLineDash([6, 6]);
+      srcCtx.strokeRect(cb.x * w, cb.y * h, cb.w * w, cb.h * h);
+      srcCtx.setLineDash([]);
 
-        srcCtx.fillStyle = '#3b82f6';
-        srcCtx.beginPath();
-        srcCtx.arc(px, py, 4, 0, Math.PI * 2);
-        srcCtx.fill();
-
-        srcCtx.fillStyle = '#ffffff';
-        srcCtx.font = '11px sans-serif';
-        srcCtx.fillText(pt.name, px + 15, py + 4);
-      });
-
-      document.getElementById('srcRes').innerText = `${w}x${h}`;
+      srcCtx.fillStyle = 'rgba(249, 115, 22, 0.15)';
+      srcCtx.fillRect(cb.x * w, cb.y * h, cb.w * w, cb.h * h);
     }
 
     // Render Target Canvas
@@ -717,164 +509,162 @@
       tgtCtx.drawImage(state.tgtImg, 0, 0);
       tgtCtx.filter = 'none';
 
-      // Apply Texture Overlay if Available
-      if (state.analyzedTexture) {
-        applyTextureOverlay();
+      // Render Previously Applied Patches
+      state.pastedPatches.forEach(p => drawPatchOnCanvas(p, tgtCtx, w, h));
+
+      // Render Active Floating Patch
+      if (state.cutCanvas) {
+        const scale = parseFloat(document.getElementById('patchScale').value);
+        const opacity = parseInt(document.getElementById('patchOpacity').value) / 100;
+        const mode = document.getElementById('pasteBlendMode').value;
+        const feather = parseInt(document.getElementById('patchFeather').value);
+
+        drawPatchOnCanvas({
+          buffer: state.cutCanvas,
+          x: state.pastePos.x,
+          y: state.pastePos.y,
+          scale,
+          opacity,
+          mode,
+          feather
+        }, tgtCtx, w, h, true);
       }
-
-      // Draw Landmark Pins
-      state.tgtLandmarks.forEach((pt) => {
-        const px = pt.x * w;
-        const py = pt.y * h;
-
-        tgtCtx.strokeStyle = '#10b981';
-        tgtCtx.lineWidth = 2;
-        tgtCtx.beginPath();
-        tgtCtx.arc(px, py, 12, 0, Math.PI * 2);
-        tgtCtx.stroke();
-
-        tgtCtx.fillStyle = '#10b981';
-        tgtCtx.beginPath();
-        tgtCtx.arc(px, py, 4, 0, Math.PI * 2);
-        tgtCtx.fill();
-
-        tgtCtx.fillStyle = '#ffffff';
-        tgtCtx.font = '11px sans-serif';
-        tgtCtx.fillText(pt.name, px + 15, py + 4);
-      });
-
-      document.getElementById('tgtRes').innerText = `${w}x${h}`;
-      document.getElementById('dprVal').innerText = state.dpr.toFixed(1);
     }
 
-    // Source Texture Analysis Routine
-    document.getElementById('analyzeBtn').addEventListener('click', () => {
+    function drawPatchOnCanvas(p, ctx, canvasW, canvasH, isActive = false) {
+      const pw = p.buffer.width * p.scale;
+      const ph = p.buffer.height * p.scale;
+      const px = p.x * canvasW - pw / 2;
+      const py = p.y * canvasH - ph / 2;
+
+      ctx.save();
+      ctx.globalAlpha = p.opacity;
+      ctx.globalCompositeOperation = p.mode === 'normal' ? 'source-over' : p.mode;
+
+      ctx.drawImage(p.buffer, px, py, pw, ph);
+      ctx.restore();
+
+      // Highlight handle if dragging active patch
+      if (isActive) {
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(px, py, pw, ph);
+      }
+    }
+
+    // Cut Selected Region Action
+    document.getElementById('cutTextureBtn').addEventListener('click', () => {
       if (!state.srcImg) return;
       const w = sourceCanvas.width;
       const h = sourceCanvas.height;
-      const imgData = srcCtx.getImageData(0, 0, w, h);
-      const data = imgData.data;
+      const cb = state.cropBox;
 
-      // High-pass frequency calculation & histogram
-      const hist = new Array(256).fill(0);
-      let edgeSum = 0;
+      const cropX = Math.round(cb.x * w);
+      const cropY = Math.round(cb.y * h);
+      const cropW = Math.max(10, Math.round(cb.w * w));
+      const cropH = Math.max(10, Math.round(cb.h * h));
 
-      for (let i = 0; i < data.length; i += 4) {
-        const lum = Math.round(0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2]);
-        hist[lum]++;
-        if (i > 4 && i < data.length - 4) {
-          edgeSum += Math.abs(lum - (0.299 * data[i-4] + 0.587 * data[i-3] + 0.114 * data[i-2]));
-        }
-      }
+      // Extract Pixel Patch into Offscreen Canvas
+      const buffer = document.createElement('canvas');
+      buffer.width = cropW;
+      buffer.height = cropH;
+      const bCtx = buffer.getContext('2d');
+      bCtx.drawImage(sourceCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
 
-      // Save high-pass texture matrix
-      state.analyzedTexture = srcCtx.getImageData(0, 0, w, h);
+      state.cutCanvas = buffer;
 
-      // Render Histogram
-      histCtx.clearRect(0, 0, histogramCanvas.width, histogramCanvas.height);
-      const maxVal = Math.max(...hist);
-      histCtx.fillStyle = '#3b82f6';
-      for (let i = 0; i < 256; i++) {
-        const hVal = (hist[i] / maxVal) * histogramCanvas.height;
-        histCtx.fillRect((i / 256) * histogramCanvas.width, histogramCanvas.height - hVal, 2, hVal);
-      }
+      // Render Preview Thumbnail
+      cropPreviewCanvas.width = cropW;
+      cropPreviewCanvas.height = cropH;
+      cropCtx.drawImage(buffer, 0, 0);
+      document.getElementById('cropPlaceholder').style.display = 'none';
 
-      const density = ((edgeSum / (data.length / 4)) / 255 * 100).toFixed(1);
-      document.getElementById('metricDensity').innerText = `${density}%`;
-      document.getElementById('metricPore').innerText = (edgeSum / 100000).toFixed(2);
-      
-      alert('Source texture analyzed successfully! Now click "2. Apply Texture to Target".');
-    });
-
-    // Texture Application Routine
-    function applyTextureOverlay() {
-      if (!state.analyzedTexture) return;
-      const w = targetCanvas.width;
-      const h = targetCanvas.height;
-      const opacity = parseInt(document.getElementById('texOpacity').value) / 100;
-      const mode = document.getElementById('blendModeSelect').value;
-
-      // Temporary blend canvas
-      const tempC = document.createElement('canvas');
-      tempC.width = w; tempC.height = h;
-      const tempCtx = tempC.getContext('2d');
-
-      // Draw mapped source texture stretched to target shape
-      tempCtx.putImageData(state.analyzedTexture, 0, 0);
-
-      tgtCtx.save();
-      tgtCtx.globalAlpha = opacity;
-
-      switch(mode) {
-        case 'overlay': tgtCtx.globalCompositeOperation = 'overlay'; break;
-        case 'softlight': tgtCtx.globalCompositeOperation = 'soft-light'; break;
-        case 'multiply': tgtCtx.globalCompositeOperation = 'multiply'; break;
-        case 'sharpen': tgtCtx.globalCompositeOperation = 'hard-light'; break;
-        case 'luminance': tgtCtx.globalCompositeOperation = 'luminosity'; break;
-        default: tgtCtx.globalCompositeOperation = 'soft-light';
-      }
-
-      tgtCtx.drawImage(tempC, 0, 0, w, h);
-      tgtCtx.restore();
-    }
-
-    document.getElementById('transferBtn').addEventListener('click', () => {
-      if (!state.analyzedTexture) {
-        alert('Please run "1. Analyze Source Texture" first.');
-        return;
-      }
       renderTarget();
     });
 
-    // Landmark Dragging Interface Logic
-    function handleCanvasPointer(e, canvas, landmarks, renderFn) {
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      const mx = (clientX - rect.left) * scaleX;
-      const my = (clientY - rect.top) * scaleY;
-
-      if (e.type === 'pointerdown' || e.type === 'touchstart') {
-        landmarks.forEach(pt => {
-          const px = pt.x * canvas.width;
-          const py = pt.y * canvas.height;
-          const dist = Math.hypot(px - mx, py - my);
-          if (dist < 25) {
-            state.activeDrag = { pt, canvas, renderFn };
-          }
-        });
-      } else if ((e.type === 'pointermove' || e.type === 'touchmove') && state.activeDrag) {
-        if (state.activeDrag.canvas === canvas) {
-          state.activeDrag.pt.x = Math.max(0, Math.min(1, mx / canvas.width));
-          state.activeDrag.pt.y = Math.max(0, Math.min(1, my / canvas.height));
-          state.activeDrag.renderFn();
-        }
-      } else if (e.type === 'pointerup' || e.type === 'touchend') {
-        state.activeDrag = null;
+    // Paste Patch permanently on target
+    document.getElementById('pasteApplyBtn').addEventListener('click', () => {
+      if (!state.cutCanvas) {
+        alert('Please select and cut a texture region first!');
+        return;
       }
-    }
 
-    // Attach interaction handlers
-    ['pointerdown', 'pointermove', 'pointerup', 'touchstart', 'touchmove', 'touchend'].forEach(evt => {
-      sourceCanvas.addEventListener(evt, e => handleCanvasPointer(e, sourceCanvas, state.srcLandmarks, renderSource));
-      targetCanvas.addEventListener(evt, e => handleCanvasPointer(e, targetCanvas, state.tgtLandmarks, renderTarget));
+      state.pastedPatches.push({
+        buffer: state.cutCanvas,
+        x: state.pastePos.x,
+        y: state.pastePos.y,
+        scale: parseFloat(document.getElementById('patchScale').value),
+        opacity: parseInt(document.getElementById('patchOpacity').value) / 100,
+        mode: document.getElementById('pasteBlendMode').value,
+        feather: parseInt(document.getElementById('patchFeather').value)
+      });
+
+      renderTarget();
     });
 
-    // Dynamic Slider Bindings
+    // Clear Patches
+    document.getElementById('clearPatchesBtn').addEventListener('click', () => {
+      state.pastedPatches = [];
+      renderTarget();
+    });
+
+    // Interaction Logic: Source Crop Selection
+    sourceCanvas.addEventListener('pointerdown', (e) => {
+      const rect = sourceCanvas.getBoundingClientRect();
+      const mx = (e.clientX - rect.left) / rect.width;
+      const my = (e.clientY - rect.top) / rect.height;
+
+      state.isSelectingCrop = true;
+      state.cropStart = { x: mx, y: my };
+      state.cropBox = { x: mx, y: my, w: 0.05, h: 0.05 };
+      renderSource();
+    });
+
+    sourceCanvas.addEventListener('pointermove', (e) => {
+      if (!state.isSelectingCrop) return;
+      const rect = sourceCanvas.getBoundingClientRect();
+      const mx = (e.clientX - rect.left) / rect.width;
+      const my = (e.clientY - rect.top) / rect.height;
+
+      const x = Math.min(state.cropStart.x, mx);
+      const y = Math.min(state.cropStart.y, my);
+      const w = Math.abs(mx - state.cropStart.x);
+      const h = Math.abs(my - state.cropStart.y);
+
+      state.cropBox = { x, y, w, h };
+      renderSource();
+    });
+
+    sourceCanvas.addEventListener('pointerup', () => state.isSelectingCrop = false);
+
+    // Interaction Logic: Target Patch Placement
+    targetCanvas.addEventListener('pointerdown', (e) => {
+      state.isDraggingPatch = true;
+      updatePatchPosition(e);
+    });
+
+    targetCanvas.addEventListener('pointermove', (e) => {
+      if (state.isDraggingPatch) updatePatchPosition(e);
+    });
+
+    targetCanvas.addEventListener('pointerup', () => state.isDraggingPatch = false);
+
+    function updatePatchPosition(e) {
+      const rect = targetCanvas.getBoundingClientRect();
+      state.pastePos.x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      state.pastePos.y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+      renderTarget();
+    }
+
+    // Sliders Bindings
     const sliders = [
       { id: 'srcBright', valId: 'v-src-bright', fn: renderSource },
       { id: 'srcContrast', valId: 'v-src-contrast', fn: renderSource },
-      { id: 'srcSharpen', valId: 'v-src-sharpen', fn: renderSource },
-      { id: 'srcBlur', valId: 'v-src-blur', fn: renderSource },
       { id: 'tgtExp', valId: 'v-tgt-exp', fn: renderTarget },
-      { id: 'tgtSmooth', valId: 'v-tgt-smooth', fn: renderTarget },
       { id: 'tgtContrast', valId: 'v-tgt-contrast', fn: renderTarget },
-      { id: 'texOpacity', valId: 'v-tex-opacity', suffix: '%', fn: renderTarget },
-      { id: 'warpRadius', valId: 'v-warp-radius', suffix: 'px', fn: renderTarget },
-      { id: 'brushSize', valId: 'v-brush-size', suffix: 'px' },
-      { id: 'brushFeather', valId: 'v-brush-feather', suffix: 'px' }
+      { id: 'patchScale', valId: 'v-patch-scale', suffix: 'x', fn: renderTarget },
+      { id: 'patchOpacity', valId: 'v-patch-opacity', suffix: '%', fn: renderTarget },
+      { id: 'patchFeather', valId: 'v-patch-feather', suffix: 'px', fn: renderTarget }
     ];
 
     sliders.forEach(s => {
@@ -885,7 +675,9 @@
       });
     });
 
-    // File Upload Handlers
+    document.getElementById('pasteBlendMode').addEventListener('change', renderTarget);
+
+    // Image Uploads
     document.getElementById('sourceUpload').addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
@@ -904,18 +696,15 @@
       }
     });
 
-    // Export High-Res Image
+    // Export
     document.getElementById('exportBtn').addEventListener('click', () => {
       const link = document.createElement('a');
-      link.download = 'sculptsync-render.png';
+      link.download = 'cut-paste-texture-sculpt.png';
       link.href = targetCanvas.toDataURL('image/png', 1.0);
       link.click();
     });
 
-    // Initialize Default Presets
-    createDefaultSource();
-    createDefaultTarget();
+    loadDefaults();
   </script>
 </body>
 </html>
-
