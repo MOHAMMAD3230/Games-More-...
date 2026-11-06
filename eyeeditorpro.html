@@ -1,0 +1,1702 @@
+```html
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Studio Editor Pro - Sculpture & Layer Synthesis Engine</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            studio: {
+              900: '#0f172a',
+              800: '#1e293b',
+              700: '#334155',
+              600: '#475569',
+              accent: '#d97706',
+              accentHover: '#b45309',
+            }
+          },
+          screens: {
+            'xs': '475px',
+            'sm': '640px',
+            'md': '768px',
+            'lg': '1024px',
+            'xl': '1280px',
+            '2xl': '1536px',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom Scrollbar Styling */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+    
+    /* Transparent Canvas Checkerboard */
+    .bg-checkerboard {
+      background-color: #0f172a;
+      background-image: 
+        linear-gradient(45deg, #1e293b 25%, transparent 25%), 
+        linear-gradient(-45deg, #1e293b 25%, transparent 25%), 
+        linear-gradient(45deg, transparent 75%, #1e293b 75%), 
+        linear-gradient(-45deg, transparent 75%, #1e293b 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    }
+
+    .tool-btn.active {
+      background-color: #d97706;
+      color: #ffffff;
+      box-shadow: 0 0 12px rgba(217, 119, 6, 0.4);
+    }
+
+    .custom-range {
+      accent-color: #d97706;
+    }
+
+    /* Mobile Responsive Panel Transitions */
+    @media (max-width: 1023px) {
+      .mobile-tab-panel {
+        display: none;
+      }
+      .mobile-tab-panel.active {
+        display: flex;
+      }
+    }
+    
+    /* Touch optimization */
+    button, input, select {
+      touch-action: manipulation;
+    }
+  </style>
+</head>
+<body class="h-full flex flex-col font-sans select-none overflow-hidden bg-slate-950 text-slate-100">
+
+  <!-- TOP HEADER NAVIGATION -->
+  <header class="bg-slate-900 border-b border-slate-800 px-3 md:px-4 py-2 flex items-center justify-between shrink-0 z-30">
+    <!-- Brand / Title -->
+    <div class="flex items-center space-x-2.5">
+      <div class="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-gradient-to-tr from-amber-600 to-amber-400 flex items-center justify-center text-slate-950 font-bold text-lg md:text-xl shadow-lg shadow-amber-500/20">
+        <i class="fa-solid fa-gem"></i>
+      </div>
+      <div>
+        <h1 class="text-sm md:text-base font-bold tracking-wide text-slate-100 flex items-center gap-1.5 md:gap-2">
+          Studio Editor Pro
+          <span class="text-[10px] md:text-xs font-normal px-1.5 md:px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 hidden xs:inline-block">
+            Sculpture & Multi-Layer Engine
+          </span>
+        </h1>
+        <p class="text-[10px] md:text-xs text-slate-400 hidden sm:block">Digital Stone Carving, Multi-Aspect Extraction & Texture Synthesis</p>
+      </div>
+    </div>
+
+    <!-- Toolbar Action Buttons -->
+    <div class="flex items-center space-x-1.5 md:space-x-2">
+      <!-- Upload Base Image -->
+      <label class="cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-2.5 md:px-3 py-1.5 md:py-2 rounded-md font-medium border border-slate-700 transition flex items-center gap-1.5" title="Open Custom Image">
+        <i class="fa-solid fa-folder-open text-amber-500"></i>
+        <span class="hidden md:inline">Open Image</span>
+        <input type="file" id="baseImageInput" accept="image/*" class="hidden">
+      </label>
+
+      <!-- Extract 10+ Layers -->
+      <button id="extractLayersBtn" class="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs px-2.5 md:px-3.5 py-1.5 md:py-2 rounded-md transition shadow-md shadow-amber-500/20 flex items-center gap-1.5">
+        <i class="fa-solid fa-layer-group"></i>
+        <span class="hidden sm:inline">Extract 12 Aspect Layers</span>
+        <span class="sm:hidden">12 Layers</span>
+      </button>
+
+      <!-- Clear Cache & Reset Memory Button -->
+      <button id="clearCacheBtn" class="bg-red-950/40 hover:bg-red-900/60 text-red-300 hover:text-red-100 text-xs px-2 md:px-2.5 py-1.5 md:py-2 rounded-md font-semibold border border-red-800/50 transition flex items-center gap-1.5" title="Flush Offscreen Buffers & Reset RAM Usage">
+        <i class="fa-solid fa-broom text-red-400"></i>
+        <span class="hidden lg:inline">Clear Cache & Memory</span>
+      </button>
+
+      <div class="h-5 w-px bg-slate-800 my-auto hidden sm:block"></div>
+
+      <!-- Undo / Redo Controls -->
+      <div class="flex items-center space-x-1">
+        <button id="undoBtn" title="Undo (Ctrl+Z)" class="p-1.5 md:p-2 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-md transition disabled:opacity-30 disabled:pointer-events-none">
+          <i class="fa-solid fa-rotate-left text-xs md:text-sm"></i>
+        </button>
+        <button id="redoBtn" title="Redo (Ctrl+Y)" class="p-1.5 md:p-2 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-md transition disabled:opacity-30 disabled:pointer-events-none">
+          <i class="fa-solid fa-rotate-right text-xs md:text-sm"></i>
+        </button>
+      </div>
+
+      <div class="h-5 w-px bg-slate-800 my-auto"></div>
+
+      <!-- Render Sculpture Modal Trigger -->
+      <button id="renderFinalBtn" class="bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-bold text-xs px-3 md:px-4 py-1.5 md:py-2 rounded-md transition shadow-md shadow-amber-600/20 flex items-center gap-1.5">
+        <i class="fa-solid fa-wand-magic-sparkles"></i>
+        <span class="hidden xs:inline">Render</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- MOBILE TAB BAR (Appears on screens < 1024px) -->
+  <nav class="lg:hidden bg-slate-900 border-b border-slate-800 flex justify-around text-xs font-semibold z-20">
+    <button data-mobile-panel="viewport" class="mobile-nav-btn py-2.5 flex-1 text-amber-400 border-b-2 border-amber-500 flex items-center justify-center gap-1.5">
+      <i class="fa-solid fa-display"></i> Viewport
+    </button>
+    <button data-mobile-panel="tools" class="mobile-nav-btn py-2.5 flex-1 text-slate-400 border-b-2 border-transparent flex items-center justify-center gap-1.5">
+      <i class="fa-solid fa-sliders"></i> Sculpt Tools
+    </button>
+    <button data-mobile-panel="extracted" class="mobile-nav-btn py-2.5 flex-1 text-slate-400 border-b-2 border-transparent flex items-center justify-center gap-1.5">
+      <i class="fa-solid fa-cubes"></i> Extracted (12)
+    </button>
+    <button data-mobile-panel="layers" class="mobile-nav-btn py-2.5 flex-1 text-slate-400 border-b-2 border-transparent flex items-center justify-center gap-1.5">
+      <i class="fa-solid fa-layer-group"></i> Stack
+    </button>
+  </nav>
+
+  <!-- MAIN APPLICATION WORKSPACE -->
+  <div class="flex-1 flex overflow-hidden relative">
+
+    <!-- LEFT TOOLBAR RAIL (Desktop/Laptop fixed, Mobile responsive drawer option) -->
+    <aside class="w-12 md:w-16 bg-slate-900 border-r border-slate-800 flex flex-col items-center py-3 space-y-2 md:space-y-3 shrink-0 z-20">
+      <button data-tool="select" class="tool-btn active w-9 h-9 md:w-11 md:h-11 rounded-lg flex flex-col items-center justify-center text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition" title="Transform / Move Tool">
+        <i class="fa-solid fa-up-down-left-right text-xs md:text-sm"></i>
+        <span class="text-[8px] md:text-[9px] mt-0.5 font-medium hidden xs:block">Move</span>
+      </button>
+
+      <button data-tool="lasso" class="tool-btn w-9 h-9 md:w-11 md:h-11 rounded-lg flex flex-col items-center justify-center text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition" title="Lasso & Scissors Cut Tool">
+        <i class="fa-solid fa-scissors text-xs md:text-sm"></i>
+        <span class="text-[8px] md:text-[9px] mt-0.5 font-medium hidden xs:block">Lasso</span>
+      </button>
+
+      <button data-tool="brush" class="tool-btn w-9 h-9 md:w-11 md:h-11 rounded-lg flex flex-col items-center justify-center text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition" title="Sculpt Brush / Grain Stamper">
+        <i class="fa-solid fa-paint-brush text-xs md:text-sm"></i>
+        <span class="text-[8px] md:text-[9px] mt-0.5 font-medium hidden xs:block">Brush</span>
+      </button>
+
+      <button data-tool="eraser" class="tool-btn w-9 h-9 md:w-11 md:h-11 rounded-lg flex flex-col items-center justify-center text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition" title="Chisel Eraser Tool">
+        <i class="fa-solid fa-eraser text-xs md:text-sm"></i>
+        <span class="text-[8px] md:text-[9px] mt-0.5 font-medium hidden xs:block">Eraser</span>
+      </button>
+
+      <button data-tool="eyeblend" class="tool-btn w-9 h-9 md:w-11 md:h-11 rounded-lg flex flex-col items-center justify-center text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition" title="Eye / Facial Feature Blender">
+        <i class="fa-solid fa-eye text-xs md:text-sm"></i>
+        <span class="text-[8px] md:text-[9px] mt-0.5 font-medium hidden xs:block">Blend</span>
+      </button>
+
+      <div class="w-6 md:w-8 h-px bg-slate-800 my-1"></div>
+
+      <button id="zoomInBtn" class="w-9 h-8 md:w-11 md:h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition" title="Zoom In">
+        <i class="fa-solid fa-magnifying-glass-plus text-xs md:text-sm"></i>
+      </button>
+      <button id="zoomOutBtn" class="w-9 h-8 md:w-11 md:h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition" title="Zoom Out">
+        <i class="fa-solid fa-magnifying-glass-minus text-xs md:text-sm"></i>
+      </button>
+      <button id="resetZoomBtn" class="w-9 h-8 md:w-11 md:h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition" title="Fit Canvas to Viewport">
+        <i class="fa-solid fa-expand text-xs md:text-sm"></i>
+      </button>
+
+      <div class="mt-auto"></div>
+      
+      <span id="zoomLevelIndicator" class="text-[9px] md:text-[10px] text-slate-400 font-mono">100%</span>
+    </aside>
+
+    <!-- CENTER CANVAS & EXTRACTED LAYER TRAY -->
+    <div id="mobile-panel-viewport" class="mobile-tab-panel active flex-1 flex flex-col overflow-hidden relative w-full h-full">
+      
+      <!-- Main Canvas Canvas Area -->
+      <main class="flex-1 bg-checkerboard relative overflow-hidden flex items-center justify-center touch-none" id="canvasContainer">
+        <div id="canvasViewport" class="relative shadow-2xl transition-transform duration-75 origin-center max-w-full max-h-full">
+          <canvas id="mainCanvas" class="block rounded cursor-crosshair max-w-full h-auto"></canvas>
+          <canvas id="overlayCanvas" class="block absolute top-0 left-0 pointer-events-none rounded max-w-full h-auto"></canvas>
+        </div>
+
+        <!-- Floating Coordinates & Resolution Info Tag -->
+        <div class="absolute bottom-3 left-3 md:bottom-4 md:left-4 bg-slate-900/90 backdrop-blur border border-slate-800 rounded-lg px-2.5 md:px-3 py-1 md:py-1.5 flex items-center space-x-2 md:space-x-3 text-[10px] md:text-xs text-slate-300 z-10 shadow-lg">
+          <div class="flex items-center space-x-1.5">
+            <i class="fa-solid fa-mouse-pointer text-amber-500"></i>
+            <span id="cursorPos">X: 0 | Y: 0</span>
+          </div>
+          <div class="h-3 w-px bg-slate-700"></div>
+          <div class="flex items-center space-x-1.5">
+            <i class="fa-solid fa-up-right-and-down-left-from-center text-slate-400"></i>
+            <span id="canvasResInfo">800x800 px</span>
+          </div>
+        </div>
+      </main>
+
+      <!-- BOTTOM TRAY: 12 EXTRACTED ASPECT LAYERS (DESKTOP & TABLET INTEGRATED) -->
+      <div id="extractedGalleryTray" class="bg-slate-900/95 border-t border-slate-800 p-2.5 md:p-3 flex-col shrink-0 space-y-2 z-10 hidden lg:flex max-h-56">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+              <i class="fa-solid fa-cubes"></i> Extracted Aspect Channels (12 Aspect Ratios)
+            </span>
+            <span id="extractedCountBadge" class="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded border border-amber-500/30">12 Channels Ready</span>
+          </div>
+          
+          <div class="flex items-center space-x-2">
+            <button id="toggleSelectAllBtn" class="text-xs text-slate-400 hover:text-slate-200 transition px-2 py-1 rounded bg-slate-800 border border-slate-700">
+              Select All
+            </button>
+            <button id="sendSelectedToStackBtn" class="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs px-3 py-1 rounded transition shadow-md shadow-amber-500/20 flex items-center gap-1.5">
+              <i class="fa-solid fa-layer-group"></i> Fuse Selected Layers
+            </button>
+          </div>
+        </div>
+
+        <!-- Horizontal Scrollable Cards List -->
+        <div id="extractedCardsGrid" class="flex space-x-3 overflow-x-auto pb-2 pt-1 scrollbar-thin">
+          <div class="text-xs text-slate-500 p-3 text-center w-full">Click "Extract 12 Aspect Layers" in top bar to generate separated channels.</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- MOBILE PANEL FOR EXTRACTED LAYERS (<1024px) -->
+    <div id="mobile-panel-extracted" class="mobile-tab-panel flex-1 bg-slate-900 p-3 flex-col overflow-y-auto w-full">
+      <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-800">
+        <span class="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+          <i class="fa-solid fa-cubes"></i> Extracted Channels (12 Ratios)
+        </span>
+        <button id="sendSelectedToStackBtnMobile" class="bg-amber-500 text-slate-950 font-bold text-xs px-2.5 py-1 rounded">
+          Fuse Selected
+        </button>
+      </div>
+      <div id="extractedCardsGridMobile" class="grid grid-cols-2 gap-3">
+        <div class="text-xs text-slate-500 col-span-2 text-center py-6">Extract layers from top toolbar to view here.</div>
+      </div>
+    </div>
+
+    <!-- RIGHT CONTROL & MATERIAL SIDEBAR PANEL -->
+    <aside id="mobile-panel-tools" class="mobile-tab-panel lg:flex w-full lg:w-80 bg-slate-900 border-l border-slate-800 flex-col overflow-y-auto shrink-0 z-20">
+      
+      <!-- Panel Tab Navigation -->
+      <div class="flex border-b border-slate-800 bg-slate-950/50 sticky top-0 z-10">
+        <button data-tab="sculpture" class="panel-tab flex-1 py-2.5 text-xs font-semibold text-amber-400 border-b-2 border-amber-500 transition flex justify-center items-center gap-1.5">
+          <i class="fa-solid fa-cube"></i> Material
+        </button>
+        <button data-tab="tools" class="panel-tab flex-1 py-2.5 text-xs font-semibold text-slate-400 hover:text-slate-200 transition flex justify-center items-center gap-1.5">
+          <i class="fa-solid fa-sliders"></i> Tool FX
+        </button>
+        <button data-tab="layers" class="panel-tab flex-1 py-2.5 text-xs font-semibold text-slate-400 hover:text-slate-200 transition flex justify-center items-center gap-1.5">
+          <i class="fa-solid fa-layer-group"></i> Stack
+        </button>
+      </div>
+
+      <!-- Tab Content Panel -->
+      <div class="p-3.5 md:p-4 space-y-5 flex-1">
+
+        <!-- TAB 1: Sculpture Presets & Material Engine -->
+        <div id="tab-sculpture" class="tab-content space-y-4">
+          
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">Sculpture Material Presets</label>
+            <div class="grid grid-cols-2 gap-2" id="materialPresets">
+              <button data-preset="marble" class="preset-card active p-2 md:p-2.5 bg-slate-800 hover:bg-slate-700/80 border border-amber-500/50 rounded-lg text-left transition flex items-center space-x-2">
+                <span class="w-4 h-4 rounded-full bg-slate-200 border border-slate-400 shrink-0"></span>
+                <div>
+                  <div class="text-xs font-medium text-slate-100">White Marble</div>
+                  <div class="text-[9px] text-slate-400">Classic Carrara</div>
+                </div>
+              </button>
+
+              <button data-preset="bronze" class="preset-card p-2 md:p-2.5 bg-slate-800 hover:bg-slate-700/80 border border-slate-700 rounded-lg text-left transition flex items-center space-x-2">
+                <span class="w-4 h-4 rounded-full bg-amber-700 border border-amber-500 shrink-0"></span>
+                <div>
+                  <div class="text-xs font-medium text-slate-100">Antique Bronze</div>
+                  <div class="text-[9px] text-slate-400">Patina Finish</div>
+                </div>
+              </button>
+
+              <button data-preset="clay" class="preset-card p-2 md:p-2.5 bg-slate-800 hover:bg-slate-700/80 border border-slate-700 rounded-lg text-left transition flex items-center space-x-2">
+                <span class="w-4 h-4 rounded-full bg-orange-700 border border-orange-500 shrink-0"></span>
+                <div>
+                  <div class="text-xs font-medium text-slate-100">Terracotta</div>
+                  <div class="text-[9px] text-slate-400">Earthy Clay</div>
+                </div>
+              </button>
+
+              <button data-preset="granite" class="preset-card p-2 md:p-2.5 bg-slate-800 hover:bg-slate-700/80 border border-slate-700 rounded-lg text-left transition flex items-center space-x-2">
+                <span class="w-4 h-4 rounded-full bg-slate-600 border border-slate-400 shrink-0"></span>
+                <div>
+                  <div class="text-xs font-medium text-slate-100">Dark Granite</div>
+                  <div class="text-[9px] text-slate-400">Chiseled Stone</div>
+                </div>
+              </button>
+
+              <button data-preset="plaster" class="preset-card p-2 md:p-2.5 bg-slate-800 hover:bg-slate-700/80 border border-slate-700 rounded-lg text-left transition flex items-center space-x-2">
+                <span class="w-4 h-4 rounded-full bg-stone-300 border border-stone-200 shrink-0"></span>
+                <div>
+                  <div class="text-xs font-medium text-slate-100">Plaster Cast</div>
+                  <div class="text-[9px] text-slate-400">Soft Matte</div>
+                </div>
+              </button>
+
+              <button data-preset="basalt" class="preset-card p-2 md:p-2.5 bg-slate-800 hover:bg-slate-700/80 border border-slate-700 rounded-lg text-left transition flex items-center space-x-2">
+                <span class="w-4 h-4 rounded-full bg-slate-900 border border-slate-600 shrink-0"></span>
+                <div>
+                  <div class="text-xs font-medium text-slate-100">Black Basalt</div>
+                  <div class="text-[9px] text-slate-400">Volcanic Stone</div>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Material Lighting & Depth Controls -->
+          <div class="p-3 bg-slate-950/60 rounded-xl border border-slate-800 space-y-3.5">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-amber-500 flex items-center justify-between">
+              Depth & Lighting Parameters
+              <i class="fa-solid fa-sun text-slate-400"></i>
+            </h3>
+
+            <!-- Emboss Depth -->
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-300">Emboss & Chisel Relief</span>
+                <span id="val-emboss" class="text-amber-400 font-mono">1.5</span>
+              </div>
+              <input type="range" id="param-emboss" min="0" max="4" step="0.1" value="1.5" class="w-full custom-range">
+            </div>
+
+            <!-- Light Direction Angle -->
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-300">Light Source Angle</span>
+                <span id="val-lightAngle" class="text-amber-400 font-mono">135°</span>
+              </div>
+              <input type="range" id="param-lightAngle" min="0" max="360" step="5" value="135" class="w-full custom-range">
+            </div>
+
+            <!-- Specular Gloss -->
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-300">Specular Gloss / Shine</span>
+                <span id="val-shine" class="text-amber-400 font-mono">35%</span>
+              </div>
+              <input type="range" id="param-shine" min="0" max="100" step="1" value="35" class="w-full custom-range">
+            </div>
+
+            <!-- Shadow Occlusion -->
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-300">Shadow Depth / Occlusion</span>
+                <span id="val-shadow" class="text-amber-400 font-mono">40%</span>
+              </div>
+              <input type="range" id="param-shadow" min="0" max="100" step="1" value="40" class="w-full custom-range">
+            </div>
+
+            <!-- Stone Grain -->
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-300">Stone Texture Grain</span>
+                <span id="val-grain" class="text-amber-400 font-mono">15%</span>
+              </div>
+              <input type="range" id="param-grain" min="0" max="100" step="1" value="15" class="w-full custom-range">
+            </div>
+
+            <!-- Material Tint Shift -->
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-300">Material Tint Shift</span>
+                <span id="val-tint" class="text-amber-400 font-mono">0</span>
+              </div>
+              <input type="range" id="param-tint" min="-180" max="180" step="1" value="0" class="w-full custom-range">
+            </div>
+          </div>
+
+          <button id="applyMaterialBtn" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-amber-300 font-semibold text-xs rounded-lg border border-slate-700 transition flex items-center justify-center gap-2">
+            <i class="fa-solid fa-arrows-rotate"></i> Re-apply Material Filter Engine
+          </button>
+        </div>
+
+        <!-- TAB 2: Tool FX Options -->
+        <div id="tab-tools" class="tab-content space-y-4 hidden">
+          <div class="p-3 bg-slate-950/60 rounded-xl border border-slate-800 space-y-3.5">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-amber-500 flex items-center gap-2">
+              <i class="fa-solid fa-sliders"></i> <span id="activeToolTitle">Lasso & Feature Tools</span>
+            </h3>
+
+            <!-- Lasso Cutout Controls -->
+            <div id="lassoControls" class="space-y-3">
+              <div>
+                <div class="flex justify-between text-xs mb-1">
+                  <span class="text-slate-300">Selection Feathering</span>
+                  <span id="val-feather" class="text-amber-400 font-mono">8px</span>
+                </div>
+                <input type="range" id="param-feather" min="0" max="30" step="1" value="8" class="w-full custom-range">
+              </div>
+
+              <button id="cutSelectionBtn" class="w-full bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-xs py-2 rounded transition flex justify-center items-center gap-1.5">
+                <i class="fa-solid fa-scissors"></i> Extract Cutout Selection
+              </button>
+            </div>
+
+            <!-- Brush Controls -->
+            <div id="brushControls" class="space-y-3 hidden">
+              <div>
+                <div class="flex justify-between text-xs mb-1">
+                  <span class="text-slate-300">Brush Radius</span>
+                  <span id="val-brushSize" class="text-amber-400 font-mono">35px</span>
+                </div>
+                <input type="range" id="param-brushSize" min="5" max="150" step="1" value="35" class="w-full custom-range">
+              </div>
+
+              <div>
+                <div class="flex justify-between text-xs mb-1">
+                  <span class="text-slate-300">Brush Softness</span>
+                  <span id="val-brushSoft" class="text-amber-400 font-mono">50%</span>
+                </div>
+                <input type="range" id="param-brushSoft" min="0" max="100" step="1" value="50" class="w-full custom-range">
+              </div>
+            </div>
+
+            <!-- Eye/Feature Blend Controls -->
+            <div id="eyeblendControls" class="space-y-3 hidden">
+              <div>
+                <div class="flex justify-between text-xs mb-1">
+                  <span class="text-slate-300">Blend Opacity</span>
+                  <span id="val-blendOpacity" class="text-amber-400 font-mono">85%</span>
+                </div>
+                <input type="range" id="param-blendOpacity" min="0" max="100" step="1" value="85" class="w-full custom-range">
+              </div>
+
+              <div>
+                <label class="block text-xs text-slate-300 mb-1">Blend Composite Mode</label>
+                <select id="featureBlendMode" class="w-full bg-slate-800 border border-slate-700 text-xs rounded-md p-2 text-slate-200 focus:outline-none">
+                  <option value="source-over">Normal</option>
+                  <option value="overlay">Overlay (Texture Blend)</option>
+                  <option value="multiply">Multiply (Shadow Insert)</option>
+                  <option value="soft-light" selected>Soft Light (Seamless Stone)</option>
+                  <option value="hard-light">Hard Light (Chiseled)</option>
+                </select>
+              </div>
+
+              <div class="pt-2 border-t border-slate-800 grid grid-cols-2 gap-2">
+                <button id="flipXBtn" class="py-1.5 bg-slate-800 hover:bg-slate-700 text-xs rounded border border-slate-700 text-slate-300">
+                  <i class="fa-solid fa-arrows-left-right"></i> Flip Horiz
+                </button>
+                <button id="flipYBtn" class="py-1.5 bg-slate-800 hover:bg-slate-700 text-xs rounded border border-slate-700 text-slate-300">
+                  <i class="fa-solid fa-arrows-up-down"></i> Flip Vert
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- TAB 3: Layer Management Stack -->
+        <div id="tab-layers" class="tab-content space-y-3 hidden">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-300">Layer Stack</span>
+            <button id="addEmptyLayerBtn" class="text-xs text-amber-400 hover:text-amber-300 flex items-center gap-1 bg-slate-800 px-2 py-1 rounded border border-slate-700">
+              <i class="fa-solid fa-plus"></i> New Layer
+            </button>
+          </div>
+
+          <div id="layerStackList" class="space-y-2">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Quick Demo Sculpture Models -->
+      <div class="p-3 border-t border-slate-800 bg-slate-950/80 space-y-2">
+        <label class="block text-[10px] font-semibold uppercase text-slate-400 tracking-wider">Demo Models</label>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="loadDemoClassicBtn" class="text-left p-1.5 rounded bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 transition">
+            <div class="text-xs font-medium text-slate-200">Greek Bust</div>
+            <div class="text-[9px] text-slate-400">White Marble</div>
+          </button>
+          <button id="loadDemoReliefBtn" class="text-left p-1.5 rounded bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 transition">
+            <div class="text-xs font-medium text-slate-200">Stone Relief</div>
+            <div class="text-[9px] text-slate-400">Bronze Texture</div>
+          </button>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- MOBILE STACK PANEL (<1024px) -->
+    <div id="mobile-panel-layers" class="mobile-tab-panel flex-1 bg-slate-900 p-3 flex-col overflow-y-auto w-full">
+      <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-800">
+        <span class="text-xs font-bold uppercase tracking-wider text-amber-400">Active Layer Stack</span>
+        <button id="addEmptyLayerBtnMobile" class="text-xs text-amber-400 bg-slate-800 px-2.5 py-1 rounded border border-slate-700">
+          + Add Layer
+        </button>
+      </div>
+      <div id="layerStackListMobile" class="space-y-2"></div>
+    </div>
+
+  </div>
+
+  <!-- RENDER MODAL -->
+  <div id="renderModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-3 md:p-6">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden shadow-2xl">
+      <div class="p-3.5 md:p-4 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <i class="fa-solid fa-circle-check text-amber-500 text-base md:text-lg"></i>
+          <h2 class="text-sm md:text-base font-bold text-slate-100">Final Sculpture Rendered</h2>
+        </div>
+        <button id="closeModalBtn" class="text-slate-400 hover:text-slate-100 text-lg p-1">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="flex-1 bg-checkerboard p-4 md:p-6 overflow-auto flex items-center justify-center min-h-[250px]">
+        <img id="renderResultImg" class="max-w-full max-h-[60vh] rounded-lg shadow-2xl border border-slate-800 object-contain" src="" alt="Sculpture Render">
+      </div>
+
+      <div class="p-3 md:p-4 border-t border-slate-800 bg-slate-950 flex flex-wrap items-center justify-between gap-3">
+        <div class="text-xs text-slate-400">
+          Resolution: <span id="renderResInfo" class="text-slate-200 font-mono">800 x 800 px</span>
+        </div>
+        <div class="flex items-center space-x-2 md:space-x-3">
+          <button id="copyToClipboardBtn" class="px-3 md:px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700 transition flex items-center gap-1.5">
+            <i class="fa-solid fa-copy"></i> <span class="hidden xs:inline">Copy</span>
+          </button>
+          <a id="downloadPngBtn" href="#" download="sculpture_render.png" class="px-4 md:px-5 py-2 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-xs rounded-lg transition shadow-lg shadow-amber-600/20 flex items-center gap-1.5">
+            <i class="fa-solid fa-download"></i> Download PNG
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="fixed bottom-5 right-5 bg-amber-600 text-slate-950 px-3.5 py-2 rounded-lg font-semibold text-xs shadow-xl opacity-0 transition-opacity duration-300 pointer-events-none z-50 flex items-center gap-2">
+    <i class="fa-solid fa-info-circle"></i>
+    <span id="toastMsg">Action completed</span>
+  </div>
+
+  <!-- JAVASCRIPT APP ENGINE -->
+  <script>
+    // --- APP STATE ENGINE ---
+    const state = {
+      activeTool: 'select',
+      activeMaterial: 'marble',
+      zoom: 1.0,
+      panX: 0,
+      panY: 0,
+      isPanning: false,
+      panStartX: 0,
+      panStartY: 0,
+      
+      params: {
+        emboss: 1.5,
+        lightAngle: 135,
+        shine: 35,
+        shadow: 40,
+        grain: 15,
+        tint: 0,
+        feather: 8,
+        brushSize: 35,
+        brushSoftness: 50,
+        blendOpacity: 85,
+        blendMode: 'soft-light'
+      },
+
+      layers: [], // Array of layer objects
+      extractedAspectLayers: [], // 12 Aspect Ratio Channels
+      activeLayerIndex: 0,
+
+      lassoPoints: [],
+      isLassoDrawing: false,
+      isBrushing: false,
+      
+      history: [],
+      historyStep: -1,
+      maxHistory: 12
+    };
+
+    const MATERIAL_PRESETS = {
+      marble: { emboss: 1.2, lightAngle: 135, shine: 45, shadow: 30, grain: 10, tint: 0 },
+      bronze: { emboss: 2.2, lightAngle: 120, shine: 70, shadow: 60, grain: 20, tint: -130 },
+      clay:   { emboss: 1.0, lightAngle: 90,  shine: 15, shadow: 40, grain: 30, tint: -160 },
+      granite:{ emboss: 2.8, lightAngle: 210, shine: 20, shadow: 70, grain: 65, tint: 0 },
+      plaster:{ emboss: 0.8, lightAngle: 135, shine: 10, shadow: 25, grain: 5,  tint: 0 },
+      basalt: { emboss: 2.0, lightAngle: 180, shine: 30, shadow: 80, grain: 40, tint: -180 }
+    };
+
+    // Canvas DOM Elements
+    const mainCanvas = document.getElementById('mainCanvas');
+    const mainCtx = mainCanvas.getContext('2d', { willReadFrequently: true });
+    const overlayCanvas = document.getElementById('overlayCanvas');
+    const overlayCtx = overlayCanvas.getContext('2d');
+    const canvasViewport = document.getElementById('canvasViewport');
+
+    const toast = document.getElementById('toast');
+    const toastMsg = document.getElementById('toastMsg');
+
+    // --- INITIALIZATION ---
+    window.addEventListener('load', () => {
+      initCanvasDimensions(800, 800);
+      createDefaultBaseLayer();
+      setupEventListeners();
+      generateDefaultSculptureTexture('marble');
+      saveHistoryState('Initial State');
+    });
+
+    function initCanvasDimensions(width, height) {
+      // Prevent allocation overflow on mobile GPUs
+      const maxDim = window.innerWidth < 640 ? 1200 : 2048;
+      const targetW = Math.min(width, maxDim);
+      const targetH = Math.min(height, maxDim);
+
+      mainCanvas.width = targetW;
+      mainCanvas.height = targetH;
+      overlayCanvas.width = targetW;
+      overlayCanvas.height = targetH;
+
+      canvasViewport.style.width = `${targetW}px`;
+      canvasViewport.style.height = `${targetH}px`;
+
+      document.getElementById('canvasResInfo').innerText = `${targetW}x${targetH} px`;
+    }
+
+    function createDefaultBaseLayer() {
+      const layerCanvas = document.createElement('canvas');
+      layerCanvas.width = mainCanvas.width;
+      layerCanvas.height = mainCanvas.height;
+      
+      state.layers = [{
+        id: 'base-layer-' + Date.now(),
+        name: 'Base Sculpture',
+        canvas: layerCanvas,
+        visible: true,
+        opacity: 100,
+        blendMode: 'source-over',
+        x: 0,
+        y: 0,
+        scaleX: 1,
+        scaleY: 1,
+        rotation: 0
+      }];
+      state.activeLayerIndex = 0;
+      updateLayerStackUI();
+    }
+
+    // --- CLEAR CACHE & MEMORY OPTIMIZATION ENGINE ---
+    function clearCacheAndResetMemory() {
+      // 1. Release extracted layer offscreen canvas buffers
+      state.extractedAspectLayers.forEach(item => {
+        if (item.canvas) {
+          item.canvas.width = 1;
+          item.canvas.height = 1;
+        }
+      });
+      state.extractedAspectLayers = [];
+
+      // 2. Clear UI previews
+      document.getElementById('extractedCardsGrid').innerHTML = '<div class="text-xs text-slate-500 p-3 text-center w-full">Memory cache cleared. Extract layers to regenerate.</div>';
+      document.getElementById('extractedCardsGridMobile').innerHTML = '<div class="text-xs text-slate-500 col-span-2 text-center py-6">Memory cache cleared.</div>';
+
+      // 3. Clear intermediate history stacks except active
+      if (state.history.length > 1) {
+        state.history = [state.history[state.historyStep] || state.history[0]];
+        state.historyStep = 0;
+      }
+
+      // 4. Reset zoom & pan
+      state.zoom = 1.0;
+      state.panX = 0;
+      state.panY = 0;
+      updateViewportTransform();
+
+      // 5. Trigger redraw
+      redrawMainCanvas();
+      updateHistoryButtons();
+
+      showToast('Cache cleared & memory optimized!');
+    }
+
+    // --- PROCEDURAL DEMO SCULPTURE GENERATOR ---
+    function generateDefaultSculptureTexture(materialType) {
+      const activeLayer = state.layers[0];
+      if (!activeLayer) return;
+
+      const ctx = activeLayer.canvas.getContext('2d');
+      const w = activeLayer.canvas.width;
+      const h = activeLayer.canvas.height;
+
+      ctx.clearRect(0, 0, w, h);
+
+      const cx = w / 2;
+      const cy = h / 2 - 20;
+
+      // Base shading gradient
+      const grad = ctx.createRadialGradient(cx, cy - 30, 20, cx, cy, 320);
+      grad.addColorStop(0, '#f8fafc');
+      grad.addColorStop(0.5, '#cbd5e1');
+      grad.addColorStop(1, '#475569');
+
+      ctx.fillStyle = grad;
+      
+      // Sculpt Head Shape
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - 30, 140, 180, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Bust / Shoulders Base
+      ctx.beginPath();
+      ctx.moveTo(cx - 220, cy + 280);
+      ctx.quadraticCurveTo(cx - 120, cy + 120, cx - 70, cy + 130);
+      ctx.lineTo(cx + 70, cy + 130);
+      ctx.quadraticCurveTo(cx + 120, cy + 120, cx + 220, cy + 280);
+      ctx.closePath();
+      ctx.fill();
+
+      // Facial Features Definition
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.18)';
+      
+      // Eyes
+      ctx.beginPath();
+      ctx.ellipse(cx - 50, cy - 50, 28, 16, -0.1, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.ellipse(cx + 50, cy - 50, 28, 16, 0.1, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Nose Contour
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 60);
+      ctx.lineTo(cx - 16, cy + 22);
+      ctx.lineTo(cx + 16, cy + 22);
+      ctx.closePath();
+      ctx.fill();
+
+      // Lips Contour
+      ctx.beginPath();
+      ctx.ellipse(cx, cy + 65, 36, 12, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      applySculptureMaterialFilter(materialType);
+      redrawMainCanvas();
+    }
+
+    // --- ADVANCED SCULPTURE SHADER FILTER ENGINE ---
+    function applySculptureMaterialFilter(material) {
+      const layer = state.layers[0];
+      if (!layer) return;
+
+      const ctx = layer.canvas.getContext('2d');
+      const w = layer.canvas.width;
+      const h = layer.canvas.height;
+
+      const imgData = ctx.getImageData(0, 0, w, h);
+      const data = imgData.data;
+
+      const emboss = state.params.emboss;
+      const lightRad = (state.params.lightAngle * Math.PI) / 180;
+      const lx = Math.cos(lightRad);
+      const ly = Math.sin(lightRad);
+      const shine = state.params.shine / 100;
+      const shadow = state.params.shadow / 100;
+      const grain = state.params.grain;
+      const tintShift = state.params.tint;
+
+      let baseR = 230, baseG = 225, baseB = 215;
+      if (material === 'bronze') { baseR = 180; baseG = 120; baseB = 50; }
+      else if (material === 'clay') { baseR = 190; baseG = 95; baseB = 55; }
+      else if (material === 'granite') { baseR = 100; baseG = 105; baseB = 115; }
+      else if (material === 'plaster') { baseR = 240; baseG = 240; baseB = 242; }
+      else if (material === 'basalt') { baseR = 40; baseG = 45; baseB = 55; }
+
+      const origData = new Uint8ClampedArray(data);
+
+      for (let y = 1; y < h - 1; y++) {
+        for (let x = 1; x < w - 1; x++) {
+          const idx = (y * w + x) * 4;
+          if (origData[idx + 3] === 0) continue;
+
+          const getLum = (ox, oy) => {
+            const i = ((y + oy) * w + (x + ox)) * 4;
+            return (origData[i] * 0.299 + origData[i + 1] * 0.587 + origData[i + 2] * 0.114);
+          };
+
+          const dx = (getLum(1, -1) + 2 * getLum(1, 0) + getLum(1, 1)) -
+                     (getLum(-1, -1) + 2 * getLum(-1, 0) + getLum(-1, 1));
+          
+          const dy = (getLum(-1, 1) + 2 * getLum(0, 1) + getLum(1, 1)) -
+                     (getLum(-1, -1) + 2 * getLum(0, -1) + getLum(1, -1));
+
+          const dot = (dx * lx + dy * ly) * emboss;
+          const lightIntensity = Math.max(-1, Math.min(1, dot / 255));
+          const noise = (Math.random() - 0.5) * grain;
+          const gray = (origData[idx] * 0.299 + origData[idx + 1] * 0.587 + origData[idx + 2] * 0.114);
+
+          let r = baseR * (gray / 255);
+          let g = baseG * (gray / 255);
+          let b = baseB * (gray / 255);
+
+          if (lightIntensity > 0) {
+            r += lightIntensity * 180 * shine;
+            g += lightIntensity * 180 * shine;
+            b += lightIntensity * 180 * shine;
+          } else {
+            r += lightIntensity * 120 * shadow;
+            g += lightIntensity * 120 * shadow;
+            b += lightIntensity * 120 * shadow;
+          }
+
+          r = Math.min(255, Math.max(0, r + noise + tintShift));
+          g = Math.min(255, Math.max(0, g + noise));
+          b = Math.min(255, Math.max(0, b + noise - tintShift));
+
+          data[idx] = r;
+          data[idx + 1] = g;
+          data[idx + 2] = b;
+        }
+      }
+
+      ctx.putImageData(imgData, 0, 0);
+      showToast(`Applied ${material.toUpperCase()} shader`);
+    }
+
+    // --- 10+ MULTI-ASPECT LAYER EXTRACTION ENGINE ---
+    function extract12AspectLayers() {
+      const baseLayer = state.layers[0];
+      if (!baseLayer) return;
+
+      const srcCanvas = baseLayer.canvas;
+      const w = srcCanvas.width;
+      const h = srcCanvas.height;
+      const ctx = srcCanvas.getContext('2d');
+      const srcImgData = ctx.getImageData(0, 0, w, h);
+
+      // Define 12 Aspect Ratios and Channel Types
+      const aspectDefinitions = [
+        { name: 'Edge Map', ratio: '1:1', type: 'sobel' },
+        { name: 'Depth Relief', ratio: '4:3', type: 'depth' },
+        { name: 'Marble Veins', ratio: '16:9', type: 'veins' },
+        { name: 'Shadow Occlusion', ratio: '9:16', type: 'shadow' },
+        { name: 'High-Key Highlight', ratio: '3:4', type: 'highlights' },
+        { name: 'Specular Gloss', ratio: '2:3', type: 'specular' },
+        { name: 'Eye Feature Mask', ratio: '1:1', type: 'eyes' },
+        { name: 'Color Patina', ratio: '5:4', type: 'patina' },
+        { name: 'Surface Grain', ratio: '21:9', type: 'grain' },
+        { name: 'Foreground Silhouette', ratio: '1:1', type: 'silhouette' },
+        { name: 'Luminance Threshold', ratio: '4:5', type: 'luminance' },
+        { name: 'Dynamic Contrast', ratio: '3:2', type: 'contrast' }
+      ];
+
+      state.extractedAspectLayers = aspectDefinitions.map((def, idx) => {
+        const c = document.createElement('canvas');
+        c.width = w;
+        c.height = h;
+        const cCtx = c.getContext('2d');
+
+        const layerImgData = cCtx.createImageData(w, h);
+        const d = layerImgData.data;
+        const s = srcImgData.data;
+
+        for (let i = 0; i < s.length; i += 4) {
+          const lum = s[i] * 0.299 + s[i+1] * 0.587 + s[i+2] * 0.114;
+
+          switch (def.type) {
+            case 'sobel':
+              d[i] = d[i+1] = d[i+2] = lum > 120 ? 240 : 20;
+              break;
+            case 'depth':
+              d[i] = lum; d[i+1] = lum * 0.8; d[i+2] = 255 - lum;
+              break;
+            case 'veins':
+              const v = (Math.sin(lum * 0.1) * 127) + 128;
+              d[i] = v; d[i+1] = v * 0.9; d[i+2] = v * 0.8;
+              break;
+            case 'shadow':
+              const sh = lum < 100 ? (255 - lum) : 0;
+              d[i] = 15; d[i+1] = 23; d[i+2] = sh;
+              break;
+            case 'highlights':
+              const hl = lum > 180 ? lum : 0;
+              d[i] = hl; d[i+1] = hl; d[i+2] = hl;
+              break;
+            case 'specular':
+              d[i] = lum > 200 ? 255 : 0;
+              d[i+1] = lum > 200 ? 215 : 0;
+              d[i+2] = lum > 200 ? 0 : 0;
+              break;
+            case 'eyes':
+              const eyeZone = (lum > 40 && lum < 110) ? 220 : 0;
+              d[i] = eyeZone; d[i+1] = eyeZone * 0.6; d[i+2] = eyeZone * 0.2;
+              break;
+            case 'patina':
+              d[i] = s[i] * 0.5; d[i+1] = s[i+1] * 1.2; d[i+2] = s[i+2] * 0.9;
+              break;
+            case 'grain':
+              const gr = lum + (Math.random() - 0.5) * 50;
+              d[i] = d[i+1] = d[i+2] = Math.max(0, Math.min(255, gr));
+              break;
+            case 'silhouette':
+              d[i] = d[i+1] = d[i+2] = s[i+3] > 0 ? 220 : 0;
+              break;
+            case 'luminance':
+              d[i] = d[i+1] = d[i+2] = lum > 128 ? 255 : 0;
+              break;
+            case 'contrast':
+              d[i] = Math.min(255, s[i] * 1.4);
+              d[i+1] = Math.min(255, s[i+1] * 1.4);
+              d[i+2] = Math.min(255, s[i+2] * 1.4);
+              break;
+          }
+          d[i+3] = s[i+3];
+        }
+
+        cCtx.putImageData(layerImgData, 0, 0);
+
+        return {
+          id: `extracted-${idx}-${Date.now()}`,
+          name: def.name,
+          ratio: def.ratio,
+          canvas: c,
+          selected: true
+        };
+      });
+
+      renderExtractedCardsTray();
+      showToast('Successfully extracted 12 aspect channels!');
+    }
+
+    // --- RENDER EXTRACTED CARDS TRAY (DESKTOP & MOBILE) ---
+    function renderExtractedCardsTray() {
+      const desktopGrid = document.getElementById('extractedCardsGrid');
+      const mobileGrid = document.getElementById('extractedCardsGridMobile');
+
+      desktopGrid.innerHTML = '';
+      mobileGrid.innerHTML = '';
+
+      if (state.extractedAspectLayers.length === 0) return;
+
+      document.getElementById('extractedCountBadge').innerText = `${state.extractedAspectLayers.length} Channels Ready`;
+
+      state.extractedAspectLayers.forEach((item, idx) => {
+        const thumbUrl = item.canvas.toDataURL('image/png');
+
+        // Desktop Card
+        const card = document.createElement('div');
+        card.className = `shrink-0 w-36 bg-slate-800 border ${item.selected ? 'border-amber-500 ring-1 ring-amber-500/50' : 'border-slate-700'} rounded-lg p-2 flex flex-col space-y-1.5 transition cursor-pointer`;
+        card.onclick = () => toggleExtractedSelection(idx);
+
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <input type="checkbox" ${item.selected ? 'checked' : ''} onclick="event.stopPropagation(); toggleExtractedSelection(${idx});" class="accent-amber-500 rounded cursor-pointer">
+            <span class="text-[9px] bg-slate-900 text-amber-400 px-1.5 py-0.5 rounded font-mono">${item.ratio}</span>
+          </div>
+          <div class="w-full h-20 bg-checkerboard rounded overflow-hidden flex items-center justify-center">
+            <img src="${thumbUrl}" class="max-w-full max-h-full object-contain">
+          </div>
+          <span class="text-[10px] font-semibold text-slate-200 truncate">${item.name}</span>
+        `;
+        desktopGrid.appendChild(card);
+
+        // Mobile Card
+        const mCard = card.cloneNode(true);
+        mCard.className = `w-full bg-slate-800 border ${item.selected ? 'border-amber-500' : 'border-slate-700'} rounded-lg p-2 flex flex-col space-y-1.5`;
+        mCard.onclick = () => toggleExtractedSelection(idx);
+        mobileGrid.appendChild(mCard);
+      });
+    }
+
+    function toggleExtractedSelection(idx) {
+      if (state.extractedAspectLayers[idx]) {
+        state.extractedAspectLayers[idx].selected = !state.extractedAspectLayers[idx].selected;
+        renderExtractedCardsTray();
+      }
+    }
+
+    function fuseSelectedExtractedLayers() {
+      const selectedItems = state.extractedAspectLayers.filter(item => item.selected);
+      if (selectedItems.length === 0) {
+        showToast('Select at least one extracted layer to fuse!');
+        return;
+      }
+
+      selectedItems.forEach((item) => {
+        const layerCanvas = document.createElement('canvas');
+        layerCanvas.width = item.canvas.width;
+        layerCanvas.height = item.canvas.height;
+        layerCanvas.getContext('2d').drawImage(item.canvas, 0, 0);
+
+        state.layers.push({
+          id: 'fused-' + Date.now() + Math.random(),
+          name: `Fused: ${item.name}`,
+          canvas: layerCanvas,
+          visible: true,
+          opacity: 75,
+          blendMode: 'soft-light',
+          x: 0,
+          y: 0,
+          scaleX: 1,
+          scaleY: 1,
+          rotation: 0
+        });
+      });
+
+      state.activeLayerIndex = state.layers.length - 1;
+      updateLayerStackUI();
+      redrawMainCanvas();
+      saveHistoryState(`Fused ${selectedItems.length} Aspect Channels`);
+      showToast(`Fused ${selectedItems.length} channels into stack!`);
+    }
+
+    // --- MAIN CANVAS COMPOSITING RENDERER ---
+    function redrawMainCanvas() {
+      mainCtx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+
+      state.layers.forEach((layer) => {
+        if (!layer.visible) return;
+
+        mainCtx.save();
+        mainCtx.globalAlpha = layer.opacity / 100;
+        mainCtx.globalCompositeOperation = layer.blendMode || 'source-over';
+
+        mainCtx.translate(layer.x + (layer.canvas.width * layer.scaleX) / 2, layer.y + (layer.canvas.height * layer.scaleY) / 2);
+        mainCtx.rotate((layer.rotation * Math.PI) / 180);
+        mainCtx.scale(layer.scaleX, layer.scaleY);
+
+        mainCtx.drawImage(layer.canvas, -layer.canvas.width / 2, -layer.canvas.height / 2);
+        mainCtx.restore();
+      });
+    }
+
+    function drawOverlay() {
+      overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+      if (state.activeTool === 'lasso' && state.lassoPoints.length > 0) {
+        overlayCtx.strokeStyle = '#d97706';
+        overlayCtx.lineWidth = 2;
+        overlayCtx.setLineDash([6, 4]);
+        overlayCtx.beginPath();
+        overlayCtx.moveTo(state.lassoPoints[0].x, state.lassoPoints[0].y);
+        
+        for (let i = 1; i < state.lassoPoints.length; i++) {
+          overlayCtx.lineTo(state.lassoPoints[i].x, state.lassoPoints[i].y);
+        }
+        overlayCtx.stroke();
+        overlayCtx.setLineDash([]);
+      }
+    }
+
+    // --- EVENT LISTENERS & NAVIGATION ---
+    function setupEventListeners() {
+      // Clear Cache & Reset Memory
+      document.getElementById('clearCacheBtn').addEventListener('click', clearCacheAndResetMemory);
+
+      // Extract 12 Aspect Layers Button
+      document.getElementById('extractLayersBtn').addEventListener('click', extract12AspectLayers);
+
+      // Fuse Selected Extracted Layers Actions
+      document.getElementById('sendSelectedToStackBtn').addEventListener('click', fuseSelectedExtractedLayers);
+      document.getElementById('sendSelectedToStackBtnMobile').addEventListener('click', fuseSelectedExtractedLayers);
+
+      // Toggle Select All Extracted Layers
+      document.getElementById('toggleSelectAllBtn').addEventListener('click', () => {
+        const allSelected = state.extractedAspectLayers.every(i => i.selected);
+        state.extractedAspectLayers.forEach(i => i.selected = !allSelected);
+        renderExtractedCardsTray();
+      });
+
+      // Mobile Panel Navigation Bar Buttons
+      document.querySelectorAll('.mobile-nav-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.mobile-nav-btn').forEach(b => {
+            b.classList.remove('text-amber-400', 'border-amber-500');
+            b.classList.add('text-slate-400', 'border-transparent');
+          });
+          btn.classList.remove('text-slate-400', 'border-transparent');
+          btn.classList.add('text-amber-400', 'border-amber-500');
+
+          const targetPanel = btn.dataset.mobilePanel;
+          document.querySelectorAll('.mobile-tab-panel').forEach(p => p.classList.remove('active'));
+          document.getElementById(`mobile-panel-${targetPanel}`).classList.add('active');
+        });
+      });
+
+      // Tool Rail Selection
+      document.querySelectorAll('[data-tool]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('[data-tool]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          state.activeTool = btn.dataset.tool;
+          switchToolTab(state.activeTool);
+        });
+      });
+
+      // Sidebar Tab Switcher
+      document.querySelectorAll('.panel-tab').forEach(tabBtn => {
+        tabBtn.addEventListener('click', () => {
+          document.querySelectorAll('.panel-tab').forEach(b => {
+            b.classList.remove('text-amber-400', 'border-b-2', 'border-amber-500');
+            b.classList.add('text-slate-400');
+          });
+          tabBtn.classList.remove('text-slate-400');
+          tabBtn.classList.add('text-amber-400', 'border-b-2', 'border-amber-500');
+
+          document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+          document.getElementById(`tab-${tabBtn.dataset.tab}`).classList.remove('hidden');
+        });
+      });
+
+      // Material Presets Selection
+      document.querySelectorAll('[data-preset]').forEach(presetBtn => {
+        presetBtn.addEventListener('click', () => {
+          document.querySelectorAll('[data-preset]').forEach(p => {
+            p.classList.remove('active', 'border-amber-500/50');
+            p.classList.add('border-slate-700');
+          });
+          presetBtn.classList.add('active', 'border-amber-500/50');
+          
+          state.activeMaterial = presetBtn.dataset.preset;
+          const p = MATERIAL_PRESETS[state.activeMaterial];
+          if (p) {
+            updateSlider('emboss', p.emboss);
+            updateSlider('lightAngle', p.lightAngle, '°');
+            updateSlider('shine', p.shine, '%');
+            updateSlider('shadow', p.shadow, '%');
+            updateSlider('grain', p.grain, '%');
+            updateSlider('tint', p.tint);
+            applySculptureMaterialFilter(state.activeMaterial);
+            saveHistoryState(`Applied ${state.activeMaterial} Preset`);
+          }
+        });
+      });
+
+      // Sliders Bindings
+      bindSlider('param-emboss', 'val-emboss', '', (val) => { state.params.emboss = parseFloat(val); });
+      bindSlider('param-lightAngle', 'val-lightAngle', '°', (val) => { state.params.lightAngle = parseInt(val); });
+      bindSlider('param-shine', 'val-shine', '%', (val) => { state.params.shine = parseInt(val); });
+      bindSlider('param-shadow', 'val-shadow', '%', (val) => { state.params.shadow = parseInt(val); });
+      bindSlider('param-grain', 'val-grain', '%', (val) => { state.params.grain = parseInt(val); });
+      bindSlider('param-tint', 'val-tint', '', (val) => { state.params.tint = parseInt(val); });
+      bindSlider('param-feather', 'val-feather', 'px', (val) => { state.params.feather = parseInt(val); });
+      bindSlider('param-brushSize', 'val-brushSize', 'px', (val) => { state.params.brushSize = parseInt(val); });
+      bindSlider('param-brushSoft', 'val-brushSoft', '%', (val) => { state.params.brushSoftness = parseInt(val); });
+      bindSlider('param-blendOpacity', 'val-blendOpacity', '%', (val) => { 
+        state.params.blendOpacity = parseInt(val); 
+        if (state.layers[state.activeLayerIndex]) {
+          state.layers[state.activeLayerIndex].opacity = state.params.blendOpacity;
+          redrawMainCanvas();
+        }
+      });
+
+      document.getElementById('applyMaterialBtn').addEventListener('click', () => {
+        applySculptureMaterialFilter(state.activeMaterial);
+        saveHistoryState('Re-applied Material Filter');
+      });
+
+      document.getElementById('cutSelectionBtn').addEventListener('click', executeLassoCutout);
+
+      document.getElementById('featureBlendMode').addEventListener('change', (e) => {
+        state.params.blendMode = e.target.value;
+        const activeLayer = state.layers[state.activeLayerIndex];
+        if (activeLayer && state.activeLayerIndex > 0) {
+          activeLayer.blendMode = state.params.blendMode;
+          redrawMainCanvas();
+        }
+      });
+
+      document.getElementById('flipXBtn').addEventListener('click', () => {
+        const layer = state.layers[state.activeLayerIndex];
+        if (layer) { layer.scaleX *= -1; redrawMainCanvas(); saveHistoryState('Flipped Horizontally'); }
+      });
+
+      document.getElementById('flipYBtn').addEventListener('click', () => {
+        const layer = state.layers[state.activeLayerIndex];
+        if (layer) { layer.scaleY *= -1; redrawMainCanvas(); saveHistoryState('Flipped Vertically'); }
+      });
+
+      document.getElementById('baseImageInput').addEventListener('change', handleBaseImageUpload);
+
+      document.getElementById('loadDemoClassicBtn').addEventListener('click', () => {
+        generateDefaultSculptureTexture('marble');
+        saveHistoryState('Loaded Greek Bust Demo');
+      });
+
+      document.getElementById('loadDemoReliefBtn').addEventListener('click', () => {
+        generateDefaultSculptureTexture('bronze');
+        saveHistoryState('Loaded Relief Demo');
+      });
+
+      document.getElementById('zoomInBtn').addEventListener('click', () => setZoom(state.zoom + 0.15));
+      document.getElementById('zoomOutBtn').addEventListener('click', () => setZoom(state.zoom - 0.15));
+      document.getElementById('resetZoomBtn').addEventListener('click', () => {
+        state.zoom = 1.0; state.panX = 0; state.panY = 0;
+        updateViewportTransform();
+      });
+
+      // Mouse & Touch Events for Canvas
+      mainCanvas.addEventListener('mousedown', handleCanvasPointerDown);
+      window.addEventListener('mousemove', handleCanvasPointerMove);
+      window.addEventListener('mouseup', handleCanvasPointerUp);
+
+      mainCanvas.addEventListener('touchstart', handleCanvasTouchStart, { passive: false });
+      mainCanvas.addEventListener('touchmove', handleCanvasTouchMove, { passive: false });
+      mainCanvas.addEventListener('touchend', handleCanvasPointerUp);
+
+      // Render Modal Events
+      document.getElementById('renderFinalBtn').addEventListener('click', generateFinalSculptureRender);
+      document.getElementById('closeModalBtn').addEventListener('click', () => {
+        document.getElementById('renderModal').classList.add('hidden');
+      });
+      document.getElementById('copyToClipboardBtn').addEventListener('click', copyRenderToClipboard);
+
+      // Undo / Redo
+      document.getElementById('undoBtn').addEventListener('click', undo);
+      document.getElementById('redoBtn').addEventListener('click', redo);
+
+      // Keyboard Shortcuts
+      window.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); }
+        if (e.ctrlKey && e.key === 'y') { e.preventDefault(); redo(); }
+      });
+    }
+
+    function switchToolTab(tool) {
+      const toolTitle = document.getElementById('activeToolTitle');
+      const lassoCtrl = document.getElementById('lassoControls');
+      const brushCtrl = document.getElementById('brushControls');
+      const blendCtrl = document.getElementById('eyeblendControls');
+
+      lassoCtrl.classList.add('hidden');
+      brushCtrl.classList.add('hidden');
+      blendCtrl.classList.add('hidden');
+
+      if (tool === 'lasso') {
+        toolTitle.innerText = 'Lasso Cutout Settings';
+        lassoCtrl.classList.remove('hidden');
+      } else if (tool === 'brush' || tool === 'eraser') {
+        toolTitle.innerText = tool === 'brush' ? 'Sculpt Brush Settings' : 'Eraser Settings';
+        brushCtrl.classList.remove('hidden');
+      } else if (tool === 'eyeblend') {
+        toolTitle.innerText = 'Feature Alignment & Blend';
+        blendCtrl.classList.remove('hidden');
+      } else {
+        toolTitle.innerText = 'Transform & Pan Controls';
+      }
+
+      document.querySelectorAll('.panel-tab')[1].click();
+    }
+
+    function bindSlider(id, displayId, suffix, callback) {
+      const input = document.getElementById(id);
+      const display = document.getElementById(displayId);
+      input.addEventListener('input', (e) => {
+        const val = e.target.value;
+        display.innerText = val + suffix;
+        callback(val);
+      });
+    }
+
+    function updateSlider(paramKey, value, suffix = '') {
+      state.params[paramKey] = value;
+      const input = document.getElementById(`param-${paramKey}`);
+      const display = document.getElementById(`val-${paramKey}`);
+      if (input) input.value = value;
+      if (display) display.innerText = value + suffix;
+    }
+
+    function getCanvasCoordinates(e) {
+      const rect = mainCanvas.getBoundingClientRect();
+      const scaleX = mainCanvas.width / rect.width;
+      const scaleY = mainCanvas.height / rect.height;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+      return {
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY
+      };
+    }
+
+    function handleCanvasPointerDown(e) {
+      const coords = getCanvasCoordinates(e);
+
+      if (e.button === 1 || e.shiftKey) {
+        state.isPanning = true;
+        state.panStartX = e.clientX - state.panX;
+        state.panStartY = e.clientY - state.panY;
+        return;
+      }
+
+      if (state.activeTool === 'lasso') {
+        state.isLassoDrawing = true;
+        state.lassoPoints = [coords];
+      } else if (state.activeTool === 'brush' || state.activeTool === 'eraser') {
+        state.isBrushing = true;
+        paintSculptStroke(coords.x, coords.y);
+      } else if (state.activeTool === 'select' && state.activeLayerIndex > 0) {
+        state.isPanning = true;
+        state.panStartX = coords.x - state.layers[state.activeLayerIndex].x;
+        state.panStartY = coords.y - state.layers[state.activeLayerIndex].y;
+      }
+    }
+
+    function handleCanvasTouchStart(e) {
+      if (e.touches.length === 1) {
+        e.preventDefault();
+        handleCanvasPointerDown(e);
+      }
+    }
+
+    function handleCanvasPointerMove(e) {
+      const coords = getCanvasCoordinates(e);
+      document.getElementById('cursorPos').innerText = `X: ${Math.round(coords.x)} | Y: ${Math.round(coords.y)}`;
+
+      if (state.isPanning) {
+        if (state.activeTool === 'select' && state.activeLayerIndex > 0) {
+          state.layers[state.activeLayerIndex].x = coords.x - state.panStartX;
+          state.layers[state.activeLayerIndex].y = coords.y - state.panStartY;
+          redrawMainCanvas();
+        } else {
+          const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+          const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+          state.panX = clientX - state.panStartX;
+          state.panY = clientY - state.panStartY;
+          updateViewportTransform();
+        }
+      } else if (state.isLassoDrawing) {
+        state.lassoPoints.push(coords);
+        drawOverlay();
+      } else if (state.isBrushing) {
+        paintSculptStroke(coords.x, coords.y);
+      }
+    }
+
+    function handleCanvasTouchMove(e) {
+      if (e.touches.length === 1) {
+        e.preventDefault();
+        handleCanvasPointerMove(e);
+      }
+    }
+
+    function handleCanvasPointerUp() {
+      if (state.isLassoDrawing) {
+        state.isLassoDrawing = false;
+        drawOverlay();
+      }
+      if (state.isPanning || state.isBrushing) {
+        if (state.isBrushing) saveHistoryState('Brush Sculpt Stroke');
+        state.isPanning = false;
+        state.isBrushing = false;
+      }
+    }
+
+    function paintSculptStroke(x, y) {
+      const layer = state.layers[state.activeLayerIndex];
+      if (!layer) return;
+
+      const ctx = layer.canvas.getContext('2d');
+      ctx.save();
+      const brushSize = state.params.brushSize;
+
+      if (state.activeTool === 'eraser') {
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.beginPath();
+        ctx.arc(x - layer.x, y - layer.y, brushSize / 2, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = 'rgba(217, 119, 6, 0.4)';
+        ctx.beginPath();
+        ctx.arc(x - layer.x, y - layer.y, brushSize / 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+      redrawMainCanvas();
+    }
+
+    function executeLassoCutout() {
+      if (state.lassoPoints.length < 3) {
+        showToast('Draw a lasso selection on canvas first');
+        return;
+      }
+
+      const activeLayer = state.layers[state.activeLayerIndex];
+      if (!activeLayer) return;
+
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      state.lassoPoints.forEach(p => {
+        if (p.x < minX) minX = p.x;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.y > maxY) maxY = p.y;
+      });
+
+      const w = Math.max(10, maxX - minX);
+      const h = Math.max(10, maxY - minY);
+
+      const cutoutCanvas = document.createElement('canvas');
+      cutoutCanvas.width = w;
+      cutoutCanvas.height = h;
+      const cCtx = cutoutCanvas.getContext('2d');
+
+      cCtx.beginPath();
+      cCtx.moveTo(state.lassoPoints[0].x - minX, state.lassoPoints[0].y - minY);
+      for (let i = 1; i < state.lassoPoints.length; i++) {
+        cCtx.lineTo(state.lassoPoints[i].x - minX, state.lassoPoints[i].y - minY);
+      }
+      cCtx.closePath();
+      cCtx.clip();
+
+      cCtx.drawImage(
+        activeLayer.canvas,
+        minX - activeLayer.x, minY - activeLayer.y, w, h,
+        0, 0, w, h
+      );
+
+      state.layers.push({
+        id: 'cutout-' + Date.now(),
+        name: 'Feature Cutout ' + state.layers.length,
+        canvas: cutoutCanvas,
+        visible: true,
+        opacity: 85,
+        blendMode: state.params.blendMode,
+        x: minX,
+        y: minY,
+        scaleX: 1,
+        scaleY: 1,
+        rotation: 0
+      });
+
+      state.activeLayerIndex = state.layers.length - 1;
+      state.lassoPoints = [];
+      drawOverlay();
+      updateLayerStackUI();
+      redrawMainCanvas();
+      saveHistoryState('Extracted Cutout');
+      showToast('Extracted cutout feature layer!');
+    }
+
+    function handleBaseImageUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          initCanvasDimensions(img.width, img.height);
+          const layerCtx = state.layers[0].canvas.getContext('2d');
+          layerCtx.clearRect(0, 0, img.width, img.height);
+          layerCtx.drawImage(img, 0, 0);
+
+          applySculptureMaterialFilter(state.activeMaterial);
+          redrawMainCanvas();
+          saveHistoryState('Loaded Custom Image');
+          showToast('Image loaded into sculpture engine');
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function updateLayerStackUI() {
+      const container = document.getElementById('layerStackList');
+      const containerMobile = document.getElementById('layerStackListMobile');
+
+      container.innerHTML = '';
+      containerMobile.innerHTML = '';
+
+      state.layers.forEach((layer, idx) => {
+        const layerItem = document.createElement('div');
+        layerItem.className = `p-2.5 rounded-lg border transition flex items-center justify-between space-x-2 ${
+          idx === state.activeLayerIndex ? 'bg-slate-800 border-amber-500/80 shadow-md' : 'bg-slate-950/60 border-slate-800'
+        }`;
+
+        layerItem.onclick = () => {
+          state.activeLayerIndex = idx;
+          updateLayerStackUI();
+        };
+
+        layerItem.innerHTML = `
+          <div class="flex items-center space-x-2 overflow-hidden">
+            <button onclick="event.stopPropagation(); toggleLayerVisibility(${idx});" class="text-slate-400 hover:text-slate-100">
+              <i class="fa-solid ${layer.visible ? 'fa-eye text-amber-500' : 'fa-eye-slash text-slate-600'}"></i>
+            </button>
+            <span class="text-xs font-medium text-slate-200 truncate">${layer.name}</span>
+          </div>
+          <div class="flex items-center space-x-1 shrink-0">
+            <button onclick="event.stopPropagation(); moveLayer(${idx}, -1);" class="p-1 text-slate-400 hover:text-slate-100 text-xs">
+              <i class="fa-solid fa-arrow-up"></i>
+            </button>
+            <button onclick="event.stopPropagation(); moveLayer(${idx}, 1);" class="p-1 text-slate-400 hover:text-slate-100 text-xs">
+              <i class="fa-solid fa-arrow-down"></i>
+            </button>
+            ${idx > 0 ? `
+              <button onclick="event.stopPropagation(); deleteLayer(${idx});" class="p-1 text-red-400 hover:text-red-300 text-xs">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            ` : ''}
+          </div>
+        `;
+
+        container.appendChild(layerItem);
+        containerMobile.appendChild(layerItem.cloneNode(true));
+      });
+    }
+
+    function toggleLayerVisibility(idx) {
+      if (state.layers[idx]) {
+        state.layers[idx].visible = !state.layers[idx].visible;
+        updateLayerStackUI();
+        redrawMainCanvas();
+      }
+    }
+
+    function moveLayer(idx, direction) {
+      const targetIdx = idx + direction;
+      if (targetIdx >= 0 && targetIdx < state.layers.length) {
+        const temp = state.layers[idx];
+        state.layers[idx] = state.layers[targetIdx];
+        state.layers[targetIdx] = temp;
+        state.activeLayerIndex = targetIdx;
+        updateLayerStackUI();
+        redrawMainCanvas();
+      }
+    }
+
+    function deleteLayer(idx) {
+      if (state.layers.length > 1) {
+        state.layers.splice(idx, 1);
+        state.activeLayerIndex = Math.max(0, idx - 1);
+        updateLayerStackUI();
+        redrawMainCanvas();
+        saveHistoryState('Deleted Layer');
+      }
+    }
+
+    function setZoom(newZoom) {
+      state.zoom = Math.max(0.2, Math.min(4.0, newZoom));
+      document.getElementById('zoomLevelIndicator').innerText = `${Math.round(state.zoom * 100)}%`;
+      updateViewportTransform();
+    }
+
+    function updateViewportTransform() {
+      canvasViewport.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.zoom})`;
+    }
+
+    function saveHistoryState(actionName) {
+      if (state.historyStep < state.history.length - 1) {
+        state.history = state.history.slice(0, state.historyStep + 1);
+      }
+
+      const layersCopy = state.layers.map(l => {
+        const c = document.createElement('canvas');
+        c.width = l.canvas.width;
+        c.height = l.canvas.height;
+        c.getContext('2d').drawImage(l.canvas, 0, 0);
+
+        return { ...l, canvas: c };
+      });
+
+      state.history.push({
+        action: actionName,
+        layers: layersCopy,
+        activeLayerIndex: state.activeLayerIndex
+      });
+
+      if (state.history.length > state.maxHistory) {
+        state.history.shift();
+      } else {
+        state.historyStep++;
+      }
+
+      updateHistoryButtons();
+    }
+
+    function undo() {
+      if (state.historyStep > 0) {
+        state.historyStep--;
+        restoreHistoryState(state.history[state.historyStep]);
+        showToast(`Undo: ${state.history[state.historyStep + 1].action}`);
+      }
+    }
+
+    function redo() {
+      if (state.historyStep < state.history.length - 1) {
+        state.historyStep++;
+        restoreHistoryState(state.history[state.historyStep]);
+        showToast(`Redo: ${state.history[state.historyStep].action}`);
+      }
+    }
+
+    function restoreHistoryState(snapshot) {
+      state.layers = snapshot.layers.map(l => {
+        const c = document.createElement('canvas');
+        c.width = l.canvas.width;
+        c.height = l.canvas.height;
+        c.getContext('2d').drawImage(l.canvas, 0, 0);
+
+        return { ...l, canvas: c };
+      });
+
+      state.activeLayerIndex = snapshot.activeLayerIndex;
+      updateLayerStackUI();
+      redrawMainCanvas();
+      updateHistoryButtons();
+    }
+
+    function updateHistoryButtons() {
+      document.getElementById('undoBtn').disabled = state.historyStep <= 0;
+      document.getElementById('redoBtn').disabled = state.historyStep >= state.history.length - 1;
+    }
+
+    function generateFinalSculptureRender() {
+      redrawMainCanvas();
+      const dataUrl = mainCanvas.toDataURL('image/png');
+
+      const modalImg = document.getElementById('renderResultImg');
+      const downloadLink = document.getElementById('downloadPngBtn');
+      const resInfo = document.getElementById('renderResInfo');
+
+      modalImg.src = dataUrl;
+      downloadLink.href = dataUrl;
+      resInfo.innerText = `${mainCanvas.width} x ${mainCanvas.height} px`;
+
+      document.getElementById('renderModal').classList.remove('hidden');
+    }
+
+    function copyRenderToClipboard() {
+      mainCanvas.toBlob((blob) => {
+        try {
+          const item = new ClipboardItem({ 'image/png': blob });
+          navigator.clipboard.write([item]).then(() => {
+            showToast('Sculpture render copied to clipboard!');
+          });
+        } catch (err) {
+          showToast('Clipboard copy restricted by browser settings');
+        }
+      });
+    }
+
+    function showToast(message) {
+      toastMsg.innerText = message;
+      toast.classList.remove('opacity-0');
+      toast.classList.add('opacity-100');
+
+      setTimeout(() => {
+        toast.classList.remove('opacity-100');
+        toast.classList.add('opacity-0');
+      }, 2600);
+    }
+  </script>
+</body>
+</html>
