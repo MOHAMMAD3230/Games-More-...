@@ -4,17 +4,16 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>English to Telugu PDF Converter</title>
-<meta name="description" content="Convert entire English PDF books to Telugu in seconds - pin-to-pin sentence translation, secure, fast, responsive" />
+<meta name="description" content="Convert entire English PDF books to Telugu - real sentence translation, crisp Telugu shaping, 100% client-side" />
 
-<!-- ============================================================
-     PDF.js  ->  English text extraction
-     pdf-lib + fontkit  ->  Telugu PDF generation
-     Google Translate gtx endpoint  ->  fast Telugu translation
-     Anupam / Noto Sans Telugu font
-     ============================================================ -->
+<!-- Google Font for genuine native HarfBuzz/CoreText Telugu shaping -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Telugu:wght@400;600;700&display=swap" rel="stylesheet">
+
+<!-- PDF.js for extraction & jsPDF for crisp multi-page PDF assembly -->
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
 <style>
   :root{
@@ -22,7 +21,7 @@
     --txt:#e6ecff; --muted:#8ea0c8; --accent:#4ade80; --accent2:#38bdf8;
     --warn:#fbbf24; --danger:#f87171; --ok:#22c55e;
     --radius:14px; --shadow:0 10px 30px rgba(0,0,0,.35);
-    --telugu:'Noto Sans Telugu','Anupam','Telugu Sangam MN',sans-serif;
+    --telugu:'Noto Sans Telugu','Telugu Sangam MN','Gautami',sans-serif;
     --sans:'Segoe UI',system-ui,-apple-system,Roboto,'Noto Sans',sans-serif;
   }
   *{box-sizing:border-box;margin:0;padding:0}
@@ -34,7 +33,6 @@
       var(--bg);
     min-height:100vh; line-height:1.55; -webkit-font-smoothing:antialiased;
   }
-  a{color:var(--accent2);text-decoration:none}
   .wrap{max-width:1180px;margin:0 auto;padding:18px 16px 60px}
 
   /* Header */
@@ -48,7 +46,7 @@
   .logo{
     width:46px;height:46px;border-radius:12px;display:grid;place-items:center;
     background:linear-gradient(135deg,#38bdf8,#4ade80);color:#04122a;font-weight:800;
-    font-size:20px;box-shadow:0 6px 20px rgba(56,189,248,.35)
+    font-size:22px;font-family:var(--telugu);box-shadow:0 6px 20px rgba(56,189,248,.35)
   }
   .brand h1{font-size:18px;line-height:1.2}
   .brand .sub{font-size:12px;color:var(--muted)}
@@ -65,8 +63,6 @@
   .btn.primary:hover{filter:brightness(1.08)}
   .btn.ghost{background:transparent}
   .btn.sm{padding:4px 9px;font-size:12px;border-radius:7px}
-  .btn.danger{border-color:#5b2030;color:#ffb4c0}
-  .btn.danger:hover{background:#3a1422}
   .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
 
   /* Cards */
@@ -100,7 +96,7 @@
 
   /* Settings */
   .row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0}
-  .row label{font-size:13px;color:var(--muted);min-width:120px}
+  .row label{font-size:13px;color:var(--muted);min-width:130px}
   .row select,.row input[type=number]{
     flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--txt);
     padding:8px 10px;border-radius:8px;font-size:13px
@@ -133,10 +129,10 @@
   /* Preview */
   .preview{display:grid;grid-template-columns:1fr 1fr;gap:14px}
   @media (max-width:640px){ .preview{grid-template-columns:1fr} }
-  .pane{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px;min-height:260px;max-height:520px;overflow:auto;font-size:13px}
+  .pane{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px;min-height:280px;max-height:520px;overflow:auto;font-size:13px}
   .pane h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px}
-  .en{white-space:pre-wrap;color:#dfe7ff}
-  .te{white-space:pre-wrap;color:#ffe9c2;font-family:var(--telugu)}
+  .en{white-space:pre-wrap;color:#dfe7ff;line-height:1.6}
+  .te{white-space:pre-wrap;color:#ffe9c2;font-family:var(--telugu);font-size:14px;line-height:1.75}
   .preview-nav{display:flex;align-items:center;gap:6px}
 
   /* Security badges */
@@ -160,12 +156,9 @@
   .pill{font-size:11px;padding:2px 8px;border-radius:20px;background:#1a2547;color:#bcd0ff}
   .small{font-size:12px;color:var(--muted)}
   .hidden{display:none !important}
-
-  /* Cache stats */
   .cache-info{display:flex;gap:8px;align-items:center;margin-top:8px;font-size:12px;color:var(--muted)}
   .cache-info b{color:var(--accent)}
 
-  /* Mobile tweaks */
   @media (max-width:640px){
     .brand h1{font-size:16px}
     .meta{grid-template-columns:1fr}
@@ -183,7 +176,7 @@
       <div class="logo">అ</div>
       <div>
         <h1>English → Telugu PDF Converter</h1>
-        <div class="sub">Pin-to-pin sentence translation · Whole-book speed · Anupam / Noto Telugu</div>
+        <div class="sub">Real sentence reconstruction · Native Telugu shaping (No □ boxes) · Fast batching</div>
       </div>
     </div>
     <div class="top-actions">
@@ -216,45 +209,47 @@
 
       <h2 style="margin-top:18px"><span class="title-left"><span class="dot"></span> 2 · Conversion Settings</span></h2>
       <div class="row">
+        <label for="pageRange">Page range</label>
+        <select id="pageRange">
+          <option value="all" selected>All pages (Full book)</option>
+          <option value="1-10">Pages 1 – 10 (Quick test)</option>
+          <option value="1-50">Pages 1 – 50</option>
+        </select>
+      </div>
+      <div class="row">
         <label for="batchSize">Batch size</label>
         <select id="batchSize">
-          <option value="8">8 segments / request (balanced)</option>
-          <option value="16" selected>16 segments / request (fast)</option>
-          <option value="32">32 segments / request (very fast)</option>
-          <option value="48">48 segments / request (max speed)</option>
+          <option value="8">8 sentences / request (safe)</option>
+          <option value="15" selected>15 sentences / request (fast)</option>
+          <option value="25">25 sentences / request (very fast)</option>
         </select>
       </div>
       <div class="row">
         <label for="workers">Parallel workers</label>
         <select id="workers">
           <option value="2">2 (slow connection)</option>
-          <option value="4" selected>4 (recommended)</option>
-          <option value="6">6 (fast connection)</option>
-          <option value="8">8 (max)</option>
+          <option value="3" selected>3 (recommended)</option>
+          <option value="5">5 (fast connection)</option>
         </select>
       </div>
       <div class="row">
-        <label for="fontChoice">Output font</label>
-        <select id="fontChoice">
-          <option value="noto" selected>Noto Sans Telugu</option>
-          <option value="anupam">Anupam Telugu</option>
+        <label for="pdfMode">PDF layout mode</label>
+        <select id="pdfMode">
+          <option value="telugu" selected>Telugu Book (Clean readable pages)</option>
+          <option value="bilingual">Bilingual (English + Telugu side-by-side)</option>
         </select>
       </div>
       <div class="row">
-        <label for="fontSize">Font size</label>
-        <input type="number" id="fontSize" min="8" max="24" value="11" />
+        <label for="fontSize">Telugu font size</label>
+        <input type="number" id="fontSize" min="11" max="22" value="14" />
       </div>
       <div class="row">
-        <label for="keepLayout">Preserve layout</label>
-        <div class="switch"><input type="checkbox" id="keepLayout" checked><span class="slider"></span></div>
-      </div>
-      <div class="row">
-        <label for="useCache">Use cache</label>
+        <label for="useCache">Use translation cache</label>
         <div class="switch"><input type="checkbox" id="useCache" checked><span class="slider"></span></div>
       </div>
 
       <div class="cache-info" id="cacheInfo">
-        Cache: <b id="cacheCount">0</b> entries · <b id="cacheSize">0 KB</b>
+        Cache: <b id="cacheCount">0</b> sentences · <b id="cacheSize">0 KB</b>
       </div>
 
       <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
@@ -271,13 +266,13 @@
         </div>
       </div>
 
-      <div class="log" id="logBox" aria-live="polite">Ready. Drop a PDF to begin.</div>
+      <div class="log" id="logBox" aria-live="polite">Ready. Drop an English PDF to begin.</div>
 
       <div class="badges" id="secBadges">
         <span class="badge ok">🔒 100% Client-side</span>
+        <span class="badge ok">✨ Native Telugu Shaping</span>
         <span class="badge ok">🛡 File ≤ 50 MB</span>
-        <span class="badge ok">🧹 Sandboxed parse</span>
-        <span class="badge warn">⚠ Translation uses Google gtx endpoint</span>
+        <span class="badge warn">⚠ Uses Google gtx translation</span>
       </div>
     </div>
 
@@ -292,23 +287,22 @@
       </h2>
       <div class="preview">
         <div class="pane">
-          <h3>English (source)</h3>
+          <h3>English (reconstructed sentences)</h3>
           <div class="en" id="enPreview">Nothing yet — upload a PDF to see the original text.</div>
         </div>
         <div class="pane">
-          <h3>Telugu (translation)</h3>
+          <h3>Telugu (తెలుగు అనువాదం)</h3>
           <div class="te" id="tePreview">ఇంకా ఏమీ లేదు — PDF అప్‌లోడ్ చేయండి.</div>
         </div>
       </div>
       <p class="small" style="margin-top:10px">
-        The Telugu PDF preserves page order and paragraph structure. Each English segment maps
-        to its Telugu counterpart (pin-to-pin), so you can read side-by-side.
+        Uses native HarfBuzz/CoreText Telugu shaping so all matras (గుణింతాలు) and conjuncts (ఒత్తులు) render cleanly on iOS, Android, Mac, and Windows.
       </p>
     </div>
   </div>
 
   <footer>
-    Built with pdf.js · pdf-lib · Google Translate gtx · Anupam/Noto Telugu font · Runs fully in your browser.
+    Built with pdf.js · jsPDF · Native Canvas Telugu Shaper · Google Translate gtx · Runs fully in your browser.
     <br><span class="telugu">ఇంగ్లీషు నుండి తెలుగు PDF మార్పిడి సాధనం</span>
   </footer>
 </div>
@@ -321,17 +315,13 @@
 
 /* ----------------------- CONFIG ----------------------- */
 const CFG = {
-  MAX_BYTES: 50 * 1024 * 1024,        // 50 MB
+  MAX_BYTES: 50 * 1024 * 1024, // 50 MB
   TRANSLATE_ENDPOINT: 'https://translate.googleapis.com/translate_a/single',
   TRANSLATE_FALLBACK: 'https://api.mymemory.translated.net/get',
-  FONT_URLS: [
-    'https://cdn.jsdelivr.net/gh/googlefonts/noto-fonts@main/unhinted/ttf/NotoSansTelugu/NotoSansTelugu-Regular.ttf',
-    'https://raw.githubusercontent.com/googlefonts/noto-fonts/main/unhinted/ttf/NotoSansTelugu/NotoSansTelugu-Regular.ttf'
-  ],
-  DB_NAME: 'en2te_cache',
+  DB_NAME: 'en2te_v2_cache',
   STORE: 'translations',
   DB_VERSION: 1,
-  MAX_LOG_LINES: 200,
+  MAX_LOG_LINES: 250,
 };
 
 /* ----------------------- pdf.js worker ----------------------- */
@@ -350,8 +340,8 @@ const ui = {
   bar: $('progress'), barFill: $('barFill'), pLbl: $('progressLabel'), pPct: $('progressPct'),
   en: $('enPreview'), te: $('tePreview'), previewPill: $('previewPill'),
   prevPage: $('prevPageBtn'), nextPage: $('nextPageBtn'),
-  batchSize: $('batchSize'), workers: $('workers'), fontChoice: $('fontChoice'),
-  fontSize: $('fontSize'), keepLayout: $('keepLayout'), useCache: $('useCache'),
+  pageRange: $('pageRange'), batchSize: $('batchSize'), workers: $('workers'),
+  pdfMode: $('pdfMode'), fontSize: $('fontSize'), useCache: $('useCache'),
   clearCache: $('clearCacheBtn'), security: $('securityBtn'), help: $('helpBtn'),
   cacheCount: $('cacheCount'), cacheSize: $('cacheSize'),
   toast: $('toast'),
@@ -364,14 +354,13 @@ const S = {
   fileName: '',
   filePages: 0,
   totalWords: 0,
-  pages: [],            // [{ items:[{text,x,y,w,h,fs}], width, height }]
-  translatedPages: [],  // [{ items:[{te, en, x, y, fs}], width, height }]
-  outputBytes: null,
+  pages: [],            // [{ paragraphs: [string], sentences: [{en, pIdx}] }]
+  translatedPages: [],  // [{ sentences: [{en, te, pIdx}] }]
+  outputBlob: null,
   isConverting: false,
   cancel: false,
   cacheDb: null,
   previewIdx: 0,
-  cachedFontBytes: null,
 };
 
 /* ----------------------- Logger ----------------------- */
@@ -391,14 +380,14 @@ function toast(msg) {
   ui.toast.textContent = msg;
   ui.toast.classList.add('show');
   clearTimeout(toast._t);
-  toast._t = setTimeout(() => ui.toast.classList.remove('show'), 2600);
+  toast._t = setTimeout(() => ui.toast.classList.remove('show'), 2800);
 }
 
 /* ============================================================================
-   SECURITY
+   SECURITY & SANITIZATION
    ========================================================================== */
 function securityCheck(file) {
-  if (!file) return { ok: false, msg: 'No file.' };
+  if (!file) return { ok: false, msg: 'No file selected.' };
   const nameOk = /\.pdf$/i.test(file.name);
   const typeOk = file.type === 'application/pdf' || file.type === '' || nameOk;
   if (!typeOk || !nameOk) return { ok: false, msg: 'Only PDF files are allowed.' };
@@ -408,7 +397,6 @@ function securityCheck(file) {
 
 async function verifyPdfMagic(file) {
   const head = new Uint8Array(await file.slice(0, 5).arrayBuffer());
-  // %PDF-
   return head[0] === 0x25 && head[1] === 0x50 && head[2] === 0x44 && head[3] === 0x46 && head[4] === 0x2D;
 }
 
@@ -417,14 +405,12 @@ function sanitize(text) {
   return String(text)
     .replace(/\u0000/g, '')
     .replace(/[\u0001-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
-    .replace(/<[^>]+>/g, '')
-    .replace(/[<>]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
 /* ============================================================================
-   INDEXEDDB CACHE (translation memory)
+   INDEXEDDB CACHE
    ========================================================================== */
 function openCache() {
   return new Promise((resolve, reject) => {
@@ -433,8 +419,7 @@ function openCache() {
     req.onupgradeneeded = (e) => {
       const db = e.target.result;
       if (!db.objectStoreNames.contains(CFG.STORE)) {
-        const st = db.createObjectStore(CFG.STORE, { keyPath: 'src' });
-        st.createIndex('bySrc', 'src', { unique: true });
+        db.createObjectStore(CFG.STORE, { keyPath: 'src' });
       }
     };
     req.onsuccess = () => { S.cacheDb = req.result; resolve(req.result); };
@@ -450,9 +435,7 @@ function cacheGet(src) {
       const r = tx.objectStore(CFG.STORE).get(src);
       r.onsuccess = () => resolve(r.result ? r.result.dst : null);
       r.onerror = () => resolve(null);
-    } catch (e) {
-      resolve(null);
-    }
+    } catch (e) { resolve(null); }
   });
 }
 
@@ -474,7 +457,7 @@ function clearCache() {
     const tx = S.cacheDb.transaction(CFG.STORE, 'readwrite');
     tx.objectStore(CFG.STORE).clear();
     tx.oncomplete = () => {
-      log('Cache cleared.', 'ok');
+      log('Translation cache cleared.', 'ok');
       toast('Cache cleared');
       refreshCacheStats();
       resolve();
@@ -505,7 +488,129 @@ function refreshCacheStats() {
 }
 
 /* ============================================================================
-   FILE INTAKE (drag/drop, browse, validation)
+   TEXT RECONSTRUCTION (PDF items -> Lines -> Paragraphs -> Clean Sentences)
+   ========================================================================== */
+function extractStructuredPage(contentItems, viewportHeight) {
+  // 1. Normalize items with coordinates
+  const raw = contentItems
+    .map(it => {
+      const str = sanitize(it.str);
+      if (!str) return null;
+      const fs = Math.hypot(it.transform[2], it.transform[3]) || it.height || 12;
+      return {
+        str,
+        x: it.transform[4],
+        y: viewportHeight - it.transform[5],
+        w: it.width || 0,
+        fs
+      };
+    })
+    .filter(Boolean);
+
+  if (!raw.length) return { paragraphs: [], sentences: [] };
+
+  // 2. Sort top-to-bottom, then left-to-right (with tolerance for slight baseline jitter)
+  raw.sort((a, b) => {
+    if (Math.abs(a.y - b.y) > Math.min(a.fs, b.fs) * 0.45) {
+      return a.y - b.y;
+    }
+    return a.x - b.x;
+  });
+
+  // 3. Group into visual lines
+  const lines = [];
+  let curLine = [raw[0]];
+  for (let i = 1; i < raw.length; i++) {
+    const prev = curLine[curLine.length - 1];
+    const curr = raw[i];
+    const tol = Math.max(prev.fs, curr.fs) * 0.45;
+    if (Math.abs(curr.y - prev.y) <= tol) {
+      curLine.push(curr);
+    } else {
+      lines.push(curLine);
+      curLine = [curr];
+    }
+  }
+  lines.push(curLine);
+
+  // 4. Join items on each line and group lines into paragraphs based on vertical gap
+  const lineObjs = lines.map(ln => {
+    ln.sort((a, b) => a.x - b.x);
+    let text = '';
+    for (let i = 0; i < ln.length; i++) {
+      const item = ln[i];
+      if (i > 0) {
+        const prev = ln[i - 1];
+        const gap = item.x - (prev.x + prev.w);
+        if (gap > item.fs * 0.15 && !text.endsWith(' ') && !item.str.startsWith(' ')) {
+          text += ' ';
+        }
+      }
+      text += item.str;
+    }
+    return {
+      text: text.trim(),
+      y: ln[0].y,
+      fs: ln[0].fs
+    };
+  }).filter(l => l.text.length > 0);
+
+  const paragraphs = [];
+  let curPara = lineObjs[0].text;
+  for (let i = 1; i < lineObjs.length; i++) {
+    const prev = lineObjs[i - 1];
+    const curr = lineObjs[i];
+    const verticalGap = curr.y - prev.y;
+    const isNewPara = verticalGap > prev.fs * 1.55;
+
+    if (isNewPara) {
+      paragraphs.push(curPara.trim());
+      curPara = curr.text;
+    } else {
+      // De-hyphenate line breaks
+      if (curPara.endsWith('-') && /^[a-z]/.test(curr.text)) {
+        curPara = curPara.slice(0, -1) + curr.text;
+      } else {
+        curPara += ' ' + curr.text;
+      }
+    }
+  }
+  if (curPara.trim()) paragraphs.push(curPara.trim());
+
+  // 5. Split paragraphs into sentences for accurate pin-to-pin translation
+  const sentences = [];
+  paragraphs.forEach((para, pIdx) => {
+    const parts = splitSentences(para);
+    parts.forEach(s => {
+      if (s.trim()) {
+        sentences.push({ en: s.trim(), pIdx });
+      }
+    });
+  });
+
+  return { paragraphs, sentences };
+}
+
+function splitSentences(text) {
+  if (text.length <= 180) return [text];
+  // Split cleanly at sentence endings (. ! ?) followed by whitespace
+  const raw = text.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g) || [text];
+  const merged = [];
+  for (const seg of raw) {
+    const clean = seg.trim();
+    if (!clean) continue;
+    // Merge tiny fragments (like "Mr." or "1.") with the next segment
+    if (merged.length > 0 && merged[merged.length - 1].length < 25) {
+      merged[merged.length - 1] += ' ' + clean;
+    } else {
+      merged.push(clean);
+    }
+  }
+  return merged;
+}
+
+/* ============================================================================
+   FILE INTAKE
    ========================================================================== */
 ui.drop.addEventListener('dragover', e => { e.preventDefault(); ui.drop.classList.add('over'); });
 ui.drop.addEventListener('dragleave', () => ui.drop.classList.remove('over'));
@@ -527,9 +632,9 @@ async function handleFile(file) {
   const chk = securityCheck(file);
   if (!chk.ok) { toast(chk.msg); log(chk.msg, 'err'); return; }
   const magicOk = await verifyPdfMagic(file);
-  if (!magicOk) { toast('File is not a real PDF.'); log('Magic check failed.', 'err'); return; }
-  log(`Accepted: ${file.name} (${(file.size / 1048576).toFixed(2)} MB)`, 'ok');
+  if (!magicOk) { toast('File is not a valid PDF.'); log('PDF header check failed.', 'err'); return; }
 
+  log(`Accepted: ${file.name} (${(file.size / 1048576).toFixed(2)} MB)`, 'ok');
   S.fileName = file.name;
   S.pdfBytes = await file.arrayBuffer();
   ui.mName.textContent = file.name.length > 26 ? file.name.slice(0, 24) + '…' : file.name;
@@ -537,17 +642,17 @@ async function handleFile(file) {
   ui.meta.classList.remove('hidden');
 
   try {
-    log('Parsing PDF…');
+    log('Extracting & reconstructing sentences from PDF…');
     const doc = await pdfjsLib.getDocument({
       data: S.pdfBytes.slice(0),
       disableFontFace: true,
       useSystemFonts: false,
       isEvalSupported: false
     }).promise;
+
     S.pdfDoc = doc;
     S.filePages = doc.numPages;
     ui.mPages.textContent = doc.numPages;
-    log(`PDF parsed · ${doc.numPages} pages.`, 'ok');
 
     let wordCount = 0;
     S.pages = [];
@@ -555,67 +660,53 @@ async function handleFile(file) {
       const page = await doc.getPage(p);
       const viewport = page.getViewport({ scale: 1 });
       const content = await page.getTextContent();
-      const items = content.items
-        .map(it => {
-          const clean = sanitize(it.str);
-          const fontHeight = Math.hypot(it.transform[2], it.transform[3]) || it.height || 12;
-          return {
-            text: clean,
-            x: it.transform[4],
-            y: viewport.height - it.transform[5],
-            w: it.width || 0,
-            h: fontHeight,
-            fs: fontHeight
-          };
-        })
-        .filter(it => it.text.length > 0);
-
-      S.pages.push({ items, width: viewport.width, height: viewport.height });
-      wordCount += items.reduce((a, b) => a + b.text.split(/\s+/).length, 0);
+      const structured = extractStructuredPage(content.items, viewport.height);
+      S.pages.push(structured);
+      wordCount += structured.paragraphs.reduce((acc, pr) => acc + pr.split(/\s+/).length, 0);
     }
+
     S.totalWords = wordCount;
     ui.mWords.textContent = wordCount.toLocaleString();
 
     if (wordCount === 0) {
-      log('Warning: No extractable text found (PDF may be scanned images).', 'warn');
+      log('Warning: No selectable text found (this PDF appears to be scanned images).', 'warn');
       toast('No selectable text found in PDF.');
+      return;
     }
 
     S.previewIdx = 0;
     showPreview(0);
-
-    ui.convert.disabled = wordCount === 0;
-    if (wordCount > 0) {
-      toast(`Loaded ${doc.numPages} pages, ~${wordCount.toLocaleString()} words`);
-      log(`Ready to convert. Estimated time: ${estimateTime(wordCount)}s`, 'warn');
-    }
+    ui.convert.disabled = false;
+    toast(`Loaded ${doc.numPages} pages (~${wordCount.toLocaleString()} words)`);
+    log(`Parsed ${doc.numPages} pages · ~${wordCount.toLocaleString()} words ready.`, 'ok');
   } catch (err) {
     log('Parse error: ' + err.message, 'err');
     toast('Could not read PDF');
   }
 }
 
-function estimateTime(words) {
-  return Math.max(3, Math.round(words / 70));
-}
-
 function showPreview(pageIdx) {
   if (!S.pages.length || !S.pages[pageIdx]) return;
   S.previewIdx = pageIdx;
-  const en = S.pages[pageIdx].items.map(i => i.text).join(' ');
-  ui.en.textContent = en || '(no extractable text)';
+  const pg = S.pages[pageIdx];
+  ui.en.textContent = pg.paragraphs.join('\n\n') || '(no extractable text on this page)';
   ui.previewPill.textContent = `page ${pageIdx + 1} / ${S.pages.length}`;
   ui.prevPage.disabled = pageIdx <= 0;
   ui.nextPage.disabled = pageIdx >= S.pages.length - 1;
 
-  if (S.translatedPages[pageIdx] && S.translatedPages[pageIdx].items.some(Boolean)) {
-    const te = S.translatedPages[pageIdx].items
-      .filter(Boolean)
-      .map(i => i.te)
-      .join(' ');
-    ui.te.textContent = te;
+  const tpg = S.translatedPages[pageIdx];
+  if (tpg && tpg.sentences.some(Boolean)) {
+    // Group translated sentences back into paragraphs
+    const paraMap = new Map();
+    tpg.sentences.forEach(s => {
+      if (!s) return;
+      if (!paraMap.has(s.pIdx)) paraMap.set(s.pIdx, []);
+      paraMap.get(s.pIdx).push(s.te);
+    });
+    const outParas = Array.from(paraMap.values()).map(arr => arr.join(' '));
+    ui.te.textContent = outParas.join('\n\n');
   } else {
-    ui.te.textContent = '(not translated yet)';
+    ui.te.textContent = '(Click "Convert to Telugu" to translate)';
   }
 }
 
@@ -628,7 +719,7 @@ ui.nextPage.addEventListener('click', () => {
 
 function resetState() {
   S.pdfBytes = null; S.pdfDoc = null; S.pages = []; S.translatedPages = [];
-  S.outputBytes = null; S.cancel = false; S.isConverting = false;
+  S.outputBlob = null; S.cancel = false; S.isConverting = false;
   S.fileName = ''; S.filePages = 0; S.totalWords = 0; S.previewIdx = 0;
   ui.convert.disabled = true; ui.download.disabled = true; ui.cancel.disabled = true;
   ui.prevPage.disabled = true; ui.nextPage.disabled = true;
@@ -641,28 +732,27 @@ function resetState() {
 }
 
 /* ============================================================================
-   TRANSLATION (Google gtx, with MyMemory fallback)
+   TRANSLATION ENGINE (Google gtx + MyMemory fallback)
    ========================================================================== */
 const SEP = '\n|||\n';
 
 async function translateBatch(texts, attempt = 0) {
   const cached = await Promise.all(texts.map(t => cacheGet(t)));
   const needIdx = texts.map((_, i) => i).filter(i => !cached[i]);
-  if (needIdx.length === 0) {
-    return cached;
-  }
-  const needSrc = needIdx.map(i => texts[i]);
+  if (needIdx.length === 0) return cached;
 
+  const needSrc = needIdx.map(i => texts[i]);
   let translatedParts;
+
   try {
     translatedParts = await gtxTranslateBatch(needSrc);
   } catch (e) {
-    if (attempt === 0) log('gtx batch issue, retrying / falling back…', 'warn');
+    if (attempt === 0) log('Primary endpoint busy, retrying with fallback…', 'warn');
     try {
       translatedParts = await myMemoryBatch(needSrc);
     } catch (e2) {
       if (attempt < 2) {
-        await sleep(700 * (attempt + 1));
+        await sleep(800 * (attempt + 1));
         return translateBatch(texts, attempt + 1);
       }
       throw e2;
@@ -681,20 +771,25 @@ async function translateBatch(texts, attempt = 0) {
 
 async function gtxTranslateBatch(segments) {
   if (segments.length === 1) {
-    const single = await gtxSingle(segments[0]);
-    return [single];
+    return [await gtxSingle(segments[0])];
   }
 
   const combined = segments.join(SEP);
-  const full = await gtxSingle(combined);
+  // Keep URL well under browser/server GET limits (~4500 chars encoded)
+  if (encodeURIComponent(combined).length > 4200) {
+    const mid = Math.ceil(segments.length / 2);
+    const left = await gtxTranslateBatch(segments.slice(0, mid));
+    const right = await gtxTranslateBatch(segments.slice(mid));
+    return left.concat(right);
+  }
 
-  // Split preserving segment count
+  const full = await gtxSingle(combined);
   const parts = full.split(/\s*\|\|\|\s*/);
   if (parts.length === segments.length) {
     return parts.map(s => s.trim());
   }
 
-  // Fallback if delimiter was altered by translation engine: translate individually
+  // Fallback to individual translation if delimiter was altered
   return Promise.all(segments.map(seg => gtxSingle(seg).catch(() => seg)));
 }
 
@@ -748,7 +843,7 @@ async function pool(items, workerCount, fn) {
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 /* ============================================================================
-   MAIN CONVERT
+   MAIN CONVERSION PIPELINE
    ========================================================================== */
 ui.convert.addEventListener('click', convert);
 ui.cancel.addEventListener('click', () => {
@@ -766,18 +861,31 @@ async function convert() {
   ui.bar.classList.remove('hidden');
   ui.barFill.style.width = '0%';
   ui.pPct.textContent = '0%';
-  ui.pLbl.textContent = 'Translating…';
+  ui.pLbl.textContent = 'Translating sentences…';
 
-  const batchSize = parseInt(ui.batchSize.value, 10) || 16;
-  const workerCount = parseInt(ui.workers.value, 10) || 4;
+  // Ensure Noto Sans Telugu webfont is loaded before rendering PDF pages
+  if (document.fonts && document.fonts.load) {
+    try {
+      await document.fonts.load('16px "Noto Sans Telugu"');
+      await document.fonts.ready;
+    } catch (e) { /* fallback system Telugu font will be used */ }
+  }
 
-  log(`Converting ${S.filePages} pages · batch=${batchSize} · workers=${workerCount}`);
+  const rangeVal = ui.pageRange.value;
+  let maxPage = S.pages.length;
+  if (rangeVal === '1-10') maxPage = Math.min(10, S.pages.length);
+  if (rangeVal === '1-50') maxPage = Math.min(50, S.pages.length);
+
+  const batchSize = parseInt(ui.batchSize.value, 10) || 15;
+  const workerCount = parseInt(ui.workers.value, 10) || 3;
+
+  log(`Translating pages 1–${maxPage} · batch=${batchSize} · workers=${workerCount}`);
 
   const allJobs = [];
-  for (let p = 0; p < S.pages.length; p++) {
-    const items = S.pages[p].items;
-    for (let i = 0; i < items.length; i += batchSize) {
-      allJobs.push({ page: p, start: i, end: Math.min(i + batchSize, items.length) });
+  for (let p = 0; p < maxPage; p++) {
+    const sents = S.pages[p].sentences;
+    for (let i = 0; i < sents.length; i += batchSize) {
+      allJobs.push({ page: p, start: i, end: Math.min(i + batchSize, sents.length) });
     }
   }
 
@@ -785,50 +893,46 @@ async function convert() {
   let doneJobs = 0;
   const t0 = performance.now();
 
-  // Pre-allocate exact slot arrays so parallel workers preserve exact reading order
-  S.translatedPages = S.pages.map(p => ({
-    items: new Array(p.items.length),
-    width: p.width,
-    height: p.height
+  S.translatedPages = S.pages.slice(0, maxPage).map(p => ({
+    sentences: new Array(p.sentences.length)
   }));
 
-  await pool(allJobs, workerCount, async (job) => {
-    if (S.cancel) return;
-    const pageItems = S.pages[job.page].items.slice(job.start, job.end);
-    const texts = pageItems.map(it => it.text);
+  if (totalJobs > 0) {
+    await pool(allJobs, workerCount, async (job) => {
+      if (S.cancel) return;
+      const slice = S.pages[job.page].sentences.slice(job.start, job.end);
+      const texts = slice.map(s => s.en);
 
-    let translations;
-    try {
-      translations = await translateBatch(texts);
-    } catch (err) {
-      log(`Page ${job.page + 1} batch failed: ${err.message}`, 'err');
-      translations = texts;
-    }
+      let translations;
+      try {
+        translations = await translateBatch(texts);
+      } catch (err) {
+        log(`Page ${job.page + 1} batch failed: ${err.message}`, 'err');
+        translations = texts;
+      }
 
-    for (let k = 0; k < pageItems.length; k++) {
-      S.translatedPages[job.page].items[job.start + k] = {
-        en: pageItems[k].text,
-        te: translations[k] || pageItems[k].text,
-        x: pageItems[k].x,
-        y: pageItems[k].y,
-        fs: pageItems[k].fs
-      };
-    }
+      for (let k = 0; k < slice.length; k++) {
+        S.translatedPages[job.page].sentences[job.start + k] = {
+          en: slice[k].en,
+          te: translations[k] || slice[k].en,
+          pIdx: slice[k].pIdx
+        };
+      }
 
-    doneJobs++;
-    const pct = Math.round((doneJobs / totalJobs) * 100);
-    ui.barFill.style.width = pct + '%';
-    ui.pPct.textContent = pct + '%';
+      doneJobs++;
+      const pct = Math.round((doneJobs / totalJobs) * 80); // 0–80% for translation
+      ui.barFill.style.width = pct + '%';
+      ui.pPct.textContent = pct + '%';
 
-    if (doneJobs % 5 === 0 || doneJobs === totalJobs) {
-      const elapsed = Math.max(0.1, (performance.now() - t0) / 1000);
-      const rate = doneJobs / elapsed;
-      const eta = Math.max(0, Math.round((totalJobs - doneJobs) / rate));
-      ui.pLbl.textContent = `${doneJobs}/${totalJobs} batches · ${elapsed.toFixed(1)}s · ETA ${eta}s`;
-      log(`Progress ${pct}% (${doneJobs}/${totalJobs}) · ETA ${eta}s`);
-      if (doneJobs % 10 === 0 || doneJobs === totalJobs) showPreview(S.previewIdx);
-    }
-  });
+      if (doneJobs % 4 === 0 || doneJobs === totalJobs) {
+        const elapsed = Math.max(0.1, (performance.now() - t0) / 1000);
+        const rate = doneJobs / elapsed;
+        const eta = Math.max(0, Math.round((totalJobs - doneJobs) / rate));
+        ui.pLbl.textContent = `Translating ${doneJobs}/${totalJobs} batches · ETA ${eta}s`;
+        if (doneJobs % 8 === 0 || doneJobs === totalJobs) showPreview(S.previewIdx);
+      }
+    });
+  }
 
   if (S.cancel) {
     S.isConverting = false;
@@ -839,20 +943,27 @@ async function convert() {
     return;
   }
 
-  ui.pLbl.textContent = 'Generating Telugu PDF…';
-  log('Building Telugu PDF…');
+  ui.pLbl.textContent = 'Typesetting Telugu PDF pages…';
+  log('Rendering crisp Telugu PDF pages (Native HarfBuzz/CoreText shaping)…');
+
   try {
-    S.outputBytes = await buildTeluguPdf();
+    S.outputBlob = await buildShapedTeluguPdf((renderPct) => {
+      const totalPct = 80 + Math.round(renderPct * 0.2);
+      ui.barFill.style.width = totalPct + '%';
+      ui.pPct.textContent = totalPct + '%';
+    });
+
     ui.download.disabled = false;
     const sec = ((performance.now() - t0) / 1000).toFixed(1);
-    ui.pLbl.textContent = `Done in ${sec}s`;
+    ui.barFill.style.width = '100%';
     ui.pPct.textContent = '100%';
-    log(`Done in ${sec}s. PDF ready.`, 'ok');
-    toast('Telugu PDF ready!');
+    ui.pLbl.textContent = `Completed in ${sec}s`;
+    log(`Success! Telugu PDF generated in ${sec}s.`, 'ok');
+    toast('Telugu PDF ready for download!');
     showPreview(S.previewIdx);
   } catch (err) {
-    log('PDF build error: ' + err.message, 'err');
-    toast('PDF build failed: ' + err.message);
+    log('PDF render error: ' + err.message, 'err');
+    toast('PDF generation failed: ' + err.message);
   }
 
   S.isConverting = false;
@@ -861,163 +972,192 @@ async function convert() {
 }
 
 /* ============================================================================
-   BUILD TELUGU PDF (pdf-lib + fontkit)
+   REAL TELUGU PDF RENDERER (Native HarfBuzz/CoreText Shaping -> High-DPI jsPDF)
+   Eliminates □□□□ tofu boxes completely by shaping Telugu script natively
    ========================================================================== */
-async function loadTeluguFont() {
-  if (S.cachedFontBytes) return S.cachedFontBytes;
-  log('Loading Telugu font…');
-  for (const url of CFG.FONT_URLS) {
-    try {
-      const r = await fetch(url);
-      if (!r.ok) continue;
-      const buf = await r.arrayBuffer();
-      if (buf.byteLength > 10000) {
-        S.cachedFontBytes = buf;
-        log('Font loaded (' + (buf.byteLength / 1024).toFixed(0) + ' KB).', 'ok');
-        return buf;
-      }
-    } catch (e) {
-      // Try next fallback URL
-    }
+async function buildShapedTeluguPdf(onProgress) {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4', compress: true });
+
+  const pageW = 595.28; // A4 width in pt
+  const pageH = 841.89; // A4 height in pt
+  const scale = 2.0;    // 144 DPI crisp rendering without bloated file size
+  const cw = Math.round(pageW * scale);
+  const ch = Math.round(pageH * scale);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = cw;
+  canvas.height = ch;
+  const ctx = canvas.getContext('2d');
+
+  const mode = ui.pdfMode.value; // 'telugu' | 'bilingual'
+  const baseFontPx = (parseInt(ui.fontSize.value, 10) || 14) * scale;
+  const lineHeight = Math.round(baseFontPx * 1.62);
+  const margin = 44 * scale;
+  const headerH = 34 * scale;
+  const footerH = 34 * scale;
+  const contentTop = margin + headerH;
+  const contentBottom = ch - margin - footerH;
+
+  const teluguFontStack = `${baseFontPx}px "Noto Sans Telugu", "Telugu Sangam MN", "Gautami", sans-serif`;
+  const englishFontStack = `${Math.round(baseFontPx * 0.88)}px "Segoe UI", system-ui, sans-serif`;
+  const metaFontStack = `${10 * scale}px "Segoe UI", system-ui, sans-serif`;
+
+  let outPageNum = 0;
+
+  function beginNewOutputPage(srcPageNum, totalSrcPages) {
+    if (outPageNum > 0) pdf.addPage();
+    outPageNum++;
+
+    // Pure white page background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, cw, ch);
+
+    // Subtle header
+    ctx.fillStyle = '#64748b';
+    ctx.font = metaFontStack;
+    ctx.textBaseline = 'top';
+    const titleShort = S.fileName.replace(/\.pdf$/i, '').slice(0, 48);
+    ctx.fillText(`${titleShort}  •  Source Page ${srcPageNum} of ${totalSrcPages}`, margin, margin * 0.65);
+
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 1 * scale;
+    ctx.beginPath();
+    ctx.moveTo(margin, margin + 18 * scale);
+    ctx.lineTo(cw - margin, margin + 18 * scale);
+    ctx.stroke();
+
+    // Footer page number
+    ctx.fillStyle = '#64748b';
+    const footTxt = `Page ${outPageNum}`;
+    const fw = ctx.measureText(footTxt).width;
+    ctx.fillText(footTxt, (cw - fw) / 2, ch - margin * 0.85);
+
+    return contentTop;
   }
-  throw new Error('Could not load Telugu TTF font from CDN.');
-}
 
-async function buildTeluguPdf() {
-  const { PDFDocument, rgb } = PDFLib;
-  if (!window.fontkit) throw new Error('fontkit library not loaded');
+  function flushCanvasToPdf() {
+    const imgData = canvas.toDataURL('image/jpeg', 0.90);
+    pdf.addImage(imgData, 'JPEG', 0, 0, pageW, pageH, undefined, 'FAST');
+  }
 
-  const pdf = await PDFDocument.create();
-  pdf.setProducer('EN->TE PDF Converter');
-  pdf.setCreator('en2te-converter');
-  pdf.setTitle(S.fileName ? S.fileName.replace(/\.pdf$/i, '') + ' (Telugu)' : 'Telugu PDF');
+  function wrapCanvasText(text, maxWidth, fontStr) {
+    ctx.font = fontStr;
+    const words = text.split(/\s+/).filter(Boolean);
+    const lines = [];
+    let current = '';
 
-  const fontBytes = await loadTeluguFont();
-  pdf.registerFontkit(fontkit);
-  // subset: false prevents GSUB/GPOS shaping corruption on Telugu conjuncts
-  const teluguFont = await pdf.embedFont(fontBytes, { subset: false });
+    for (const word of words) {
+      const test = current ? current + ' ' + word : word;
+      if (ctx.measureText(test).width > maxWidth && current) {
+        lines.push(current);
+        current = word;
+      } else {
+        current = test;
+      }
+    }
+    if (current) lines.push(current);
+    return lines;
+  }
 
-  const keepLayout = ui.keepLayout.checked;
-  const baseFontSize = parseInt(ui.fontSize.value, 10) || 11;
-  const margin = 28;
-  const lineGap = 4;
+  const totalSrc = S.translatedPages.length;
 
-  for (let p = 0; p < S.translatedPages.length; p++) {
-    const tp = S.translatedPages[p];
-    const w = tp.width || 595;
-    const h = tp.height || 842;
-    let activePage = pdf.addPage([w, h]);
-    const maxWidth = w - margin * 2;
+  for (let p = 0; p < totalSrc; p++) {
+    if (S.cancel) break;
+    const tpg = S.translatedPages[p];
 
-    if (keepLayout) {
-      for (const it of tp.items) {
-        if (!it || !it.te) continue;
-        const fs = Math.max(7, Math.min(28, it.fs || baseFontSize));
-        const startX = Math.max(margin, Math.min(it.x, w - margin - 20));
-        const availWidth = w - margin - startX;
+    // Re-group sentences into paragraphs
+    const paraMap = new Map();
+    tpg.sentences.forEach(s => {
+      if (!s) return;
+      if (!paraMap.has(s.pIdx)) paraMap.set(s.pIdx, { en: [], te: [] });
+      paraMap.get(s.pIdx).en.push(s.en);
+      paraMap.get(s.pIdx).te.push(s.te);
+    });
 
-        try {
-          const measured = teluguFont.widthOfTextAtSize(it.te, fs);
-          if (measured > availWidth) {
-            const lines = wrapText(it.te, maxWidth, teluguFont, fs);
-            let curY = it.y;
-            for (const ln of lines) {
-              const pdfY = h - curY;
-              if (pdfY < margin) break;
-              if (pdfY <= h - margin) {
-                activePage.drawText(ln, {
-                  x: margin,
-                  y: pdfY,
-                  size: fs,
-                  font: teluguFont,
-                  color: rgb(0.07, 0.09, 0.2)
-                });
-              }
-              curY += fs + lineGap;
-            }
-          } else {
-            const pdfY = h - it.y;
-            if (pdfY < margin || pdfY > h - margin) continue;
-            activePage.drawText(it.te, {
-              x: startX,
-              y: pdfY,
-              size: fs,
-              font: teluguFont,
-              color: rgb(0.07, 0.09, 0.2)
-            });
+    const paragraphs = Array.from(paraMap.values()).map(obj => ({
+      en: obj.en.join(' '),
+      te: obj.te.join(' ')
+    }));
+
+    let curY = beginNewOutputPage(p + 1, totalSrc);
+
+    if (paragraphs.length === 0) {
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = metaFontStack;
+      ctx.fillText('(No extractable text on this page)', margin, curY);
+    } else if (mode === 'telugu') {
+      const maxWidth = cw - margin * 2;
+      for (const para of paragraphs) {
+        const lines = wrapCanvasText(para.te, maxWidth, teluguFontStack);
+        ctx.font = teluguFontStack;
+        ctx.fillStyle = '#0f172a';
+        for (const ln of lines) {
+          if (curY + lineHeight > contentBottom) {
+            flushCanvasToPdf();
+            curY = beginNewOutputPage(p + 1, totalSrc);
+            ctx.font = teluguFontStack;
+            ctx.fillStyle = '#0f172a';
           }
-        } catch (e) {
-          // Skip unrenderable control characters
+          ctx.fillText(ln, margin, curY);
+          curY += lineHeight;
         }
+        curY += Math.round(baseFontPx * 0.65); // paragraph spacing
       }
     } else {
-      let y = h - margin;
-      for (const it of tp.items) {
-        if (!it || !it.te) continue;
-        const lines = wrapText(it.te, maxWidth, teluguFont, baseFontSize);
-        for (const ln of lines) {
-          if (y < margin) {
-            activePage = pdf.addPage([w, h]);
-            y = h - margin;
+      // Bilingual side-by-side columns
+      const colGap = 24 * scale;
+      const colW = (cw - margin * 2 - colGap) / 2;
+      const rightX = margin + colW + colGap;
+
+      for (const para of paragraphs) {
+        const enLines = wrapCanvasText(para.en, colW, englishFontStack);
+        const teLines = wrapCanvasText(para.te, colW, teluguFontStack);
+        const rowCount = Math.max(enLines.length, teLines.length);
+
+        for (let r = 0; r < rowCount; r++) {
+          if (curY + lineHeight > contentBottom) {
+            flushCanvasToPdf();
+            curY = beginNewOutputPage(p + 1, totalSrc);
           }
-          try {
-            activePage.drawText(ln, {
-              x: margin,
-              y,
-              size: baseFontSize,
-              font: teluguFont,
-              color: rgb(0.07, 0.09, 0.2)
-            });
-          } catch (e) { /* skip bad glyph */ }
-          y -= baseFontSize + lineGap;
+          if (enLines[r]) {
+            ctx.font = englishFontStack;
+            ctx.fillStyle = '#334155';
+            ctx.fillText(enLines[r], margin, curY);
+          }
+          if (teLines[r]) {
+            ctx.font = teluguFontStack;
+            ctx.fillStyle = '#0f172a';
+            ctx.fillText(teLines[r], rightX, curY);
+          }
+          curY += lineHeight;
         }
-        y -= 6;
+        // Subtle divider between bilingual paragraphs
+        ctx.strokeStyle = '#f1f5f9';
+        ctx.lineWidth = 1 * scale;
+        ctx.beginPath();
+        ctx.moveTo(margin, curY + 4 * scale);
+        ctx.lineTo(cw - margin, curY + 4 * scale);
+        ctx.stroke();
+        curY += Math.round(baseFontPx * 0.75);
       }
     }
 
-    // Page number footer on final active page of this source page
-    activePage.drawText(`${p + 1} / ${S.translatedPages.length}`, {
-      x: w / 2 - 15,
-      y: 12,
-      size: 9,
-      font: teluguFont,
-      color: rgb(0.4, 0.45, 0.55)
-    });
+    flushCanvasToPdf();
+    if (onProgress) onProgress((p + 1) / totalSrc);
+    // Yield to UI thread every 3 pages so mobile Safari stays responsive
+    if (p % 3 === 0) await sleep(0);
   }
 
-  return await pdf.save();
-}
-
-function wrapText(text, maxWidth, font, size) {
-  const words = text.split(/\s+/).filter(Boolean);
-  const lines = [];
-  let line = '';
-  for (const w of words) {
-    const test = line ? line + ' ' + w : w;
-    try {
-      const measured = font.widthOfTextAtSize(test, size);
-      if (measured > maxWidth && line) {
-        lines.push(line);
-        line = w;
-      } else {
-        line = test;
-      }
-    } catch (e) {
-      if (line) lines.push(line);
-      line = w;
-    }
-  }
-  if (line) lines.push(line);
-  return lines.length ? lines : [' '];
+  return pdf.output('blob');
 }
 
 /* ============================================================================
    DOWNLOAD
    ========================================================================== */
 ui.download.addEventListener('click', () => {
-  if (!S.outputBytes) { toast('Nothing to download'); return; }
-  const blob = new Blob([S.outputBytes], { type: 'application/pdf' });
-  const url = URL.createObjectURL(blob);
+  if (!S.outputBlob) { toast('Nothing to download yet'); return; }
+  const url = URL.createObjectURL(S.outputBlob);
   const a = document.createElement('a');
   const base = S.fileName.replace(/\.pdf$/i, '');
   a.href = url;
@@ -1025,8 +1165,8 @@ ui.download.addEventListener('click', () => {
   document.body.appendChild(a);
   a.click();
   a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 10000);
-  toast('Downloaded');
+  setTimeout(() => URL.revokeObjectURL(url), 15000);
+  toast('Downloaded Telugu PDF!');
 });
 
 /* ============================================================================
@@ -1034,17 +1174,15 @@ ui.download.addEventListener('click', () => {
    ========================================================================== */
 ui.clearCache.addEventListener('click', () => clearCache());
 ui.security.addEventListener('click', () => {
-  toast('🔒 100% client-side · ≤50 MB · sandboxed parse · no file leaves browser (only text fragments go to Google Translate).');
-  log('Security: client-side parse, file ≤50MB, magic check, sanitize, IndexedDB cache only.', 'ok');
+  toast('🔒 100% client-side · ≤50 MB · sandboxed parse · no PDF uploaded to any server.');
+  log('Security: client-side parse, magic byte verification, IndexedDB local translation memory.', 'ok');
 });
 ui.help.addEventListener('click', () => {
   log('HOW IT WORKS:', 'ok');
-  log('1) pdf.js extracts text + positions from every page.');
-  log('2) Segments are batched and translated via Google gtx.');
-  log('3) Parallel workers process batches concurrently while preserving order.');
-  log('4) Cached translations are reused (IndexedDB) — Clear Cache wipes them.');
-  log('5) pdf-lib writes a Telugu PDF with embedded Noto Sans Telugu font.');
-  log('Tip: Toggle off "Preserve layout" if translated Telugu text overlaps on dense PDFs.', 'warn');
+  log('1) Reconstructs broken PDF fragments into full lines & sentences.');
+  log('2) Translates sentences in parallel batches with IndexedDB caching.');
+  log('3) Renders Telugu via native browser HarfBuzz/CoreText shaping so every గుణింతం & ఒత్తు is crystal clear.');
+  log('Tip: Try "Pages 1–10" first to verify speed & output quality on large books.', 'warn');
 });
 
 /* ============================================================================
@@ -1061,7 +1199,7 @@ window.addEventListener('beforeunload', (e) => {
   try {
     await openCache();
     refreshCacheStats();
-    log('Cache ready.', 'ok');
+    log('Translation memory ready.', 'ok');
   } catch (e) {
     log('Cache unavailable: ' + e.message, 'warn');
   }
@@ -1072,3 +1210,4 @@ window.addEventListener('beforeunload', (e) => {
 </script>
 </body>
 </html>
+     
