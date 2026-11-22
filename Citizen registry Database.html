@@ -479,6 +479,11 @@
 
     function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
 
+    function generateSecureUidSuffix() {
+        const randomValue = window.crypto.getRandomValues(new Uint32Array(1))[0];
+        return 1000 + (randomValue % 9000);
+    }
+
     function saveRecord() {
         loadData(); // Refresh before mutating
         const originalPlate = document.getElementById('editPlateOriginal').value;
@@ -496,14 +501,14 @@
         if (status !== 'FLAGGED' && expiry) {
             const existingCard = archiveData.citizenCards[plate] || {};
             archiveData.citizenCards[plate] = {
-                uid: existingCard.uid || `ARCH-${Math.floor(1000+Math.random()*9000)}`, name: name, dlId: dlId, expiry: new Date(expiry).toISOString(), type: existingCard.type || "ARCHIVE CARD", city: existingCard.city || "MAINFRAME"
+                uid: existingCard.uid || `ARCH-${generateSecureUidSuffix()}`, name: name, dlId: dlId, expiry: new Date(expiry).toISOString(), type: existingCard.type || "ARCHIVE CARD", city: existingCard.city || "MAINFRAME"
             };
         } else if (status === 'FLAGGED') {
             delete archiveData.citizenCards[plate];
         } else {
             if (!archiveData.citizenCards[plate]) {
                 const nextYear = new Date(); nextYear.setFullYear(nextYear.getFullYear() + 1);
-                archiveData.citizenCards[plate] = { uid: `ARCH-${Math.floor(1000+Math.random()*9000)}`, name: name, dlId: dlId, expiry: nextYear.toISOString(), type: "ARCHIVE CARD", city: "MAINFRAME" };
+                archiveData.citizenCards[plate] = { uid: `ARCH-${generateSecureUidSuffix()}`, name: name, dlId: dlId, expiry: nextYear.toISOString(), type: "ARCHIVE CARD", city: "MAINFRAME" };
             }
         }
         saveData(); updateStats(); renderTable(); closeModal();
