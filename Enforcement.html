@@ -1622,8 +1622,15 @@
   }
 
   /* ===== D-4 / D-5 SEARCH ===== */
+  function escapeHTML(str) {
+      return String(str).replace(/[&<>"']/g, function(ch) {
+          return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+      });
+  }
+
   function searchApplicationHistory() {
       const plateSearch = (document.getElementById('searchPlateIn').value || "").toUpperCase().trim();
+      const safePlateSearch = escapeHTML(plateSearch);
       if(!plateSearch) { addLog("SEARCH ERROR: Enter a plate in the Search field.", "var(--warning)"); playSound('error'); return; }
       addLog(`Querying D-4 & D-5 for: ${plateSearch}...`, "var(--accent)");
       
@@ -1688,7 +1695,7 @@
                       <h4>OFFICIAL APPLICATION FOR VEHICLE REGISTRATION</h4>
                       <div class="d5-row"><span>APPLICANT NAME:</span><span>${applicantName}</span></div>
                       <div class="d5-row"><span>VEHICLE CLASS:</span><span>${vehicleClass}</span></div>
-                      <div class="d5-row"><span>REQUESTED PLATE:</span><span style="color:var(--accent)">${plateSearch}</span></div>
+                      <div class="d5-row"><span>REQUESTED PLATE:</span><span style="color:var(--accent)">${safePlateSearch}</span></div>
                       <div class="d5-row"><span>TEST SCORE:</span><span style="color:${testScore >= 70 ? 'var(--success)' : 'var(--danger)'}">${testScore} / 100</span></div>
                       <div class="d5-row"><span>STATUS:</span><span style="color:${isApproved ? 'var(--success)' : 'var(--danger)'}">${isApproved ? 'PASSED' : 'FAILED (Below 70)'}</span></div>
                       <div style="margin-top:15px; border-top:1px dashed #888; padding-top:10px; font-size:0.8rem;">
