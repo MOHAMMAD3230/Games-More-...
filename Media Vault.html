@@ -198,6 +198,14 @@
     // Image Downloader
     let currentImageUrl = '';
 
+    function sanitizeHttpUrl(raw) {
+      try {
+        const u = new URL(raw);
+        if (u.protocol === 'http:' || u.protocol === 'https:') return u.href;
+      } catch (e) {}
+      return '';
+    }
+
     async function fetchImage() {
       const input = document.getElementById('image-url').value.trim();
       const preview = document.getElementById('image-preview');
@@ -206,8 +214,10 @@
       if (!input) return alert("Please enter an image URL or keyword");
 
       if (input.startsWith('http')) {
-        currentImageUrl = input;
-        img.src = input;
+        const safeUrl = sanitizeHttpUrl(input);
+        if (!safeUrl) return alert("Invalid or unsafe image URL");
+        currentImageUrl = safeUrl;
+        img.src = safeUrl;
         preview.classList.remove('hidden');
       } else {
         // Use Pexels free search (demo - replace with your API key in production)
@@ -234,9 +244,12 @@
 
     function downloadImage() {
       if (!currentImageUrl) return alert("No image loaded");
+
+      const safeUrl = sanitizeHttpUrl(currentImageUrl);
+      if (!safeUrl) return alert("Invalid or unsafe image URL");
       
       const link = document.createElement('a');
-      link.href = currentImageUrl;
+      link.href = safeUrl;
       link.download = `image-${Date.now()}.jpg`;
       document.body.appendChild(link);
       link.click();
