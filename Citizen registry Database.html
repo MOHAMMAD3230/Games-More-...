@@ -479,6 +479,17 @@
 
     function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
 
+    function generateSecureUidSuffix() {
+        const range = 9000;
+        const maxUint32PlusOne = 0x100000000; // 2^32
+        const unbiasedLimit = maxUint32PlusOne - (maxUint32PlusOne % range);
+        let randomValue;
+        do {
+            randomValue = window.crypto.getRandomValues(new Uint32Array(1))[0];
+        } while (randomValue >= unbiasedLimit);
+        return 1000 + (randomValue % range);
+    }
+
     function saveRecord() {
         loadData(); // Refresh before mutating
         const originalPlate = document.getElementById('editPlateOriginal').value;
@@ -496,14 +507,14 @@
         if (status !== 'FLAGGED' && expiry) {
             const existingCard = archiveData.citizenCards[plate] || {};
             archiveData.citizenCards[plate] = {
-                uid: existingCard.uid || `ARCH-${Math.floor(1000+Math.random()*9000)}`, name: name, dlId: dlId, expiry: new Date(expiry).toISOString(), type: existingCard.type || "ARCHIVE CARD", city: existingCard.city || "MAINFRAME"
+                uid: existingCard.uid || `ARCH-${generateSecureUidSuffix()}`, name: name, dlId: dlId, expiry: new Date(expiry).toISOString(), type: existingCard.type || "ARCHIVE CARD", city: existingCard.city || "MAINFRAME"
             };
         } else if (status === 'FLAGGED') {
             delete archiveData.citizenCards[plate];
         } else {
             if (!archiveData.citizenCards[plate]) {
                 const nextYear = new Date(); nextYear.setFullYear(nextYear.getFullYear() + 1);
-                archiveData.citizenCards[plate] = { uid: `ARCH-${Math.floor(1000+Math.random()*9000)}`, name: name, dlId: dlId, expiry: nextYear.toISOString(), type: "ARCHIVE CARD", city: "MAINFRAME" };
+                archiveData.citizenCards[plate] = { uid: `ARCH-${generateSecureUidSuffix()}`, name: name, dlId: dlId, expiry: nextYear.toISOString(), type: "ARCHIVE CARD", city: "MAINFRAME" };
             }
         }
         saveData(); updateStats(); renderTable(); closeModal();
