@@ -604,13 +604,23 @@
 
   /* ===== DEEP MERGE ===== */
   function deepMerge(target, source) {
-      for (const key in source) {
-          if (source[key] instanceof Array) {
-              target[key] = source[key];
-          } else if (source[key] instanceof Object && target[key] instanceof Object) {
-              deepMerge(target[key], source[key]);
+      if (!source || typeof source !== 'object') return target;
+      for (const key of Object.keys(source)) {
+          if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
+
+          const srcVal = source[key];
+          const tgtVal = target[key];
+
+          if (Array.isArray(srcVal)) {
+              target[key] = srcVal;
+          } else if (
+              srcVal && typeof srcVal === 'object' &&
+              tgtVal && typeof tgtVal === 'object' &&
+              Object.prototype.hasOwnProperty.call(target, key)
+          ) {
+              deepMerge(tgtVal, srcVal);
           } else {
-              target[key] = source[key];
+              target[key] = srcVal;
           }
       }
       return target;
