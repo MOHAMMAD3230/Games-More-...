@@ -2012,7 +2012,30 @@
         isPaused = true;
         document.getElementById('ov-title').innerText = t;
         document.getElementById('ov-title').style.color = c;
-        document.getElementById('ov-text').innerHTML = tx;
+        const ovText = document.getElementById('ov-text');
+        ovText.textContent = '';
+        const lines = String(tx).split(/<br\s*\/?>/i);
+        lines.forEach((line, idx) => {
+            const trimmed = line.trim();
+            if (trimmed.startsWith('<b>') && trimmed.endsWith('</b>')) {
+                const bold = document.createElement('b');
+                bold.textContent = trimmed.slice(3, -4);
+                ovText.appendChild(bold);
+            } else if (trimmed.startsWith('<span') && trimmed.endsWith('</span>')) {
+                const styleMatch = trimmed.match(/^<span\s+style="([^"]*)">([\s\S]*)<\/span>$/i);
+                const span = document.createElement('span');
+                if (styleMatch) {
+                    span.setAttribute('style', styleMatch[1]);
+                    span.textContent = styleMatch[2];
+                } else {
+                    span.textContent = trimmed;
+                }
+                ovText.appendChild(span);
+            } else {
+                ovText.appendChild(document.createTextNode(line));
+            }
+            if (idx < lines.length - 1) ovText.appendChild(document.createElement('br'));
+        });
         document.getElementById('ov-btn').innerText = b;
         document.getElementById('ov-btn').style.background = c;
         document.getElementById('overlay-base').style.display = 'flex';
