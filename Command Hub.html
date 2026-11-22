@@ -308,12 +308,22 @@
 
             const safeMerge = (target, source) => {
                 for (let key in source) {
-                    if (!source.hasOwnProperty(key)) continue;
-                    if (source[key] !== null && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-                        if (!target[key]) target[key] = {};
-                        safeMerge(target[key], source[key]);
+                    if (!Object.prototype.hasOwnProperty.call(source, key)) continue;
+                    if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
+
+                    const sourceVal = source[key];
+                    const isObjectLike = sourceVal !== null && typeof sourceVal === 'object' && !Array.isArray(sourceVal);
+
+                    if (
+                        isObjectLike &&
+                        Object.prototype.hasOwnProperty.call(target, key) &&
+                        target[key] !== null &&
+                        typeof target[key] === 'object' &&
+                        !Array.isArray(target[key])
+                    ) {
+                        safeMerge(target[key], sourceVal);
                     } else {
-                        target[key] = source[key];
+                        target[key] = sourceVal;
                     }
                 }
             };
