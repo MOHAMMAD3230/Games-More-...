@@ -1,0 +1,1590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>English to Telugu PDF & MP3 Converter</title>
+<meta name="description" content="Convert English PDF books to Telugu PDF and Telugu MP3 audiobook - fast translation, crash-free PDF & MP3" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Telugu:wght@400;600;700&display=swap" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+<style>
+  :root{
+    --bg:#0b1020; --panel:#121a33; --panel2:#0f1730; --line:#1f2b50;
+    --txt:#e6ecff; --muted:#8ea0c8; --accent:#4ade80; --accent2:#38bdf8;
+    --purple:#a78bfa; --warn:#fbbf24; --danger:#f87171; --ok:#22c55e;
+    --radius:14px; --shadow:0 10px 30px rgba(0,0,0,.35);
+    --telugu:'Noto Sans Telugu','Telugu Sangam MN','Gautami',sans-serif;
+    --sans:'Segoe UI',system-ui,-apple-system,Roboto,'Noto Sans',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:var(--sans); color:var(--txt); background:
+      radial-gradient(900px 500px at 10% -10%, #16224a 0%, transparent 60%),
+      radial-gradient(800px 500px at 110% 10%, #1a2a55 0%, transparent 55%),
+      var(--bg);
+    min-height:100vh; line-height:1.55; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:18px 16px 60px}
+
+  header.top{
+    display:flex;align-items:center;justify-content:space-between;
+    gap:12px;flex-wrap:wrap;padding:14px 16px;border-radius:var(--radius);
+    background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,0));
+    border:1px solid var(--line);box-shadow:var(--shadow);margin-bottom:18px;
+  }
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{
+    width:46px;height:46px;border-radius:12px;display:grid;place-items:center;
+    background:linear-gradient(135deg,#38bdf8,#4ade80);color:#04122a;font-weight:800;
+    font-size:22px;font-family:var(--telugu);box-shadow:0 6px 20px rgba(56,189,248,.35)
+  }
+  .brand h1{font-size:18px;line-height:1.2}
+  .brand .sub{font-size:12px;color:var(--muted)}
+  .top-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .btn{
+    appearance:none;border:1px solid var(--line);background:var(--panel);
+    color:var(--txt);padding:9px 14px;border-radius:10px;cursor:pointer;
+    font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px;
+    transition:.15s transform,.15s background,.15s border-color
+  }
+  .btn:hover{background:#1a2547;border-color:#2b3a6a;transform:translateY(-1px)}
+  .btn:active{transform:translateY(0)}
+  .btn.primary{background:linear-gradient(135deg,#38bdf8,#4ade80);color:#04122a;border:none;font-weight:700}
+  .btn.primary:hover{filter:brightness(1.08)}
+  .btn.mp3{background:linear-gradient(135deg,#a78bfa,#38bdf8);color:#04122a;border:none;font-weight:700}
+  .btn.mp3:hover{filter:brightness(1.08)}
+  .btn.ghost{background:transparent}
+  .btn.sm{padding:4px 9px;font-size:12px;border-radius:7px}
+  .btn:disabled{opacity:.45;cursor:not-allowed;transform:none;filter:none}
+
+  .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:16px}
+  @media (max-width:920px){ .grid{grid-template-columns:1fr} }
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:18px;box-shadow:var(--shadow)
+  }
+  .card h2{font-size:15px;margin-bottom:10px;display:flex;align-items:center;gap:8px;justify-content:space-between}
+  .card h2 .title-left{display:flex;align-items:center;gap:8px}
+  .card h2 .dot{width:8px;height:8px;border-radius:50%;background:var(--accent2)}
+
+  .drop{
+    display:block;
+    border:2px dashed #2b3a6a;border-radius:14px;padding:22px 16px;text-align:center;
+    background:var(--panel2);transition:.2s all;cursor:pointer
+  }
+  .drop:hover,.drop.over{border-color:var(--accent2);background:#101a3a}
+  .drop .big{font-size:30px}
+  .drop p{margin-top:6px;color:var(--muted);font-size:13px}
+  .drop .formats{margin-top:4px;font-size:11px;color:#6f86b8}
+  #fileInput{display:none}
+
+  .meta{margin-top:12px;display:grid;grid-template-columns:repeat(2,1fr);gap:8px;font-size:13px}
+  .meta .item{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+  .meta .item .k{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+  .meta .item .v{font-weight:600;margin-top:2px;word-break:break-word}
+
+  .row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:9px 0}
+  .row label{font-size:13px;color:var(--muted);min-width:130px}
+  .row select,.row input[type=number],.row input[type=text]{
+    flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--txt);
+    padding:7px 10px;border-radius:8px;font-size:13px
+  }
+  .switch{position:relative;width:42px;height:24px;flex:none}
+  .switch input{display:none}
+  .switch .slider{
+    position:absolute;inset:0;border-radius:24px;background:#243156;transition:.2s;cursor:pointer
+  }
+  .switch .slider:before{content:"";position:absolute;width:18px;height:18px;left:3px;top:3px;
+    background:#cdd9ff;border-radius:50%;transition:.2s}
+  .switch input:checked + .slider{background:linear-gradient(135deg,#38bdf8,#4ade80)}
+  .switch input:checked + .slider:before{transform:translateX(18px)}
+
+  .audio-box{
+    margin-top:14px;background:var(--panel2);border:1px solid #2b3a6a;
+    border-radius:12px;padding:12px 14px;
+  }
+  .audio-head{
+    display:flex;align-items:center;justify-content:space-between;
+    gap:8px;margin-bottom:8px;font-size:12px;color:#cbd5e1;flex-wrap:wrap;
+  }
+  .audio-head .title{font-weight:700;color:var(--purple);display:flex;align-items:center;gap:6px}
+  .speed-btns{display:flex;gap:4px}
+  .speed-btn{
+    background:#1a2547;border:1px solid var(--line);color:var(--muted);
+    padding:2px 7px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;
+  }
+  .speed-btn.active{background:var(--accent2);color:#04122a;border-color:var(--accent2)}
+  audio{width:100%;height:38px;border-radius:8px;outline:none}
+
+  .progress{margin-top:12px}
+  .bar{height:10px;background:#1a2547;border-radius:10px;overflow:hidden}
+  .bar > span{display:block;height:100%;width:0%;
+    background:linear-gradient(90deg,#38bdf8,#4ade80);transition:.12s width}
+  .progress .stats{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:6px}
+
+  .log{
+    margin-top:12px;background:#0a1124;border:1px solid var(--line);border-radius:10px;
+    padding:10px 12px;height:145px;overflow:auto;font-family:ui-monospace,Menlo,Consolas,monospace;
+    font-size:12px;color:#bcd0ff;white-space:pre-wrap
+  }
+  .log .err{color:var(--danger)} .log .ok{color:var(--ok)} .log .warn{color:var(--warn)}
+
+  .preview{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:640px){ .preview{grid-template-columns:1fr} }
+  .pane{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px;min-height:280px;max-height:540px;overflow:auto;font-size:13px}
+  .pane h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px}
+  .en{white-space:pre-wrap;color:#dfe7ff;line-height:1.6}
+  .te{white-space:pre-wrap;color:#ffe9c2;font-family:var(--telugu);font-size:14px;line-height:1.75}
+  .preview-nav{display:flex;align-items:center;gap:6px}
+
+  .badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .badge{font-size:11px;padding:5px 9px;border-radius:20px;background:#0f1a3a;border:1px solid #1f2b50;color:#9fb4dd}
+  .badge.ok{color:#bbf7d0;border-color:#1e6b3a;background:#0c2218}
+  .badge.warn{color:#fde68a;border-color:#6b5a1e;background:#241c08}
+
+  footer{margin-top:26px;text-align:center;color:var(--muted);font-size:12px}
+  footer .telugu{font-family:var(--telugu);color:#ffe9c2}
+
+  .toast{
+    position:fixed;right:16px;bottom:16px;z-index:999;background:#0f1a3a;border:1px solid #2b3a6a;
+    color:#e6ecff;padding:12px 14px;border-radius:10px;box-shadow:var(--shadow);font-size:13px;
+    transform:translateY(20px);opacity:0;pointer-events:none;transition:.2s all;max-width:340px
+  }
+  .toast.show{transform:translateY(0);opacity:1}
+
+  .pill{font-size:11px;padding:2px 8px;border-radius:20px;background:#1a2547;color:#bcd0ff}
+  .small{font-size:12px;color:var(--muted)}
+  .hidden{display:none !important}
+  .cache-info{display:flex;gap:8px;align-items:center;margin-top:8px;font-size:12px;color:var(--muted)}
+  .cache-info b{color:var(--accent)}
+
+  @media (max-width:640px){
+    .brand h1{font-size:16px}
+    .meta{grid-template-columns:1fr}
+    .top-actions .btn{padding:8px 10px;font-size:12px}
+    header.top{padding:10px 12px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <div class="logo">అ</div>
+      <div>
+        <h1>English → Telugu PDF &amp; MP3 Converter</h1>
+        <div class="sub">Crash-free page renderer · Fast translation · Telugu MP3 Audiobook</div>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button class="btn ghost" id="clearCacheBtn" title="Clear cached text">🗑 Clear Cache</button>
+      <button class="btn ghost" id="testTtsBtn" title="Test which TTS route works">🔊 Test TTS</button>
+      <button class="btn ghost" id="securityBtn" title="Security info">🔒 Security</button>
+      <button class="btn ghost" id="helpBtn" title="How it works">❓ Help</button>
+    </div>
+  </header>
+
+  <div class="grid">
+
+    <div class="card">
+      <h2><span class="title-left"><span class="dot"></span> 1 · Upload English PDF</span></h2>
+
+      <label class="drop" id="dropZone" for="fileInput">
+        <div class="big">📄</div>
+        <p><b>Drop your PDF here</b> or click to browse</p>
+        <div class="formats">PDF only · Max 50 MB · Processed locally in your browser</div>
+        <input type="file" id="fileInput" accept="application/pdf,.pdf" />
+      </label>
+
+      <div class="meta hidden" id="fileMeta">
+        <div class="item"><div class="k">File</div><div class="v" id="mName">—</div></div>
+        <div class="item"><div class="k">Size</div><div class="v" id="mSize">—</div></div>
+        <div class="item"><div class="k">Pages</div><div class="v" id="mPages">—</div></div>
+        <div class="item"><div class="k">Detected words</div><div class="v" id="mWords">—</div></div>
+      </div>
+
+      <h2 style="margin-top:16px"><span class="title-left"><span class="dot"></span> 2 · Conversion Settings</span></h2>
+      <div class="row">
+        <label for="pageRange">Page range</label>
+        <input type="text" id="pageRange" value="1-20" placeholder="e.g. 1-20, 21-40, or all" />
+      </div>
+      <div class="row">
+        <label for="workers">Parallel workers</label>
+        <select id="workers">
+          <option value="2" selected>2 (crash-safe / mobile)</option>
+          <option value="3">3 (balanced)</option>
+          <option value="4">4 (desktop)</option>
+        </select>
+      </div>
+      <div class="row">
+        <label for="pdfMode">PDF layout mode</label>
+        <select id="pdfMode">
+          <option value="telugu" selected>Telugu Book (Clean readable pages)</option>
+          <option value="bilingual">Bilingual (English + Telugu side-by-side)</option>
+        </select>
+      </div>
+      <div class="row">
+        <label for="fontSize">Telugu font size</label>
+        <input type="number" id="fontSize" min="11" max="22" value="14" />
+      </div>
+      <div class="row">
+        <label for="useCache">Use local cache</label>
+        <div class="switch"><input type="checkbox" id="useCache" checked><span class="slider"></span></div>
+      </div>
+
+      <div class="cache-info" id="cacheInfo">
+        Cache: <b id="cacheCount">0</b> blocks · <b id="cacheSize">0 KB</b>
+      </div>
+
+      <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn primary" id="convertBtn" disabled>⚡ Convert to Telugu</button>
+        <button class="btn" id="downloadBtn" disabled>⬇ Download Telugu PDF</button>
+        <button class="btn mp3" id="mp3Btn" disabled>🎧 Convert &amp; Download MP3</button>
+        <button class="btn ghost" id="cancelBtn" disabled>✖ Cancel</button>
+      </div>
+
+      <div class="audio-box hidden" id="audioBox">
+        <div class="audio-head">
+          <span class="title">🔊 Telugu Audio Player <span class="pill" id="mp3Meta">—</span></span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div class="speed-btns" id="speedBtns">
+              <button type="button" class="speed-btn" data-rate="0.75">0.75x</button>
+              <button type="button" class="speed-btn active" data-rate="1">1x</button>
+              <button type="button" class="speed-btn" data-rate="1.25">1.25x</button>
+              <button type="button" class="speed-btn" data-rate="1.5">1.5x</button>
+            </div>
+            <button type="button" class="btn sm primary" id="reDownloadMp3Btn" title="Download audio file">⬇ Save Audio</button>
+          </div>
+        </div>
+        <audio id="teluguAudio" controls preload="metadata"></audio>
+      </div>
+
+      <div class="progress hidden" id="progress">
+        <div class="bar"><span id="barFill"></span></div>
+        <div class="stats">
+          <span id="progressLabel">Starting…</span>
+          <span id="progressPct">0%</span>
+        </div>
+      </div>
+
+      <div class="log" id="logBox" aria-live="polite">Ready. Drop an English PDF to begin.</div>
+
+      <div class="badges" id="secBadges">
+        <span class="badge ok">🔒 100% Client-side</span>
+        <span class="badge ok">🛡 Crash-Safe Pages</span>
+        <span class="badge ok">🎧 Fast MP3 Pipeline</span>
+        <span class="badge warn">Tip: Convert 15–25 pages per batch</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>
+        <span class="title-left"><span class="dot"></span> Live Preview <span class="pill" id="previewPill">page —</span></span>
+        <span class="preview-nav">
+          <button class="btn sm ghost" id="prevPageBtn" disabled title="Previous page">◀</button>
+          <button class="btn sm ghost" id="nextPageBtn" disabled title="Next page">▶</button>
+        </span>
+      </h2>
+      <div class="preview">
+        <div class="pane">
+          <h3>English (reconstructed paragraphs)</h3>
+          <div class="en" id="enPreview">Nothing yet — upload a PDF to see the original text.</div>
+        </div>
+        <div class="pane">
+          <h3>Telugu (తెలుగు అనువాదం)</h3>
+          <div class="te" id="tePreview">ఇంకా ఏమీ లేదు — PDF అప్‌లోడ్ చేయండి.</div>
+        </div>
+      </div>
+      <p class="small" style="margin-top:10px">
+        Renders full PDF pages at a time to keep memory low and fetches Telugu MP3 chunks in parallel (capped at 35 pages per run &amp; 300 audio segments).
+      </p>
+    </div>
+  </div>
+
+  <footer>
+    Built with pdf.js · jsPDF · Canvas Telugu Shaper · Telugu Audio Engine · Runs locally in your browser.
+    <br><span class="telugu">ఇంగ్లీషు నుండి తెలుగు PDF &amp; ఆడియో మార్పిడి సాధనం</span>
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+'use strict';
+
+const CFG = {
+  MAX_BYTES: 50 * 1024 * 1024,
+  MAX_BATCH_PAGES: 35,
+  TRANSLATE_ENDPOINT: 'https://translate.googleapis.com/translate_a/single',
+  TRANSLATE_FALLBACK: 'https://api.mymemory.translated.net/get',
+  TTS_ENDPOINT: 'https://translate.googleapis.com/translate_tts',
+  // Ordered list of TTS route builders. Each takes the query-string params and
+  // returns a final URL to fetch. We try them in order ONCE (with a tiny test
+  // chunk) and cache the first one that returns valid audio bytes — that route
+  // is then reused for every subsequent chunk. This avoids hammering every
+  // proxy for every chunk (which triggers rate limits and slow failures).
+  TTS_ROUTES: [
+    // 1. Direct (works in some regions / when browser has Google cookies)
+    (p) => `https://translate.googleapis.com/translate_tts?${p.toString()}`,
+    // 2. Alternate Google domain (sometimes has different CORS behavior)
+    (p) => `https://translate.google.com/translate_tts?${p.toString()}`,
+    // 3. codetabs (very reliable, no rate limit issues for small payloads)
+    (p) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(`https://translate.googleapis.com/translate_tts?${p.toString()}`)}`,
+    // 4. allorigins raw (reliable, but slow for large payloads)
+    (p) => `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://translate.googleapis.com/translate_tts?${p.toString()}`)}`,
+    // 5. corsproxy.io (works, but increasingly rate-limited)
+    (p) => `https://corsproxy.io/?url=${encodeURIComponent(`https://translate.googleapis.com/translate_tts?${p.toString()}`)}`,
+    // 6. whateverorigin (community mirror of whateverorigin.org)
+    (p) => `https://api.whateverorigin.org/raw?url=${encodeURIComponent(`https://translate.googleapis.com/translate_tts?${p.toString()}`)}`,
+    // 7. thingproxy (often down, but try as last resort)
+    (p) => `https://thingproxy.freeboard.io/fetch/${`https://translate.googleapis.com/translate_tts?${p.toString()}`}`,
+  ],
+  DB_NAME: 'en2te_v8',
+  STORE: 'translations',
+  DB_VERSION: 1,
+  MAX_LOG_LINES: 150,
+  MAX_MP3_CHUNKS: 300,
+  MAX_MP3_BYTES: 18 * 1024 * 1024,
+};
+
+if (window.pdfjsLib) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+}
+
+const $ = (id) => document.getElementById(id);
+const ui = {
+  drop: $('dropZone'), file: $('fileInput'),
+  meta: $('fileMeta'), mName: $('mName'), mSize: $('mSize'), mPages: $('mPages'), mWords: $('mWords'),
+  convert: $('convertBtn'), download: $('downloadBtn'), mp3Btn: $('mp3Btn'), cancel: $('cancelBtn'),
+  audioBox: $('audioBox'), audio: $('teluguAudio'), mp3Meta: $('mp3Meta'),
+  speedBtns: $('speedBtns'), reDownloadMp3: $('reDownloadMp3Btn'),
+  log: $('logBox'),
+  bar: $('progress'), barFill: $('barFill'), pLbl: $('progressLabel'), pPct: $('progressPct'),
+  en: $('enPreview'), te: $('tePreview'), previewPill: $('previewPill'),
+  prevPage: $('prevPageBtn'), nextPage: $('nextPageBtn'),
+  pageRange: $('pageRange'), workers: $('workers'),
+  pdfMode: $('pdfMode'), fontSize: $('fontSize'), useCache: $('useCache'),
+  clearCache: $('clearCacheBtn'), security: $('securityBtn'), help: $('helpBtn'),
+  testTts: $('testTtsBtn'),
+  cacheCount: $('cacheCount'), cacheSize: $('cacheSize'),
+  toast: $('toast'),
+};
+
+const S = {
+  pdfDoc: null, fileName: '', filePages: 0, totalWords: 0,
+  pages: [], translatedPages: [],
+  outputBlob: null, outputUrl: null,
+  audioBlob: null, audioExt: 'mp3', audioUrl: null,
+  isBusy: false, cancel: false, cacheDb: null, previewIdx: 0,
+  // Track object URLs we must keep alive for the page lifetime.
+  longLivedUrls: new Set(),
+  // Cached working TTS route (the first route from CFG.TTS_ROUTES that
+  // successfully returned audio bytes during the pre-test). Null until tested.
+  workingTtsRoute: null,
+  workingTtsRouteIdx: -1,
+};
+
+function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+// Yields to the browser event loop / next paint frame so the UI stays responsive
+// and canvas operations don't block rendering of Telugu glyphs.
+function nextFrame() {
+  return new Promise((r) => {
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => r());
+    } else {
+      setTimeout(r, 0);
+    }
+  });
+}
+
+function log(msg, type = 'info') {
+  const t = new Date().toLocaleTimeString();
+  const span = document.createElement('div');
+  span.className = type;
+  span.textContent = `[${t}] ${msg}`;
+  ui.log.appendChild(span);
+  while (ui.log.childNodes.length > CFG.MAX_LOG_LINES) ui.log.removeChild(ui.log.firstChild);
+  ui.log.scrollTop = ui.log.scrollHeight;
+}
+
+function toast(msg) {
+  ui.toast.textContent = msg;
+  ui.toast.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => ui.toast.classList.remove('show'), 3000);
+}
+
+function setProgress(pct, label) {
+  ui.bar.classList.remove('hidden');
+  const clamped = Math.max(0, Math.min(100, Math.round(pct)));
+  ui.barFill.style.width = clamped + '%';
+  ui.pPct.textContent = clamped + '%';
+  if (label) ui.pLbl.textContent = label;
+}
+
+function hideProgress() {
+  ui.bar.classList.add('hidden');
+  ui.barFill.style.width = '0%';
+  ui.pPct.textContent = '0%';
+  ui.pLbl.textContent = 'Starting…';
+}
+
+function hasAnyTranslation() {
+  return S.translatedPages.some((tp) => tp && Array.isArray(tp.paragraphs) && tp.paragraphs.some((p) => p && p.te));
+}
+
+function getAllTranslatedText() {
+  const parts = [];
+  for (const tp of S.translatedPages) {
+    if (!tp || !Array.isArray(tp.paragraphs)) continue;
+    const pageTe = tp.paragraphs.map((p) => (p && p.te) ? p.te.trim() : '').filter(Boolean);
+    if (pageTe.length) parts.push(pageTe.join('\n\n'));
+  }
+  return parts.join('\n\n');
+}
+
+function setButtonsBusy() {
+  ui.convert.disabled = true;
+  ui.download.disabled = true;
+  ui.mp3Btn.disabled = true;
+  ui.cancel.disabled = false;
+}
+
+function setButtonsIdle() {
+  S.isBusy = false;
+  S.cancel = false;
+  ui.cancel.disabled = true;
+  ui.convert.disabled = !(S.pdfDoc && S.totalWords > 0);
+  ui.download.disabled = !S.outputBlob;
+  ui.mp3Btn.disabled = !hasAnyTranslation();
+}
+
+function recoverFromError(errMsg) {
+  S.isBusy = false;
+  S.cancel = false;
+  setButtonsIdle();
+  log('Stopped safely: ' + errMsg, 'err');
+  toast('Stopped safely: ' + errMsg);
+}
+
+window.addEventListener('error', (e) => {
+  if (S.isBusy) recoverFromError(e.message || 'Runtime error');
+});
+window.addEventListener('unhandledrejection', (e) => {
+  const reason = e.reason ? (e.reason.message || String(e.reason)) : 'Async error';
+  if (S.isBusy) recoverFromError(reason);
+});
+
+function securityCheck(file) {
+  if (!file) return { ok: false, msg: 'No file selected.' };
+  const nameOk = /\.pdf$/i.test(file.name);
+  const typeOk = file.type === 'application/pdf' || file.type === '' || nameOk;
+  if (!typeOk || !nameOk) return { ok: false, msg: 'Only PDF files are allowed.' };
+  if (file.size > CFG.MAX_BYTES) return { ok: false, msg: `File too large. Max ${(CFG.MAX_BYTES / 1048576) | 0} MB.` };
+  return { ok: true };
+}
+
+async function verifyPdfMagic(file) {
+  const head = new Uint8Array(await file.slice(0, 5).arrayBuffer());
+  return head[0] === 0x25 && head[1] === 0x50 && head[2] === 0x44 && head[3] === 0x46 && head[4] === 0x2D;
+}
+
+function sanitize(text) {
+  if (!text) return '';
+  return String(text)
+    .replace(/\u0000/g, '')
+    .replace(/[\u0001-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function parsePageRange(rangeStr, totalPages) {
+  const clean = (rangeStr || '').trim().toLowerCase();
+  let start = 0;
+  let end = Math.min(totalPages - 1, CFG.MAX_BATCH_PAGES - 1);
+
+  if (clean && clean !== 'all') {
+    const m = clean.match(/^(\d+)\s*[-–to]+\s*(\d+)$/);
+    if (m) {
+      start = Math.max(0, Math.min(totalPages - 1, parseInt(m[1], 10) - 1));
+      end = Math.max(start, Math.min(totalPages - 1, parseInt(m[2], 10) - 1));
+    } else {
+      const single = parseInt(clean, 10);
+      if (!isNaN(single) && single >= 1 && single <= totalPages) {
+        start = single - 1;
+        end = single - 1;
+      }
+    }
+  }
+
+  if (end - start + 1 > CFG.MAX_BATCH_PAGES) {
+    end = start + CFG.MAX_BATCH_PAGES - 1;
+    log(`Capped batch to ${CFG.MAX_BATCH_PAGES} pages (pages ${start + 1}–${end + 1}) to prevent memory crashes.`, 'warn');
+  }
+
+  return { start, end };
+}
+
+function openCache() {
+  return new Promise((resolve) => {
+    if (!window.indexedDB) { resolve(null); return; }
+    try {
+      const req = indexedDB.open(CFG.DB_NAME, CFG.DB_VERSION);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(CFG.STORE)) db.createObjectStore(CFG.STORE, { keyPath: 'src' });
+      };
+      req.onsuccess = () => { S.cacheDb = req.result; refreshCacheStats(); resolve(req.result); };
+      req.onerror = () => resolve(null);
+    } catch (e) { resolve(null); }
+  });
+}
+
+function cacheKey(src) {
+  // Use the first 1500 chars as the key. Paragraphs are already split at 900 chars
+  // so collisions are practically impossible.
+  return String(src).slice(0, 1500);
+}
+
+function cacheGet(src) {
+  return new Promise((resolve) => {
+    if (!S.cacheDb || !ui.useCache.checked) { resolve(null); return; }
+    try {
+      const tx = S.cacheDb.transaction(CFG.STORE, 'readonly');
+      const r = tx.objectStore(CFG.STORE).get(cacheKey(src));
+      r.onsuccess = () => resolve(r.result ? r.result.dst : null);
+      r.onerror = () => resolve(null);
+    } catch (e) { resolve(null); }
+  });
+}
+
+function cachePut(src, dst) {
+  return new Promise((resolve) => {
+    if (!S.cacheDb || !ui.useCache.checked) { resolve(); return; }
+    try {
+      const tx = S.cacheDb.transaction(CFG.STORE, 'readwrite');
+      // FIX: store the full translation, no truncation — previously dst.slice(0, 2400)
+      // silently corrupted long translations when read back from cache.
+      tx.objectStore(CFG.STORE).put({ src: cacheKey(src), dst: String(dst), t: Date.now() });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    } catch (e) { resolve(); }
+  });
+}
+
+function clearCache() {
+  return new Promise((resolve) => {
+    if (!S.cacheDb) { toast('No cache available'); resolve(); return; }
+    try {
+      const tx = S.cacheDb.transaction(CFG.STORE, 'readwrite');
+      tx.objectStore(CFG.STORE).clear();
+      tx.oncomplete = () => {
+        log('Local cache cleared.', 'ok');
+        toast('Cache cleared');
+        refreshCacheStats();
+        resolve();
+      };
+      tx.onerror = () => { toast('Could not clear cache'); resolve(); };
+    } catch (e) { resolve(); }
+  });
+}
+
+function refreshCacheStats() {
+  if (!S.cacheDb) { ui.cacheCount.textContent = '0'; ui.cacheSize.textContent = '0 KB'; return; }
+  try {
+    const tx = S.cacheDb.transaction(CFG.STORE, 'readonly');
+    const countReq = tx.objectStore(CFG.STORE).count();
+    countReq.onsuccess = () => {
+      const n = countReq.result || 0;
+      ui.cacheCount.textContent = String(n);
+      const est = n * 900;
+      ui.cacheSize.textContent = est < 1024 ? est + ' B' : est < 1048576 ? (est / 1024).toFixed(1) + ' KB' : (est / 1048576).toFixed(2) + ' MB';
+    };
+  } catch (e) { /* ignore */ }
+}
+
+function extractStructuredPage(contentItems, viewportHeight) {
+  const raw = [];
+  for (let i = 0; i < contentItems.length; i++) {
+    const it = contentItems[i];
+    if (!it || !it.str) continue;
+    const str = sanitize(it.str);
+    if (!str) continue;
+    const t = it.transform || [1, 0, 0, 1, 0, 0];
+    const fs = Math.hypot(t[2], t[3]) || it.height || 12;
+    raw.push({ str, x: t[4] || 0, y: viewportHeight - (t[5] || 0), w: it.width || 0, fs });
+  }
+  if (!raw.length) return { paragraphs: [] };
+
+  raw.sort((a, b) => {
+    const tol = Math.min(a.fs, b.fs) * 0.45;
+    return Math.abs(a.y - b.y) > tol ? a.y - b.y : a.x - b.x;
+  });
+
+  const lines = [];
+  let curLine = [raw[0]];
+  for (let i = 1; i < raw.length; i++) {
+    const prev = curLine[curLine.length - 1], curr = raw[i];
+    if (Math.abs(curr.y - prev.y) <= Math.max(prev.fs, curr.fs) * 0.45) curLine.push(curr);
+    else { lines.push(curLine); curLine = [curr]; }
+  }
+  lines.push(curLine);
+
+  const lineObjs = [];
+  for (let l = 0; l < lines.length; l++) {
+    const ln = lines[l];
+    ln.sort((a, b) => a.x - b.x);
+    let text = '';
+    for (let i = 0; i < ln.length; i++) {
+      const item = ln[i];
+      if (i > 0) {
+        const prev = ln[i - 1];
+        if (item.x - (prev.x + prev.w) > item.fs * 0.15 && !text.endsWith(' ') && !item.str.startsWith(' ')) text += ' ';
+      }
+      text += item.str;
+    }
+    const trimmed = text.trim();
+    if (trimmed) lineObjs.push({ text: trimmed, y: ln[0].y, fs: ln[0].fs });
+  }
+  if (!lineObjs.length) return { paragraphs: [] };
+
+  const paragraphs = [];
+  let curPara = lineObjs[0].text;
+  for (let i = 1; i < lineObjs.length; i++) {
+    const prev = lineObjs[i - 1], curr = lineObjs[i];
+    if ((curr.y - prev.y) > prev.fs * 1.55) {
+      pushSplitParagraph(paragraphs, curPara.trim());
+      curPara = curr.text;
+    } else if (curPara.endsWith('-') && /^[a-z]/.test(curr.text)) {
+      curPara = curPara.slice(0, -1) + curr.text;
+    } else {
+      curPara += ' ' + curr.text;
+    }
+  }
+  if (curPara.trim()) pushSplitParagraph(paragraphs, curPara.trim());
+  return { paragraphs };
+}
+
+function pushSplitParagraph(arr, text) {
+  if (text.length <= 900) { arr.push(text); return; }
+  const sents = text.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g) || [text];
+  let buf = '';
+  for (const s of sents) {
+    if ((buf + ' ' + s).trim().length <= 900) buf = (buf ? buf + ' ' + s : s).trim();
+    else { if (buf) arr.push(buf); buf = s.trim(); }
+  }
+  if (buf) arr.push(buf);
+}
+
+ui.drop.addEventListener('dragover', (e) => { e.preventDefault(); ui.drop.classList.add('over'); });
+ui.drop.addEventListener('dragleave', () => ui.drop.classList.remove('over'));
+ui.drop.addEventListener('drop', (e) => {
+  e.preventDefault(); ui.drop.classList.remove('over');
+  if (e.dataTransfer.files && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+ui.file.addEventListener('change', (e) => {
+  if (e.target.files && e.target.files[0]) handleFile(e.target.files[0]);
+  e.target.value = '';
+});
+
+function resetState() {
+  if (S.audioUrl) { try { URL.revokeObjectURL(S.audioUrl); } catch (e) {} S.audioUrl = null; }
+  if (S.outputUrl) { try { URL.revokeObjectURL(S.outputUrl); } catch (e) {} S.outputUrl = null; }
+  S.longLivedUrls.forEach((u) => { try { URL.revokeObjectURL(u); } catch (e) {} });
+  S.longLivedUrls.clear();
+  if (S.pdfDoc && S.pdfDoc.destroy) { try { S.pdfDoc.destroy(); } catch (e) {} }
+  S.pdfDoc = null; S.pages = []; S.translatedPages = [];
+  S.outputBlob = null; S.audioBlob = null; S.audioExt = 'mp3'; S.cancel = false; S.isBusy = false;
+  S.fileName = ''; S.filePages = 0; S.totalWords = 0; S.previewIdx = 0;
+  window.__LAST_AUDIO_BLOB__ = null;
+  window.__LAST_AUDIO_EXT__ = 'mp3';
+  window.__LAST_AUDIO_URL__ = null;
+  window.__LAST_TELUGU_TEXT__ = '';
+  setButtonsIdle();
+  ui.audioBox.classList.add('hidden'); ui.audio.removeAttribute('src');
+  hideProgress();
+  ui.meta.classList.add('hidden'); ui.previewPill.textContent = 'page —';
+  ui.en.textContent = 'Nothing yet — upload a PDF to see the original text.';
+  ui.te.textContent = 'ఇంకా ఏమీ లేదు — PDF అప్‌లోడ్ చేయండి.';
+}
+
+async function handleFile(file) {
+  if (S.isBusy) { toast('Cancel current task before loading a new PDF.'); return; }
+  resetState();
+  const chk = securityCheck(file);
+  if (!chk.ok) { toast(chk.msg); log(chk.msg, 'err'); return; }
+  if (!(await verifyPdfMagic(file))) { toast('File is not a valid PDF.'); log('PDF header check failed.', 'err'); return; }
+
+  log(`Accepted: ${file.name} (${(file.size / 1048576).toFixed(2)} MB)`, 'ok');
+  S.fileName = file.name;
+  window.__LAST_PDF_NAME__ = file.name;
+  ui.mName.textContent = file.name.length > 26 ? file.name.slice(0, 24) + '…' : file.name;
+  ui.mSize.textContent = (file.size / 1048576).toFixed(2) + ' MB';
+  ui.meta.classList.remove('hidden');
+
+  // Preload the Telugu web font now so it is ready when PDF canvas rendering happens.
+  ensureTeluguFontLoaded();
+
+  let rawBuffer = await file.arrayBuffer();
+  try {
+    log('Extracting paragraphs from PDF…');
+    const doc = await pdfjsLib.getDocument({
+      data: rawBuffer,
+      disableFontFace: true,
+      useSystemFonts: false,
+      isEvalSupported: false,
+    }).promise;
+    rawBuffer = null;
+    S.pdfDoc = doc; S.filePages = doc.numPages; ui.mPages.textContent = String(doc.numPages);
+
+    let wordCount = 0; S.pages = [];
+    for (let p = 1; p <= doc.numPages; p++) {
+      const page = await doc.getPage(p);
+      const viewport = page.getViewport({ scale: 1 });
+      const content = await page.getTextContent();
+      const structured = extractStructuredPage(content.items, viewport.height);
+      S.pages.push(structured);
+      wordCount += structured.paragraphs.reduce((acc, pr) => acc + pr.split(/\s+/).length, 0);
+      page.cleanup();
+      if (p % 20 === 0) await sleep(15);
+    }
+
+    S.totalWords = wordCount; ui.mWords.textContent = wordCount.toLocaleString();
+    if (wordCount === 0) { log('Warning: No selectable text found.', 'warn'); toast('No selectable text found in PDF.'); return; }
+
+    S.previewIdx = 0; showPreview(0); setButtonsIdle();
+    toast(`Loaded ${doc.numPages} pages (~${wordCount.toLocaleString()} words)`);
+    log(`Parsed ${doc.numPages} pages · ~${wordCount.toLocaleString()} words ready.`, 'ok');
+  } catch (err) {
+    rawBuffer = null; log('Parse error: ' + err.message, 'err'); toast('Could not read PDF');
+  }
+}
+
+function showPreview(pageIdx) {
+  if (!S.pages.length || !S.pages[pageIdx]) return;
+  S.previewIdx = pageIdx;
+  const pg = S.pages[pageIdx];
+  ui.en.textContent = pg.paragraphs.join('\n\n') || '(no extractable text on this page)';
+  ui.previewPill.textContent = `page ${pageIdx + 1} / ${S.pages.length}`;
+  ui.prevPage.disabled = pageIdx <= 0;
+  ui.nextPage.disabled = pageIdx >= S.pages.length - 1;
+
+  const tpg = S.translatedPages.find((tp) => tp && tp.pageIdx === pageIdx);
+  ui.te.textContent = (tpg && tpg.paragraphs.some(Boolean))
+    ? tpg.paragraphs.filter(Boolean).map((p) => p.te).join('\n\n')
+    : '(Click "Convert to Telugu" to translate)';
+}
+
+ui.prevPage.addEventListener('click', () => { if (S.previewIdx > 0) showPreview(S.previewIdx - 1); });
+ui.nextPage.addEventListener('click', () => { if (S.previewIdx < S.pages.length - 1) showPreview(S.previewIdx + 1); });
+
+async function translateParagraph(text, attempt = 0) {
+  if (S.cancel) return text;
+  const cached = await cacheGet(text);
+  if (cached) return cached;
+  try {
+    const tr = await gtxSingle(text);
+    if (tr && tr !== text) await cachePut(text, tr);
+    return tr || text;
+  } catch (e) {
+    if (S.cancel) return text;
+    if (attempt < 1) { await sleep(300); return translateParagraph(text, attempt + 1); }
+    // Fallback to MyMemory for any length (previously capped at 500 chars).
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 7000);
+      const r = await fetch(`${CFG.TRANSLATE_FALLBACK}?q=${encodeURIComponent(text.slice(0, 500))}&langpair=en|te`, { signal: controller.signal });
+      clearTimeout(timer);
+      if (r.ok) {
+        const d = await r.json();
+        const val = d && d.responseData ? d.responseData.translatedText : null;
+        if (val) { await cachePut(text, val); return val; }
+      }
+    } catch (e2) {}
+    return text;
+  }
+}
+
+async function gtxSingle(text) {
+  const url = CFG.TRANSLATE_ENDPOINT + '?client=gtx&sl=en&tl=te&dt=t&q=' + encodeURIComponent(text.slice(0, 1200));
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 6000);
+  try {
+    const r = await fetch(url, { method: 'GET', signal: controller.signal });
+    clearTimeout(timer);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    if (!data || !data[0]) throw new Error('Empty response');
+    let full = '';
+    for (const seg of data[0]) { if (seg && seg[0]) full += seg[0]; }
+    return full.trim();
+  } catch (err) { clearTimeout(timer); throw err; }
+}
+
+async function pool(items, workerCount, fn, delayMs = 30) {
+  let cursor = 0;
+  const results = new Array(items.length);
+  const count = Math.max(1, Math.min(workerCount, items.length));
+  await Promise.all(Array.from({ length: count }, async () => {
+    while (!S.cancel) {
+      const idx = cursor++;
+      if (idx >= items.length) break;
+      results[idx] = await fn(items[idx], idx);
+      if (delayMs > 0) await sleep(delayMs);
+    }
+  }));
+  return results;
+}
+
+// Preload the Noto Sans Telugu web font and resolve only when it is actually
+// available for canvas text shaping. Without this, the canvas-based PDF
+// renderer draws tofu boxes (□) instead of Telugu glyphs because
+// `document.fonts.ready` may resolve before the Telugu face is requested.
+let teluguFontReady = null;
+function ensureTeluguFontLoaded() {
+  if (teluguFontReady) return teluguFontReady;
+  if (!('fonts' in document) || typeof document.fonts.load !== 'function') {
+    teluguFontReady = Promise.resolve(false);
+    return teluguFontReady;
+  }
+  teluguFontReady = (async () => {
+    const sizes = ['14px', '16px', '700 14px'];
+    for (const sz of sizes) {
+      try {
+        await Promise.race([
+          document.fonts.load(sz + ' "Noto Sans Telugu"'),
+          sleep(2500),
+        ]);
+      } catch (e) {}
+    }
+    try { await Promise.race([document.fonts.ready, sleep(800)]); } catch (e) {}
+    return true;
+  })();
+  return teluguFontReady;
+}
+
+function wrapLines(ctx, text, maxWidth) {
+  const words = String(text || '').split(/\s+/).filter(Boolean);
+  if (!words.length) return [];
+  const lines = [];
+  let line = '';
+  for (const w of words) {
+    const test = line ? line + ' ' + w : w;
+    if (ctx.measureText(test).width <= maxWidth) {
+      line = test;
+    } else {
+      if (line) lines.push(line);
+      line = w;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+function jsPdfToBlob(doc) {
+  try {
+    const out = doc.output('blob');
+    if (out instanceof Blob && out.size > 0) return out;
+  } catch (e) {}
+  const ab = doc.output('arraybuffer');
+  return new Blob([ab], { type: 'application/pdf' });
+}
+
+async function buildTeluguPdfBlob(translatedPages, mode, teluguPt) {
+  const jsPDFCtor = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+  if (!jsPDFCtor) throw new Error('jsPDF library failed to load.');
+
+  // Wait until the Telugu web font is fully loaded so canvas fillText
+  // produces correct Telugu glyphs instead of missing-glyph boxes.
+  await ensureTeluguFontLoaded();
+
+  const doc = new jsPDFCtor({ unit: 'pt', format: 'a4', compress: true });
+  const pageWpt = doc.internal.pageSize.getWidth();
+  const pageHpt = doc.internal.pageSize.getHeight();
+  const marginPt = 36;
+  const usableWpt = pageWpt - marginPt * 2;
+  const usableHpt = pageHpt - marginPt * 2;
+
+  const scale = 1.0;
+  const canvasW = Math.round(pageWpt * scale);
+  const canvasH = Math.round(pageHpt * scale);
+  const marginPx = marginPt * scale;
+  const usableWPx = usableWpt * scale;
+  const usableHPx = usableHpt * scale;
+
+  const tePx = Math.max(11, Math.min(20, parseInt(teluguPt, 10) || 14)) * scale;
+  const enPx = Math.max(10, tePx - 2);
+  const teLineH = Math.round(tePx * 1.6);
+  const enLineH = Math.round(enPx * 1.4);
+
+  const teFont = `${tePx}px 'Noto Sans Telugu', 'Gautami', sans-serif`;
+  const enFont = `${enPx}px 'Segoe UI', Roboto, sans-serif`;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = canvasW;
+  canvas.height = canvasH;
+  const ctx = canvas.getContext('2d');
+
+  let pageStarted = false;
+  let yPx = marginPx;
+  let pagesAdded = 0;
+
+  const resetPageCanvas = () => {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvasW, canvasH);
+    ctx.textBaseline = 'top';
+    yPx = marginPx;
+    pageStarted = false;
+  };
+
+  const flushPageToPdf = () => {
+    if (!pageStarted) return;
+    if (pagesAdded > 0) doc.addPage();
+    const imgData = canvas.toDataURL('image/jpeg', 0.78);
+    doc.addImage(imgData, 'JPEG', 0, 0, pageWpt, pageHpt, undefined, 'FAST');
+    pagesAdded++;
+    resetPageCanvas();
+  };
+
+  resetPageCanvas();
+
+  const items = [];
+  for (const tp of translatedPages) {
+    if (!tp || !Array.isArray(tp.paragraphs)) continue;
+    for (const item of tp.paragraphs) {
+      if (item && item.te) items.push(item);
+    }
+  }
+
+  for (let i = 0; i < items.length; i++) {
+    if (S.cancel) {
+      canvas.width = 0;
+      canvas.height = 0;
+      throw new Error('Cancelled');
+    }
+    const item = items[i];
+
+    if (mode === 'bilingual') {
+      const colW = usableWPx * 0.48;
+      const rightX = marginPx + usableWPx * 0.52;
+      ctx.font = teFont;
+      const teLines = wrapLines(ctx, item.te, colW);
+      ctx.font = enFont;
+      const enLines = item.en ? wrapLines(ctx, item.en, colW) : [];
+
+      const blockH = Math.max(teLines.length * teLineH, enLines.length * enLineH) + Math.round(tePx * 0.75);
+      if (pageStarted && (yPx - marginPx + blockH > usableHPx)) {
+        flushPageToPdf();
+        await nextFrame();
+      }
+
+      ctx.font = enFont;
+      ctx.fillStyle = '#475569';
+      for (let r = 0; r < enLines.length; r++) {
+        ctx.fillText(enLines[r], marginPx, yPx + r * enLineH);
+      }
+
+      ctx.font = teFont;
+      ctx.fillStyle = '#111827';
+      for (let r = 0; r < teLines.length; r++) {
+        ctx.fillText(teLines[r], rightX, yPx + r * teLineH);
+      }
+
+      yPx += blockH;
+      pageStarted = true;
+    } else {
+      ctx.font = teFont;
+      const teLines = wrapLines(ctx, item.te, usableWPx);
+      const blockH = teLines.length * teLineH + Math.round(tePx * 0.75);
+
+      if (pageStarted && (yPx - marginPx + blockH > usableHPx)) {
+        flushPageToPdf();
+        await nextFrame();
+      }
+
+      ctx.font = teFont;
+      ctx.fillStyle = '#111827';
+      for (let r = 0; r < teLines.length; r++) {
+        ctx.fillText(teLines[r], marginPx, yPx + r * teLineH);
+      }
+
+      yPx += blockH;
+      pageStarted = true;
+    }
+
+    if (i % 12 === 0) {
+      const pdfPct = 78 + Math.round(((i + 1) / Math.max(1, items.length)) * 18);
+      setProgress(pdfPct, `Rendering PDF ${i + 1}/${items.length}…`);
+      await nextFrame();
+    }
+  }
+
+  flushPageToPdf();
+  canvas.width = 0;
+  canvas.height = 0;
+
+  if (pagesAdded === 0) throw new Error('No translated Telugu content to export.');
+  setProgress(98, 'Finalizing Telugu PDF…');
+  await sleep(10);
+  return jsPdfToBlob(doc);
+}
+
+ui.convert.addEventListener('click', async () => {
+  if (!S.pdfDoc || !S.pages.length || S.isBusy) return;
+
+  const range = parsePageRange(ui.pageRange.value, S.pages.length);
+  const workers = Math.max(1, Math.min(4, parseInt(ui.workers.value, 10) || 2));
+  const mode = ui.pdfMode.value || 'telugu';
+  const fontSize = parseInt(ui.fontSize.value, 10) || 14;
+
+  S.isBusy = true;
+  S.cancel = false;
+  S.outputBlob = null;
+  if (S.outputUrl) { try { URL.revokeObjectURL(S.outputUrl); } catch (e) {} S.outputUrl = null; }
+  setButtonsBusy();
+  setProgress(2, `Translating pages ${range.start + 1}–${range.end + 1}…`);
+  log(`Starting translation for pages ${range.start + 1} to ${range.end + 1} (${workers} workers)…`);
+
+  const targetIndices = [];
+  for (let i = range.start; i <= range.end; i++) targetIndices.push(i);
+
+  const tasks = [];
+  for (const pageIdx of targetIndices) {
+    const paras = S.pages[pageIdx]?.paragraphs || [];
+    for (let pIdx = 0; pIdx < paras.length; pIdx++) {
+      tasks.push({ pageIdx, pIdx, en: paras[pIdx] });
+    }
+  }
+
+  if (!tasks.length) {
+    recoverFromError('No paragraphs found in selected page range.');
+    return;
+  }
+
+  const pageMap = new Map();
+  for (const tp of S.translatedPages) {
+    if (tp && typeof tp.pageIdx === 'number') pageMap.set(tp.pageIdx, tp);
+  }
+  for (const pageIdx of targetIndices) {
+    const count = (S.pages[pageIdx]?.paragraphs || []).length;
+    pageMap.set(pageIdx, { pageIdx, paragraphs: new Array(count).fill(null) });
+  }
+
+  let completed = 0;
+  const t0 = performance.now();
+
+  await pool(tasks, workers, async (task) => {
+    const te = await translateParagraph(task.en);
+    const entry = pageMap.get(task.pageIdx);
+    if (entry) entry.paragraphs[task.pIdx] = { en: task.en, te };
+    completed++;
+    const pct = Math.min(78, Math.round((completed / tasks.length) * 78));
+    const elapsed = Math.max(0.2, (performance.now() - t0) / 1000);
+    const eta = Math.max(0, Math.round((tasks.length - completed) / (completed / elapsed)));
+    setProgress(pct, `Translated ${completed}/${tasks.length} · ETA ${eta}s`);
+    if (completed % 12 === 0) {
+      S.translatedPages = Array.from(pageMap.values()).sort((a, b) => a.pageIdx - b.pageIdx);
+      showPreview(S.previewIdx);
+    }
+  }, 30);
+
+  refreshCacheStats();
+
+  if (S.cancel) {
+    recoverFromError('Conversion cancelled by user.');
+    return;
+  }
+
+  S.translatedPages = Array.from(pageMap.values()).sort((a, b) => a.pageIdx - b.pageIdx);
+  window.__LAST_TELUGU_TEXT__ = getAllTranslatedText();
+  showPreview(targetIndices[0]);
+  log(`Translated ${completed} blocks. Building Telugu PDF…`, 'ok');
+
+  try {
+    setProgress(79, 'Rendering Telugu PDF pages…');
+    S.outputBlob = await buildTeluguPdfBlob(S.translatedPages, mode, fontSize);
+    setProgress(100, 'Telugu PDF ready!');
+    log(`Telugu PDF generated (${(S.outputBlob.size / 1024).toFixed(0)} KB).`, 'ok');
+    toast('Telugu PDF ready!');
+  } catch (err) {
+    recoverFromError(err.message || 'PDF generation failed.');
+    return;
+  }
+
+  setButtonsIdle();
+});
+
+function triggerBlobDownload(blob, fileName, label) {
+  if (!blob) {
+    toast('No file available yet.');
+    return false;
+  }
+  try {
+    const url = URL.createObjectURL(blob);
+    // Track long-lived URLs so we don't yank them before the browser's
+    // download manager has finished reading the bytes (15s was too short
+    // for slow connections / large MP3 files).
+    S.longLivedUrls.add(url);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = fileName;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    // Clean up the anchor element immediately, but keep the blob URL alive
+    // for 2 minutes to cover slow downloads.
+    setTimeout(() => {
+      try { a.remove(); } catch (e) {}
+    }, 1000);
+    setTimeout(() => {
+      try {
+        URL.revokeObjectURL(url);
+        S.longLivedUrls.delete(url);
+      } catch (e) {}
+    }, 120000);
+    toast(label || `Saved ${fileName}`);
+    log(`Triggered download: ${fileName} (${(blob.size / 1024).toFixed(0)} KB)`, 'ok');
+    return true;
+  } catch (err) {
+    log('Auto-download blocked by browser/iframe; use the Save button.', 'warn');
+    toast('Tap save button to download');
+    return false;
+  }
+}
+
+ui.download.addEventListener('click', () => {
+  if (!S.outputBlob) { toast('Convert PDF first.'); return; }
+  const baseName = (S.fileName || 'telugu_book').replace(/\.pdf$/i, '');
+  triggerBlobDownload(S.outputBlob, `${baseName}_telugu.pdf`, `Downloaded ${baseName}_telugu.pdf`);
+});
+
+ui.cancel.addEventListener('click', () => {
+  if (!S.isBusy) return;
+  S.cancel = true;
+  ui.cancel.disabled = true;
+  log('Cancelling current operation…', 'warn');
+  if ('speechSynthesis' in window) {
+    try { window.speechSynthesis.cancel(); } catch (e) {}
+  }
+});
+
+function splitChunks(text, maxLen = 200, maxChunks = CFG.MAX_MP3_CHUNKS) {
+  const cleaned = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!cleaned) return [];
+  if (cleaned.length <= maxLen) return [cleaned];
+  const parts = cleaned.match(/[^।.!?\n]+[।.!?\n]*|[^।.!?\n]+$/g) || [cleaned];
+  const chunks = [];
+  let buf = '';
+  for (const part of parts) {
+    const p = part.trim();
+    if (!p) continue;
+    if ((buf + ' ' + p).trim().length <= maxLen) {
+      buf = (buf ? buf + ' ' + p : p).trim();
+    } else {
+      if (buf) chunks.push(buf);
+      if (p.length <= maxLen) {
+        buf = p;
+      } else {
+        const words = p.split(/\s+/);
+        let wBuf = '';
+        for (const w of words) {
+          if ((wBuf + ' ' + w).trim().length <= maxLen) wBuf = (wBuf ? wBuf + ' ' + w : w).trim();
+          else { if (wBuf) chunks.push(wBuf); wBuf = w; }
+          if (chunks.length >= maxChunks) break;
+        }
+        buf = wBuf;
+      }
+    }
+    if (chunks.length >= maxChunks) break;
+  }
+  if (buf && chunks.length < maxChunks) chunks.push(buf);
+  return chunks;
+}
+
+// Build the standard query-string for a Telugu TTS request. The Google
+// translate_tts endpoint requires client=tw-ob for the public no-auth flow.
+function buildTtsParams(text, idx, total) {
+  return new URLSearchParams({
+    ie: 'UTF-8',
+    q: text,
+    tl: 'te',
+    total: String(total),
+    idx: String(idx),
+    textlen: String(text.length),
+    client: 'tw-ob',
+  });
+}
+
+// Validate that a buffer actually contains audio bytes (not an HTML error
+// page returned by a misbehaving proxy). MP3 frames start with 0xFF 0xFB
+// (or 0xFF 0xF3/F2 for different layers); ID3v2 tags start with "ID3".
+// Some proxies also prepend a few bytes, so we look anywhere in the first 1KB.
+function validateAudioBytes(buf) {
+  if (!buf || buf.byteLength < 300) throw new Error('Too few audio bytes');
+  const head = new Uint8Array(buf.slice(0, 1024));
+  const prefix = new TextDecoder().decode(buf.slice(0, 32)).trim().toLowerCase();
+  if (prefix.startsWith('<!doctype') || prefix.startsWith('<html') || prefix.startsWith('{') || prefix.startsWith('<?xml')) {
+    throw new Error('Non-audio response (HTML/JSON from proxy)');
+  }
+  // Accept ID3v2 tag or any 0xFFEx/0xFFFx MP3 frame sync.
+  let hasAudioMarker = false;
+  for (let i = 0; i < head.length - 1; i++) {
+    if (head[i] === 0x49 && head[i + 1] === 0x44 && head[i + 2] === 0x33) { hasAudioMarker = true; break; } // "ID3"
+    if (head[i] === 0xFF && (head[i + 1] & 0xE0) === 0xE0) { hasAudioMarker = true; break; } // MP3 frame sync
+  }
+  if (!hasAudioMarker) throw new Error('No MP3 frame marker found');
+}
+
+async function fetchTtsChunkDirect(url, timeoutMs = 8000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: controller.signal, mode: 'cors', redirect: 'follow' });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const ctype = (res.headers.get('content-type') || '').toLowerCase();
+    const buf = await res.arrayBuffer();
+    // If the proxy advertised text/html, the body is almost certainly an error
+    // page — fail fast so we can try the next route.
+    if (ctype && ctype.indexOf('text/html') === 0) throw new Error('Proxy returned HTML');
+    validateAudioBytes(buf);
+    return new Uint8Array(buf);
+  } catch (err) {
+    clearTimeout(timer);
+    throw err;
+  }
+}
+
+// Pre-test every TTS route with a tiny Telugu phrase ("namaste"). The first
+// route that returns valid audio bytes is cached in S.workingTtsRoute and
+// reused for every chunk — this avoids doing 4+ fetches per chunk (which
+// triggers proxy rate limits and makes the whole run slow).
+async function findWorkingTtsRoute() {
+  if (S.workingTtsRoute) return S.workingTtsRoute;
+  const testParams = buildTtsParams('నమస్కారం', 0, 1);
+  log(`Probing ${CFG.TTS_ROUTES.length} TTS routes with a test phrase…`);
+  for (let i = 0; i < CFG.TTS_ROUTES.length; i++) {
+    if (S.cancel) return null;
+    const route = CFG.TTS_ROUTES[i];
+    const url = route(testParams);
+    const label = url.length > 70 ? url.slice(0, 67) + '…' : url;
+    try {
+      const bytes = await fetchTtsChunkDirect(url, 7000);
+      S.workingTtsRoute = route;
+      S.workingTtsRouteIdx = i;
+      log(`TTS route #${i + 1} works (${(bytes.byteLength / 1024).toFixed(1)} KB test response).`, 'ok');
+      return route;
+    } catch (e) {
+      log(`  route #${i + 1} failed: ${e.message}`, 'warn');
+    }
+  }
+  log('No TTS route returned audio. All blocked or down.', 'err');
+  return null;
+}
+
+// Fetch a single chunk using the cached working route (or probing for one
+// on the first call). Throws only if every route has been tried and failed.
+async function fetchTtsChunk(text, idx, total) {
+  const params = buildTtsParams(text, idx, total);
+  const route = S.workingTtsRoute || await findWorkingTtsRoute();
+  if (!route) throw new Error('No working TTS route');
+  const url = route(params);
+  // Slightly longer timeout for real chunks (Telugu phrases can be ~200 chars).
+  return await fetchTtsChunkDirect(url, 10000);
+}
+
+function findTeluguVoice() {
+  if (!('speechSynthesis' in window)) return null;
+  const voices = window.speechSynthesis.getVoices() || [];
+  // Match by language code prefix first…
+  let v = voices.find((x) => /^te(-|_|$)/i.test(x.lang));
+  if (v) return v;
+  // …then by voice name (some platforms label Telugu voices as "Telugu" only).
+  v = voices.find((x) => /telugu/i.test(x.name));
+  if (v) return v;
+  // …finally, any Indian language voice as a best-effort fallback.
+  v = voices.find((x) => /^(hi|ta|kn|ml|mr|bn|gu|pa|or|as)(-|_|$)/i.test(x.lang));
+  return v || null;
+}
+
+async function speakChunksWithSpeechSynthesis(chunks, onProgress) {
+  if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
+    return { spoken: 0, hasTeluguVoice: false };
+  }
+  const teVoice = findTeluguVoice();
+  const rate = parseFloat(ui.audio.playbackRate) || 1;
+  let spoken = 0;
+
+  for (let i = 0; i < chunks.length; i++) {
+    if (S.cancel) break;
+    await new Promise((resolve) => {
+      try {
+        const u = new SpeechSynthesisUtterance(chunks[i]);
+        u.lang = 'te-IN';
+        if (teVoice) u.voice = teVoice;
+        u.rate = Math.min(1.6, Math.max(0.75, rate * 1.1));
+        let settled = false;
+        const done = () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(guard);
+          resolve();
+        };
+        const guard = setTimeout(done, Math.max(1800, chunks[i].length * 75));
+        u.onend = () => { spoken++; done(); };
+        u.onerror = () => done();
+        window.speechSynthesis.speak(u);
+      } catch (e) {
+        resolve();
+      }
+    });
+    if (onProgress) onProgress(i + 1, chunks.length);
+    await sleep(25);
+  }
+  return { spoken, hasTeluguVoice: Boolean(teVoice) };
+}
+
+ui.reDownloadMp3.addEventListener('click', () => {
+  const blob = S.audioBlob || window.__LAST_AUDIO_BLOB__;
+  const ext = S.audioExt || window.__LAST_AUDIO_EXT__ || 'mp3';
+  const baseName = (S.fileName || window.__LAST_PDF_NAME__ || 'telugu_book').replace(/\.pdf$/i, '');
+  if (!blob) {
+    toast('Convert & generate audio first');
+    return;
+  }
+  triggerBlobDownload(blob, `${baseName}_telugu.${ext}`, `Downloaded ${baseName}_telugu.${ext}`);
+});
+
+ui.speedBtns.addEventListener('click', (e) => {
+  const btn = e.target.closest('.speed-btn');
+  if (!btn) return;
+  ui.audio.playbackRate = parseFloat(btn.dataset.rate) || 1;
+  ui.speedBtns.querySelectorAll('.speed-btn').forEach((b) => b.classList.remove('active'));
+  btn.classList.add('active');
+});
+
+ui.mp3Btn.addEventListener('click', async () => {
+  if (S.isBusy) return;
+  const sourceText = getAllTranslatedText() || window.__LAST_TELUGU_TEXT__ || '';
+  if (!sourceText.trim()) {
+    toast('Convert PDF to Telugu first!');
+    log('No Telugu text found yet. Click "Convert to Telugu" first.', 'warn');
+    return;
+  }
+
+  const chunks = splitChunks(sourceText, 200, CFG.MAX_MP3_CHUNKS);
+  if (!chunks.length) {
+    toast('No Telugu text to convert to audio.');
+    return;
+  }
+
+  S.isBusy = true;
+  S.cancel = false;
+  setButtonsBusy();
+  setProgress(2, 'Probing TTS routes…');
+
+  // Pre-test all routes ONCE with a tiny phrase so we don't waste time hitting
+  // dead proxies for every chunk. If none work, we skip straight to device TTS.
+  const route = await findWorkingTtsRoute();
+  if (!route) {
+    log('All TTS routes blocked. Likely causes:', 'err');
+    log('  • Page opened via file:// — browsers block all cross-origin requests from file://. Serve via http:// (e.g. run `python -m http.server` in the folder).', 'err');
+    log('  • Network/proxy outage — public CORS proxies sometimes go down.', 'err');
+    log('  • Region block — Google translate_tts may be unavailable in some regions.', 'err');
+    log('Falling back to device Telugu speech…', 'warn');
+
+    setProgress(50, 'Speaking Telugu via device TTS…');
+    const synthRes = await speakChunksWithSpeechSynthesis(chunks, (spokenCount, totalCount) => {
+      setProgress(Math.min(99, Math.round((spokenCount / totalCount) * 100)), `Speaking ${spokenCount}/${totalCount}…`);
+    });
+
+    ui.audioBox.classList.add('hidden');
+    ui.audio.removeAttribute('src');
+    S.audioBlob = null;
+    window.__LAST_AUDIO_BLOB__ = null;
+
+    if (!synthRes.hasTeluguVoice && synthRes.spoken === 0) {
+      setProgress(0, 'No Telugu audio available');
+      log('No MP3 stream and no Telugu (te-IN) speech voice found. Try Chrome on a device with Telugu TTS, or serve this page over http:// instead of file://.', 'err');
+      toast('No Telugu voice/MP3 available here');
+    } else {
+      setProgress(100, 'Spoken via device TTS');
+      log(`Spoke ${synthRes.spoken}/${chunks.length} Telugu segments via device speech.`, 'ok');
+      toast('Spoke Telugu via device TTS');
+    }
+    setButtonsIdle();
+    return;
+  }
+
+  setProgress(5, `Fetching Telugu MP3 (route #${S.workingTtsRouteIdx + 1})…`);
+
+  const audioWorkers = Math.min(2, Math.max(1, parseInt(ui.workers.value, 10) || 2));
+  const orderedSlots = new Array(chunks.length).fill(null);
+  let cursor = 0, done = 0, failed = 0, consecutiveFails = 0, totalBytes = 0, byteCapReached = false, blockedEarly = false;
+  const t0 = performance.now();
+
+  log(`Fetching Telugu MP3 segments (${chunks.length} blocks · ${audioWorkers} workers · route #${S.workingTtsRouteIdx + 1})…`);
+
+  await Promise.all(Array.from({ length: audioWorkers }, async () => {
+    while (!S.cancel && !byteCapReached && !blockedEarly) {
+      const idx = cursor++;
+      if (idx >= chunks.length) break;
+      try {
+        const bytes = await fetchTtsChunk(chunks[idx], idx, chunks.length);
+        consecutiveFails = 0;
+        if (totalBytes + bytes.byteLength <= CFG.MAX_MP3_BYTES) {
+          totalBytes += bytes.byteLength;
+          orderedSlots[idx] = bytes;
+        } else {
+          byteCapReached = true;
+        }
+      } catch (e) {
+        failed++;
+        consecutiveFails++;
+        if (consecutiveFails >= 6 && done < 12) {
+          blockedEarly = true;
+          log(`TTS route #${S.workingTtsRouteIdx + 1} stopped responding after ${done} chunks. Will fall back to device speech.`, 'warn');
+        }
+      }
+      done++;
+      const pct = Math.min(100, Math.round((done / chunks.length) * 95));
+      const elapsed = Math.max(0.2, (performance.now() - t0) / 1000);
+      const eta = Math.max(0, Math.round((chunks.length - done) / Math.max(0.1, done / elapsed)));
+      setProgress(5 + pct, `Audio ${done}/${chunks.length} · ETA ${eta}s`);
+      await sleep(55);
+    }
+  }));
+
+  if (S.cancel) {
+    orderedSlots.length = 0;
+    recoverFromError('Audio conversion cancelled.');
+    return;
+  }
+
+  const assembled = orderedSlots.filter(Boolean);
+  orderedSlots.length = 0;
+
+  if (assembled.length > 0) {
+    const outBlob = new Blob(assembled, { type: 'audio/mpeg' });
+    assembled.length = 0;
+
+    if (S.audioUrl) { try { URL.revokeObjectURL(S.audioUrl); } catch (e) {} }
+    if (window.__LAST_AUDIO_URL__ && window.__LAST_AUDIO_URL__ !== S.audioUrl) {
+      try { URL.revokeObjectURL(window.__LAST_AUDIO_URL__); } catch (e) {}
+    }
+
+    const url = URL.createObjectURL(outBlob);
+    S.audioBlob = outBlob;
+    S.audioExt = 'mp3';
+    S.audioUrl = url;
+    S.longLivedUrls.add(url);
+    window.__LAST_AUDIO_BLOB__ = outBlob;
+    window.__LAST_AUDIO_EXT__ = 'mp3';
+    window.__LAST_AUDIO_URL__ = url;
+    window.__LAST_PDF_NAME__ = S.fileName || 'telugu_book.pdf';
+
+    ui.audio.src = url;
+    const activeRateBtn = ui.speedBtns.querySelector('.speed-btn.active');
+    ui.audio.playbackRate = parseFloat(activeRateBtn ? activeRateBtn.dataset.rate : 1) || 1;
+    ui.mp3Meta.textContent = `MP3 · ${(outBlob.size / 1024).toFixed(0)} KB`;
+    ui.audioBox.classList.remove('hidden');
+
+    setProgress(100, 'Telugu MP3 ready!');
+    log(`MP3 assembled in ${((performance.now() - t0) / 1000).toFixed(1)}s (${(outBlob.size / 1024).toFixed(0)} KB${failed ? `, ${failed} skipped` : ''}).`, 'ok');
+
+    const baseName = (S.fileName || 'telugu_book').replace(/\.pdf$/i, '');
+    triggerBlobDownload(outBlob, `${baseName}_telugu.mp3`, `Downloaded ${baseName}_telugu.mp3`);
+    setButtonsIdle();
+    return;
+  }
+
+  log('TTS route failed mid-run. Trying device Telugu speech…', 'warn');
+  setProgress(50, 'Speaking Telugu via device TTS…');
+
+  const synthRes = await speakChunksWithSpeechSynthesis(chunks, (spokenCount, totalCount) => {
+    setProgress(Math.min(99, Math.round((spokenCount / totalCount) * 100)), `Speaking ${spokenCount}/${totalCount}…`);
+  });
+
+  ui.audioBox.classList.add('hidden');
+  ui.audio.removeAttribute('src');
+  S.audioBlob = null;
+  window.__LAST_AUDIO_BLOB__ = null;
+
+  if (!synthRes.hasTeluguVoice && synthRes.spoken === 0) {
+    setProgress(0, 'No Telugu audio available');
+    log('No MP3 stream and no Telugu (te-IN) speech voice found in this browser. Open the page in Chrome over http:// on a device with Telugu TTS voices installed.', 'err');
+    toast('No Telugu voice/MP3 available here');
+  } else {
+    setProgress(100, 'Spoken via device TTS');
+    log(`Spoke ${synthRes.spoken}/${chunks.length} Telugu segments via device speech.`, 'ok');
+    toast('Spoke Telugu via device TTS');
+  }
+
+  setButtonsIdle();
+});
+
+ui.clearCache.addEventListener('click', () => { clearCache(); });
+ui.testTts.addEventListener('click', async () => {
+  if (S.isBusy) { toast('Wait for current task to finish.'); return; }
+  // Reset cached route so we always re-probe when the user explicitly tests.
+  S.workingTtsRoute = null;
+  S.workingTtsRouteIdx = -1;
+  toast('Testing TTS routes — see log…');
+  log('=== TTS route diagnostic ===');
+  const route = await findWorkingTtsRoute();
+  if (route) {
+    toast(`TTS OK — route #${S.workingTtsRouteIdx + 1} works`);
+    log(`You can now click "Convert & Download MP3".`, 'ok');
+  } else {
+    toast('All TTS routes failed — see log');
+    log('Suggested fixes:', 'err');
+    log('  1. If you opened this file directly (file://), serve it via http:// instead:', 'info');
+    log('       python3 -m http.server 8000   then open http://localhost:8000/en2te-converter.html', 'info');
+    log('  2. Try a different browser network (some ISPs/corporate firewalls block translate.googleapis.com).', 'info');
+    log('  3. Try Chrome — it tends to have Telugu speech synthesis voices for the device-TTS fallback.', 'info');
+  }
+});
+ui.security.addEventListener('click', () => {
+  toast('100% client-side: PDFs stay in your browser.');
+  log('Security check: PDF parsing and PDF/audio assembly run locally in browser memory.', 'ok');
+});
+ui.help.addEventListener('click', () => {
+  toast('1) Upload PDF → 2) Convert → 3) Download PDF or MP3');
+  log('Help: Upload a text-based PDF, pick page range (up to 35 pages per batch), click Convert to Telugu, then download the PDF or MP3.', 'info');
+});
+
+// Kick off Telugu font preload on page load so it is ready by the time the
+// user finishes picking a PDF.
+ensureTeluguFontLoaded();
+
+// Some browsers populate speechSynthesis voices asynchronously. Prime the
+// list so findTeluguVoice() works the first time the user clicks MP3.
+if ('speechSynthesis' in window) {
+  try {
+    const prime = () => { try { window.speechSynthesis.getVoices(); } catch (e) {} };
+    prime();
+    if (typeof window.speechSynthesis.onvoiceschanged !== 'undefined') {
+      window.speechSynthesis.onvoiceschanged = prime;
+    }
+  } catch (e) {}
+}
+
+openCache();
+setButtonsIdle();
+})();
+</script>
+</body>
+</html>
