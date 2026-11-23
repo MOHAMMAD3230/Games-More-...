@@ -1,0 +1,1707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+<title>NX Railway Control Room Simulator — Victoria Junction IECC</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --panel-bg: #121518;
+    --panel-surface: #181c20;
+    --panel-border: #2a3038;
+    --tc-idle: #525b66;
+    --tc-locked: #f8fafc;
+    --tc-occupied: #ef4444;
+    --tc-caution: #f59e0b;
+    --sig-green: #22c55e;
+    --td-green: #34d399;
+    --td-amber: #fbbf24;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background-color: var(--panel-bg);
+    color: #e2e8f0;
+    font-family: 'Inter', sans-serif;
+    overflow: auto; /* enable both scrollbars when needed */
+  }
+
+  body {
+    min-width: 320px;
+    min-height: 100vh;
+  }
+
+  .font-mono-tech {
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* Authentic IECC Bezel & Panel Grid Texture */
+  .iecc-panel-bg {
+    background-color: #121518;
+    background-image:
+      radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 0),
+      linear-gradient(to right, rgba(255,255,255,0.015) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.015) 1px, transparent 1px);
+    background-size: 20px 20px, 100px 100px, 100px 100px;
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0f1215;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #3a4450;
+    border-radius: 5px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+  }
+  /* Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #3a4450 #0f1215;
+  }
+
+  /* Glowing LED Text */
+  .led-text-green {
+    color: #34d399;
+    text-shadow: 0 0 8px rgba(52, 211, 153, 0.55);
+  }
+  .led-text-amber {
+    color: #fbbf24;
+    text-shadow: 0 0 8px rgba(251, 191, 36, 0.55);
+  }
+  .led-text-red {
+    color: #f87171;
+    text-shadow: 0 0 8px rgba(248, 113, 113, 0.65);
+  }
+
+  /* Tactile Panel Pushbuttons */
+  .panel-btn {
+    background: linear-gradient(180deg, #262c34 0%, #1b2026 100%);
+    border: 1px solid #38414d;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08);
+    transition: all 0.1s ease;
+    cursor: pointer;
+  }
+  .panel-btn:hover:not(:disabled) {
+    border-color: #64748b;
+    background: linear-gradient(180deg, #2f3741 0%, #21272e 100%);
+  }
+  .panel-btn:active:not(:disabled) {
+    transform: translateY(1px);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.6);
+  }
+  .panel-btn.active-blue {
+    background: linear-gradient(180deg, #1d4ed8 0%, #1e3a8a 100%);
+    border-color: #60a5fa;
+    color: #ffffff;
+  }
+  .panel-btn.active-amber {
+    background: linear-gradient(180deg, #b45309 0%, #78350f 100%);
+    border-color: #fbbf24;
+    color: #fef3c7;
+  }
+  .panel-btn.active-red {
+    background: linear-gradient(180deg, #b91c1c 0%, #7f1d1d 100%);
+    border-color: #f87171;
+    color: #fee2e2;
+  }
+
+  /* Flashing Alert Banner */
+  @keyframes pulse-border {
+    0%, 100% { border-color: rgba(239, 68, 68, 0.9); box-shadow: 0 0 12px rgba(239, 68, 68, 0.35); }
+    50% { border-color: rgba(239, 68, 68, 0.25); box-shadow: none; }
+  }
+  .alarm-flash {
+    animation: pulse-border 0.8s infinite;
+  }
+
+  /* Canvas – always pointer + touch friendly */
+  #nxCanvas {
+    cursor: crosshair;
+    touch-action: none; /* we handle all pointer events ourselves */
+    display: block;
+  }
+
+  /* Make the whole workspace scrollable on small / very large screens */
+  #mainWorkspace {
+    overflow: auto;
+    min-height: 0;
+  }
+
+  /* Keyboard help bar */
+  #keyboardHelp {
+    font-size: 10px;
+    letter-spacing: 0.02em;
+  }
+
+  /* Ensure buttons remain clickable even when scaled */
+  button, select {
+    -webkit-tap-highlight-color: transparent;
+  }
+</style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- TOP IECC CONTROL HEADER BAR -->
+  <header class="bg-[#181c20] border-b border-[#2a3038] px-3 py-2 flex flex-wrap items-center justify-between gap-2 z-20 shrink-0">
+    <!-- Station & Panel Identity -->
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2 bg-[#0f1215] border border-[#2d3540] px-2.5 py-1 rounded">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span class="font-mono-tech font-bold text-xs sm:text-sm tracking-wider text-slate-100">VICTORIA JUNCTION IECC</span>
+      </div>
+      <span class="hidden md:inline-block text-[11px] font-mono-tech uppercase tracking-widest text-slate-400 bg-[#121518] px-2 py-1 rounded border border-[#262c34]">
+        NX PANEL MK-IV // RESPONSIVE BUILD
+      </span>
+    </div>
+
+    <!-- Center Simulation Clock & Speed Controls -->
+    <div class="flex items-center gap-2 bg-[#0e1114] border border-[#2a3038] px-2.5 py-1 rounded-md">
+      <div class="flex flex-col pr-2 border-r border-[#2a3038]">
+        <span class="text-[9px] font-mono-tech uppercase text-slate-500 leading-none">PANEL TIME</span>
+        <span id="simClock" class="font-mono-tech text-sm sm:text-base font-bold led-text-green tracking-wider">08:00:00</span>
+      </div>
+      <div class="flex items-center gap-1" role="group" aria-label="Simulation Speed">
+        <button id="btnSpeed0" onclick="sim.setSpeed(0)" class="panel-btn px-2 py-1 rounded text-xs font-mono-tech font-bold text-slate-300" title="Pause (Space / P)">II</button>
+        <button id="btnSpeed1" onclick="sim.setSpeed(1)" class="panel-btn active-blue px-2 py-1 rounded text-xs font-mono-tech font-bold" title="Normal (1)">1x</button>
+        <button id="btnSpeed2" onclick="sim.setSpeed(2)" class="panel-btn px-2 py-1 rounded text-xs font-mono-tech font-bold text-slate-300" title="Fast (2)">2x</button>
+        <button id="btnSpeed4" onclick="sim.setSpeed(4)" class="panel-btn px-2 py-1 rounded text-xs font-mono-tech font-bold text-slate-300" title="Rapid (4)">4x</button>
+      </div>
+    </div>
+
+    <!-- Right KPI Metrics & Utility Controls -->
+    <div class="flex items-center gap-2 sm:gap-3">
+      <!-- KPI Readouts -->
+      <div class="hidden sm:flex items-center gap-3 bg-[#0e1114] border border-[#2a3038] px-3 py-1 rounded-md font-mono-tech text-xs">
+        <div>
+          <span class="text-slate-500 text-[10px]">DISPATCHED</span>
+          <div id="kpiDispatched" class="font-bold text-emerald-400">0</div>
+        </div>
+        <div class="border-l border-[#2a3038] pl-3">
+          <span class="text-slate-500 text-[10px]">DELAY MIN</span>
+          <div id="kpiDelay" class="font-bold text-amber-400">0m</div>
+        </div>
+        <div class="border-l border-[#2a3038] pl-3">
+          <span class="text-slate-500 text-[10px]">SAFETY</span>
+          <div id="kpiSafety" class="font-bold text-sky-400">100%</div>
+        </div>
+      </div>
+
+      <!-- Scenario Selector -->
+      <select id="scenarioSelect" onchange="sim.loadScenario(this.value)" class="bg-[#1b2026] border border-[#38414d] text-slate-200 text-xs font-mono-tech rounded px-2 py-1.5 focus:outline-none focus:border-sky-500">
+        <option value="normal">SCENARIO: NORMAL TIMETABLE</option>
+        <option value="rush">SCENARIO: MORNING RUSH HOUR</option>
+        <option value="failure">SCENARIO: P3 POINT FAILURE / SLW</option>
+      </select>
+
+      <!-- Audio Mute Toggle -->
+      <button id="btnMute" onclick="sound.toggleMute()" class="panel-btn px-2.5 py-1.5 rounded text-xs font-mono-tech text-slate-200 flex items-center gap-1" title="Toggle Audio (M)">
+        <span id="muteIcon">🔊</span>
+        <span class="hidden lg:inline">AUDIO</span>
+      </button>
+
+      <!-- Operating Manual Button -->
+      <button onclick="ui.toggleManual(true)" class="panel-btn active-amber px-2.5 py-1.5 rounded text-xs font-mono-tech font-bold flex items-center gap-1" title="Manual (H)">
+        <span>📘</span>
+        <span>MANUAL</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- INTERLOCKING ANNUNCIATOR / STATUS BAR -->
+  <div id="statusBanner" class="bg-[#0e1114] border-b border-[#2a3038] px-3 py-1.5 flex flex-wrap items-center justify-between gap-2 text-xs font-mono-tech shrink-0">
+    <div class="flex items-center gap-2">
+      <span class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 text-[10px] font-bold">INTERLOCKING</span>
+      <span id="annunciatorText" class="led-text-green font-semibold">SYSTEM READY — SELECT ENTRANCE (RED) THEN EXIT (YELLOW) BUTTON TO SET ROUTE</span>
+    </div>
+    <div class="flex items-center gap-3 text-[11px]">
+      <span id="activeEntranceIndicator" class="text-slate-400">ENTRANCE: <strong class="text-slate-200">NONE</strong></span>
+      <button id="btnCancelSelection" onclick="sim.clearEntranceSelection()" class="hidden px-2 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-white text-[10px]">ESC / CLEAR</button>
+      <button onclick="sim.spawnImmediateTrain()" class="px-2 py-0.5 rounded bg-emerald-900/60 hover:bg-emerald-800/80 border border-emerald-600/50 text-emerald-300 text-[10px] font-bold" title="Spawn Train (S)">
+        + SPAWN TRAIN NOW
+      </button>
+    </div>
+  </div>
+
+  <!-- Keyboard shortcut hint bar -->
+  <div id="keyboardHelp" class="bg-[#0c0f12] border-b border-[#22272e] px-3 py-1 text-slate-500 font-mono-tech flex flex-wrap gap-x-4 gap-y-1 items-center shrink-0">
+    <span class="text-slate-400 font-semibold">KEYBOARD:</span>
+    <span><kbd class="bg-[#1e2430] px-1 rounded">Space</kbd>/<kbd class="bg-[#1e2430] px-1 rounded">P</kbd> Pause</span>
+    <span><kbd class="bg-[#1e2430] px-1 rounded">1</kbd><kbd class="bg-[#1e2430] px-1 rounded">2</kbd><kbd class="bg-[#1e2430] px-1 rounded">4</kbd> Speed</span>
+    <span><kbd class="bg-[#1e2430] px-1 rounded">S</kbd> Spawn</span>
+    <span><kbd class="bg-[#1e2430] px-1 rounded">C</kbd> Cancel Idle Routes</span>
+    <span><kbd class="bg-[#1e2430] px-1 rounded">Esc</kbd> Clear Selection</span>
+    <span><kbd class="bg-[#1e2430] px-1 rounded">M</kbd> Mute</span>
+    <span><kbd class="bg-[#1e2430] px-1 rounded">H</kbd> Manual</span>
+    <span><kbd class="bg-[#1e2430] px-1 rounded">D</kbd> All Signals Danger</span>
+    <span class="text-slate-600">| Right-click / Double-click Entrance = Cancel Route</span>
+  </div>
+
+  <!-- MAIN WORKSPACE: NX PANEL CANVAS + SIDE DISPATCH CONSOLE -->
+  <main id="mainWorkspace" class="flex-1 flex flex-col lg:flex-row min-h-0">
+
+    <!-- LEFT / CENTER: INTERACTIVE NX TRACK DIAGRAM PANEL -->
+    <section class="flex-1 flex flex-col min-w-0 iecc-panel-bg relative">
+      <!-- Top Legend Strip inside Panel -->
+      <div class="px-3 py-1.5 bg-[#121518]/90 border-b border-[#22272e] flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono-tech text-slate-400 shrink-0">
+        <div class="flex flex-wrap items-center gap-3">
+          <span class="flex items-center gap-1.5"><span class="w-3 h-1 bg-[#525b66] inline-block"></span> IDLE TC</span>
+          <span class="flex items-center gap-1.5"><span class="w-3 h-1 bg-[#f8fafc] inline-block shadow-[0_0_6px_#fff]"></span> ROUTE LOCKED</span>
+          <span class="flex items-center gap-1.5"><span class="w-3 h-1 bg-[#ef4444] inline-block shadow-[0_0_6px_#ef4444]"></span> OCCUPIED</span>
+          <span class="flex items-center gap-1.5"><span class="w-3 h-1 bg-[#f59e0b] inline-block"></span> APPROACH/CAUTION</span>
+          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#ef4444] border border-white inline-block"></span> ENTRANCE</span>
+          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#facc15] border border-slate-900 inline-block"></span> EXIT</span>
+        </div>
+        <div class="text-[10px] text-slate-500">
+          TIP: CLICK <span class="text-red-400 font-bold">RED</span> ENTRANCE → <span class="text-yellow-300 font-bold">YELLOW</span> EXIT TO ROUTE | RIGHT-CLICK / DBL-CLICK ENTRANCE TO CANCEL ROUTE
+        </div>
+      </div>
+
+      <!-- Responsive Canvas Container – scrolls if needed on very small screens -->
+      <div id="canvasWrapper" class="flex-1 w-full min-h-[320px] relative overflow-auto flex items-center justify-center p-1 sm:p-2">
+        <canvas id="nxCanvas" class="rounded border border-[#262c34] bg-[#121518] shadow-inner" style="min-width:600px; min-height:320px;"></canvas>
+      </div>
+
+      <!-- BOTTOM SUB-PANEL: INDIVIDUAL POINT KEYS & ROUTE RELEASE CONTROLS -->
+      <div class="bg-[#161a1f] border-t border-[#2a3038] p-2.5 grid grid-cols-1 xl:grid-cols-12 gap-2.5 items-center shrink-0">
+        <!-- Individual Point (Switch) Key Panel -->
+        <div class="xl:col-span-8 bg-[#101316] border border-[#262c34] rounded p-2">
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-[10px] font-mono-tech font-bold uppercase tracking-wider text-slate-400">
+              INDIVIDUAL POINT CONTROL KEYS (N = NORMAL / R = REVERSE / A = AUTO NX)
+            </span>
+            <span class="text-[10px] font-mono-tech text-slate-500">TRACK-CIRCUIT & ROUTE INTERLOCKED</span>
+          </div>
+          <div id="pointKeysContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-1.5">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- Emergency & Route Cancellation Controls -->
+        <div class="xl:col-span-4 bg-[#101316] border border-[#262c34] rounded p-2 flex flex-col justify-between h-full">
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-[10px] font-mono-tech font-bold uppercase tracking-wider text-slate-400">PANEL OVERRIDES & RELEASE</span>
+            <span id="activeRoutesCount" class="text-[10px] font-mono-tech text-sky-400 font-bold">0 ROUTES SET</span>
+          </div>
+          <div class="grid grid-cols-2 gap-1.5">
+            <button onclick="sim.cancelAllUnoccupiedRoutes()" class="panel-btn px-2 py-1.5 rounded text-[11px] font-mono-tech font-semibold text-amber-300 hover:text-amber-200" title="Cancel Idle Routes (C)">
+              CANCEL IDLE ROUTES
+            </button>
+            <button id="btnAllSignalsDanger" onclick="sim.emergencyAllDanger()" class="panel-btn active-red px-2 py-1.5 rounded text-[11px] font-mono-tech font-bold" title="All Signals Danger (D)">
+              ALL SIGNALS DANGER
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT SIDEBAR: LIVE TIMETABLE & SIGNALBOX EVENT LOG -->
+    <aside class="w-full lg:w-[370px] xl:w-[400px] bg-[#161a1f] border-t lg:border-t-0 lg:border-l border-[#2a3038] flex flex-col max-h-[520px] lg:max-h-none shrink-0 overflow-hidden">
+      <!-- Timetable Header -->
+      <div class="px-3 py-2 bg-[#1a1f25] border-b border-[#2a3038] flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+          <h2 class="font-mono-tech text-xs font-bold tracking-wider uppercase text-slate-200">TRUST LIVE TIMETABLE</h2>
+        </div>
+        <span id="activeTrainCount" class="font-mono-tech text-[11px] px-2 py-0.5 rounded bg-[#101316] border border-[#2a3038] text-emerald-400">
+          0 ACTIVE
+        </span>
+      </div>
+
+      <!-- Active Trains List -->
+      <div id="timetableList" class="flex-1 overflow-y-auto p-2 space-y-2 min-h-0">
+        <!-- Train cards injected here -->
+      </div>
+
+      <!-- Signalbox Event & Interlocking Log -->
+      <div class="h-44 border-t border-[#2a3038] bg-[#101316] flex flex-col shrink-0">
+        <div class="px-3 py-1.5 bg-[#15191e] border-b border-[#232830] flex items-center justify-between">
+          <span class="font-mono-tech text-[10px] font-bold uppercase tracking-wider text-slate-400">TRAIN REGISTRY & INTERLOCKING LOG</span>
+          <button onclick="ui.clearLog()" class="text-[10px] font-mono-tech text-slate-500 hover:text-slate-300">CLEAR</button>
+        </div>
+        <div id="eventLog" class="flex-1 overflow-y-auto p-2 space-y-1 font-mono-tech text-[11px]">
+          <!-- Log lines injected here -->
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- NX OPERATING MANUAL MODAL -->
+  <div id="manualModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-6 overflow-auto">
+    <div class="bg-[#181c20] border border-[#38414d] rounded-lg max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl">
+      <div class="px-4 py-3 border-b border-[#2a3038] flex items-center justify-between bg-[#13161a] rounded-t-lg shrink-0">
+        <div class="flex items-center gap-2">
+          <span class="text-amber-400">📘</span>
+          <h3 class="font-mono-tech font-bold text-sm sm:text-base text-slate-100">NX SIGNALLING CONTROL PANEL — OPERATING MANUAL</h3>
+        </div>
+        <button onclick="ui.toggleManual(false)" class="panel-btn px-2.5 py-1 rounded text-xs font-mono-tech font-bold text-slate-300">✕ CLOSE</button>
+      </div>
+
+      <div class="p-4 sm:p-5 overflow-y-auto space-y-4 text-xs sm:text-sm text-slate-300 leading-relaxed">
+        <div class="bg-[#111417] border border-[#2a3038] p-3 rounded">
+          <h4 class="font-mono-tech font-bold text-emerald-400 mb-1">1. ENTRANCE-EXIT (NX) ROUTING PRINCIPLE</h4>
+          <p>On a British Rail IECC / NX panel, you do not manually pull levers for every signal and point. Instead, you command a movement from an <strong>Entrance Signal</strong> to an <strong>Exit Point</strong>:</p>
+          <ul class="list-disc pl-5 mt-1.5 space-y-1 text-slate-300">
+            <li><strong class="text-red-400">Step 1 (Entrance):</strong> Click the <strong>Red Entrance Button</strong> at the signal where the train is approaching or standing. The button will flash white/red.</li>
+            <li><strong class="text-yellow-300">Step 2 (Exit):</strong> Click a valid <strong>Yellow Exit Button</strong> at the destination platform, through line, or exit portal.</li>
+            <li><strong class="text-white">Step 3 (Interlocking):</strong> The interlocking automatically checks for conflicts, throws required points (switches), locks the route in <strong>Bright White</strong>, and clears the signal aspect (Yellow or Green).</li>
+          </ul>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="bg-[#111417] border border-[#2a3038] p-3 rounded">
+            <h4 class="font-mono-tech font-bold text-sky-400 mb-1">2. CANCELLING & RELEASING ROUTES</h4>
+            <p>To cancel a route that has been set (provided no train is occupying the approach locking or route track circuits):</p>
+            <ul class="list-disc pl-5 mt-1 space-y-1">
+              <li><strong>Right-click</strong> or <strong>Double-click</strong> the Red Entrance button of the active route.</li>
+              <li>Or use <strong>CANCEL IDLE ROUTES</strong> on the bottom console (or press <kbd>C</kbd>).</li>
+              <li>Routes automatically normalize section-by-section behind a passing train (Sequential Release).</li>
+            </ul>
+          </div>
+
+          <div class="bg-[#111417] border border-[#2a3038] p-3 rounded">
+            <h4 class="font-mono-tech font-bold text-amber-400 mb-1">3. HEADCODES & TRAIN CLASSES</h4>
+            <ul class="space-y-1 font-mono-tech text-xs">
+              <li><span class="text-emerald-400 font-bold">1xxx</span> — Express Passenger (Fast, Platform 1/2 or Through)</li>
+              <li><span class="text-sky-400 font-bold">2xxx</span> — Local / Stopping Passenger (Platforms 1, 2, 3)</li>
+              <li><span class="text-amber-400 font-bold">5xxx / 6xxx</span> — Empty Stock / Freight / Goods Loop</li>
+            </ul>
+            <p class="mt-1.5 text-xs text-slate-400">Train Describer (TD) berths display the 4-character headcode and step forward automatically as trains enter each track circuit.</p>
+          </div>
+        </div>
+
+        <div class="bg-[#111417] border border-[#2a3038] p-3 rounded">
+          <h4 class="font-mono-tech font-bold text-rose-400 mb-1">4. INTERLOCKING SAFETY & POINT KEYS</h4>
+          <p>Individual point keys (<strong>P1–P6</strong>) default to <strong>AUTO</strong> so NX routes can swing them automatically. You may key a point to <strong>N (Normal)</strong> or <strong>R (Reverse)</strong> manually—however, the interlocking will block manual movement if the point track circuit is occupied or locked by a route. In <em>Point Failure</em> scenarios, failed points must be bypassed using alternate platforms!</p>
+        </div>
+
+        <div class="bg-[#111417] border border-[#2a3038] p-3 rounded">
+          <h4 class="font-mono-tech font-bold text-sky-300 mb-1">5. KEYBOARD SHORTCUTS (External Keyboard)</h4>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs font-mono-tech">
+            <div><kbd class="bg-[#1e2430] px-1.5 py-0.5 rounded">Space</kbd> / <kbd class="bg-[#1e2430] px-1.5 py-0.5 rounded">P</kbd> — Pause / Resume</div>
+            <div><kbd class="bg-[#1e2430] px-1.5 py-0.5 rounded">1</kbd> <kbd class="bg-[#1e2430] px-1.5 py-0.5 rounded">2</kbd> <kbd class="bg-[#1e2430] px-1.5 py-0.5 rounded">4</kbd> — Simulation Speed</div>
+            <div><kbd class="bg-[#1e2430] px-1.5 py-0.5 rounded">S</kbd> — Spawn Train Now</div>
+            <div><kbd class="bg-[#1e2430] px-1.5 py-0.5 rounded">C</kbd> — Cancel Idle Routes</div>
+            <div><kbd class="bg-[#1e2430] px-1.5 py-0.5 rounded">Esc</kbd> — Clear Entrance Selection</div>
+            <div><kbd class="bg-[#1e2430] px-1.5 py-0.5 rounded">M</kbd> — Toggle Audio</div>
+            <div><kbd class="bg-[#1e2430] px-1.5 py-0.5 rounded">H</kbd> — Open / Close Manual</div>
+            <div><kbd class="bg-[#1e2430] px-1.5 py-0.5 rounded">D</kbd> — All Signals Danger</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="px-4 py-3 border-t border-[#2a3038] bg-[#13161a] rounded-b-lg flex justify-end shrink-0">
+        <button onclick="ui.toggleManual(false)" class="panel-btn active-blue px-4 py-1.5 rounded text-xs font-mono-tech font-bold">ACKNOWLEDGE & RETURN TO PANEL</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/**
+ * ============================================================================
+ * NX RAILWAY CONTROL ROOM SIMULATOR — RESPONSIVE + KEYBOARD BUILD
+ * Victoria Junction IECC
+ * ============================================================================
+ */
+
+/* ----------------------------------------------------------------------------
+   1. WEB AUDIO SYNTHESIZER
+   ---------------------------------------------------------------------------- */
+class SignalBoxAudio {
+  constructor() {
+    this.ctx = null;
+    this.muted = false;
+  }
+
+  init() {
+    if (!this.ctx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) this.ctx = new AudioCtx();
+    }
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+  }
+
+  toggleMute() {
+    this.muted = !this.muted;
+    const icon = document.getElementById('muteIcon');
+    if (icon) icon.textContent = this.muted ? '🔇' : '🔊';
+  }
+
+  playRelayClick(pitch = 950) {
+    if (this.muted) return;
+    this.init();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(pitch, now);
+    osc.frequency.exponentialRampToValueAtTime(140, now + 0.035);
+    gain.gain.setValueAtTime(0.14, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.045);
+  }
+
+  playRouteSet() {
+    if (this.muted) return;
+    this.init();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    [660, 880].forEach((freq, idx) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.06);
+      gain.gain.setValueAtTime(0.09, now + idx * 0.06);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.14);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now + idx * 0.06);
+      osc.stop(now + idx * 0.06 + 0.15);
+    });
+  }
+
+  playConflictBuzz() {
+    if (this.muted) return;
+    this.init();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(145, now);
+    gain.gain.setValueAtTime(0.11, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.23);
+  }
+
+  playTrainBell() {
+    if (this.muted) return;
+    this.init();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1318.5, now);
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.55);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.56);
+  }
+
+  playEmergencyAlarm() {
+    if (this.muted) return;
+    this.init();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    for (let i = 0; i < 3; i++) {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(i % 2 === 0 ? 780 : 580, now + i * 0.14);
+      gain.gain.setValueAtTime(0.12, now + i * 0.14);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.14 + 0.13);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now + i * 0.14);
+      osc.stop(now + i * 0.14 + 0.14);
+    }
+  }
+}
+
+const sound = new SignalBoxAudio();
+
+/* ----------------------------------------------------------------------------
+   2. RAILWAY INFRASTRUCTURE TOPOLOGY
+   ---------------------------------------------------------------------------- */
+const TRACK_CIRCUITS_DEF = [
+  { id: 'TC_UM_APP', name: 'Up Main Approach', line: 'UP', dir: 1, len: 240, pts: [[30, 175], [220, 175]], tdPos: [110, 154] },
+  { id: 'TC_DM_EXIT', name: 'Down Main West Exit', line: 'DOWN', dir: -1, len: 240, pts: [[220, 345], [30, 345]], tdPos: [110, 368] },
+  { id: 'TC_W_THROAT_U', name: 'West Throat Upper', line: 'THROAT', dir: 1, len: 190, pts: [[220, 175], [380, 175]], tdPos: null },
+  { id: 'TC_W_THROAT_D', name: 'West Throat Lower', line: 'THROAT', dir: -1, len: 190, pts: [[380, 345], [220, 345]], tdPos: null },
+  { id: 'TC_X_P1_P2', name: 'Crossover P1-P2 (Plat 1/2)', line: 'CROSS', dir: 0, len: 140, pts: [[245, 175], [335, 255]], tdPos: null },
+  { id: 'TC_X_P3', name: 'Turnout P3 (To Plat 3)', line: 'CROSS', dir: 0, len: 130, pts: [[275, 345], [355, 425]], tdPos: null },
+  { id: 'TC_PLAT1', name: 'Platform 1', line: 'P1', dir: 0, len: 360, pts: [[380, 105], [780, 105]], tdPos: [580, 84], isPlatform: 'PLAT 1' },
+  { id: 'TC_W_TO_P1', name: 'West Lead to Plat 1', line: 'LEAD', dir: 1, len: 110, pts: [[300, 175], [380, 105]], tdPos: null },
+  { id: 'TC_P1_TO_E', name: 'East Lead from Plat 1', line: 'LEAD', dir: 1, len: 110, pts: [[780, 105], [860, 175]], tdPos: null },
+  { id: 'TC_UM_THRU', name: 'Up Main Through', line: 'UP', dir: 1, len: 400, pts: [[380, 175], [780, 175]], tdPos: [580, 154] },
+  { id: 'TC_PLAT2', name: 'Platform 2 (Reversible)', line: 'P2', dir: 0, len: 400, pts: [[380, 255], [780, 255]], tdPos: [580, 234], isPlatform: 'PLAT 2' },
+  { id: 'TC_W_TO_P2', name: 'West Lead to Plat 2', line: 'LEAD', dir: 0, len: 90, pts: [[335, 255], [380, 255]], tdPos: null },
+  { id: 'TC_P2_TO_E', name: 'East Lead from Plat 2', line: 'LEAD', dir: 0, len: 90, pts: [[780, 255], [825, 255]], tdPos: null },
+  { id: 'TC_DM_THRU', name: 'Down Main Through', line: 'DOWN', dir: -1, len: 400, pts: [[780, 345], [380, 345]], tdPos: [580, 368] },
+  { id: 'TC_PLAT3', name: 'Platform 3 / Branch', line: 'P3', dir: 0, len: 380, pts: [[380, 425], [780, 425]], tdPos: [580, 448], isPlatform: 'PLAT 3' },
+  { id: 'TC_W_TO_P3', name: 'West Lead to Plat 3', line: 'LEAD', dir: 0, len: 70, pts: [[355, 425], [380, 425]], tdPos: null },
+  { id: 'TC_P3_TO_E', name: 'East Lead from Plat 3', line: 'LEAD', dir: 0, len: 70, pts: [[780, 425], [805, 425]], tdPos: null },
+  { id: 'TC_E_THROAT_U', name: 'East Throat Upper', line: 'THROAT', dir: 1, len: 190, pts: [[780, 175], [960, 175]], tdPos: null },
+  { id: 'TC_E_THROAT_D', name: 'East Throat Lower', line: 'THROAT', dir: -1, len: 190, pts: [[960, 345], [780, 345]], tdPos: null },
+  { id: 'TC_X_P4_P5', name: 'Crossover P4-P5 (East)', line: 'CROSS', dir: 0, len: 140, pts: [[825, 255], [915, 175]], tdPos: null },
+  { id: 'TC_X_P5_D', name: 'Crossover P5-Down', line: 'CROSS', dir: 0, len: 130, pts: [[825, 255], [895, 345]], tdPos: null },
+  { id: 'TC_X_P6', name: 'Turnout P6 (Branch/P3)', line: 'CROSS', dir: 0, len: 130, pts: [[805, 425], [915, 345]], tdPos: null },
+  { id: 'TC_UM_EXIT', name: 'Up Main East Exit', line: 'UP', dir: 1, len: 230, pts: [[960, 175], [1165, 175]], tdPos: [1065, 154] },
+  { id: 'TC_DM_APP', name: 'Down Main East Approach', line: 'DOWN', dir: -1, len: 230, pts: [[1165, 345], [960, 345]], tdPos: [1065, 368] },
+  { id: 'TC_BR_APP', name: 'South Branch Portal', line: 'BRANCH', dir: -1, len: 240, pts: [[1165, 425], [805, 425]], tdPos: [1065, 448] }
+];
+
+const POINTS_DEF = [
+  { id: 'P1', name: 'P1 West Up-P2', x: 245, y: 175, tc: 'TC_W_THROAT_U', normalVec: [35, 0], revVec: [28, 25] },
+  { id: 'P2', name: 'P2 West Up-P1', x: 300, y: 175, tc: 'TC_W_THROAT_U', normalVec: [35, 0], revVec: [28, -25] },
+  { id: 'P3', name: 'P3 West Dn-P3', x: 275, y: 345, tc: 'TC_W_THROAT_D', normalVec: [-35, 0], revVec: [28, 28] },
+  { id: 'P4', name: 'P4 East P1-Up', x: 860, y: 175, tc: 'TC_E_THROAT_U', normalVec: [-35, 0], revVec: [-28, -25] },
+  { id: 'P5', name: 'P5 East P2-Main', x: 825, y: 255, tc: 'TC_P2_TO_E', normalVec: [28, -25], revVec: [25, 32] },
+  { id: 'P6', name: 'P6 East P3-Br', x: 805, y: 425, tc: 'TC_P3_TO_E', normalVec: [35, 0], revVec: [32, -24] }
+];
+
+const SIGNALS_DEF = [
+  { id: 'S1', name: 'S1 Up Home', x: 215, y: 175, dir: 1, hasEntrance: true, hasExit: false, protectsTC: 'TC_W_THROAT_U', approachTC: 'TC_UM_APP' },
+  { id: 'S2', name: 'S2 Down West', x: 225, y: 345, dir: -1, hasEntrance: false, hasExit: true, exitTC: 'TC_DM_EXIT' },
+  { id: 'S3', name: 'S3 Plat 1 Starter', x: 775, y: 105, dir: 1, hasEntrance: true, hasExit: true, protectsTC: 'TC_P1_TO_E', approachTC: 'TC_PLAT1' },
+  { id: 'S4', name: 'S4 Up Thru Starter', x: 775, y: 175, dir: 1, hasEntrance: true, hasExit: true, protectsTC: 'TC_E_THROAT_U', approachTC: 'TC_UM_THRU' },
+  { id: 'S5', name: 'S5 Plat 2 East', x: 775, y: 255, dir: 1, hasEntrance: true, hasExit: true, protectsTC: 'TC_P2_TO_E', approachTC: 'TC_PLAT2' },
+  { id: 'S6', name: 'S6 Plat 2 West', x: 385, y: 255, dir: -1, hasEntrance: true, hasExit: true, protectsTC: 'TC_W_TO_P2', approachTC: 'TC_PLAT2' },
+  { id: 'S7', name: 'S7 Down Thru', x: 385, y: 345, dir: -1, hasEntrance: true, hasExit: true, protectsTC: 'TC_W_THROAT_D', approachTC: 'TC_DM_THRU' },
+  { id: 'S8', name: 'S8 Plat 3 East', x: 775, y: 425, dir: 1, hasEntrance: true, hasExit: true, protectsTC: 'TC_P3_TO_E', approachTC: 'TC_PLAT3' },
+  { id: 'S9', name: 'S9 Plat 3 West', x: 385, y: 425, dir: -1, hasEntrance: true, hasExit: true, protectsTC: 'TC_W_TO_P3', approachTC: 'TC_PLAT3' },
+  { id: 'S10', name: 'S10 Up East Exit', x: 965, y: 175, dir: 1, hasEntrance: false, hasExit: true, exitTC: 'TC_UM_EXIT' },
+  { id: 'S11', name: 'S11 Down Home', x: 965, y: 345, dir: -1, hasEntrance: true, hasExit: false, protectsTC: 'TC_E_THROAT_D', approachTC: 'TC_DM_APP' },
+  { id: 'S12', name: 'S12 Branch Home', x: 965, y: 425, dir: -1, hasEntrance: true, hasExit: true, protectsTC: 'TC_P3_TO_E', approachTC: 'TC_BR_APP' }
+];
+
+const NX_ROUTES_DEF = [
+  { id: 'R_S1_S3', entrance: 'S1', exit: 'S3', desc: 'Up Main -> Platform 1', tcs: ['TC_W_THROAT_U', 'TC_W_TO_P1', 'TC_PLAT1'], points: { P1: 'N', P2: 'R' } },
+  { id: 'R_S1_S4', entrance: 'S1', exit: 'S4', desc: 'Up Main -> Up Through', tcs: ['TC_W_THROAT_U', 'TC_UM_THRU'], points: { P1: 'N', P2: 'N' } },
+  { id: 'R_S1_S5', entrance: 'S1', exit: 'S5', desc: 'Up Main -> Platform 2', tcs: ['TC_W_THROAT_U', 'TC_X_P1_P2', 'TC_W_TO_P2', 'TC_PLAT2'], points: { P1: 'R' } },
+  { id: 'R_S3_S10', entrance: 'S3', exit: 'S10', desc: 'Platform 1 -> Up East Exit', tcs: ['TC_P1_TO_E', 'TC_E_THROAT_U', 'TC_UM_EXIT'], points: { P4: 'R' } },
+  { id: 'R_S4_S10', entrance: 'S4', exit: 'S10', desc: 'Up Through -> Up East Exit', tcs: ['TC_E_THROAT_U', 'TC_UM_EXIT'], points: { P4: 'N' } },
+  { id: 'R_S5_S10', entrance: 'S5', exit: 'S10', desc: 'Platform 2 -> Up East Exit', tcs: ['TC_P2_TO_E', 'TC_X_P4_P5', 'TC_E_THROAT_U', 'TC_UM_EXIT'], points: { P5: 'N', P4: 'N' } },
+  { id: 'R_S8_S12', entrance: 'S8', exit: 'S12', desc: 'Platform 3 -> South Branch', tcs: ['TC_P3_TO_E', 'TC_BR_APP'], points: { P6: 'N' } },
+  { id: 'R_S11_S7', entrance: 'S11', exit: 'S7', desc: 'Down Main -> Down Through', tcs: ['TC_E_THROAT_D', 'TC_DM_THRU'], points: { P6: 'N' } },
+  { id: 'R_S11_S6', entrance: 'S11', exit: 'S6', desc: 'Down Main -> Platform 2', tcs: ['TC_E_THROAT_D', 'TC_X_P5_D', 'TC_P2_TO_E', 'TC_PLAT2'], points: { P5: 'R' } },
+  { id: 'R_S11_S9', entrance: 'S11', exit: 'S9', desc: 'Down Main -> Platform 3', tcs: ['TC_E_THROAT_D', 'TC_X_P6', 'TC_P3_TO_E', 'TC_PLAT3'], points: { P6: 'R' } },
+  { id: 'R_S12_S9', entrance: 'S12', exit: 'S9', desc: 'South Branch -> Platform 3', tcs: ['TC_P3_TO_E', 'TC_PLAT3'], points: { P6: 'N' } },
+  { id: 'R_S7_S2', entrance: 'S7', exit: 'S2', desc: 'Down Through -> Down West Exit', tcs: ['TC_W_THROAT_D', 'TC_DM_EXIT'], points: { P3: 'N' } },
+  { id: 'R_S6_S2', entrance: 'S6', exit: 'S2', desc: 'Platform 2 -> Down West Exit', tcs: ['TC_W_TO_P2', 'TC_X_P1_P2', 'TC_W_THROAT_U', 'TC_DM_EXIT'], points: { P1: 'R' } },
+  { id: 'R_S9_S2', entrance: 'S9', exit: 'S2', desc: 'Platform 3 -> Down West Exit', tcs: ['TC_W_TO_P3', 'TC_X_P3', 'TC_W_THROAT_D', 'TC_DM_EXIT'], points: { P3: 'R' } }
+];
+
+/* ----------------------------------------------------------------------------
+   3. SIMULATION ENGINE
+   ---------------------------------------------------------------------------- */
+class NXSimulator {
+  constructor() {
+    this.timeSeconds = 8 * 3600;
+    this.speed = 1;
+    this.scenario = 'normal';
+    this.tcs = {};
+    this.points = {};
+    this.signals = {};
+    this.activeRoutes = [];
+    this.trains = [];
+    this.selectedEntrance = null;
+    this.hoveredButton = null;
+    this.allSignalsDanger = false;
+    this.dispatchedCount = 0;
+    this.totalDelaySeconds = 0;
+    this.safetyScore = 100;
+    this.nextSpawnTimer = 4;
+    this.trainCounter = 1;
+    this.initInfrastructure();
+  }
+
+  initInfrastructure() {
+    this.tcs = {};
+    TRACK_CIRCUITS_DEF.forEach(def => {
+      this.tcs[def.id] = { ...def, occupiedBy: null, lockedByRoute: null, approachLocked: false };
+    });
+    this.points = {};
+    POINTS_DEF.forEach(def => {
+      this.points[def.id] = { ...def, position: 'N', mode: 'AUTO', failed: false, lockedByRoute: null };
+    });
+    this.signals = {};
+    SIGNALS_DEF.forEach(def => {
+      this.signals[def.id] = { ...def, aspect: 'RED', routeSet: null };
+    });
+    this.activeRoutes = [];
+    this.trains = [];
+    this.selectedEntrance = null;
+    this.allSignalsDanger = false;
+  }
+
+  loadScenario(mode) {
+    this.scenario = mode;
+    this.initInfrastructure();
+    this.timeSeconds = 8 * 3600;
+    this.dispatchedCount = 0;
+    this.totalDelaySeconds = 0;
+    this.safetyScore = 100;
+    this.trainCounter = 1;
+
+    if (mode === 'failure') {
+      this.points['P3'].failed = true;
+      this.points['P3'].position = 'N';
+      ui.log('ALARM: POINT P3 DETECTION FAILURE — LOCKED IN NORMAL. USE PLAT 2 OR BRANCH FOR P3.', 'error');
+      ui.setAnnunciator('FAULT: POINT P3 FAILED NORMAL — ROUTE DOWN TRAINS VIA PLAT 2', 'amber');
+      sound.playEmergencyAlarm();
+    } else if (mode === 'rush') {
+      ui.log('SCENARIO LOADED: MORNING RUSH HOUR — HIGH FREQUENCY SERVICES.', 'info');
+      ui.setAnnunciator('RUSH HOUR ACTIVE — EXPEDITE PLATFORM TURNAROUNDS', 'green');
+    } else {
+      ui.log('SCENARIO LOADED: NORMAL TIMETABLE — ALL INTERLOCKING SYSTEMS NOMINAL.', 'info');
+      ui.setAnnunciator('SYSTEM READY — SELECT ENTRANCE (RED) THEN EXIT (YELLOW) BUTTON TO SET ROUTE', 'green');
+    }
+
+    this.spawnTrain({
+      headcode: '1A42', type: 'EXPRESS', origin: 'WEST MAIN', dest: 'EAST MAIN',
+      targetPlat: 'PLAT 1', entryTC: 'TC_UM_APP', exitSignal: 'S10', dwellNeeded: 14
+    });
+    this.spawnTrain({
+      headcode: '2B19', type: 'STOPPER', origin: 'EAST MAIN', dest: 'WEST MAIN',
+      targetPlat: mode === 'failure' ? 'PLAT 2' : 'PLAT 3', entryTC: 'TC_DM_APP', exitSignal: 'S2', dwellNeeded: 16
+    });
+
+    this.nextSpawnTimer = mode === 'rush' ? 14 : 24;
+    ui.renderPointKeys();
+    ui.updateKPIs();
+  }
+
+  setSpeed(mult) {
+    this.speed = mult;
+    [0, 1, 2, 4].forEach(s => {
+      const btn = document.getElementById(`btnSpeed${s}`);
+      if (btn) btn.classList.toggle('active-blue', s === mult);
+    });
+    sound.playRelayClick(800);
+  }
+
+  handleButtonClick(signalId, buttonType, isCancelAction = false) {
+    sound.init();
+    const sig = this.signals[signalId];
+    if (!sig) return;
+
+    if (isCancelAction && buttonType === 'ENTRANCE') {
+      if (sig.routeSet) this.cancelRoute(sig.routeSet);
+      else if (this.selectedEntrance === signalId) this.clearEntranceSelection();
+      return;
+    }
+
+    if (buttonType === 'ENTRANCE' && sig.hasEntrance) {
+      sound.playRelayClick(1050);
+      if (sig.routeSet && this.selectedEntrance === signalId) {
+        this.cancelRoute(sig.routeSet);
+        this.clearEntranceSelection();
+        return;
+      }
+      this.selectedEntrance = signalId;
+      document.getElementById('activeEntranceIndicator').innerHTML =
+        `ENTRANCE: <strong class="text-red-400 animate-pulse">${signalId}</strong> (SELECT YELLOW EXIT)`;
+      document.getElementById('btnCancelSelection').classList.remove('hidden');
+      ui.setAnnunciator(`ENTRANCE ${signalId} SELECTED — CLICK DESTINATION EXIT BUTTON`, 'amber');
+      return;
+    }
+
+    if (buttonType === 'EXIT' && sig.hasExit && this.selectedEntrance) {
+      const entranceId = this.selectedEntrance;
+      this.clearEntranceSelection();
+      this.attemptSetRoute(entranceId, signalId);
+      return;
+    }
+
+    if (buttonType === 'EXIT' && !this.selectedEntrance) {
+      sound.playConflictBuzz();
+      ui.setAnnunciator('SELECT A RED ENTRANCE BUTTON FIRST BEFORE CLICKING EXIT', 'amber');
+    }
+  }
+
+  clearEntranceSelection() {
+    this.selectedEntrance = null;
+    document.getElementById('activeEntranceIndicator').innerHTML =
+      `ENTRANCE: <strong class="text-slate-200">NONE</strong>`;
+    document.getElementById('btnCancelSelection').classList.add('hidden');
+  }
+
+  attemptSetRoute(entranceId, exitId) {
+    if (this.allSignalsDanger) {
+      this.allSignalsDanger = false;
+      document.getElementById('btnAllSignalsDanger').classList.remove('animate-pulse');
+    }
+
+    const routeDef = NX_ROUTES_DEF.find(r => r.entrance === entranceId && r.exit === exitId);
+    if (!routeDef) {
+      sound.playConflictBuzz();
+      ui.setAnnunciator(`INVALID NX COMBINATION: NO ROUTE FROM ${entranceId} TO ${exitId}`, 'red');
+      ui.log(`INTERLOCKING REJECT: No defined route ${entranceId} -> ${exitId}`, 'warn');
+      return false;
+    }
+
+    if (this.signals[entranceId].routeSet) {
+      sound.playConflictBuzz();
+      ui.setAnnunciator(`ROUTE ALREADY SET FROM ${entranceId} — CANCEL FIRST`, 'red');
+      return false;
+    }
+
+    for (const tcId of routeDef.tcs) {
+      const tc = this.tcs[tcId];
+      if (tc.lockedByRoute) {
+        sound.playConflictBuzz();
+        ui.setAnnunciator(`CONFLICT: TRACK CIRCUIT ${tc.name.toUpperCase()} LOCKED BY ${tc.lockedByRoute}`, 'red');
+        ui.log(`CONFLICT BLOCKED: ${routeDef.desc} (${tcId} locked)`, 'warn');
+        return false;
+      }
+      if (tc.occupiedBy) {
+        sound.playConflictBuzz();
+        ui.setAnnunciator(`OCCUPIED: CANNOT SET ROUTE OVER TRAIN ${tc.occupiedBy} (${tc.name})`, 'red');
+        ui.log(`OCCUPANCY BLOCKED: ${routeDef.desc} (occupied by ${tc.occupiedBy})`, 'warn');
+        return false;
+      }
+    }
+
+    for (const [ptId, reqPos] of Object.entries(routeDef.points)) {
+      const pt = this.points[ptId];
+      if (pt.failed && pt.position !== reqPos) {
+        sound.playConflictBuzz();
+        ui.setAnnunciator(`POINT FAILURE: ${ptId} LOCKED IN ${pt.position} (REQUIRED ${reqPos})`, 'red');
+        ui.log(`POINT FAULT BLOCKED: ${routeDef.desc} — ${ptId} failed in ${pt.position}`, 'error');
+        return false;
+      }
+      if (pt.mode !== 'AUTO' && pt.mode !== reqPos) {
+        sound.playConflictBuzz();
+        ui.setAnnunciator(`KEY OVERRIDE: POINT ${ptId} KEYED TO '${pt.mode}' (ROUTE NEEDS '${reqPos}')`, 'red');
+        ui.log(`KEY LOCK BLOCKED: ${ptId} manually keyed to ${pt.mode}`, 'warn');
+        return false;
+      }
+      if (pt.lockedByRoute && pt.position !== reqPos) {
+        sound.playConflictBuzz();
+        ui.setAnnunciator(`POINT ${ptId} LOCKED BY CONFLICTING ROUTE`, 'red');
+        return false;
+      }
+    }
+
+    for (const [ptId, reqPos] of Object.entries(routeDef.points)) {
+      const pt = this.points[ptId];
+      pt.position = reqPos;
+      pt.lockedByRoute = routeDef.id;
+    }
+    for (const tcId of routeDef.tcs) {
+      this.tcs[tcId].lockedByRoute = routeDef.id;
+    }
+
+    const activeRoute = { ...routeDef, remainingTCs: [...routeDef.tcs] };
+    this.activeRoutes.push(activeRoute);
+    this.signals[entranceId].routeSet = routeDef.id;
+
+    this.recomputeSignalAspects();
+    sound.playRouteSet();
+    ui.setAnnunciator(`ROUTE LOCKED: ${entranceId} → ${exitId} (${routeDef.desc.toUpperCase()})`, 'green');
+    ui.log(`ROUTE SET: [${entranceId} → ${exitId}] ${routeDef.desc}`, 'success');
+    ui.updateRouteCounter();
+    return true;
+  }
+
+  cancelRoute(routeId, forceSilent = false) {
+    const idx = this.activeRoutes.findIndex(r => r.id === routeId);
+    if (idx === -1) return false;
+    const route = this.activeRoutes[idx];
+
+    const isOccupied = route.remainingTCs.some(tcId => this.tcs[tcId].occupiedBy !== null);
+    if (isOccupied) {
+      if (!forceSilent) {
+        sound.playConflictBuzz();
+        ui.setAnnunciator(`APPROACH / ROUTE LOCKED: TRAIN OCCUPYING ${route.id}`, 'red');
+      }
+      return false;
+    }
+
+    route.remainingTCs.forEach(tcId => {
+      if (this.tcs[tcId].lockedByRoute === routeId) this.tcs[tcId].lockedByRoute = null;
+    });
+    Object.keys(route.points).forEach(ptId => {
+      if (this.points[ptId].lockedByRoute === routeId) this.points[ptId].lockedByRoute = null;
+    });
+    if (this.signals[route.entrance].routeSet === routeId) this.signals[route.entrance].routeSet = null;
+
+    this.activeRoutes.splice(idx, 1);
+    this.recomputeSignalAspects();
+
+    if (!forceSilent) {
+      sound.playRelayClick(620);
+      ui.setAnnunciator(`ROUTE CANCELLED: ${route.entrance} → ${route.exit} NORMALIZED`, 'amber');
+      ui.log(`ROUTE CANCELLED: ${route.entrance} -> ${route.exit}`, 'info');
+    }
+    ui.updateRouteCounter();
+    return true;
+  }
+
+  cancelAllUnoccupiedRoutes() {
+    let count = 0;
+    [...this.activeRoutes].forEach(r => {
+      if (this.cancelRoute(r.id, true)) count++;
+    });
+    sound.playRelayClick(650);
+    ui.setAnnunciator(`CANCELLED ${count} UNOCCUPIED ROUTE(S)`, 'amber');
+    ui.log(`PANEL RELEASE: Cancelled ${count} unoccupied routes.`, 'info');
+    ui.updateRouteCounter();
+  }
+
+  emergencyAllDanger() {
+    this.allSignalsDanger = !this.allSignalsDanger;
+    const btn = document.getElementById('btnAllSignalsDanger');
+    if (this.allSignalsDanger) {
+      btn.classList.add('animate-pulse');
+      sound.playEmergencyAlarm();
+      ui.setAnnunciator('EMERGENCY: ALL SIGNALS PLACED TO DANGER (RED)!', 'red');
+      ui.log('EMERGENCY CALL: All signals placed to Danger by signaller.', 'error');
+    } else {
+      btn.classList.remove('animate-pulse');
+      sound.playRelayClick(900);
+      ui.setAnnunciator('EMERGENCY DANGER RELEASED — SIGNALS RESTORED TO ROUTE ASPECTS', 'green');
+    }
+    this.recomputeSignalAspects();
+  }
+
+  setPointMode(ptId, newMode) {
+    const pt = this.points[ptId];
+    if (!pt) return;
+    if (pt.failed) {
+      sound.playConflictBuzz();
+      ui.setAnnunciator(`POINT ${ptId} IS OUT OF SERVICE (DETECTION FAILURE)`, 'red');
+      return;
+    }
+    if (pt.lockedByRoute || this.tcs[pt.tc].occupiedBy) {
+      sound.playConflictBuzz();
+      ui.setAnnunciator(`INTERLOCKED: CANNOT MOVE POINT ${ptId} WHILE LOCKED OR OCCUPIED`, 'red');
+      return;
+    }
+    pt.mode = newMode;
+    if (newMode === 'N' || newMode === 'R') pt.position = newMode;
+    sound.playRelayClick(980);
+    ui.renderPointKeys();
+    ui.log(`POINT KEY ${ptId}: Set to ${newMode}`, 'info');
+  }
+
+  recomputeSignalAspects() {
+    Object.values(this.signals).forEach(sig => {
+      if (!sig.hasEntrance) return;
+      if (this.allSignalsDanger || !sig.routeSet) {
+        sig.aspect = 'RED';
+        return;
+      }
+      const route = this.activeRoutes.find(r => r.id === sig.routeSet);
+      if (!route) {
+        sig.aspect = 'RED';
+        return;
+      }
+      const blocked = route.remainingTCs.some(tcId => this.tcs[tcId].occupiedBy !== null);
+      sig.aspect = blocked ? 'RED' : 'YELLOW';
+    });
+
+    Object.values(this.signals).forEach(sig => {
+      if (sig.aspect === 'YELLOW' && sig.routeSet) {
+        const route = this.activeRoutes.find(r => r.id === sig.routeSet);
+        if (route) {
+          const exitSig = this.signals[route.exit];
+          if (exitSig && (!exitSig.hasEntrance || exitSig.aspect === 'YELLOW' || exitSig.aspect === 'GREEN')) {
+            sig.aspect = 'GREEN';
+          }
+        }
+      }
+    });
+  }
+
+  spawnImmediateTrain() {
+    const templates = [
+      { type: 'EXPRESS', prefix: '1A', origin: 'WEST MAIN', dest: 'EAST MAIN', plat: 'PLAT 1', entry: 'TC_UM_APP', exit: 'S10', dwell: 12 },
+      { type: 'EXPRESS', prefix: '1C', origin: 'WEST MAIN', dest: 'EAST MAIN', plat: 'THROUGH', entry: 'TC_UM_APP', exit: 'S10', dwell: 0 },
+      { type: 'STOPPER', prefix: '2E', origin: 'EAST MAIN', dest: 'WEST MAIN', plat: 'PLAT 2', entry: 'TC_DM_APP', exit: 'S2', dwell: 15 },
+      { type: 'STOPPER', prefix: '2W', origin: 'SOUTH BRANCH', dest: 'WEST MAIN', plat: 'PLAT 3', entry: 'TC_BR_APP', exit: 'S2', dwell: 14 },
+      { type: 'FREIGHT', prefix: '6Z', origin: 'WEST MAIN', dest: 'SOUTH BRANCH', plat: 'PLAT 3', entry: 'TC_UM_APP', exit: 'S12', dwell: 10 }
+    ];
+    const available = templates.filter(t => !this.tcs[t.entry].occupiedBy);
+    if (available.length === 0) {
+      ui.setAnnunciator('ENTRY PORTALS CONGESTED — CLEAR APPROACH TRACKS FIRST', 'amber');
+      return;
+    }
+    const tpl = available[Math.floor(Math.random() * available.length)];
+    if (this.scenario === 'failure' && tpl.entry === 'TC_DM_APP' && tpl.plat === 'PLAT 3') tpl.plat = 'PLAT 2';
+
+    const num = String(10 + ((this.trainCounter * 7) % 89));
+    this.trainCounter++;
+    this.spawnTrain({
+      headcode: `${tpl.prefix}${num}`, type: tpl.type, origin: tpl.origin, dest: tpl.dest,
+      targetPlat: tpl.plat, entryTC: tpl.entry, exitSignal: tpl.exit, dwellNeeded: tpl.dwell
+    });
+  }
+
+  spawnTrain(cfg) {
+    if (this.tcs[cfg.entryTC].occupiedBy) return;
+    const train = {
+      id: `TRN_${Date.now()}_${Math.random()}`,
+      headcode: cfg.headcode, type: cfg.type, origin: cfg.origin, dest: cfg.dest,
+      targetPlat: cfg.targetPlat, currentTC: cfg.entryTC, tcProgress: 0.15,
+      speed: 0, maxSpeed: cfg.type === 'EXPRESS' ? 54 : cfg.type === 'STOPPER' ? 42 : 32,
+      state: 'APPROACHING', dwellTimer: cfg.dwellNeeded, dwellTotal: cfg.dwellNeeded,
+      scheduledArrival: this.timeSeconds + 45, delaySeconds: 0,
+      hasServedPlatform: cfg.targetPlat === 'THROUGH', exitSignal: cfg.exitSignal
+    };
+    this.trains.push(train);
+    this.tcs[cfg.entryTC].occupiedBy = train.headcode;
+    sound.playTrainBell();
+    ui.log(`TD STEP IN: ${train.headcode} (${train.type}) from ${train.origin} -> ${train.targetPlat}`, 'info');
+    this.recomputeSignalAspects();
+  }
+
+  update(dt) {
+    if (this.speed === 0) return;
+    const simDt = dt * this.speed;
+    this.timeSeconds += simDt;
+
+    this.nextSpawnTimer -= simDt;
+    if (this.nextSpawnTimer <= 0 && this.trains.length < 6) {
+      this.spawnImmediateTrain();
+      this.nextSpawnTimer = this.scenario === 'rush' ? 18 : 30;
+    }
+
+    for (let i = this.trains.length - 1; i >= 0; i--) {
+      const tr = this.trains[i];
+      const tc = this.tcs[tr.currentTC];
+      if (!tc) continue;
+
+      if (tr.speed < 2 && tr.state !== 'BOARDING') {
+        tr.delaySeconds += simDt;
+        this.totalDelaySeconds += simDt;
+      }
+
+      if (tc.isPlatform && !tr.hasServedPlatform && tr.tcProgress >= 0.48) {
+        if (tr.state !== 'BOARDING' && tr.state !== 'READY_DEPART') {
+          tr.state = 'BOARDING';
+          tr.speed = 0;
+          ui.log(`${tr.headcode} arrived at ${tc.isPlatform} — doors released.`, 'info');
+        }
+      }
+
+      if (tr.state === 'BOARDING') {
+        tr.speed = 0;
+        tr.dwellTimer -= simDt;
+        if (tr.dwellTimer <= 0) {
+          tr.dwellTimer = 0;
+          tr.hasServedPlatform = true;
+          tr.state = 'READY_DEPART';
+          sound.playTrainBell();
+          ui.log(`${tr.headcode} ready to depart ${tc.isPlatform} -> Exit ${tr.exitSignal}`, 'amber');
+        }
+        continue;
+      }
+
+      const nextInfo = this.getNextTrackCircuitForTrain(tr);
+      let targetSpeed = tr.maxSpeed;
+      if (nextInfo.blockedBySignal) {
+        const distRemaining = (1 - tr.tcProgress) * tc.len;
+        if (distRemaining < 95) {
+          targetSpeed = Math.max(0, (distRemaining / 95) * tr.maxSpeed * 0.75);
+          if (distRemaining < 12) targetSpeed = 0;
+        }
+      } else if (nextInfo.signalAspect === 'YELLOW') {
+        targetSpeed = tr.maxSpeed * 0.62;
+      } else if (tc.isPlatform && !tr.hasServedPlatform) {
+        const distToStop = Math.max(0, (0.5 - tr.tcProgress) * tc.len);
+        targetSpeed = Math.min(tr.maxSpeed * 0.65, Math.max(8, distToStop * 0.6));
+      }
+
+      if (tr.speed < targetSpeed) tr.speed = Math.min(targetSpeed, tr.speed + 26 * simDt);
+      else if (tr.speed > targetSpeed) tr.speed = Math.max(targetSpeed, tr.speed - 45 * simDt);
+
+      tr.tcProgress += (tr.speed * simDt) / tc.len;
+
+      if (tr.tcProgress >= 1.0) {
+        if (nextInfo.exitPortal) {
+          tc.occupiedBy = null;
+          this.releaseTCFromRoute(tc.id);
+          this.trains.splice(i, 1);
+          this.dispatchedCount++;
+          sound.playTrainBell();
+          ui.log(`DISPATCHED: ${tr.headcode} exited panel via ${nextInfo.exitPortal}.`, 'success');
+          this.recomputeSignalAspects();
+          continue;
+        }
+        if (nextInfo.nextTC && !nextInfo.blockedBySignal && !this.tcs[nextInfo.nextTC].occupiedBy) {
+          const oldTC = tc;
+          const newTC = this.tcs[nextInfo.nextTC];
+          oldTC.occupiedBy = null;
+          newTC.occupiedBy = tr.headcode;
+          tr.currentTC = newTC.id;
+          tr.tcProgress = 0.02;
+          if (tr.state === 'READY_DEPART') tr.state = 'DEPARTING';
+          this.releaseTCFromRoute(oldTC.id);
+          if (nextInfo.passedSignal) this.signals[nextInfo.passedSignal].aspect = 'RED';
+          this.recomputeSignalAspects();
+        } else {
+          tr.tcProgress = 0.99;
+          tr.speed = 0;
+        }
+      }
+    }
+  }
+
+  getNextTrackCircuitForTrain(train) {
+    const curId = train.currentTC;
+    const guardingSig = Object.values(this.signals).find(s => s.hasEntrance && s.approachTC === curId);
+    if (guardingSig) {
+      if (guardingSig.aspect === 'RED' || !guardingSig.routeSet) {
+        return { blockedBySignal: true, signalAspect: 'RED', nextTC: null };
+      }
+      const route = this.activeRoutes.find(r => r.id === guardingSig.routeSet);
+      if (route && route.tcs.length > 0) {
+        return { blockedBySignal: false, signalAspect: guardingSig.aspect, nextTC: route.tcs[0], passedSignal: guardingSig.id };
+      }
+    }
+
+    const activeRoute = this.activeRoutes.find(r => r.tcs.includes(curId));
+    if (activeRoute) {
+      const idx = activeRoute.tcs.indexOf(curId);
+      if (idx >= 0 && idx < activeRoute.tcs.length - 1) {
+        return { blockedBySignal: false, signalAspect: 'GREEN', nextTC: activeRoute.tcs[idx + 1] };
+      }
+    }
+
+    if (curId === 'TC_UM_EXIT') return { blockedBySignal: false, exitPortal: 'UP MAIN EAST (S10)' };
+    if (curId === 'TC_DM_EXIT') return { blockedBySignal: false, exitPortal: 'DOWN MAIN WEST (S2)' };
+    if (curId === 'TC_BR_APP' && train.dest === 'SOUTH BRANCH') return { blockedBySignal: false, exitPortal: 'SOUTH BRANCH (S12)' };
+
+    const passiveLinks = {
+      'TC_W_TO_P1': 'TC_PLAT1', 'TC_X_P1_P2': 'TC_W_TO_P2', 'TC_W_TO_P2': 'TC_PLAT2',
+      'TC_X_P3': 'TC_W_TO_P3', 'TC_W_TO_P3': 'TC_PLAT3', 'TC_P1_TO_E': 'TC_E_THROAT_U',
+      'TC_E_THROAT_U': 'TC_UM_EXIT', 'TC_X_P4_P5': 'TC_E_THROAT_U', 'TC_X_P5_D': 'TC_P2_TO_E',
+      'TC_P2_TO_E': train.exitSignal === 'S10' ? 'TC_X_P4_P5' : 'TC_PLAT2',
+      'TC_X_P6': 'TC_P3_TO_E', 'TC_P3_TO_E': train.exitSignal === 'S12' ? 'TC_BR_APP' : 'TC_PLAT3',
+      'TC_W_THROAT_D': 'TC_DM_EXIT'
+    };
+    if (passiveLinks[curId]) return { blockedBySignal: false, signalAspect: 'GREEN', nextTC: passiveLinks[curId] };
+    return { blockedBySignal: true, signalAspect: 'RED', nextTC: null };
+  }
+
+  releaseTCFromRoute(tcId) {
+    const tc = this.tcs[tcId];
+    if (!tc || !tc.lockedByRoute) return;
+    const routeId = tc.lockedByRoute;
+    tc.lockedByRoute = null;
+    const route = this.activeRoutes.find(r => r.id === routeId);
+    if (!route) return;
+    route.remainingTCs = route.remainingTCs.filter(id => id !== tcId);
+    Object.keys(route.points).forEach(ptId => {
+      const pt = this.points[ptId];
+      if (pt.tc === tcId && pt.lockedByRoute === routeId) pt.lockedByRoute = null;
+    });
+    if (route.remainingTCs.length === 0) {
+      if (this.signals[route.entrance].routeSet === routeId) this.signals[route.entrance].routeSet = null;
+      Object.keys(route.points).forEach(ptId => {
+        if (this.points[ptId].lockedByRoute === routeId) this.points[ptId].lockedByRoute = null;
+      });
+      this.activeRoutes = this.activeRoutes.filter(r => r.id !== routeId);
+      ui.updateRouteCounter();
+    }
+  }
+}
+
+/* ----------------------------------------------------------------------------
+   4. CANVAS RENDERER (with robust pointer + touch handling)
+   ---------------------------------------------------------------------------- */
+class NXPanelRenderer {
+  constructor(canvas, simulator) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.sim = simulator;
+    this.logicalW = 1200;
+    this.logicalH = 510;
+    this.scale = 1;
+    this.offsetX = 0;
+    this.offsetY = 0;
+    this.hitTargets = [];
+    this.flashPhase = 0;
+    this.bindEvents();
+    this.resize();
+  }
+
+  resize() {
+    const wrapper = this.canvas.parentElement;
+    const rect = wrapper.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2); // cap for performance on large TVs
+
+    // Allow the canvas to grow on very large displays while keeping a sensible minimum
+    const availW = Math.max(600, rect.width);
+    const availH = Math.max(320, rect.height);
+
+    this.canvas.width = Math.floor(availW * dpr);
+    this.canvas.height = Math.floor(availH * dpr);
+    this.canvas.style.width = availW + 'px';
+    this.canvas.style.height = availH + 'px';
+
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const scaleX = availW / this.logicalW;
+    const scaleY = availH / this.logicalH;
+    this.scale = Math.min(scaleX, scaleY);
+    this.offsetX = (availW - this.logicalW * this.scale) / 2;
+    this.offsetY = (availH - this.logicalH * this.scale) / 2;
+  }
+
+  screenToLogical(clientX, clientY) {
+    const rect = this.canvas.getBoundingClientRect();
+    const x = (clientX - rect.left - this.offsetX) / this.scale;
+    const y = (clientY - rect.top - this.offsetY) / this.scale;
+    return { x, y };
+  }
+
+  findTarget(clientX, clientY) {
+    const pt = this.screenToLogical(clientX, clientY);
+    for (const target of this.hitTargets) {
+      if (Math.hypot(pt.x - target.x, pt.y - target.y) <= target.r + 8) return target;
+    }
+    return null;
+  }
+
+  bindEvents() {
+    window.addEventListener('resize', () => {
+      this.resize();
+    });
+
+    // Unified pointer handling (mouse + touch + pen)
+    const onPointer = (e, isCancel = false) => {
+      e.preventDefault();
+      const target = this.findTarget(e.clientX, e.clientY);
+      if (target) {
+        this.sim.handleButtonClick(target.signalId, target.type, isCancel);
+      }
+    };
+
+    this.canvas.addEventListener('pointerdown', (e) => {
+      if (e.button === 2) return; // right click handled separately
+      onPointer(e, false);
+    });
+
+    this.canvas.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      onPointer(e, true);
+    });
+
+    this.canvas.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      onPointer(e, true);
+    });
+
+    this.canvas.addEventListener('pointermove', (e) => {
+      const target = this.findTarget(e.clientX, e.clientY);
+      this.sim.hoveredButton = target;
+      this.canvas.style.cursor = target ? 'pointer' : 'crosshair';
+    });
+
+    // Touch-friendly double-tap cancel (simple)
+    let lastTap = 0;
+    this.canvas.addEventListener('pointerup', (e) => {
+      const now = Date.now();
+      if (now - lastTap < 320) {
+        onPointer(e, true);
+      }
+      lastTap = now;
+    });
+  }
+
+  render(nowMs) {
+    this.flashPhase = Math.floor(nowMs / 320) % 2;
+    const ctx = this.ctx;
+    const rect = this.canvas.parentElement.getBoundingClientRect();
+
+    ctx.clearRect(0, 0, rect.width, rect.height);
+    ctx.save();
+    ctx.translate(this.offsetX, this.offsetY);
+    ctx.scale(this.scale, this.scale);
+
+    this.hitTargets = [];
+
+    this.drawPanelAnnotations(ctx);
+    this.drawPlatforms(ctx);
+    this.drawTrackCircuits(ctx);
+    this.drawPoints(ctx);
+    this.drawSignalsAndButtons(ctx);
+    this.drawTrainDescribers(ctx);
+    this.drawTrainsOnTrack(ctx);
+
+    ctx.restore();
+  }
+
+  drawPanelAnnotations(ctx) {
+    ctx.save();
+    ctx.font = '700 11px "JetBrains Mono", monospace';
+    ctx.fillStyle = '#64748b';
+    ctx.textAlign = 'left';
+    ctx.fillText('← TO LONDON WATERLOO (UP / DOWN MAIN)', 30, 42);
+    ctx.textAlign = 'right';
+    ctx.fillText('TO PORTSMOUTH & SOUTH COAST →', 1165, 42);
+    ctx.fillText('SOUTH BRANCH / GOODS →', 1165, 488);
+    ctx.fillStyle = '#475569';
+    ctx.textAlign = 'left';
+    ctx.fillText('UP MAIN ▶▶', 35, 196);
+    ctx.fillText('◀◀ DOWN MAIN', 35, 330);
+    ctx.textAlign = 'right';
+    ctx.fillText('UP MAIN ▶▶', 1160, 196);
+    ctx.fillText('◀◀ DOWN MAIN', 1160, 330);
+    ctx.restore();
+  }
+
+  drawPlatforms(ctx) {
+    const plats = [
+      { label: 'PLATFORM 1 (UP LOOP)', x: 400, y: 66, w: 360, h: 24 },
+      { label: 'PLATFORM 2 (REVERSIBLE ISLAND)', x: 400, y: 272, w: 360, h: 24 },
+      { label: 'PLATFORM 3 / BRANCH', x: 400, y: 442, w: 360, h: 24 }
+    ];
+    plats.forEach(p => {
+      ctx.save();
+      ctx.fillStyle = '#1b2128';
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(p.x, p.y, p.w, p.h, 4);
+      ctx.fill();
+      ctx.stroke();
+      ctx.font = '700 11px "JetBrains Mono", monospace';
+      ctx.fillStyle = '#94a3b8';
+      ctx.textAlign = 'center';
+      ctx.fillText(p.label, p.x + p.w / 2, p.y + 16);
+      ctx.restore();
+    });
+  }
+
+  drawTrackCircuits(ctx) {
+    const order = Object.values(this.sim.tcs).sort((a, b) => {
+      const score = tc => tc.occupiedBy ? 3 : tc.lockedByRoute ? 2 : 1;
+      return score(a) - score(b);
+    });
+    order.forEach(tc => {
+      let color = '#525b66', width = 5, glow = null;
+      if (tc.occupiedBy) { color = '#ef4444'; width = 6.5; glow = 'rgba(239,68,68,0.55)'; }
+      else if (tc.lockedByRoute) { color = '#f8fafc'; width = 6; glow = 'rgba(248,250,252,0.45)'; }
+
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      if (glow) { ctx.shadowColor = glow; ctx.shadowBlur = 10; }
+      ctx.beginPath();
+      tc.pts.forEach(([x, y], i) => i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y));
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#0f1215';
+      ctx.lineWidth = 2;
+      const [x0, y0] = tc.pts[0];
+      ctx.beginPath();
+      ctx.moveTo(x0, y0 - 5);
+      ctx.lineTo(x0, y0 + 5);
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
+
+  drawPoints(ctx) {
+    Object.values(this.sim.points).forEach(pt => {
+      ctx.save();
+      const isRev = pt.position === 'R';
+      const vec = isRev ? pt.revVec : pt.normalVec;
+      ctx.strokeStyle = pt.failed ? '#ef4444' : isRev ? '#38bdf8' : '#cbd5e1';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(pt.x, pt.y);
+      ctx.lineTo(pt.x + vec[0] * 0.65, pt.y + vec[1] * 0.65);
+      ctx.stroke();
+      const labelY = pt.y + (pt.id === 'P2' || pt.id === 'P4' ? -16 : 22);
+      ctx.font = '700 10px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = pt.failed ? '#f87171' : pt.mode !== 'AUTO' ? '#fbbf24' : '#94a3b8';
+      const suffix = pt.failed ? '!' : `(${pt.position})`;
+      ctx.fillText(`${pt.id}${suffix}`, pt.x, labelY);
+      ctx.restore();
+    });
+  }
+
+  drawSignalsAndButtons(ctx) {
+    Object.values(this.sim.signals).forEach(sig => {
+      const dir = sig.dir;
+      const yOffset = dir === 1 ? -22 : 22;
+      const sigY = sig.y + yOffset;
+
+      ctx.save();
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(sig.x, sig.y + (dir === 1 ? -5 : 5));
+      ctx.lineTo(sig.x, sigY);
+      ctx.lineTo(sig.x + dir * 10, sigY);
+      ctx.stroke();
+
+      if (sig.hasEntrance) {
+        const headX = sig.x + dir * 18;
+        ctx.fillStyle = '#090b0d';
+        ctx.strokeStyle = '#475569';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(headX - 8, sigY - 8, 16, 16, 8);
+        ctx.fill();
+        ctx.stroke();
+
+        let lampColor = '#ef4444';
+        if (sig.aspect === 'GREEN') lampColor = '#22c55e';
+        else if (sig.aspect === 'YELLOW') lampColor = '#f59e0b';
+
+        ctx.fillStyle = lampColor;
+        ctx.shadowColor = lampColor;
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(headX, sigY, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      ctx.font = '700 10px "JetBrains Mono", monospace';
+      ctx.fillStyle = '#cbd5e1';
+      ctx.textAlign = 'center';
+      ctx.fillText(sig.id, sig.x, sigY + (dir === 1 ? -13 : 19));
+
+      // ENTRANCE BUTTON
+      if (sig.hasEntrance) {
+        const bx = sig.x - dir * 14;
+        const by = sigY;
+        const isSelected = this.sim.selectedEntrance === sig.id;
+        const isHovered = this.sim.hoveredButton?.signalId === sig.id && this.sim.hoveredButton?.type === 'ENTRANCE';
+
+        ctx.fillStyle = isSelected && this.flashPhase === 0 ? '#ffffff' : '#dc2626';
+        ctx.strokeStyle = isHovered || isSelected ? '#ffffff' : '#fca5a5';
+        ctx.lineWidth = isHovered || isSelected ? 2.5 : 1.5;
+        ctx.beginPath();
+        ctx.arc(bx, by, 7.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = isSelected && this.flashPhase === 0 ? '#dc2626' : '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(bx + dir * 3.5, by);
+        ctx.lineTo(bx - dir * 2.5, by - 3);
+        ctx.lineTo(bx - dir * 2.5, by + 3);
+        ctx.closePath();
+        ctx.fill();
+
+        this.hitTargets.push({ signalId: sig.id, type: 'ENTRANCE', x: bx, y: by, r: 9 });
+      }
+
+      // EXIT BUTTON
+      if (sig.hasExit) {
+        const bx = sig.hasEntrance ? sig.x + dir * 35 : sig.x + dir * 14;
+        const by = sigY;
+        const isHovered = this.sim.hoveredButton?.signalId === sig.id && this.sim.hoveredButton?.type === 'EXIT';
+        const canAccept = this.sim.selectedEntrance &&
+          NX_ROUTES_DEF.some(r => r.entrance === this.sim.selectedEntrance && r.exit === sig.id);
+
+        ctx.fillStyle = canAccept && this.flashPhase === 0 ? '#fef08a' : '#eab308';
+        ctx.strokeStyle = isHovered || canAccept ? '#ffffff' : '#713f12';
+        ctx.lineWidth = isHovered || canAccept ? 2.5 : 1.5;
+        ctx.beginPath();
+        ctx.arc(bx, by, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        this.hitTargets.push({ signalId: sig.id, type: 'EXIT', x: bx, y: by, r: 9 });
+      }
+      ctx.restore();
+    });
+  }
+
+  drawTrainDescribers(ctx) {
+    Object.values(this.sim.tcs).forEach(tc => {
+      if (!tc.tdPos) return;
+      const [x, y] = tc.tdPos;
+      const headcode = tc.occupiedBy;
+      ctx.save();
+      ctx.fillStyle = '#090c0e';
+      ctx.strokeStyle = headcode ? '#34d399' : '#2d3540';
+      ctx.lineWidth = headcode ? 1.5 : 1;
+      ctx.beginPath();
+      ctx.roundRect(x - 26, y - 10, 52, 20, 3);
+      ctx.fill();
+      ctx.stroke();
+      ctx.font = '700 12px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      if (headcode) {
+        ctx.fillStyle = '#34d399';
+        ctx.shadowColor = 'rgba(52,211,153,0.7)';
+        ctx.shadowBlur = 8;
+        ctx.fillText(headcode, x, y + 4);
+      } else {
+        ctx.fillStyle = '#334155';
+        ctx.fillText('----', x, y + 4);
+      }
+      ctx.restore();
+    });
+  }
+
+  drawTrainsOnTrack(ctx) {
+    this.sim.trains.forEach(tr => {
+      const tc = this.sim.tcs[tr.currentTC];
+      if (!tc) return;
+      const [p0, p1] = tc.pts;
+      const t = Math.max(0.05, Math.min(0.95, tr.tcProgress));
+      const tx = p0[0] + (p1[0] - p0[0]) * t;
+      const ty = p0[1] + (p1[1] - p0[1]) * t;
+      ctx.save();
+      ctx.fillStyle = tr.state === 'BOARDING' ? '#fbbf24' : '#ef4444';
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = 'rgba(239,68,68,0.8)';
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.roundRect(tx - 16, ty - 5, 32, 10, 3);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
+}
+
+/* ----------------------------------------------------------------------------
+   5. UI CONTROLLER
+   ---------------------------------------------------------------------------- */
+class PanelUIController {
+  constructor(simulator) {
+    this.sim = simulator;
+  }
+
+  formatTime(totalSec) {
+    const hrs = Math.floor(totalSec / 3600) % 24;
+    const mins = Math.floor((totalSec % 3600) / 60);
+    const secs = Math.floor(totalSec % 60);
+    return [hrs, mins, secs].map(v => String(v).padStart(2, '0')).join(':');
+  }
+
+  setAnnunciator(msg, level = 'green') {
+    const el = document.getElementById('annunciatorText');
+    const banner = document.getElementById('statusBanner');
+    if (!el) return;
+    el.textContent = msg;
+    el.className = 'font-semibold ' + (
+      level === 'red' ? 'led-text-red' :
+      level === 'amber' ? 'led-text-amber' : 'led-text-green'
+    );
+    banner.classList.toggle('alarm-flash', level === 'red');
+  }
+
+  log(message, type = 'info') {
+    const container = document.getElementById('eventLog');
+    if (!container) return;
+    const timeStr = this.formatTime(this.sim.timeSeconds);
+    const row = document.createElement('div');
+    const colorClass =
+      type === 'error' ? 'text-rose-400' :
+      type === 'warn' ? 'text-amber-300' :
+      type === 'success' ? 'text-emerald-400' : 'text-slate-300';
+    row.className = `leading-tight border-b border-[#1c2128] pb-1 ${colorClass}`;
+    row.innerHTML = `<span class="text-slate-500">[${timeStr}]</span> ${message}`;
+    container.prepend(row);
+    while (container.children.length > 45) container.removeChild(container.lastChild);
+  }
+
+  clearLog() {
+    const container = document.getElementById('eventLog');
+    if (container) container.innerHTML = '';
+  }
+
+  toggleManual(open) {
+    const modal = document.getElementById('manualModal');
+    if (modal) modal.classList.toggle('hidden', !open);
+  }
+
+  updateRouteCounter() {
+    const el = document.getElementById('activeRoutesCount');
+    if (el) el.textContent = `${this.sim.activeRoutes.length} ROUTE(S) SET`;
+  }
+
+  renderPointKeys() {
+    const container = document.getElementById('pointKeysContainer');
+    if (!container) return;
+    container.innerHTML = '';
+    Object.values(this.sim.points).forEach(pt => {
+      const card = document.createElement('div');
+      card.className = `bg-[#161b21] border ${pt.failed ? 'border-rose-500/70' : 'border-[#2c3440]'} rounded px-2 py-1.5 flex flex-col gap-1`;
+      const posBadge = pt.failed
+        ? `<span class="text-rose-400 font-bold">FAULT</span>`
+        : `<span class="${pt.position === 'R' ? 'text-sky-400' : 'text-emerald-400'} font-bold">${pt.position}</span>`;
+      card.innerHTML = `
+        <div class="flex items-center justify-between font-mono-tech text-[11px]">
+          <span class="font-bold text-slate-200">${pt.id}</span>
+          ${posBadge}
+        </div>
+        <div class="grid grid-cols-3 gap-0.5 font-mono-tech text-[10px]">
+          <button onclick="sim.setPointMode('${pt.id}','N')" class="py-0.5 rounded ${pt.mode === 'N' ? 'bg-amber-600 text-white font-bold' : 'bg-[#222830] text-slate-400 hover:text-white'}">N</button>
+          <button onclick="sim.setPointMode('${pt.id}','AUTO')" class="py-0.5 rounded ${pt.mode === 'AUTO' ? 'bg-sky-700 text-white font-bold' : 'bg-[#222830] text-slate-400 hover:text-white'}">A</button>
+          <button onclick="sim.setPointMode('${pt.id}','R')" class="py-0.5 rounded ${pt.mode === 'R' ? 'bg-amber-600 text-white font-bold' : 'bg-[#222830] text-slate-400 hover:text-white'}">R</button>
+        </div>`;
+      container.appendChild(card);
+    });
+  }
+
+  updateKPIs() {
+    document.getElementById('simClock').textContent = this.formatTime(this.sim.timeSeconds);
+    document.getElementById('kpiDispatched').textContent = this.sim.dispatchedCount;
+    document.getElementById('kpiDelay').textContent = `${Math.floor(this.sim.totalDelaySeconds / 60)}m`;
+    document.getElementById('kpiSafety').textContent = `${this.sim.safetyScore}%`;
+    document.getElementById('activeTrainCount').textContent = `${this.sim.trains.length} ACTIVE`;
+  }
+
+  renderTimetable() {
+    const list = document.getElementById('timetableList');
+    if (!list) return;
+    if (this.sim.trains.length === 0) {
+      list.innerHTML = `
+        <div class="text-center py-8 font-mono-tech text-xs text-slate-500">
+          NO ACTIVE SERVICES ON PANEL.<br>CLICK "+ SPAWN TRAIN NOW" OR PRESS <kbd class="bg-[#1e2430] px-1 rounded">S</kbd> TO DISPATCH.
+        </div>`;
+      return;
+    }
+    list.innerHTML = this.sim.trains.map(tr => {
+      const tc = this.sim.tcs[tr.currentTC];
+      const badgeColor =
+        tr.type === 'EXPRESS' ? 'bg-emerald-950 text-emerald-300 border-emerald-700/60' :
+        tr.type === 'STOPPER' ? 'bg-sky-950 text-sky-300 border-sky-700/60' :
+        'bg-amber-950 text-amber-300 border-amber-700/60';
+      let statusHTML = '';
+      if (tr.state === 'BOARDING') statusHTML = `<span class="text-amber-300 font-bold">BOARDING (${Math.ceil(tr.dwellTimer)}s)</span>`;
+      else if (tr.state === 'READY_DEPART') statusHTML = `<span class="text-emerald-400 font-bold animate-pulse">READY → EXIT ${tr.exitSignal}</span>`;
+      else if (tr.speed < 1) statusHTML = `<span class="text-rose-400 font-bold">HELD AT SIGNAL</span>`;
+      else statusHTML = `<span class="text-sky-300">RUNNING (${Math.round(tr.speed * 1.6)} mph)</span>`;
+
+      return `
+        <div class="bg-[#111418] border border-[#2a3038] rounded p-2.5 font-mono-tech text-xs space-y-1.5">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="px-1.5 py-0.5 rounded bg-[#090b0d] border border-emerald-500/50 led-text-green font-bold text-sm">${tr.headcode}</span>
+              <span class="px-1.5 py-0.5 rounded border text-[10px] font-bold ${badgeColor}">${tr.type}</span>
+            </div>
+            <span class="text-[11px] font-bold text-slate-300">REQ: <span class="text-amber-300">${tr.targetPlat}</span></span>
+          </div>
+          <div class="flex items-center justify-between text-[11px] text-slate-400">
+            <span>${tr.origin} → ${tr.dest}</span>
+            <span>EXIT: <strong class="text-yellow-300">${tr.exitSignal}</strong></span>
+          </div>
+          <div class="pt-1 border-t border-[#1e232a] flex items-center justify-between text-[11px]">
+            <span class="text-slate-500 truncate max-w-[165px]">${tc ? tc.name : tr.currentTC}</span>
+            ${statusHTML}
+          </div>
+        </div>`;
+    }).join('');
+  }
+}
+
+/* ----------------------------------------------------------------------------
+   6. KEYBOARD CONTROLS + BOOTSTRAP
+   ---------------------------------------------------------------------------- */
+const sim = new NXSimulator();
+const ui = new PanelUIController(sim);
+let renderer = null;
+let lastFrameTime = performance.now();
+let uiSyncAccumulator = 0;
+
+function setupKeyboard() {
+  document.addEventListener('keydown', (e) => {
+    // Ignore when typing in inputs / selects
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+
+    const key = e.key.toLowerCase();
+    switch (key) {
+      case ' ':
+      case 'p':
+        e.preventDefault();
+        sim.setSpeed(sim.speed === 0 ? 1 : 0);
+        break;
+      case '1':
+        sim.setSpeed(1);
+        break;
+      case '2':
+        sim.setSpeed(2);
+        break;
+      case '4':
+        sim.setSpeed(4);
+        break;
+      case 's':
+        e.preventDefault();
+        sim.spawnImmediateTrain();
+        break;
+      case 'c':
+        e.preventDefault();
+        sim.cancelAllUnoccupiedRoutes();
+        break;
+      case 'escape':
+        sim.clearEntranceSelection();
+        break;
+      case 'm':
+        sound.toggleMute();
+        break;
+      case 'h':
+        ui.toggleManual(true);
+        break;
+      case 'd':
+        sim.emergencyAllDanger();
+        break;
+    }
+  });
+}
+
+window.onload = function () {
+  const canvas = document.getElementById('nxCanvas');
+  renderer = new NXPanelRenderer(canvas, sim);
+  sim.loadScenario('normal');
+  ui.renderTimetable();
+  setupKeyboard();
+  requestAnimationFrame(mainLoop);
+
+  // Force a resize after fonts load / layout settles
+  setTimeout(() => renderer && renderer.resize(), 200);
+};
+
+function mainLoop(now) {
+  const dt = Math.min(0.1, (now - lastFrameTime) / 1000);
+  lastFrameTime = now;
+
+  sim.update(dt);
+  if (renderer) renderer.render(now);
+
+  uiSyncAccumulator += dt;
+  if (uiSyncAccumulator >= 0.25) {
+    uiSyncAccumulator = 0;
+    ui.updateKPIs();
+    ui.renderTimetable();
+  }
+
+  requestAnimationFrame(mainLoop);
+}
+</script>
+</body>
+</html>
