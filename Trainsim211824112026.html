@@ -1,0 +1,2184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<meta name="description" content="Victoria Junction IECC – NX Railway Signalling Control Room Simulator with Big-Screen Cast">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>NX Railway Control Room Simulator — Victoria Junction IECC</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --panel-bg: #121518;
+    --panel-surface: #181c20;
+    --panel-border: #2a3038;
+  }
+  * { -webkit-tap-highlight-color: transparent; }
+  body {
+    background: var(--panel-bg);
+    color: #e2e8f0;
+    font-family: 'Inter', system-ui, sans-serif;
+    overflow: auto;
+  }
+  .font-mono-tech { font-family: 'JetBrains Mono', monospace; }
+  .iecc-panel-bg {
+    background-color: #121518;
+    background-image:
+      radial-gradient(rgba(255,255,255,0.03) 1px, transparent 0),
+      linear-gradient(to right, rgba(255,255,255,0.015) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.015) 1px, transparent 1px);
+    background-size: 20px 20px, 100px 100px, 100px 100px;
+  }
+  .led-text-green { color: #34d399; text-shadow: 0 0 8px rgba(52,211,153,0.55); }
+  .led-text-amber { color: #fbbf24; text-shadow: 0 0 8px rgba(251,191,36,0.55); }
+  .led-text-red   { color: #f87171; text-shadow: 0 0 8px rgba(248,113,113,0.65); }
+  .panel-btn {
+    background: linear-gradient(180deg, #262c34 0%, #1b2026 100%);
+    border: 1px solid #38414d;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08);
+    transition: all 0.1s ease;
+  }
+  .panel-btn:hover:not(:disabled) {
+    border-color: #64748b;
+    background: linear-gradient(180deg, #2f3741 0%, #21272e 100%);
+  }
+  .panel-btn:active:not(:disabled) { transform: translateY(1px); }
+  .panel-btn.active-blue {
+    background: linear-gradient(180deg, #1d4ed8 0%, #1e3a8a 100%);
+    border-color: #60a5fa; color: #fff;
+  }
+  .panel-btn.active-amber {
+    background: linear-gradient(180deg, #b45309 0%, #78350f 100%);
+    border-color: #fbbf24; color: #fef3c7;
+  }
+  .panel-btn.active-red {
+    background: linear-gradient(180deg, #b91c1c 0%, #7f1d1d 100%);
+    border-color: #f87171; color: #fee2e2;
+  }
+  .panel-btn.route-active {
+    background: linear-gradient(180deg, #065f46 0%, #064e3b 100%);
+    border-color: #34d399; color: #a7f3d0;
+  }
+  @keyframes pulse-border {
+    0%,100% { border-color: rgba(239,68,68,0.9); box-shadow: 0 0 12px rgba(239,68,68,0.35); }
+    50% { border-color: rgba(239,68,68,0.25); box-shadow: none; }
+  }
+  .alarm-flash { animation: pulse-border 0.8s infinite; }
+  #nxCanvas, #castCanvas { cursor: crosshair; touch-action: none; display: block; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: #0f1215; }
+  ::-webkit-scrollbar-thumb { background: #3a4450; border-radius: 4px; }
+
+  /* ---------- CAST / BIG-SCREEN MODE ---------- */
+  #castRoot { display: none; }
+  body.cast-mode #app { display: none !important; }
+  body.cast-mode { overflow: hidden; }
+  body.cast-mode #castRoot { display: flex; flex-direction: column; }
+
+  .cast-route-btn {
+    background: linear-gradient(180deg,#262c34,#1b2026);
+    border: 1px solid #38414d;
+    border-radius: 6px;
+    padding: 6px 9px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(11px, 0.95vw, 16px);
+    color: #cbd5e1;
+    text-align: left;
+    line-height: 1.15;
+    transition: all .12s ease;
+    cursor: pointer;
+  }
+  .cast-route-btn:hover { border-color: #64748b; background: linear-gradient(180deg,#2f3741,#21272e); }
+  .cast-route-btn.is-active {
+    background: linear-gradient(180deg,#065f46,#064e3b);
+    border-color: #34d399; color: #a7f3d0;
+    box-shadow: 0 0 14px rgba(52,211,153,.35);
+  }
+  .cast-train-card {
+    background: #111418; border: 1px solid #2a3038; border-radius: 6px;
+    padding: 5px 8px; font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(10px, 0.85vw, 14px);
+  }
+  .cast-log-row { font-family: 'JetBrains Mono', monospace; font-size: clamp(9px, 0.72vw, 12px); line-height: 1.35; }
+  .cast-kpi-label { font-size: clamp(8px, 0.62vw, 11px); letter-spacing: .16em; }
+  .cast-kpi-value { font-size: clamp(20px, 2.3vw, 44px); line-height: 1; }
+  .cast-clock { font-size: clamp(24px, 2.9vw, 56px); line-height: 1; letter-spacing: .06em; }
+  .cast-title { font-size: clamp(13px, 1.25vw, 24px); letter-spacing: .18em; }
+  .cast-annun { font-size: clamp(13px, 1.35vw, 26px); }
+  .cast-section-label { font-size: clamp(8px, 0.65vw, 12px); letter-spacing: .18em; }
+</style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+<div id="app" class="min-h-screen flex flex-col w-full">
+
+  <!-- HEADER -->
+  <header class="bg-[#181c20] border-b border-[#2a3038] px-3 py-2 flex flex-wrap items-center justify-between gap-2 z-20">
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2 bg-[#0f1215] border border-[#2d3540] px-2.5 py-1 rounded">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span class="font-mono-tech font-bold text-xs sm:text-sm tracking-wider text-slate-100">VICTORIA JUNCTION IECC</span>
+      </div>
+      <span class="hidden md:inline-block text-[11px] font-mono-tech uppercase tracking-widest text-slate-400 bg-[#121518] px-2 py-1 rounded border border-[#262c34]">
+        NX PANEL • V2
+      </span>
+    </div>
+
+    <div class="flex items-center gap-2 bg-[#0e1114] border border-[#2a3038] px-2.5 py-1 rounded-md">
+      <div class="flex flex-col pr-2 border-r border-[#2a3038]">
+        <span class="text-[9px] font-mono-tech uppercase text-slate-500 leading-none">PANEL TIME</span>
+        <span id="simClock" class="font-mono-tech text-sm sm:text-base font-bold led-text-green tracking-wider">08:00:00</span>
+      </div>
+      <div class="flex items-center gap-1">
+        <button onclick="act('speed',{m:0})" class="panel-btn px-2 py-1 rounded text-xs font-mono-tech font-bold text-slate-300" title="Pause (Space)">II</button>
+        <button id="btnSpeed1" onclick="act('speed',{m:1})" class="panel-btn active-blue px-2 py-1 rounded text-xs font-mono-tech font-bold">1x</button>
+        <button id="btnSpeed2" onclick="act('speed',{m:2})" class="panel-btn px-2 py-1 rounded text-xs font-mono-tech font-bold text-slate-300">2x</button>
+        <button id="btnSpeed4" onclick="act('speed',{m:4})" class="panel-btn px-2 py-1 rounded text-xs font-mono-tech font-bold text-slate-300">4x</button>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2 sm:gap-3">
+      <div class="hidden sm:flex items-center gap-3 bg-[#0e1114] border border-[#2a3038] px-3 py-1 rounded-md font-mono-tech text-xs">
+        <div>
+          <span class="text-slate-500 text-[10px]">DISPATCHED</span>
+          <div id="kpiDispatched" class="font-bold text-emerald-400">0</div>
+        </div>
+        <div class="border-l border-[#2a3038] pl-3">
+          <span class="text-slate-500 text-[10px]">DELAY</span>
+          <div id="kpiDelay" class="font-bold text-amber-400">0m</div>
+        </div>
+      </div>
+
+      <select id="levelSelect" onchange="act('level',{level:this.value})" class="bg-[#1b2026] border border-[#38414d] text-slate-200 text-xs font-mono-tech rounded px-2 py-1.5">
+        <option value="level1">LEVEL 1 — Simple Junction</option>
+        <option value="level2" selected>LEVEL 2 — Victoria Junction</option>
+        <option value="level3">LEVEL 3 — Complex Terminal</option>
+      </select>
+
+      <select id="scenarioSelect" onchange="act('scenario',{mode:this.value})" class="bg-[#1b2026] border border-[#38414d] text-slate-200 text-xs font-mono-tech rounded px-2 py-1.5">
+        <option value="normal">NORMAL</option>
+        <option value="rush">RUSH HOUR</option>
+        <option value="failure">POINT FAILURE</option>
+      </select>
+
+      <button id="btnMute" onclick="act('mute',{})" class="panel-btn px-2.5 py-1.5 rounded text-xs font-mono-tech text-slate-200" title="Mute (M)">
+        <span id="muteIcon">🔊</span>
+      </button>
+
+      <!-- CAST CONTROLS -->
+      <div class="flex items-center gap-1 bg-[#0e1114] border border-[#2a3038] rounded-md p-1">
+        <button id="btnCast" onclick="cast.openCast()" class="panel-btn px-3 py-1.5 rounded text-xs font-mono-tech font-bold text-sky-300" title="Open the game full-screen on your 43&quot; TV / second display (K)">
+          📺 CAST
+        </button>
+        <button id="btnCastFull" onclick="cast.enterInlineCast()" class="panel-btn px-2 py-1.5 rounded text-xs font-mono-tech font-bold text-slate-300" title="Go full-screen big-screen mode on this display (F)">
+          ⛶
+        </button>
+      </div>
+      <span id="castStatusPill" class="hidden items-center gap-1.5 px-2 py-1 rounded text-[10px] font-mono-tech font-bold bg-[#0e1114] border border-[#2a3038] text-slate-400">
+        <span id="castDot" class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+        <span id="castStatusText">IDLE</span>
+        <button onclick="cast.stopCast()" class="ml-1 text-rose-400 hover:text-rose-300">✕</button>
+      </span>
+
+      <button onclick="ui.toggleManual(true)" class="panel-btn active-amber px-2.5 py-1.5 rounded text-xs font-mono-tech font-bold">📘 MANUAL</button>
+    </div>
+  </header>
+
+  <!-- STATUS BAR -->
+  <div id="statusBanner" class="bg-[#0e1114] border-b border-[#2a3038] px-3 py-1.5 flex flex-wrap items-center justify-between gap-2 text-xs font-mono-tech">
+    <div class="flex items-center gap-2">
+      <span class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 text-[10px] font-bold">INTERLOCKING</span>
+      <span id="annunciatorText" class="led-text-green font-semibold">SYSTEM READY — SET ROUTE BEFORE TRAINS CAN MOVE</span>
+    </div>
+    <div class="flex items-center gap-3 text-[11px]">
+      <span id="mapStatus" class="text-slate-400">MAP: Victoria Junction</span>
+      <span id="activeEntranceIndicator" class="text-slate-400">ENTRANCE: <strong class="text-slate-200">NONE</strong></span>
+      <button id="btnCancelSelection" onclick="act('clearSel',{})" class="hidden px-2 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-white text-[10px]">ESC</button>
+      <button onclick="act('spawn',{})" class="px-2 py-0.5 rounded bg-emerald-900/60 hover:bg-emerald-800/80 border border-emerald-600/50 text-emerald-300 text-[10px] font-bold">+ SPAWN</button>
+    </div>
+  </div>
+
+  <!-- KEYBOARD HELP -->
+  <div class="bg-[#0c0f12] border-b border-[#22272e] px-3 py-1 text-[10px] font-mono-tech text-slate-500 flex flex-wrap gap-x-4 gap-y-1">
+    <span class="text-slate-400 font-semibold">KEYBOARD:</span>
+    <span><kbd class="bg-[#1e2430] px-1 rounded">Space</kbd> Pause</span>
+    <span><kbd class="bg-[#1e2430] px-1 rounded">1</kbd><kbd class="bg-[#1e2430] px-1 rounded">2</kbd><kbd class="bg-[#1e2430] px-1 rounded">4</kbd> Speed</span>
+    <span><kbd class="bg-[#1e2430] px-1 rounded">S</kbd> Spawn</span>
+    <span><kbd class="bg-[#1e2430] px-1 rounded">C</kbd> Cancel</span>
+    <span><kbd class="bg-[#1e2430] px-1 rounded">Esc</kbd> Clear</span>
+    <span><kbd class="bg-[#1e2430] px-1 rounded">M</kbd> Mute</span>
+    <span><kbd class="bg-[#1e2430] px-1 rounded">K</kbd> Cast</span>
+    <span><kbd class="bg-[#1e2430] px-1 rounded">F</kbd> Fullscreen</span>
+    <span class="text-amber-400/80">| Trains only move when a route is set</span>
+  </div>
+
+  <!-- MAIN WORKSPACE -->
+  <main class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+    <section class="flex-1 flex flex-col min-w-0 iecc-panel-bg relative">
+      <div class="px-3 py-1.5 bg-[#121518]/90 border-b border-[#22272e] flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono-tech text-slate-400">
+        <div class="flex flex-wrap items-center gap-3">
+          <span class="flex items-center gap-1.5"><span class="w-3 h-1 bg-[#525b66] inline-block"></span> IDLE</span>
+          <span class="flex items-center gap-1.5"><span class="w-3 h-1 bg-[#f8fafc] inline-block shadow-[0_0_6px_#fff]"></span> LOCKED</span>
+          <span class="flex items-center gap-1.5"><span class="w-3 h-1 bg-[#ef4444] inline-block"></span> OCCUPIED</span>
+          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#ef4444] border border-white"></span> ENTRANCE</span>
+          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#facc15] border border-slate-900"></span> EXIT</span>
+        </div>
+        <div class="text-[10px] text-slate-500">Trains STOP at red signals until you set a route</div>
+      </div>
+
+      <div id="canvasWrapper" class="flex-1 w-full min-h-[300px] relative flex items-center justify-center p-1 overflow-hidden">
+        <canvas id="nxCanvas" class="rounded border border-[#262c34] bg-[#121518]"></canvas>
+      </div>
+
+      <!-- CONTROLS -->
+      <div class="bg-[#161a1f] border-t border-[#2a3038] p-2.5 space-y-2">
+        <div class="bg-[#101316] border border-[#262c34] rounded p-2">
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-[10px] font-mono-tech font-bold uppercase tracking-wider text-slate-400">INTERLOCKING ROUTE SELECTION</span>
+            <span id="activeRoutesCount" class="text-[10px] font-mono-tech text-sky-400 font-bold">0 ROUTES</span>
+          </div>
+          <div id="routeButtons" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-1.5"></div>
+        </div>
+
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-2.5">
+          <div class="xl:col-span-8 bg-[#101316] border border-[#262c34] rounded p-2">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-[10px] font-mono-tech font-bold uppercase tracking-wider text-slate-400">POINT KEYS (N / A / R)</span>
+            </div>
+            <div id="pointKeysContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-1.5"></div>
+          </div>
+          <div class="xl:col-span-4 bg-[#101316] border border-[#262c34] rounded p-2">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-[10px] font-mono-tech font-bold uppercase tracking-wider text-slate-400">OVERRIDES</span>
+            </div>
+            <div class="grid grid-cols-2 gap-1.5">
+              <button onclick="act('cancelAll',{})" class="panel-btn px-2 py-1.5 rounded text-[11px] font-mono-tech font-semibold text-amber-300">CANCEL IDLE</button>
+              <button id="btnAllSignalsDanger" onclick="act('danger',{})" class="panel-btn active-red px-2 py-1.5 rounded text-[11px] font-mono-tech font-bold">ALL DANGER</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SIDEBAR -->
+    <aside class="w-full lg:w-[360px] bg-[#161a1f] border-t lg:border-t-0 lg:border-l border-[#2a3038] flex flex-col max-h-[480px] lg:max-h-none">
+      <div class="px-3 py-2 bg-[#1a1f25] border-b border-[#2a3038] flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+          <h2 class="font-mono-tech text-xs font-bold tracking-wider uppercase text-slate-200">LIVE TIMETABLE</h2>
+        </div>
+        <span id="activeTrainCount" class="font-mono-tech text-[11px] px-2 py-0.5 rounded bg-[#101316] border border-[#2a3038] text-emerald-400">0 ACTIVE</span>
+      </div>
+      <div id="timetableList" class="flex-1 overflow-y-auto p-2 space-y-2"></div>
+      <div class="h-40 border-t border-[#2a3038] bg-[#101316] flex flex-col">
+        <div class="px-3 py-1.5 bg-[#15191e] border-b border-[#232830] flex items-center justify-between">
+          <span class="font-mono-tech text-[10px] font-bold uppercase tracking-wider text-slate-400">EVENT LOG</span>
+          <button onclick="ui.clearLog()" class="text-[10px] font-mono-tech text-slate-500 hover:text-slate-300">CLEAR</button>
+        </div>
+        <div id="eventLog" class="flex-1 overflow-y-auto p-2 space-y-1 font-mono-tech text-[11px]"></div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<!-- ============================================================
+     BIG-SCREEN CAST ROOT (43" TV)
+     ============================================================ -->
+<div id="castRoot" class="fixed inset-0 bg-[#0b0e11] overflow-hidden select-none z-[60]">
+
+  <!-- TOP BAR -->
+  <div class="flex items-center justify-between gap-4 px-5 py-2.5 bg-[#11151a] border-b-2 border-[#2a3038] shrink-0">
+    <div class="flex items-center gap-3 min-w-0">
+      <span class="w-3.5 h-3.5 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+      <span class="font-mono-tech font-extrabold tracking-[0.18em] text-slate-100 cast-title whitespace-nowrap">VICTORIA JUNCTION IECC</span>
+      <span id="castLevelName" class="font-mono-tech uppercase tracking-widest text-slate-500 border border-[#2a3038] px-2.5 py-0.5 rounded whitespace-nowrap cast-kpi-label">VICTORIA JUNCTION</span>
+      <span id="castLinkBadge" class="font-mono-tech uppercase tracking-widest px-2.5 py-0.5 rounded border border-[#2a3038] text-slate-500 cast-kpi-label">STANDALONE</span>
+    </div>
+    <div class="flex items-center gap-6 shrink-0">
+      <div class="text-center">
+        <div class="font-mono-tech uppercase tracking-widest text-slate-500 cast-kpi-label">PANEL TIME</div>
+        <div id="castClock" class="font-mono-tech font-extrabold led-text-green cast-clock">08:00:00</div>
+      </div>
+      <div class="text-center">
+        <div class="font-mono-tech uppercase tracking-widest text-slate-500 cast-kpi-label">DISPATCHED</div>
+        <div id="castDispatched" class="font-mono-tech font-extrabold text-emerald-400 cast-kpi-value">0</div>
+      </div>
+      <div class="text-center">
+        <div class="font-mono-tech uppercase tracking-widest text-slate-500 cast-kpi-label">DELAY</div>
+        <div id="castDelay" class="font-mono-tech font-extrabold text-amber-400 cast-kpi-value">0m</div>
+      </div>
+      <div class="text-center">
+        <div class="font-mono-tech uppercase tracking-widest text-slate-500 cast-kpi-label">ACTIVE</div>
+        <div id="castActive" class="font-mono-tech font-extrabold text-sky-400 cast-kpi-value">0</div>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <button onclick="act('speed',{m:0})" class="panel-btn px-2.5 py-1.5 rounded font-mono-tech font-bold text-slate-300 text-sm">II</button>
+        <button onclick="act('speed',{m:1})" class="panel-btn px-2.5 py-1.5 rounded font-mono-tech font-bold text-slate-300 text-sm">1x</button>
+        <button onclick="act('speed',{m:2})" class="panel-btn px-2.5 py-1.5 rounded font-mono-tech font-bold text-slate-300 text-sm">2x</button>
+        <button onclick="act('speed',{m:4})" class="panel-btn px-2.5 py-1.5 rounded font-mono-tech font-bold text-slate-300 text-sm">4x</button>
+        <button onclick="cast.toggleFullscreen()" class="panel-btn px-2.5 py-1.5 rounded font-mono-tech font-bold text-slate-300 text-sm" title="Fullscreen">⛶</button>
+        <button onclick="cast.exitCast()" class="panel-btn px-2.5 py-1.5 rounded font-mono-tech font-bold text-rose-300 text-sm" title="Exit cast view">✕</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANNUNCIATOR -->
+  <div id="castAnnunciator" class="px-5 py-1.5 bg-[#0e1216] border-b border-[#22272e] font-mono-tech font-bold led-text-green cast-annun shrink-0 truncate">
+    SYSTEM READY
+  </div>
+
+  <!-- CANVAS -->
+  <div id="castCanvasWrap" class="flex-1 relative min-h-0 p-2">
+    <canvas id="castCanvas" class="w-full h-full rounded border border-[#262c34] bg-[#121518]"></canvas>
+  </div>
+
+  <!-- BOTTOM STRIP -->
+  <div class="grid grid-cols-12 gap-2 px-2 pb-2 h-[27vh] min-h-[140px] shrink-0">
+    <div class="col-span-5 bg-[#101316] border border-[#262c34] rounded p-2 flex flex-col min-h-0">
+      <div class="font-mono-tech uppercase tracking-widest text-slate-500 cast-section-label mb-1">ROUTE SELECTION</div>
+      <div id="castRoutes" class="grid grid-cols-3 gap-1.5 overflow-y-auto flex-1 content-start"></div>
+    </div>
+    <div class="col-span-4 bg-[#101316] border border-[#262c34] rounded p-2 flex flex-col min-h-0">
+      <div class="font-mono-tech uppercase tracking-widest text-slate-500 cast-section-label mb-1">ACTIVE SERVICES</div>
+      <div id="castTrains" class="space-y-1 overflow-y-auto flex-1"></div>
+    </div>
+    <div class="col-span-3 bg-[#101316] border border-[#262c34] rounded p-2 flex flex-col min-h-0">
+      <div class="font-mono-tech uppercase tracking-widest text-slate-500 cast-section-label mb-1">EVENT LOG</div>
+      <div id="castLog" class="space-y-0.5 overflow-y-auto flex-1"></div>
+    </div>
+  </div>
+
+  <!-- WAITING OVERLAY -->
+  <div id="castWaiting" class="absolute inset-0 bg-[#0b0e11]/96 flex flex-col items-center justify-center gap-5 z-20">
+    <div class="text-3xl sm:text-4xl font-mono-tech font-bold text-slate-200 tracking-wider">WAITING FOR CONTROLLER…</div>
+    <div class="text-slate-500 font-mono-tech text-sm">Linking to the operator console on the other window</div>
+    <div class="flex gap-3">
+      <button onclick="cast.goStandalone()" class="panel-btn px-6 py-3 rounded text-base font-mono-tech font-bold text-emerald-300">RUN STANDALONE</button>
+      <button onclick="cast.toggleFullscreen()" class="panel-btn px-6 py-3 rounded text-base font-mono-tech font-bold text-sky-300">⛶ FULLSCREEN</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAP LOADING OVERLAY -->
+<div id="mapLoadingOverlay" class="fixed inset-0 bg-black/80 z-[80] hidden items-center justify-center">
+  <div class="bg-[#181c20] border border-[#38414d] rounded-lg p-6 max-w-sm w-full text-center">
+    <div class="text-amber-400 text-2xl mb-3">⬇</div>
+    <div class="font-mono-tech font-bold text-slate-100 mb-1">LOADING MAP</div>
+    <div id="mapLoadingText" class="text-sm text-slate-400 mb-4">Please wait…</div>
+    <div class="w-full bg-[#0f1215] rounded-full h-2 overflow-hidden">
+      <div id="mapProgressBar" class="bg-sky-500 h-2 rounded-full transition-all duration-300" style="width:0%"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MANUAL -->
+<div id="manualModal" class="fixed inset-0 bg-black/80 z-[70] hidden items-center justify-center p-4">
+  <div class="bg-[#181c20] border border-[#38414d] rounded-lg max-w-2xl w-full max-h-[85vh] flex flex-col">
+    <div class="px-4 py-3 border-b border-[#2a3038] flex items-center justify-between bg-[#13161a] rounded-t-lg">
+      <h3 class="font-mono-tech font-bold text-slate-100">NX PANEL — OPERATING MANUAL</h3>
+      <button onclick="ui.toggleManual(false)" class="panel-btn px-2.5 py-1 rounded text-xs font-mono-tech">✕</button>
+    </div>
+    <div class="p-4 overflow-y-auto text-sm text-slate-300 space-y-3">
+      <p><strong class="text-emerald-400">Core Rule:</strong> Trains stop at red signals. They only move when you set a route and the signal clears.</p>
+      <p><strong class="text-sky-400">How to play:</strong></p>
+      <ol class="list-decimal pl-5 space-y-1">
+        <li>Spawn trains (they will stop at the first red signal).</li>
+        <li>Set a route using the Route Buttons or by clicking Red Entrance → Yellow Exit.</li>
+        <li>Signal clears → train proceeds along the locked route.</li>
+        <li>Route releases automatically behind the train.</li>
+      </ol>
+      <p><strong class="text-amber-400">Levels:</strong> Changing level loads a different track layout (cached locally after first use).</p>
+      <p><strong class="text-fuchsia-400">Casting to your 43" TV:</strong></p>
+      <ol class="list-decimal pl-5 space-y-1">
+        <li>Connect the TV as a second / extended display (HDMI), then press <kbd class="bg-[#1e2430] px-1 rounded">K</kbd> or click <strong>📺 CAST</strong>.</li>
+        <li>The game opens a dedicated big-screen window on the TV and takes over the simulation.</li>
+        <li>Click <strong>⛶ FULLSCREEN</strong> once inside that window (browsers require one click for fullscreen).</li>
+        <li>Your keyboard and mouse now drive the TV view — click signals, press S / Space / 1-2-4 exactly as before.</li>
+        <li>Press <strong>✕</strong> in the TV window to hand control back to this console.</li>
+        <li>No second display? Press <kbd class="bg-[#1e2430] px-1 rounded">F</kbd> for in-window big-screen mode.</li>
+      </ol>
+      <p><strong>Keyboard:</strong> Space = Pause, 1/2/4 = Speed, S = Spawn, C = Cancel Idle Routes, Esc = Clear selection, M = Mute, K = Cast, F = Fullscreen, H = Manual, D = All Danger.</p>
+    </div>
+    <div class="px-4 py-3 border-t border-[#2a3038] bg-[#13161a] rounded-b-lg flex justify-end">
+      <button onclick="ui.toggleManual(false)" class="panel-btn active-blue px-4 py-1.5 rounded text-xs font-mono-tech font-bold">CLOSE</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   SECURITY & UTILITY HELPERS
+   ============================================================ */
+function safeSetText(el, text) { if (el) el.textContent = text; }
+function safeLocalStorageGet(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+function safeLocalStorageSet(key, value) { try { localStorage.setItem(key, value); return true; } catch (e) { return false; } }
+
+// roundRect polyfill (Safari < 16)
+if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+    if (typeof r === 'number') r = [r, r, r, r];
+    else if (!Array.isArray(r)) r = [0, 0, 0, 0];
+    else if (r.length === 1) r = [r[0], r[0], r[0], r[0]];
+    const [tl, tr, br, bl] = r;
+    this.beginPath();
+    this.moveTo(x + tl, y);
+    this.lineTo(x + w - tr, y);
+    this.quadraticCurveTo(x + w, y, x + w, y + tr);
+    this.lineTo(x + w, y + h - br);
+    this.quadraticCurveTo(x + w, y + h, x + w - br, y + h);
+    this.lineTo(x + bl, y + h);
+    this.quadraticCurveTo(x, y + h, x, y + h - bl);
+    this.lineTo(x, y + tl);
+    this.quadraticCurveTo(x, y, x + tl, y);
+    this.closePath();
+    return this;
+  };
+}
+
+/* ============================================================
+   MAP DATA + MANAGER
+   ============================================================ */
+const MAP_SOURCES = {
+  level1: {
+    name: "Simple Junction",
+    data: {
+      trackCircuits: [
+        {id:'TC_APP',name:'Approach',len:220,pts:[[40,220],[260,220]],tdPos:[150,200]},
+        {id:'TC_THROAT',name:'Throat',len:160,pts:[[260,220],[420,220]]},
+        {id:'TC_PLAT',name:'Platform',len:300,pts:[[420,220],[780,220]],tdPos:[600,200],isPlatform:'PLAT 1'},
+        {id:'TC_EXIT',name:'Exit',len:200,pts:[[780,220],[1050,220]],tdPos:[915,200]}
+      ],
+      points: [{id:'P1',x:320,y:220,tc:'TC_THROAT',normalVec:[40,0],revVec:[30,25]}],
+      signals: [
+        {id:'S1',x:250,y:220,dir:1,hasEntrance:true,hasExit:false,approachTC:'TC_APP'},
+        {id:'S2',x:770,y:220,dir:1,hasEntrance:true,hasExit:true,approachTC:'TC_PLAT'},
+        {id:'S3',x:1040,y:220,dir:1,hasEntrance:false,hasExit:true}
+      ],
+      routes: [
+        {id:'R1',entrance:'S1',exit:'S2',desc:'App → Plat',tcs:['TC_THROAT','TC_PLAT'],points:{P1:'N'}},
+        {id:'R2',entrance:'S2',exit:'S3',desc:'Plat → Exit',tcs:['TC_EXIT'],points:{}}
+      ]
+    }
+  },
+  level2: { name: "Victoria Junction", data: null },
+  level3: {
+    name: "Complex Terminal",
+    data: {
+      trackCircuits: [
+        {id:'TC_W1',name:'West App 1',len:180,pts:[[30,120],[210,120]],tdPos:[120,100]},
+        {id:'TC_W2',name:'West App 2',len:180,pts:[[30,280],[210,280]],tdPos:[120,300]},
+        {id:'TC_TH1',name:'Throat Upper',len:150,pts:[[210,120],[380,120]]},
+        {id:'TC_TH2',name:'Throat Lower',len:150,pts:[[210,280],[380,280]]},
+        {id:'TC_P1',name:'Platform 1',len:300,pts:[[380,80],[740,80]],tdPos:[560,60],isPlatform:'PLAT 1'},
+        {id:'TC_P2',name:'Platform 2',len:300,pts:[[380,160],[740,160]],tdPos:[560,140],isPlatform:'PLAT 2'},
+        {id:'TC_P3',name:'Platform 3',len:300,pts:[[380,240],[740,240]],tdPos:[560,220],isPlatform:'PLAT 3'},
+        {id:'TC_P4',name:'Platform 4',len:300,pts:[[380,320],[740,320]],tdPos:[560,340],isPlatform:'PLAT 4'},
+        {id:'TC_E1',name:'East Exit 1',len:180,pts:[[740,120],[1000,120]],tdPos:[870,100]},
+        {id:'TC_E2',name:'East Exit 2',len:180,pts:[[740,280],[1000,280]],tdPos:[870,300]}
+      ],
+      points: [
+        {id:'P1',x:260,y:120,tc:'TC_TH1',normalVec:[35,0],revVec:[25,30]},
+        {id:'P2',x:260,y:280,tc:'TC_TH2',normalVec:[35,0],revVec:[25,-30]},
+        {id:'P3',x:700,y:120,tc:'TC_E1',normalVec:[-35,0],revVec:[-25,30]},
+        {id:'P4',x:700,y:280,tc:'TC_E2',normalVec:[-35,0],revVec:[-25,-30]}
+      ],
+      signals: [
+        {id:'S1',x:200,y:120,dir:1,hasEntrance:true,hasExit:false,approachTC:'TC_W1'},
+        {id:'S2',x:200,y:280,dir:1,hasEntrance:true,hasExit:false,approachTC:'TC_W2'},
+        {id:'S3',x:730,y:80,dir:1,hasEntrance:true,hasExit:true,approachTC:'TC_P1'},
+        {id:'S4',x:730,y:160,dir:1,hasEntrance:true,hasExit:true,approachTC:'TC_P2'},
+        {id:'S5',x:730,y:240,dir:1,hasEntrance:true,hasExit:true,approachTC:'TC_P3'},
+        {id:'S6',x:730,y:320,dir:1,hasEntrance:true,hasExit:true,approachTC:'TC_P4'},
+        {id:'S7',x:990,y:120,dir:1,hasEntrance:false,hasExit:true},
+        {id:'S8',x:990,y:280,dir:1,hasEntrance:false,hasExit:true}
+      ],
+      routes: [
+        {id:'R1',entrance:'S1',exit:'S3',desc:'W1 → P1',tcs:['TC_TH1','TC_P1'],points:{P1:'N'}},
+        {id:'R2',entrance:'S1',exit:'S4',desc:'W1 → P2',tcs:['TC_TH1','TC_P2'],points:{P1:'R'}},
+        {id:'R3',entrance:'S2',exit:'S5',desc:'W2 → P3',tcs:['TC_TH2','TC_P3'],points:{P2:'N'}},
+        {id:'R4',entrance:'S2',exit:'S6',desc:'W2 → P4',tcs:['TC_TH2','TC_P4'],points:{P2:'R'}},
+        {id:'R5',entrance:'S3',exit:'S7',desc:'P1 → East',tcs:['TC_E1'],points:{P3:'N'}},
+        {id:'R6',entrance:'S4',exit:'S7',desc:'P2 → East',tcs:['TC_E1'],points:{P3:'R'}},
+        {id:'R7',entrance:'S5',exit:'S8',desc:'P3 → East',tcs:['TC_E2'],points:{P4:'N'}},
+        {id:'R8',entrance:'S6',exit:'S8',desc:'P4 → East',tcs:['TC_E2'],points:{P4:'R'}}
+      ]
+    }
+  }
+};
+
+// Full Victoria Junction layout
+MAP_SOURCES.level2.data = {
+  trackCircuits: [
+    {id:'TC_UM_APP',name:'Up Main Approach',len:240,pts:[[30,175],[220,175]],tdPos:[110,154]},
+    {id:'TC_DM_EXIT',name:'Down Main West Exit',len:240,pts:[[220,345],[30,345]],tdPos:[110,368]},
+    {id:'TC_W_THROAT_U',name:'West Throat Upper',len:190,pts:[[220,175],[380,175]]},
+    {id:'TC_W_THROAT_D',name:'West Throat Lower',len:190,pts:[[380,345],[220,345]]},
+    {id:'TC_X_P1_P2',name:'Crossover P1-P2',len:140,pts:[[245,175],[335,255]]},
+    {id:'TC_X_P3',name:'Turnout P3',len:130,pts:[[275,345],[355,425]]},
+    {id:'TC_PLAT1',name:'Platform 1',len:360,pts:[[380,105],[780,105]],tdPos:[580,84],isPlatform:'PLAT 1'},
+    {id:'TC_W_TO_P1',name:'West Lead Plat1',len:110,pts:[[300,175],[380,105]]},
+    {id:'TC_P1_TO_E',name:'East Lead Plat1',len:110,pts:[[780,105],[860,175]]},
+    {id:'TC_UM_THRU',name:'Up Main Through',len:400,pts:[[380,175],[780,175]],tdPos:[580,154]},
+    {id:'TC_PLAT2',name:'Platform 2',len:400,pts:[[380,255],[780,255]],tdPos:[580,234],isPlatform:'PLAT 2'},
+    {id:'TC_W_TO_P2',name:'West Lead Plat2',len:90,pts:[[335,255],[380,255]]},
+    {id:'TC_P2_TO_E',name:'East Lead Plat2',len:90,pts:[[780,255],[825,255]]},
+    {id:'TC_DM_THRU',name:'Down Main Through',len:400,pts:[[780,345],[380,345]],tdPos:[580,368]},
+    {id:'TC_PLAT3',name:'Platform 3',len:380,pts:[[380,425],[780,425]],tdPos:[580,448],isPlatform:'PLAT 3'},
+    {id:'TC_W_TO_P3',name:'West Lead Plat3',len:70,pts:[[355,425],[380,425]]},
+    {id:'TC_P3_TO_E',name:'East Lead Plat3',len:70,pts:[[780,425],[805,425]]},
+    {id:'TC_E_THROAT_U',name:'East Throat Upper',len:190,pts:[[780,175],[960,175]]},
+    {id:'TC_E_THROAT_D',name:'East Throat Lower',len:190,pts:[[960,345],[780,345]]},
+    {id:'TC_X_P4_P5',name:'Crossover P4-P5',len:140,pts:[[825,255],[915,175]]},
+    {id:'TC_X_P5_D',name:'Crossover P5-Down',len:130,pts:[[825,255],[895,345]]},
+    {id:'TC_X_P6',name:'Turnout P6',len:130,pts:[[805,425],[915,345]]},
+    {id:'TC_UM_EXIT',name:'Up Main East Exit',len:230,pts:[[960,175],[1165,175]],tdPos:[1065,154]},
+    {id:'TC_DM_APP',name:'Down Main East Approach',len:230,pts:[[1165,345],[960,345]],tdPos:[1065,368]},
+    {id:'TC_BR_APP',name:'South Branch Portal',len:240,pts:[[1165,425],[805,425]],tdPos:[1065,448]}
+  ],
+  points: [
+    {id:'P1',x:245,y:175,tc:'TC_W_THROAT_U',normalVec:[35,0],revVec:[28,25]},
+    {id:'P2',x:300,y:175,tc:'TC_W_THROAT_U',normalVec:[35,0],revVec:[28,-25]},
+    {id:'P3',x:275,y:345,tc:'TC_W_THROAT_D',normalVec:[-35,0],revVec:[28,28]},
+    {id:'P4',x:860,y:175,tc:'TC_E_THROAT_U',normalVec:[-35,0],revVec:[-28,-25]},
+    {id:'P5',x:825,y:255,tc:'TC_P2_TO_E',normalVec:[28,-25],revVec:[25,32]},
+    {id:'P6',x:805,y:425,tc:'TC_P3_TO_E',normalVec:[35,0],revVec:[32,-24]}
+  ],
+  signals: [
+    {id:'S1',x:215,y:175,dir:1,hasEntrance:true,hasExit:false,approachTC:'TC_UM_APP'},
+    {id:'S2',x:225,y:345,dir:-1,hasEntrance:false,hasExit:true},
+    {id:'S3',x:775,y:105,dir:1,hasEntrance:true,hasExit:true,approachTC:'TC_PLAT1'},
+    {id:'S4',x:775,y:175,dir:1,hasEntrance:true,hasExit:true,approachTC:'TC_UM_THRU'},
+    {id:'S5',x:775,y:255,dir:1,hasEntrance:true,hasExit:true,approachTC:'TC_PLAT2'},
+    {id:'S6',x:385,y:255,dir:-1,hasEntrance:true,hasExit:true,approachTC:'TC_PLAT2'},
+    {id:'S7',x:385,y:345,dir:-1,hasEntrance:true,hasExit:true,approachTC:'TC_DM_THRU'},
+    {id:'S8',x:775,y:425,dir:1,hasEntrance:true,hasExit:true,approachTC:'TC_PLAT3'},
+    {id:'S9',x:385,y:425,dir:-1,hasEntrance:true,hasExit:true,approachTC:'TC_PLAT3'},
+    {id:'S10',x:965,y:175,dir:1,hasEntrance:false,hasExit:true},
+    {id:'S11',x:965,y:345,dir:-1,hasEntrance:true,hasExit:false,approachTC:'TC_DM_APP'},
+    {id:'S12',x:965,y:425,dir:-1,hasEntrance:true,hasExit:true,approachTC:'TC_BR_APP'}
+  ],
+  routes: [
+    {id:'R_S1_S3',entrance:'S1',exit:'S3',desc:'Up → Plat 1',tcs:['TC_W_THROAT_U','TC_W_TO_P1','TC_PLAT1'],points:{P1:'N',P2:'R'}},
+    {id:'R_S1_S4',entrance:'S1',exit:'S4',desc:'Up → Thru',tcs:['TC_W_THROAT_U','TC_UM_THRU'],points:{P1:'N',P2:'N'}},
+    {id:'R_S1_S5',entrance:'S1',exit:'S5',desc:'Up → Plat 2',tcs:['TC_W_THROAT_U','TC_X_P1_P2','TC_W_TO_P2','TC_PLAT2'],points:{P1:'R'}},
+    {id:'R_S3_S10',entrance:'S3',exit:'S10',desc:'Plat1 → East',tcs:['TC_P1_TO_E','TC_E_THROAT_U','TC_UM_EXIT'],points:{P4:'R'}},
+    {id:'R_S4_S10',entrance:'S4',exit:'S10',desc:'Thru → East',tcs:['TC_E_THROAT_U','TC_UM_EXIT'],points:{P4:'N'}},
+    {id:'R_S5_S10',entrance:'S5',exit:'S10',desc:'Plat2 → East',tcs:['TC_P2_TO_E','TC_X_P4_P5','TC_E_THROAT_U','TC_UM_EXIT'],points:{P5:'N',P4:'N'}},
+    {id:'R_S8_S12',entrance:'S8',exit:'S12',desc:'Plat3 → Branch',tcs:['TC_P3_TO_E','TC_BR_APP'],points:{P6:'N'}},
+    {id:'R_S11_S7',entrance:'S11',exit:'S7',desc:'Down → Thru',tcs:['TC_E_THROAT_D','TC_DM_THRU'],points:{P6:'N'}},
+    {id:'R_S11_S6',entrance:'S11',exit:'S6',desc:'Down → Plat2',tcs:['TC_E_THROAT_D','TC_X_P5_D','TC_P2_TO_E','TC_PLAT2'],points:{P5:'R'}},
+    {id:'R_S11_S9',entrance:'S11',exit:'S9',desc:'Down → Plat3',tcs:['TC_E_THROAT_D','TC_X_P6','TC_P3_TO_E','TC_PLAT3'],points:{P6:'R'}},
+    {id:'R_S12_S9',entrance:'S12',exit:'S9',desc:'Branch → Plat3',tcs:['TC_P3_TO_E','TC_PLAT3'],points:{P6:'N'}},
+    {id:'R_S7_S2',entrance:'S7',exit:'S2',desc:'Thru → West',tcs:['TC_W_THROAT_D','TC_DM_EXIT'],points:{P3:'N'}},
+    {id:'R_S6_S2',entrance:'S6',exit:'S2',desc:'Plat2 → West',tcs:['TC_W_TO_P2','TC_X_P1_P2','TC_W_THROAT_U','TC_DM_EXIT'],points:{P1:'R'}},
+    {id:'R_S9_S2',entrance:'S9',exit:'S2',desc:'Plat3 → West',tcs:['TC_W_TO_P3','TC_X_P3','TC_W_THROAT_D','TC_DM_EXIT'],points:{P3:'R'}}
+  ]
+};
+
+class MapManager {
+  constructor() {
+    this.currentLevel = 'level2';
+    this.cachePrefix = 'nx-map-v4-';
+  }
+
+  async loadLevel(levelId) {
+    if (!MAP_SOURCES[levelId]) return;
+    this.currentLevel = levelId;
+    const source = MAP_SOURCES[levelId];
+    const cacheKey = this.cachePrefix + levelId;
+
+    const overlay = document.getElementById('mapLoadingOverlay');
+    const progress = document.getElementById('mapProgressBar');
+    const text = document.getElementById('mapLoadingText');
+    if (overlay) { overlay.classList.remove('hidden'); overlay.classList.add('flex'); }
+    if (progress) progress.style.width = '20%';
+    safeSetText(text, `Checking cache for ${source.name}…`);
+
+    let mapData = null;
+    const cached = safeLocalStorageGet(cacheKey);
+    if (cached) {
+      try {
+        mapData = JSON.parse(cached);
+        if (progress) progress.style.width = '100%';
+        safeSetText(text, `Loaded ${source.name} from cache`);
+        await new Promise(r => setTimeout(r, 220));
+      } catch (e) { mapData = null; }
+    }
+
+    if (!mapData) {
+      safeSetText(text, `Loading ${source.name}…`);
+      if (progress) progress.style.width = '60%';
+      await new Promise(r => setTimeout(r, 320));
+      mapData = source.data;
+      safeLocalStorageSet(cacheKey, JSON.stringify(mapData));
+      if (progress) progress.style.width = '100%';
+      safeSetText(text, `Loaded ${source.name}`);
+      await new Promise(r => setTimeout(r, 160));
+    }
+
+    if (overlay) { overlay.classList.add('hidden'); overlay.classList.remove('flex'); }
+    safeSetText(document.getElementById('mapStatus'), `MAP: ${source.name}`);
+    safeSetText(document.getElementById('castLevelName'), source.name.toUpperCase());
+    sim.applyMap(mapData);
+    ui.setAnnunciator(`LEVEL LOADED: ${source.name.toUpperCase()} — SET ROUTES TO MOVE TRAINS`, 'green');
+    ui.log(`MAP LOADED: ${source.name}`, 'success');
+  }
+}
+const mapManager = new MapManager();
+
+/* ============================================================
+   AUDIO
+   ============================================================ */
+class SignalBoxAudio {
+  constructor() { this.ctx = null; this.muted = false; }
+  init() {
+    if (!this.ctx) {
+      try {
+        const A = window.AudioContext || window.webkitAudioContext;
+        if (A) this.ctx = new A();
+      } catch (e) {}
+    }
+    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
+  }
+  toggleMute() {
+    this.muted = !this.muted;
+    const icon = document.getElementById('muteIcon');
+    if (icon) icon.textContent = this.muted ? '🔇' : '🔊';
+  }
+  _tone(type, freq, dur, vol, sweepTo) {
+    if (this.muted) return;
+    this.init();
+    if (!this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, now);
+      if (sweepTo) osc.frequency.exponentialRampToValueAtTime(sweepTo, now + dur);
+      gain.gain.setValueAtTime(vol, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+      osc.connect(gain); gain.connect(this.ctx.destination);
+      osc.start(now); osc.stop(now + dur + 0.01);
+    } catch (e) {}
+  }
+  playRelayClick(pitch = 950) { this._tone('triangle', pitch, 0.04, 0.12, 140); }
+  playRouteSet() {
+    if (this.muted) return;
+    this.init(); if (!this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      [660, 880].forEach((freq, i) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + i * 0.06);
+        gain.gain.setValueAtTime(0.08, now + i * 0.06);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.06 + 0.14);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(now + i * 0.06); osc.stop(now + i * 0.06 + 0.15);
+      });
+    } catch (e) {}
+  }
+  playConflictBuzz() { this._tone('sawtooth', 145, 0.22, 0.1); }
+  playTrainBell() { this._tone('sine', 1318.5, 0.5, 0.1); }
+  playEmergencyAlarm() {
+    if (this.muted) return;
+    this.init(); if (!this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      for (let i = 0; i < 3; i++) {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(i % 2 === 0 ? 780 : 580, now + i * 0.14);
+        gain.gain.setValueAtTime(0.1, now + i * 0.14);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.14 + 0.13);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(now + i * 0.14); osc.stop(now + i * 0.14 + 0.14);
+      }
+    } catch (e) {}
+  }
+}
+const sound = new SignalBoxAudio();
+
+/* ============================================================
+   RENDERER REGISTRY
+   ============================================================ */
+const rendererRegistry = [];
+function registerRenderer(r) { rendererRegistry.push(r); return r; }
+function syncRenderers(w, h) {
+  rendererRegistry.forEach(r => {
+    r.logicalW = w; r.logicalH = h;
+    r.resize();
+  });
+  buildCastRoutes();
+}
+
+/* ============================================================
+   SIMULATOR
+   ============================================================ */
+class NXSimulator {
+  constructor() {
+    this.timeSeconds = 8 * 3600;
+    this.speed = 1;
+    this.scenario = 'normal';
+    this.tcs = {};
+    this.points = {};
+    this.signals = {};
+    this.routesDef = [];
+    this.activeRoutes = [];
+    this.trains = [];
+    this.selectedEntrance = null;
+    this.hoveredButton = null;
+    this.allSignalsDanger = false;
+    this.dispatchedCount = 0;
+    this.totalDelaySeconds = 0;
+    this.nextSpawnTimer = 8;
+    this.trainCounter = 1;
+    this.logicalW = 1200;
+    this.logicalH = 510;
+  }
+
+  /* ---- serialisation for cast sync ---- */
+  serialize() {
+    return {
+      timeSeconds: this.timeSeconds,
+      speed: this.speed,
+      scenario: this.scenario,
+      dispatchedCount: this.dispatchedCount,
+      totalDelaySeconds: this.totalDelaySeconds,
+      trainCounter: this.trainCounter,
+      nextSpawnTimer: this.nextSpawnTimer,
+      allSignalsDanger: this.allSignalsDanger,
+      selectedEntrance: this.selectedEntrance,
+      logicalW: this.logicalW,
+      logicalH: this.logicalH,
+      tcs: this.tcs,
+      points: this.points,
+      signals: this.signals,
+      routesDef: this.routesDef,
+      activeRoutes: this.activeRoutes,
+      trains: this.trains
+    };
+  }
+
+  deserialize(s) {
+    if (!s) return;
+    Object.assign(this, s);
+    syncRenderers(this.logicalW, this.logicalH);
+  }
+
+  applyMap(mapData) {
+    if (!mapData) return;
+    this.tcs = {};
+    (mapData.trackCircuits || []).forEach(d => {
+      this.tcs[d.id] = { ...d, occupiedBy: null, lockedByRoute: null };
+    });
+    this.points = {};
+    (mapData.points || []).forEach(d => {
+      this.points[d.id] = { ...d, position: 'N', mode: 'AUTO', failed: false, lockedByRoute: null };
+    });
+    this.signals = {};
+    (mapData.signals || []).forEach(d => {
+      this.signals[d.id] = { ...d, aspect: 'RED', routeSet: null };
+    });
+    this.routesDef = mapData.routes || [];
+    this.activeRoutes = [];
+    this.trains = [];
+    this.selectedEntrance = null;
+    this.allSignalsDanger = false;
+    this.dispatchedCount = 0;
+    this.totalDelaySeconds = 0;
+    this.trainCounter = 1;
+    this.timeSeconds = 8 * 3600;
+
+    let maxX = 900, maxY = 420;
+    Object.values(this.tcs).forEach(tc => {
+      (tc.pts || []).forEach(([x, y]) => {
+        maxX = Math.max(maxX, x + 60);
+        maxY = Math.max(maxY, y + 50);
+      });
+    });
+    this.logicalW = maxX;
+    this.logicalH = maxY;
+
+    syncRenderers(this.logicalW, this.logicalH);
+    ui.renderPointKeys();
+    ui.renderRouteButtons();
+    this.loadScenario(this.scenario);
+  }
+
+  loadScenario(mode) {
+    this.scenario = mode;
+    this.activeRoutes = [];
+    this.trains = [];
+    Object.values(this.tcs).forEach(tc => { tc.occupiedBy = null; tc.lockedByRoute = null; });
+    Object.values(this.points).forEach(pt => {
+      pt.lockedByRoute = null; pt.failed = false;
+      if (pt.mode === 'AUTO') pt.position = 'N';
+    });
+    Object.values(this.signals).forEach(sig => { sig.routeSet = null; sig.aspect = 'RED'; });
+    this.allSignalsDanger = false;
+    this.dispatchedCount = 0;
+    this.totalDelaySeconds = 0;
+    this.trainCounter = 1;
+    this.timeSeconds = 8 * 3600;
+    this.selectedEntrance = null;
+
+    if (mode === 'failure' && this.points['P3']) {
+      this.points['P3'].failed = true;
+      this.points['P3'].position = 'N';
+      ui.log('ALARM: POINT P3 FAILED', 'error');
+      ui.setAnnunciator('POINT P3 FAILURE — USE ALTERNATE ROUTES', 'amber');
+      sound.playEmergencyAlarm();
+    } else {
+      ui.setAnnunciator('SYSTEM READY — SET A ROUTE BEFORE TRAINS CAN PROCEED', 'green');
+    }
+
+    const approaches = this.getFreeApproaches();
+    if (approaches.length) {
+      this.spawnTrain({
+        headcode: '1A01', type: 'EXPRESS', origin: 'WEST', dest: 'EAST',
+        targetPlat: 'PLAT 1', entryTC: approaches[0].id,
+        exitSignal: Object.values(this.signals).find(s => s.hasExit)?.id || 'S3',
+        dwellNeeded: 14
+      });
+    }
+    this.nextSpawnTimer = mode === 'rush' ? 14 : 28;
+    ui.renderPointKeys();
+    ui.renderRouteButtons();
+    ui.updateKPIs();
+  }
+
+  getFreeApproaches() {
+    return Object.values(this.tcs).filter(tc =>
+      (tc.id.includes('APP') || tc.id === 'TC_W1' || tc.id === 'TC_W2') && !tc.occupiedBy
+    );
+  }
+
+  setSpeed(m) {
+    this.speed = m;
+    [0, 1, 2, 4].forEach(s => {
+      const b = document.getElementById('btnSpeed' + s);
+      if (b) b.classList.toggle('active-blue', s === m);
+    });
+    sound.playRelayClick(800);
+  }
+
+  handleButtonClick(sid, type, cancel = false) {
+    sound.init();
+    const sig = this.signals[sid];
+    if (!sig) return;
+
+    if (cancel && type === 'ENTRANCE') {
+      if (sig.routeSet) this.cancelRoute(sig.routeSet);
+      else if (this.selectedEntrance === sid) this.clearEntranceSelection();
+      return;
+    }
+
+    if (type === 'ENTRANCE' && sig.hasEntrance) {
+      sound.playRelayClick(1050);
+      if (sig.routeSet && this.selectedEntrance === sid) {
+        this.cancelRoute(sig.routeSet);
+        this.clearEntranceSelection();
+        return;
+      }
+      this.selectedEntrance = sid;
+      const ind = document.getElementById('activeEntranceIndicator');
+      if (ind) ind.innerHTML = `ENTRANCE: <strong class="text-red-400">${sid}</strong>`;
+      document.getElementById('btnCancelSelection')?.classList.remove('hidden');
+      ui.setAnnunciator(`ENTRANCE ${sid} SELECTED — CHOOSE EXIT`, 'amber');
+      return;
+    }
+
+    if (type === 'EXIT' && sig.hasExit && this.selectedEntrance) {
+      const e = this.selectedEntrance;
+      this.clearEntranceSelection();
+      this.attemptSetRoute(e, sid);
+      return;
+    }
+
+    if (type === 'EXIT' && !this.selectedEntrance) {
+      sound.playConflictBuzz();
+      ui.setAnnunciator('SELECT RED ENTRANCE FIRST', 'amber');
+    }
+  }
+
+  clearEntranceSelection() {
+    this.selectedEntrance = null;
+    const ind = document.getElementById('activeEntranceIndicator');
+    if (ind) ind.innerHTML = `ENTRANCE: <strong class="text-slate-200">NONE</strong>`;
+    document.getElementById('btnCancelSelection')?.classList.add('hidden');
+  }
+
+  attemptSetRoute(entranceId, exitId) {
+    if (this.allSignalsDanger) {
+      this.allSignalsDanger = false;
+      document.getElementById('btnAllSignalsDanger')?.classList.remove('alarm-flash');
+    }
+    const routeDef = this.routesDef.find(r => r.entrance === entranceId && r.exit === exitId);
+    if (!routeDef) {
+      sound.playConflictBuzz();
+      ui.setAnnunciator(`NO ROUTE ${entranceId}→${exitId}`, 'red');
+      return false;
+    }
+    if (this.signals[entranceId]?.routeSet) {
+      sound.playConflictBuzz();
+      ui.setAnnunciator(`ROUTE ALREADY SET FROM ${entranceId}`, 'red');
+      return false;
+    }
+
+    for (const tcId of routeDef.tcs) {
+      const tc = this.tcs[tcId];
+      if (!tc) continue;
+      if (tc.lockedByRoute) {
+        sound.playConflictBuzz();
+        ui.setAnnunciator(`CONFLICT: ${tc.name}`, 'red');
+        return false;
+      }
+      if (tc.occupiedBy) {
+        sound.playConflictBuzz();
+        ui.setAnnunciator(`OCCUPIED BY ${tc.occupiedBy}`, 'red');
+        return false;
+      }
+    }
+
+    for (const [ptId, req] of Object.entries(routeDef.points || {})) {
+      const pt = this.points[ptId];
+      if (!pt) continue;
+      if (pt.failed && pt.position !== req) {
+        sound.playConflictBuzz();
+        ui.setAnnunciator(`POINT ${ptId} FAILED`, 'red');
+        return false;
+      }
+      if (pt.mode !== 'AUTO' && pt.mode !== req) {
+        sound.playConflictBuzz();
+        ui.setAnnunciator(`POINT ${ptId} KEYED ${pt.mode}`, 'red');
+        return false;
+      }
+    }
+
+    for (const [ptId, req] of Object.entries(routeDef.points || {})) {
+      if (this.points[ptId]) {
+        this.points[ptId].position = req;
+        this.points[ptId].lockedByRoute = routeDef.id;
+      }
+    }
+    for (const tcId of routeDef.tcs) {
+      if (this.tcs[tcId]) this.tcs[tcId].lockedByRoute = routeDef.id;
+    }
+
+    this.activeRoutes.push({ ...routeDef, remainingTCs: [...routeDef.tcs] });
+    if (this.signals[entranceId]) this.signals[entranceId].routeSet = routeDef.id;
+
+    this.recomputeSignalAspects();
+    sound.playRouteSet();
+    ui.setAnnunciator(`ROUTE LOCKED: ${entranceId}→${exitId}`, 'green');
+    ui.log(`ROUTE SET: ${entranceId}→${exitId}`, 'success');
+    ui.updateRouteCounter();
+    ui.renderRouteButtons();
+    return true;
+  }
+
+  cancelRoute(routeId, silent = false) {
+    const idx = this.activeRoutes.findIndex(r => r.id === routeId);
+    if (idx === -1) return false;
+    const route = this.activeRoutes[idx];
+
+    if (route.remainingTCs.some(id => this.tcs[id]?.occupiedBy)) {
+      if (!silent) {
+        sound.playConflictBuzz();
+        ui.setAnnunciator('ROUTE OCCUPIED', 'red');
+      }
+      return false;
+    }
+
+    route.remainingTCs.forEach(id => {
+      if (this.tcs[id]?.lockedByRoute === routeId) this.tcs[id].lockedByRoute = null;
+    });
+    Object.keys(route.points || {}).forEach(pt => {
+      if (this.points[pt]?.lockedByRoute === routeId) this.points[pt].lockedByRoute = null;
+    });
+    if (this.signals[route.entrance]?.routeSet === routeId) {
+      this.signals[route.entrance].routeSet = null;
+    }
+
+    this.activeRoutes.splice(idx, 1);
+    this.recomputeSignalAspects();
+
+    if (!silent) {
+      sound.playRelayClick(620);
+      ui.setAnnunciator('ROUTE CANCELLED', 'amber');
+      ui.log(`CANCELLED ${route.entrance}→${route.exit}`, 'info');
+    }
+    ui.updateRouteCounter();
+    ui.renderRouteButtons();
+    return true;
+  }
+
+  cancelAllUnoccupiedRoutes() {
+    let count = 0;
+    [...this.activeRoutes].forEach(r => { if (this.cancelRoute(r.id, true)) count++; });
+    sound.playRelayClick(650);
+    ui.setAnnunciator(`CANCELLED ${count} ROUTES`, 'amber');
+    ui.updateRouteCounter();
+    ui.renderRouteButtons();
+  }
+
+  emergencyAllDanger() {
+    this.allSignalsDanger = !this.allSignalsDanger;
+    const btn = document.getElementById('btnAllSignalsDanger');
+    if (this.allSignalsDanger) {
+      btn?.classList.add('alarm-flash');
+      sound.playEmergencyAlarm();
+      ui.setAnnunciator('ALL SIGNALS TO DANGER', 'red');
+    } else {
+      btn?.classList.remove('alarm-flash');
+      sound.playRelayClick(900);
+      ui.setAnnunciator('DANGER RELEASED', 'green');
+    }
+    this.recomputeSignalAspects();
+  }
+
+  setPointMode(id, mode) {
+    const pt = this.points[id];
+    if (!pt) return;
+    if (pt.failed) {
+      sound.playConflictBuzz();
+      ui.setAnnunciator(`POINT ${id} FAILED`, 'red');
+      return;
+    }
+    if (pt.lockedByRoute || this.tcs[pt.tc]?.occupiedBy) {
+      sound.playConflictBuzz();
+      ui.setAnnunciator(`POINT ${id} INTERLOCKED`, 'red');
+      return;
+    }
+    pt.mode = mode;
+    if (mode === 'N' || mode === 'R') pt.position = mode;
+    sound.playRelayClick(980);
+    ui.renderPointKeys();
+    ui.log(`POINT ${id} → ${mode}`, 'info');
+  }
+
+  recomputeSignalAspects() {
+    Object.values(this.signals).forEach(sig => {
+      if (!sig.hasEntrance) return;
+      if (this.allSignalsDanger || !sig.routeSet) { sig.aspect = 'RED'; return; }
+      const route = this.activeRoutes.find(r => r.id === sig.routeSet);
+      if (!route) { sig.aspect = 'RED'; return; }
+      const occupied = route.remainingTCs.some(id => this.tcs[id]?.occupiedBy);
+      sig.aspect = occupied ? 'RED' : 'YELLOW';
+    });
+
+    Object.values(this.signals).forEach(sig => {
+      if (sig.aspect === 'YELLOW' && sig.routeSet) {
+        const route = this.activeRoutes.find(r => r.id === sig.routeSet);
+        if (route) {
+          const ex = this.signals[route.exit];
+          if (ex && (!ex.hasEntrance || ex.aspect === 'YELLOW' || ex.aspect === 'GREEN')) {
+            sig.aspect = 'GREEN';
+          }
+        }
+      }
+    });
+  }
+
+  spawnImmediateTrain() {
+    const approaches = this.getFreeApproaches();
+    if (!approaches.length) {
+      ui.setAnnunciator('NO FREE APPROACH TRACK', 'amber');
+      return;
+    }
+    const entry = approaches[Math.floor(Math.random() * approaches.length)];
+    const exits = Object.values(this.signals).filter(s => s.hasExit);
+    const exit = exits[Math.floor(Math.random() * exits.length)]?.id || 'S3';
+    const num = String(10 + ((this.trainCounter * 7) % 89));
+    this.trainCounter++;
+    this.spawnTrain({
+      headcode: `2${String.fromCharCode(65 + (this.trainCounter % 26))}${num}`,
+      type: Math.random() > 0.55 ? 'EXPRESS' : 'STOPPER',
+      origin: 'WEST', dest: 'EAST', targetPlat: 'PLAT 1',
+      entryTC: entry.id, exitSignal: exit,
+      dwellNeeded: 10 + Math.floor(Math.random() * 10)
+    });
+  }
+
+  spawnTrain(cfg) {
+    if (this.tcs[cfg.entryTC]?.occupiedBy) return;
+    const tr = {
+      id: `T${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      headcode: cfg.headcode, type: cfg.type,
+      origin: cfg.origin, dest: cfg.dest, targetPlat: cfg.targetPlat,
+      currentTC: cfg.entryTC, tcProgress: 0.08, speed: 0,
+      maxSpeed: cfg.type === 'EXPRESS' ? 48 : 36,
+      state: 'APPROACHING', dwellTimer: cfg.dwellNeeded,
+      hasServedPlatform: false, exitSignal: cfg.exitSignal, delaySeconds: 0
+    };
+    this.trains.push(tr);
+    this.tcs[cfg.entryTC].occupiedBy = tr.headcode;
+    sound.playTrainBell();
+    ui.log(`TD IN: ${tr.headcode} (stops at red signal)`, 'info');
+    this.recomputeSignalAspects();
+  }
+
+  getNextInfo(train) {
+    const curId = train.currentTC;
+    const tc = this.tcs[curId];
+    if (!tc) return { blocked: true };
+
+    const guardingSig = Object.values(this.signals).find(s => s.hasEntrance && s.approachTC === curId);
+    if (guardingSig) {
+      if (guardingSig.aspect === 'RED' || !guardingSig.routeSet) {
+        return { blocked: true, signalAspect: 'RED' };
+      }
+      const route = this.activeRoutes.find(r => r.id === guardingSig.routeSet);
+      if (route && route.tcs.length) {
+        return {
+          blocked: false, signalAspect: guardingSig.aspect,
+          nextTC: route.tcs[0], passedSignal: guardingSig.id
+        };
+      }
+      return { blocked: true, signalAspect: 'RED' };
+    }
+
+    const activeRoute = this.activeRoutes.find(r => r.tcs.includes(curId));
+    if (activeRoute) {
+      const idx = activeRoute.tcs.indexOf(curId);
+      if (idx >= 0 && idx < activeRoute.tcs.length - 1) {
+        return { blocked: false, signalAspect: 'GREEN', nextTC: activeRoute.tcs[idx + 1] };
+      }
+    }
+
+    if (curId.includes('EXIT') || curId.includes('E1') || curId.includes('E2') || curId === 'TC_EXIT') {
+      return { exit: true };
+    }
+
+    return { blocked: true, signalAspect: 'RED' };
+  }
+
+  update(dt) {
+    if (this.speed === 0) return;
+    const simDt = dt * this.speed;
+    this.timeSeconds += simDt;
+
+    this.nextSpawnTimer -= simDt;
+    if (this.nextSpawnTimer <= 0 && this.trains.length < 4) {
+      this.spawnImmediateTrain();
+      this.nextSpawnTimer = this.scenario === 'rush' ? 15 : 30;
+    }
+
+    for (let i = this.trains.length - 1; i >= 0; i--) {
+      const tr = this.trains[i];
+      const tc = this.tcs[tr.currentTC];
+      if (!tc) continue;
+
+      if (tr.speed < 1.5 && tr.state !== 'BOARDING') {
+        tr.delaySeconds += simDt;
+        this.totalDelaySeconds += simDt;
+      }
+
+      if (tc.isPlatform && !tr.hasServedPlatform && tr.tcProgress >= 0.42) {
+        if (tr.state !== 'BOARDING' && tr.state !== 'READY_DEPART') {
+          tr.state = 'BOARDING';
+          tr.speed = 0;
+          ui.log(`${tr.headcode} arrived ${tc.isPlatform}`, 'info');
+        }
+      }
+      if (tr.state === 'BOARDING') {
+        tr.speed = 0;
+        tr.dwellTimer -= simDt;
+        if (tr.dwellTimer <= 0) {
+          tr.hasServedPlatform = true;
+          tr.state = 'READY_DEPART';
+          sound.playTrainBell();
+          ui.log(`${tr.headcode} READY — set exit route`, 'amber');
+        }
+        continue;
+      }
+
+      const nextInfo = this.getNextInfo(tr);
+      let targetSpeed = tr.maxSpeed;
+
+      if (nextInfo.blocked) {
+        const distLeft = (1 - tr.tcProgress) * (tc.len || 200);
+        if (distLeft < 110) {
+          targetSpeed = Math.max(0, (distLeft / 110) * tr.maxSpeed * 0.7);
+          if (distLeft < 18) targetSpeed = 0;
+        }
+      } else if (nextInfo.signalAspect === 'YELLOW') {
+        targetSpeed = tr.maxSpeed * 0.55;
+      } else if (tc.isPlatform && !tr.hasServedPlatform) {
+        const distToStop = Math.max(0, (0.45 - tr.tcProgress) * (tc.len || 200));
+        targetSpeed = Math.min(tr.maxSpeed * 0.6, Math.max(6, distToStop * 0.55));
+      }
+
+      if (tr.speed < targetSpeed) tr.speed = Math.min(targetSpeed, tr.speed + 20 * simDt);
+      else if (tr.speed > targetSpeed) tr.speed = Math.max(targetSpeed, tr.speed - 38 * simDt);
+
+      tr.tcProgress += (tr.speed * simDt) / (tc.len || 200);
+
+      if (tr.tcProgress >= 1.0) {
+        if (nextInfo.exit) {
+          tc.occupiedBy = null;
+          this.releaseTC(tr.currentTC);
+          this.trains.splice(i, 1);
+          this.dispatchedCount++;
+          sound.playTrainBell();
+          ui.log(`DISPATCHED ${tr.headcode}`, 'success');
+          this.recomputeSignalAspects();
+          continue;
+        }
+
+        if (nextInfo.nextTC && !nextInfo.blocked && !this.tcs[nextInfo.nextTC]?.occupiedBy) {
+          tc.occupiedBy = null;
+          this.tcs[nextInfo.nextTC].occupiedBy = tr.headcode;
+          this.releaseTC(tr.currentTC);
+          tr.currentTC = nextInfo.nextTC;
+          tr.tcProgress = 0.02;
+          if (tr.state === 'READY_DEPART') tr.state = 'DEPARTING';
+          if (nextInfo.passedSignal) this.signals[nextInfo.passedSignal].aspect = 'RED';
+          this.recomputeSignalAspects();
+        } else {
+          tr.tcProgress = 0.97;
+          tr.speed = 0;
+        }
+      }
+    }
+  }
+
+  releaseTC(tcId) {
+    const tc = this.tcs[tcId];
+    if (!tc || !tc.lockedByRoute) return;
+    const rid = tc.lockedByRoute;
+    tc.lockedByRoute = null;
+    const route = this.activeRoutes.find(r => r.id === rid);
+    if (!route) return;
+
+    route.remainingTCs = route.remainingTCs.filter(id => id !== tcId);
+    Object.keys(route.points || {}).forEach(pt => {
+      if (this.points[pt]?.tc === tcId && this.points[pt].lockedByRoute === rid) {
+        this.points[pt].lockedByRoute = null;
+      }
+    });
+
+    if (route.remainingTCs.length === 0) {
+      if (this.signals[route.entrance]?.routeSet === rid) {
+        this.signals[route.entrance].routeSet = null;
+      }
+      Object.keys(route.points || {}).forEach(pt => {
+        if (this.points[pt]?.lockedByRoute === rid) this.points[pt].lockedByRoute = null;
+      });
+      this.activeRoutes = this.activeRoutes.filter(r => r.id !== rid);
+      ui.updateRouteCounter();
+      ui.renderRouteButtons();
+    }
+  }
+}
+
+/* ============================================================
+   RENDERER
+   ============================================================ */
+class NXPanelRenderer {
+  constructor(canvas, sim) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.sim = sim;
+    this.logicalW = 1200;
+    this.logicalH = 510;
+    this.scale = 1;
+    this.offsetX = 0;
+    this.offsetY = 0;
+    this.viewW = 0;
+    this.viewH = 0;
+    this._dpr = 1;
+    this.hitTargets = [];
+    this.flashPhase = 0;
+    this.onInput = null;
+    this.bindEvents();
+    this.resize();
+  }
+
+  resize() {
+    const parent = this.canvas.parentElement;
+    if (!parent) return;
+    const cs = getComputedStyle(parent);
+    const padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+    const padY = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+    const aw = Math.max(200, Math.floor(parent.clientWidth - padX));
+    const ah = Math.max(120, Math.floor(parent.clientHeight - padY));
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    if (aw === this.viewW && ah === this.viewH && dpr === this._dpr) return;
+
+    this.viewW = aw; this.viewH = ah; this._dpr = dpr;
+    this.canvas.width = Math.floor(aw * dpr);
+    this.canvas.height = Math.floor(ah * dpr);
+    this.canvas.style.width = aw + 'px';
+    this.canvas.style.height = ah + 'px';
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.scale = Math.min(aw / this.logicalW, ah / this.logicalH);
+    this.offsetX = (aw - this.logicalW * this.scale) / 2;
+    this.offsetY = (ah - this.logicalH * this.scale) / 2;
+  }
+
+  screenToLogical(cx, cy) {
+    const r = this.canvas.getBoundingClientRect();
+    return {
+      x: (cx - r.left - this.offsetX) / this.scale,
+      y: (cy - r.top - this.offsetY) / this.scale
+    };
+  }
+
+  findTarget(cx, cy) {
+    const p = this.screenToLogical(cx, cy);
+    let best = null, bestD = Infinity;
+    for (const t of this.hitTargets) {
+      const d = Math.hypot(p.x - t.x, p.y - t.y);
+      if (d <= t.r + 10 && d < bestD) { best = t; bestD = d; }
+    }
+    return best;
+  }
+
+  bindEvents() {
+    window.addEventListener('resize', () => this.resize());
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(() => this.resize());
+      ro.observe(this.canvas.parentElement);
+    }
+    const fire = (sid, type, cancel) => {
+      if (this.onInput) this.onInput(sid, type, cancel);
+      else this.sim.handleButtonClick(sid, type, cancel);
+    };
+    const act = (e, cancel = false) => {
+      e.preventDefault();
+      const t = this.findTarget(e.clientX, e.clientY);
+      if (t) fire(t.signalId, t.type, cancel);
+    };
+    this.canvas.addEventListener('pointerdown', e => {
+      if (e.button === 2) return;
+      act(e, false);
+    });
+    this.canvas.addEventListener('contextmenu', e => { e.preventDefault(); act(e, true); });
+    this.canvas.addEventListener('dblclick', e => { e.preventDefault(); act(e, true); });
+    this.canvas.addEventListener('pointermove', e => {
+      const t = this.findTarget(e.clientX, e.clientY);
+      this.sim.hoveredButton = t;
+      this.canvas.style.cursor = t ? 'pointer' : 'crosshair';
+    });
+  }
+
+  render(now) {
+    if (!this.viewW || !this.viewH) return;
+    if (!this.canvas.offsetParent) return;   // hidden (cast view closed / app hidden)
+    this.flashPhase = Math.floor(now / 320) % 2;
+    const ctx = this.ctx;
+    ctx.clearRect(0, 0, this.viewW, this.viewH);
+    ctx.save();
+    ctx.translate(this.offsetX, this.offsetY);
+    ctx.scale(this.scale, this.scale);
+    this.hitTargets = [];
+    this.drawTCs(ctx);
+    this.drawPoints(ctx);
+    this.drawSignals(ctx);
+    this.drawTDs(ctx);
+    this.drawTrains(ctx);
+    ctx.restore();
+  }
+
+  drawTCs(ctx) {
+    Object.values(this.sim.tcs).forEach(tc => {
+      let col = '#525b66', w = 5, g = null;
+      if (tc.occupiedBy) { col = '#ef4444'; w = 6.5; g = 'rgba(239,68,68,0.5)'; }
+      else if (tc.lockedByRoute) { col = '#f8fafc'; w = 6; g = 'rgba(248,250,252,0.4)'; }
+      ctx.save();
+      ctx.strokeStyle = col;
+      ctx.lineWidth = w;
+      ctx.lineCap = 'round';
+      if (g) { ctx.shadowColor = g; ctx.shadowBlur = 8; }
+      ctx.beginPath();
+      (tc.pts || []).forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
+
+  drawPoints(ctx) {
+    Object.values(this.sim.points).forEach(pt => {
+      ctx.save();
+      const rev = pt.position === 'R';
+      const v = rev ? pt.revVec : pt.normalVec;
+      ctx.strokeStyle = pt.failed ? '#ef4444' : rev ? '#38bdf8' : '#cbd5e1';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(pt.x, pt.y);
+      ctx.lineTo(pt.x + v[0] * 0.6, pt.y + v[1] * 0.6);
+      ctx.stroke();
+      ctx.font = '700 10px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = pt.failed ? '#f87171' : pt.mode !== 'AUTO' ? '#fbbf24' : '#94a3b8';
+      ctx.fillText(pt.id + (pt.failed ? '!' : ''), pt.x, pt.y + 18);
+      ctx.restore();
+    });
+  }
+
+  drawSignals(ctx) {
+    Object.values(this.sim.signals).forEach(sig => {
+      const dir = sig.dir || 1;
+      const yo = dir === 1 ? -20 : 20;
+      const sy = sig.y + yo;
+      ctx.save();
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(sig.x, sig.y + (dir === 1 ? -4 : 4));
+      ctx.lineTo(sig.x, sy);
+      ctx.lineTo(sig.x + dir * 8, sy);
+      ctx.stroke();
+
+      if (sig.hasEntrance) {
+        const hx = sig.x + dir * 16;
+        ctx.fillStyle = '#090b0d';
+        ctx.strokeStyle = '#475569';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(hx - 7, sy - 7, 14, 14, 7);
+        ctx.fill();
+        ctx.stroke();
+        let lamp = '#ef4444';
+        if (sig.aspect === 'GREEN') lamp = '#22c55e';
+        else if (sig.aspect === 'YELLOW') lamp = '#f59e0b';
+        ctx.fillStyle = lamp;
+        ctx.shadowColor = lamp;
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(hx, sy, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      ctx.font = '700 9px "JetBrains Mono", monospace';
+      ctx.fillStyle = '#cbd5e1';
+      ctx.textAlign = 'center';
+      ctx.fillText(sig.id, sig.x, sy + (dir === 1 ? -12 : 16));
+
+      if (sig.hasEntrance) {
+        const bx = sig.x - dir * 12, by = sy;
+        const sel = this.sim.selectedEntrance === sig.id;
+        ctx.fillStyle = sel && this.flashPhase === 0 ? '#fff' : '#dc2626';
+        ctx.strokeStyle = sel ? '#fff' : '#fca5a5';
+        ctx.lineWidth = sel ? 2 : 1.5;
+        ctx.beginPath();
+        ctx.arc(bx, by, 6.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        this.hitTargets.push({ signalId: sig.id, type: 'ENTRANCE', x: bx, y: by, r: 9 });
+      }
+      if (sig.hasExit) {
+        const bx = sig.hasEntrance ? sig.x + dir * 30 : sig.x + dir * 12;
+        const by = sy;
+        const can = this.sim.selectedEntrance && this.sim.routesDef.some(r => r.entrance === this.sim.selectedEntrance && r.exit === sig.id);
+        ctx.fillStyle = can && this.flashPhase === 0 ? '#fef08a' : '#eab308';
+        ctx.strokeStyle = can ? '#fff' : '#713f12';
+        ctx.lineWidth = can ? 2 : 1.5;
+        ctx.beginPath();
+        ctx.arc(bx, by, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        this.hitTargets.push({ signalId: sig.id, type: 'EXIT', x: bx, y: by, r: 9 });
+      }
+      ctx.restore();
+    });
+  }
+
+  drawTDs(ctx) {
+    Object.values(this.sim.tcs).forEach(tc => {
+      if (!tc.tdPos) return;
+      const [x, y] = tc.tdPos;
+      const hc = tc.occupiedBy;
+      ctx.save();
+      ctx.fillStyle = '#090c0e';
+      ctx.strokeStyle = hc ? '#34d399' : '#2d3540';
+      ctx.lineWidth = hc ? 1.5 : 1;
+      ctx.beginPath();
+      ctx.roundRect(x - 24, y - 9, 48, 18, 3);
+      ctx.fill();
+      ctx.stroke();
+      ctx.font = '700 11px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      if (hc) {
+        ctx.fillStyle = '#34d399';
+        ctx.shadowColor = 'rgba(52,211,153,0.6)';
+        ctx.shadowBlur = 6;
+        ctx.fillText(hc, x, y + 4);
+      } else {
+        ctx.fillStyle = '#334155';
+        ctx.fillText('----', x, y + 4);
+      }
+      ctx.restore();
+    });
+  }
+
+  drawTrains(ctx) {
+    this.sim.trains.forEach(tr => {
+      const tc = this.sim.tcs[tr.currentTC];
+      if (!tc || !tc.pts || tc.pts.length < 2) return;
+      const [p0, p1] = tc.pts;
+      const t = Math.max(0.05, Math.min(0.95, tr.tcProgress));
+      const tx = p0[0] + (p1[0] - p0[0]) * t;
+      const ty = p0[1] + (p1[1] - p0[1]) * t;
+      ctx.save();
+      ctx.fillStyle = tr.state === 'BOARDING' ? '#fbbf24' : '#ef4444';
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = 'rgba(239,68,68,0.7)';
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.roundRect(tx - 14, ty - 5, 28, 10, 3);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
+}
+
+/* ============================================================
+   UI CONTROLLER
+   ============================================================ */
+class PanelUIController {
+  constructor(sim) {
+    this.sim = sim;
+    this.entries = [];
+    this.annunciator = { msg: 'SYSTEM READY', level: 'green' };
+  }
+
+  formatTime(s) {
+    const h = Math.floor(s / 3600) % 24;
+    const m = Math.floor((s % 3600) / 60);
+    const sec = Math.floor(s % 60);
+    return [h, m, sec].map(v => String(v).padStart(2, '0')).join(':');
+  }
+
+  setAnnunciator(msg, level = 'green') {
+    this.annunciator = { msg, level };
+    const cls = level === 'red' ? 'led-text-red' : level === 'amber' ? 'led-text-amber' : 'led-text-green';
+    const el = document.getElementById('annunciatorText');
+    if (el) {
+      el.textContent = msg;
+      el.className = 'font-semibold ' + cls;
+    }
+    const b = document.getElementById('statusBanner');
+    b?.classList.toggle('alarm-flash', level === 'red');
+    const cel = document.getElementById('castAnnunciator');
+    if (cel) {
+      cel.textContent = msg;
+      cel.className = 'px-5 py-1.5 bg-[#0e1216] border-b border-[#22272e] font-mono-tech font-bold cast-annun shrink-0 truncate ' + cls;
+    }
+  }
+
+  log(msg, type = 'info') {
+    this.entries.unshift({ t: this.formatTime(this.sim.timeSeconds), msg, type });
+    if (this.entries.length > 40) this.entries.length = 40;
+    this.renderLog();
+  }
+
+  renderLog() {
+    const cls = type => type === 'error' ? 'text-rose-400'
+      : type === 'warn' ? 'text-amber-300'
+      : type === 'success' ? 'text-emerald-400' : 'text-slate-300';
+
+    const c = document.getElementById('eventLog');
+    if (c) {
+      c.innerHTML = this.entries.slice(0, 30).map(e =>
+        `<div class="leading-tight border-b border-[#1c2128] pb-1 ${cls(e.type)}">[${e.t}] ${e.msg}</div>`
+      ).join('');
+    }
+    const cc = document.getElementById('castLog');
+    if (cc) {
+      cc.innerHTML = this.entries.slice(0, 16).map(e =>
+        `<div class="cast-log-row ${cls(e.type)}">[${e.t}] ${e.msg}</div>`
+      ).join('');
+    }
+  }
+
+  clearLog() {
+    this.entries = [];
+    this.renderLog();
+  }
+
+  toggleManual(open) {
+    const m = document.getElementById('manualModal');
+    if (!m) return;
+    m.classList.toggle('hidden', !open);
+    m.classList.toggle('flex', !!open);
+  }
+
+  updateRouteCounter() {
+    safeSetText(document.getElementById('activeRoutesCount'), `${this.sim.activeRoutes.length} ROUTES`);
+    updateCastRoutes();
+  }
+
+  renderRouteButtons() {
+    const box = document.getElementById('routeButtons');
+    if (!box) return;
+    box.innerHTML = '';
+    this.sim.routesDef.forEach(r => {
+      const active = this.sim.activeRoutes.some(ar => ar.id === r.id);
+      const btn = document.createElement('button');
+      btn.className = `panel-btn px-2 py-1.5 rounded text-[10px] font-mono-tech text-center leading-tight ${active ? 'route-active' : ''}`;
+      btn.innerHTML = `<div class="font-bold">${r.entrance}→${r.exit}</div><div class="text-slate-400 text-[9px]">${r.desc || ''}</div>`;
+      btn.onclick = () => {
+        if (active) act('cancelRoute', { id: r.id });
+        else act('route', { entrance: r.entrance, exit: r.exit });
+      };
+      box.appendChild(btn);
+    });
+    buildCastRoutes();
+  }
+
+  renderPointKeys() {
+    const box = document.getElementById('pointKeysContainer');
+    if (!box) return;
+    box.innerHTML = '';
+    Object.values(this.sim.points).forEach(pt => {
+      const card = document.createElement('div');
+      card.className = `bg-[#161b21] border ${pt.failed ? 'border-rose-500/70' : 'border-[#2c3440]'} rounded px-2 py-1.5`;
+      card.innerHTML = `
+        <div class="flex justify-between font-mono-tech text-[11px] mb-1">
+          <span class="font-bold text-slate-200">${pt.id}</span>
+          <span class="${pt.failed ? 'text-rose-400' : pt.position === 'R' ? 'text-sky-400' : 'text-emerald-400'} font-bold">${pt.failed ? 'FAULT' : pt.position}</span>
+        </div>
+        <div class="grid grid-cols-3 gap-0.5 text-[10px] font-mono-tech">
+          <button onclick="act('point',{id:'${pt.id}',mode:'N'})" class="py-0.5 rounded ${pt.mode === 'N' ? 'bg-amber-600 text-white font-bold' : 'bg-[#222830] text-slate-400'}">N</button>
+          <button onclick="act('point',{id:'${pt.id}',mode:'AUTO'})" class="py-0.5 rounded ${pt.mode === 'AUTO' ? 'bg-sky-700 text-white font-bold' : 'bg-[#222830] text-slate-400'}">A</button>
+          <button onclick="act('point',{id:'${pt.id}',mode:'R'})" class="py-0.5 rounded ${pt.mode === 'R' ? 'bg-amber-600 text-white font-bold' : 'bg-[#222830] text-slate-400'}">R</button>
+        </div>`;
+      box.appendChild(card);
+    });
+  }
+
+  syncSpeedButtons() {
+    [0, 1, 2, 4].forEach(s => {
+      const b = document.getElementById('btnSpeed' + s);
+      if (b) b.classList.toggle('active-blue', s === this.sim.speed);
+    });
+  }
+
+  updateKPIs() {
+    safeSetText(document.getElementById('simClock'), this.formatTime(this.sim.timeSeconds));
+    safeSetText(document.getElementById('kpiDispatched'), String(this.sim.dispatchedCount));
+    safeSetText(document.getElementById('kpiDelay'), Math.floor(this.sim.totalDelaySeconds / 60) + 'm');
+    safeSetText(document.getElementById('activeTrainCount'), this.sim.trains.length + ' ACTIVE');
+  }
+
+  renderTimetable() {
+    const list = document.getElementById('timetableList');
+    if (!list) return;
+    if (!this.sim.trains.length) {
+      list.innerHTML = `<div class="text-center py-8 font-mono-tech text-xs text-slate-500">NO ACTIVE SERVICES<br>Press S or SPAWN<br><span class="text-amber-400/80">Trains stop at red signals</span></div>`;
+      return;
+    }
+    list.innerHTML = this.sim.trains.map(tr => {
+      const tc = this.sim.tcs[tr.currentTC];
+      let st = '';
+      if (tr.state === 'BOARDING') st = `<span class="text-amber-300 font-bold">BOARDING</span>`;
+      else if (tr.state === 'READY_DEPART') st = `<span class="text-emerald-400 font-bold">READY</span>`;
+      else if (tr.speed < 1) st = `<span class="text-rose-400 font-bold">HELD AT SIGNAL</span>`;
+      else st = `<span class="text-sky-300">${Math.round(tr.speed * 1.5)} mph</span>`;
+      return `<div class="bg-[#111418] border border-[#2a3038] rounded p-2.5 font-mono-tech text-xs">
+        <div class="flex justify-between items-center mb-1">
+          <span class="led-text-green font-bold text-sm">${tr.headcode}</span>
+          <span class="text-amber-300 font-bold text-[11px]">${tr.targetPlat}</span>
+        </div>
+        <div class="text-[11px] text-slate-400 mb-1">${tr.origin} → ${tr.dest}</div>
+        <div class="flex justify-between text-[11px] border-t border-[#1e232a] pt-1">
+          <span class="text-slate-500 truncate">${tc ? tc.name : tr.currentTC}</span>
+          ${st}
+        </div>
+      </div>`;
+    }).join('');
+  }
+}
+
+/* ============================================================
+   CAST MANAGER  —  big-screen sync over BroadcastChannel
+   ============================================================ */
+const CAST_CHANNEL = 'nx-iecc-cast-v2';
+
+class CastManager {
+  constructor() {
+    this.channel = null;
+    this.authority = true;
+    this.isDisplay = new URLSearchParams(location.search).get('cast') === '1';
+    this.castWin = null;
+    this.lastBroadcast = 0;
+    this.ready = false;
+    this.status = 'idle';
+    this.inline = false;
+    this._helloTimer = null;
+    this._watchTimer = null;
+  }
+
+  init() {
+    if (typeof BroadcastChannel === 'undefined') {
+      console.warn('BroadcastChannel unavailable — cast sync disabled');
+      return;
+    }
+    try {
+      this.channel = new BroadcastChannel(CAST_CHANNEL);
+      this.channel.onmessage = e => {
+        try { this.onMessage(e.data); } catch (err) { console.warn(err); }
+      };
+    } catch (e) { this.channel = null; }
+  }
+
+  send(msg) {
+    if (!this.channel) return;
+    try { this.channel.postMessage(msg); } catch (e) {}
+  }
+
+  /* ---------- role handling ---------- */
+  setAuthority(on) {
+    this.authority = on;
+    if (on) {
+      this.status = this.isDisplay ? 'live' : 'idle';
+    } else {
+      this.status = 'casting';
+    }
+    this.updatePill();
+  }
+
+  updatePill() {
+    const pill = document.getElementById('castStatusPill');
+    const dot = document.getElementById('castDot');
+    const txt = document.getElementById('castStatusText');
+    if (!pill) return;
+    const show = this.status !== 'idle';
+    pill.classList.toggle('hidden', !show);
+    pill.classList.toggle('flex', show);
+    if (dot) {
+      dot.className = 'w-1.5 h-1.5 rounded-full ' +
+        (this.status === 'live' ? 'bg-emerald-400 animate-pulse' :
+         this.status === 'casting' ? 'bg-sky-400 animate-pulse' : 'bg-slate-500');
+    }
+    if (txt) {
+      txt.textContent = this.status === 'live' ? 'LIVE ON TV' :
+                        this.status === 'casting' ? 'CASTING' : 'IDLE';
+    }
+    const badge = document.getElementById('castLinkBadge');
+    if (badge) {
+      badge.textContent = this.status === 'live' ? 'LINKED' : 'STANDALONE';
+      badge.className = 'font-mono-tech uppercase tracking-widest px-2.5 py-0.5 rounded border cast-kpi-label ' +
+        (this.status === 'live' ? 'border-emerald-600 text-emerald-400' : 'border-[#2a3038] text-slate-500');
+    }
+  }
+
+  /* ---------- message bus ---------- */
+  onMessage(msg) {
+    if (!msg || !msg.t) return;
+    switch (msg.t) {
+      case 'hello':
+        if (this.authority && !this.isDisplay) {
+          this.send({ t: 'takeover', state: sim.serialize(), log: ui.entries.slice(0, 20), level: mapManager.currentLevel });
+          this.setAuthority(false);
+        }
+        break;
+
+      case 'takeover':
+        if (this.isDisplay) {
+          clearTimeout(this._helloTimer);
+          this.ready = true;
+          sim.deserialize(msg.state);
+          if (msg.log) { ui.entries = msg.log; ui.renderLog(); }
+          if (msg.level) mapManager.currentLevel = msg.level;
+          this.setAuthority(true);
+          document.getElementById('castWaiting')?.classList.add('hidden');
+          ensureCastRenderer();
+          ui.setAnnunciator('CAST LINK ESTABLISHED — CONTROLS ACTIVE ON THIS SCREEN', 'green');
+        }
+        break;
+
+      case 'state':
+        if (!this.authority) {
+          sim.deserialize(msg.state);
+          if (msg.log) { ui.entries = msg.log; ui.renderLog(); }
+        }
+        break;
+
+      case 'cmd':
+        if (this.authority) execCommand(msg.action, msg.args || {});
+        break;
+
+      case 'bye':
+        if (!this.isDisplay && !this.authority) {
+          this.setAuthority(true);
+          this.castWin = null;
+          ui.setAnnunciator('CAST DISCONNECTED — CONTROL RETURNED TO THIS CONSOLE', 'amber');
+          ui.log('CAST DISCONNECTED', 'warn');
+        }
+        break;
+
+      case 'stop':
+        if (this.isDisplay) window.close();
+        break;
+    }
+  }
+
+  dispatch(action, args) {
+    if (this.authority) execCommand(action, args || {});
+    else this.send({ t: 'cmd', action, args: args || {} });
+  }
+
+  broadcastState(now) {
+    if (!this.authority || !this.channel) return;
+    if (now - this.lastBroadcast < 66) return;   // ~15 Hz
+    this.lastBroadcast = now;
+    this.send({ t: 'state', state: sim.serialize(), log: ui.entries.slice(0, 20) });
+  }
+
+  /* ---------- opening the TV window ---------- */
+  openCast() {
+    if (this.castWin && !this.castWin.closed) {
+      try { this.castWin.focus(); } catch (e) {}
+      return;
+    }
+
+    const url = new URL(location.href);
+    url.searchParams.set('cast', '1');
+    url.hash = '';
+
+    // Open synchronously so the popup is not blocked by the user-activation timeout.
+    const w = window.open(url.toString(), 'nx-cast-display', 'popup=yes,width=1600,height=900,left=60,top=60');
+    if (!w) {
+      ui.setAnnunciator('POPUP BLOCKED — ALLOW POPUPS FOR THIS SITE, OR PRESS F FOR FULLSCREEN MODE', 'amber');
+      ui.log('CAST: popup blocked by browser', 'error');
+      return;
+    }
+
+    this.castWin = w;
+    this.status = 'casting';
+    this.updatePill();
+    ui.setAnnunciator('CAST WINDOW OPENED — DRAG IT TO THE TV, THEN CLICK ⛶ FULLSCREEN', 'green');
+    ui.log('CAST WINDOW OPENED', 'success');
+    try { w.focus(); } catch (e) {}
+
+    // Best effort: move it onto the extended display once we know where that is.
+    this.placeOnSecondScreen(w);
+
+    clearInterval(this._watchTimer);
+    this._watchTimer = setInterval(() => {
+      if (this.castWin && this.castWin.closed) {
+        clearInterval(this._watchTimer);
+        this.castWin = null;
+        if (!this.authority) {
+          this.setAuthority(true);
+          ui.setAnnunciator('CAST WINDOW CLOSED — CONTROL RETURNED TO THIS CONSOLE', 'amber');
+          ui.log('CAST WINDOW CLOSED', 'warn');
+        } else {
+          this.status = 'idle';
+          this.updatePill();
+        }
+      }
+    }, 1200);
+  }
+
+  async placeOnSecondScreen(w) {
+    if (typeof window.getScreenDetails !== 'function') return;
+    try {
+      const details = await window.getScreenDetails();
+      const cur = details.currentScreen;
+      const others = details.screens.filter(s => s !== cur);
+      const target = others.find(s => s.isExtended) || others[0];
+      if (!target || w.closed) return;
+      try {
+        w.moveTo(Math.round(target.availLeft), Math.round(target.availTop));
+        w.resizeTo(Math.round(target.availWidth), Math.round(target.availHeight));
+        ui.setAnnunciator('CAST WINDOW PLACED ON SECOND DISPLAY — CLICK ⛶ FULLSCREEN THERE', 'green');
+      } catch (e) { /* moveTo blocked — user drags manually */ }
+    } catch (e) {
+      // permission denied or unsupported — the user drags the window manually
+    }
+  }
+
+  stopCast() {
+    this.send({ t: 'stop' });
+    if (this.castWin && !this.castWin.closed) { try { this.castWin.close(); } catch (e) {} }
+    this.castWin = null;
+    if (!this.authority) this.setAuthority(true);
+    this.status = 'idle';
+    this.updatePill();
+    ui.setAnnunciator('CAST STOPPED', 'amber');
+  }
+
+  /* ---------- in-window big-screen mode ---------- */
+  enterInlineCast() {
+    this.inline = true;
+    document.body.classList.add('cast-mode');
+    ensureCastRenderer();
+    this.toggleFullscreen(true);
+    ui.setAnnunciator('BIG-SCREEN MODE — PRESS F OR ✕ TO RETURN', 'green');
+  }
+
+  exitCast() {
+    if (this.isDisplay) { window.close(); return; }
+    this.inline = false;
+    document.body.classList.remove('cast-mode');
+    exitFS();
+    setTimeout(() => renderer && renderer.resize(), 120);
+  }
+
+  toggleFullscreen(force) {
+    const want = force === true ? true : !document.fullscreenElement;
+    if (want) {
+      if (!document.fullscreenElement) requestFS(document.documentElement);
+    } else {
+      exitFS();
+    }
+  }
+
+  /* ---------- display window bootstrap ---------- */
+  startDisplay() {
+    document.body.classList.add('cast-mode');
+    document.title = 'IECC BIG SCREEN — Victoria Junction';
+    document.getElementById('castRoot')?.classList.remove('hidden');
+    ensureCastRenderer();
+    this.updatePill();
+
+    // ask the controller for the live state
+    this.send({ t: 'hello' });
+
+    clearTimeout(this._helloTimer);
+    this._helloTimer = setTimeout(() => {
+      if (!this.ready) {
+        ui.setAnnunciator('NO CONTROLLER FOUND — RUN STANDALONE OR WAIT', 'amber');
+      }
+    }, 2600);
+
+    window.addEventListener('beforeunload', () => {
+      this.send({ t: 'bye' });
+      try { this.channel?.close(); } catch (e) {}
+    });
+  }
+
+  async goStandalone() {
+    clearTimeout(this._helloTimer);
+    this.ready = true;
+    this.setAuthority(true);
+    document.getElementById('castWaiting')?.classList.add('hidden');
+    ensureCastRenderer();
+    if (!Object.keys(sim.tcs).length) {
+      await mapManager.loadLevel('level2');
+    }
+    ui.setAnnunciator('STANDALONE BIG-SCREEN MODE — CONTROLS ACTIVE HERE', 'green');
+  }
+}
+
+const cast = new CastManager();
+
+/* ============================================================
+   COMMAND BUS  (all UI input funnels through here)
+   ============================================================ */
+function execCommand(action, args = {}) {
+  switch (action) {
+    case 'click':
+      NXSimulator.prototype.handleButtonClick.call(sim, args.sid, args.type, !!args.cancel);
+      break;
+    case 'spawn':        sim.spawnImmediateTrain(); break;
+    case 'speed':        sim.setSpeed(args.m); break;
+    case 'cancelAll':    sim.cancelAllUnoccupiedRoutes(); break;
+    case 'danger':       sim.emergencyAllDanger(); break;
+    case 'clearSel':     sim.clearEntranceSelection(); break;
+    case 'mute':         sound.toggleMute(); break;
+    case 'route':        sim.attemptSetRoute(args.entrance, args.exit); break;
+    case 'cancelRoute':  sim.cancelRoute(args.id); break;
+    case 'point':        sim.setPointMode(args.id, args.mode); break;
+    case 'scenario':     sim.loadScenario(args.mode); break;
+    case 'level':        mapManager.loadLevel(args.level); break;
+  }
+}
+function act(action, args) { cast.dispatch(action, args || {}); }
+window.act = act;
+
+function requestFS(el) {
+  if (!el || typeof el.requestFullscreen !== 'function') return;
+  try {
+    const p = el.requestFullscreen();
+    if (p && typeof p.catch === 'function') p.catch(() => {});
+  } catch (e) {}
+}
+function exitFS() {
+  if (!document.fullscreenElement || typeof document.exitFullscreen !== 'function') return;
+  try {
+    const p = document.exitFullscreen();
+    if (p && typeof p.catch === 'function') p.catch(() => {});
+  } catch (e) {}
+}
+
+/* ============================================================
+   BIG-SCREEN HUD
+   ============================================================ */
+let castRenderer = null;
+
+function ensureCastRenderer() {
+  if (castRenderer) { castRenderer.resize(); return; }
+  const c = document.getElementById('castCanvas');
+  if (!c) return;
+  castRenderer = registerRenderer(new NXPanelRenderer(c, sim));
+  castRenderer.onInput = (sid, type, cancel) => cast.dispatch('click', { sid, type, cancel });
+  castRenderer.resize();
+}
+
+function buildCastRoutes() {
+  const box = document.getElementById('castRoutes');
+  if (!box) return;
+  const sig = sim.routesDef.map(r => r.id).join('|');
+  if (box.dataset.sig === sig) { updateCastRoutes(); return; }
+  box.dataset.sig = sig;
+  box.innerHTML = '';
+  sim.routesDef.forEach(r => {
+    const b = document.createElement('button');
+    b.dataset.routeId = r.id;
+    b.className = 'cast-route-btn';
+    b.innerHTML = `<span class="font-bold">${r.entrance}→${r.exit}</span><span class="block opacity-60" style="font-size:.85em">${r.desc || ''}</span>`;
+    b.onclick = () => {
+      const active = sim.activeRoutes.some(ar => ar.id === r.id);
+      if (active) act('cancelRoute', { id: r.id });
+      else act('route', { entrance: r.entrance, exit: r.exit });
+    };
+    box.appendChild(b);
+  });
+  updateCastRoutes();
+}
+
+function updateCastRoutes() {
+  const box = document.getElementById('castRoutes');
+  if (!box) return;
+  const activeIds = new Set(sim.activeRoutes.map(r => r.id));
+  box.querySelectorAll('[data-route-id]').forEach(b => {
+    b.classList.toggle('is-active', activeIds.has(b.dataset.routeId));
+  });
+}
+
+function updateCastHUD() {
+  if (!castRenderer) return;
+  safeSetText(document.getElementById('castClock'), ui.formatTime(sim.timeSeconds));
+  safeSetText(document.getElementById('castDispatched'), String(sim.dispatchedCount));
+  safeSetText(document.getElementById('castDelay'), Math.floor(sim.totalDelaySeconds / 60) + 'm');
+  safeSetText(document.getElementById('castActive'), String(sim.trains.length));
+
+  const box = document.getElementById('castTrains');
+  if (box) {
+    if (!sim.trains.length) {
+      box.innerHTML = `<div class="text-slate-600 font-mono-tech text-center py-6" style="font-size:clamp(10px,.8vw,14px)">NO ACTIVE SERVICES</div>`;
+    } else {
+      box.innerHTML = sim.trains.map(tr => {
+        const tc = sim.tcs[tr.currentTC];
+        let st, stCls;
+        if (tr.state === 'BOARDING') { st = 'BOARDING'; stCls = 'text-amber-300'; }
+        else if (tr.state === 'READY_DEPART') { st = 'READY'; stCls = 'text-emerald-400'; }
+        else if (tr.speed < 1) { st = 'HELD AT SIGNAL'; stCls = 'text-rose-400'; }
+        else { st = Math.round(tr.speed * 1.5) + ' mph'; stCls = 'text-sky-300'; }
+        return `<div class="cast-train-card">
+          <div class="flex justify-between items-center">
+            <span class="led-text-green font-bold">${tr.headcode}</span>
+            <span class="text-amber-300 font-bold">${tr.targetPlat}</span>
+          </div>
+          <div class="flex justify-between items-center opacity-80">
+            <span class="text-slate-500 truncate pr-2">${tc ? tc.name : tr.currentTC}</span>
+            <span class="${stCls} font-bold whitespace-nowrap">${st}</span>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
+}
+
+/* ============================================================
+   BOOTSTRAP
+   ============================================================ */
+const sim = new NXSimulator();
+const ui = new PanelUIController(sim);
+let renderer = null;
+let lastFrame = performance.now();
+let uiAcc = 0;
+let hudAcc = 0;
+
+function setupKeyboard() {
+  document.addEventListener('keydown', e => {
+    if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
+    const k = e.key.toLowerCase();
+    if (k === ' ' || k === 'p') { e.preventDefault(); act('speed', { m: sim.speed === 0 ? 1 : 0 }); }
+    else if (k === '1') act('speed', { m: 1 });
+    else if (k === '2') act('speed', { m: 2 });
+    else if (k === '4') act('speed', { m: 4 });
+    else if (k === 's') { e.preventDefault(); act('spawn', {}); }
+    else if (k === 'c') { e.preventDefault(); act('cancelAll', {}); }
+    else if (k === 'escape') act('clearSel', {});
+    else if (k === 'm') act('mute', {});
+    else if (k === 'h') ui.toggleManual(true);
+    else if (k === 'd') act('danger', {});
+    else if (k === 'k') { if (!cast.isDisplay) cast.openCast(); }
+    else if (k === 'f') { if (cast.isDisplay || cast.inline) cast.toggleFullscreen(); else cast.enterInlineCast(); }
+  });
+}
+
+window.addEventListener('load', async () => {
+  cast.init();
+
+  if (cast.isDisplay) {
+    cast.startDisplay();
+    setupKeyboard();
+    requestAnimationFrame(loop);
+    return;
+  }
+
+  const canvas = document.getElementById('nxCanvas');
+  if (!canvas) return;
+  renderer = registerRenderer(new NXPanelRenderer(canvas, sim));
+  renderer.onInput = (sid, type, cancel) => cast.dispatch('click', { sid, type, cancel });
+  setupKeyboard();
+  await mapManager.loadLevel('level2');
+  ui.renderLog();
+  requestAnimationFrame(loop);
+  setTimeout(() => renderer && renderer.resize(), 150);
+
+  window.addEventListener('beforeunload', () => {
+    try { cast.channel?.close(); } catch (e) {}
+  });
+});
+
+function loop(now) {
+  const dt = Math.min(0.1, (now - lastFrame) / 1000);
+  lastFrame = now;
+
+  if (cast.authority) {
+    sim.update(dt);
+    cast.broadcastState(now);
+  }
+
+  if (renderer) renderer.render(now);
+  if (castRenderer) castRenderer.render(now);
+
+  uiAcc += dt;
+  if (uiAcc >= 0.3) {
+    uiAcc = 0;
+    ui.updateKPIs();
+    ui.renderTimetable();
+    ui.syncSpeedButtons();
+    updateCastRoutes();
+  }
+
+  hudAcc += dt;
+  if (hudAcc >= 0.25) {
+    hudAcc = 0;
+    updateCastHUD();
+  }
+
+  requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
